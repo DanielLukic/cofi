@@ -7,9 +7,11 @@
 #include <stdio.h>
 #include "constants.h"
 #include "utils.h"
+#include "log.h"
 
 // Generic X11 property getter - centralizes XGetWindowProperty pattern
-int get_x11_property(Display *display, Window window, Atom property, Atom req_type,
+// Returns COFI_SUCCESS (0) on success, COFI_ERROR_X11 on failure
+CofiResult get_x11_property(Display *display, Window window, Atom property, Atom req_type,
                      unsigned long max_items, Atom *actual_type_return,
                      int *actual_format_return, unsigned long *n_items_return,
                      unsigned char **prop_return) {
@@ -27,11 +29,11 @@ int get_x11_property(Display *display, Window window, Atom property, Atom req_ty
         if (actual_format_return) *actual_format_return = actual_format;
         if (n_items_return) *n_items_return = n_items;
         if (prop_return) *prop_return = prop;
-        return 1; // Success
+        return COFI_SUCCESS;
     }
     
     if (prop) XFree(prop);
-    return 0; // Failure
+    return COFI_ERROR_X11;
 }
 
 // Get property from X11 window
@@ -39,7 +41,7 @@ char *get_window_property(Display *display, Window window, Atom property) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, window, property, AnyPropertyType, 
-                        (~0L), NULL, NULL, NULL, &prop)) {
+                        (~0L), NULL, NULL, NULL, &prop) == COFI_SUCCESS) {
         char *result = g_strdup((char*)prop);
         XFree(prop);
         return result;
@@ -62,7 +64,7 @@ char *get_window_type(Display *display, Window window) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, window, net_wm_window_type, XA_ATOM,
-                        64, &actual_type, &actual_format, &n_items, &prop)) {
+                        64, &actual_type, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_format == 32 && n_items > 0) {
             // Check if contains only normal type
@@ -98,7 +100,7 @@ int get_window_pid(Display *display, Window window) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, window, net_wm_pid, XA_CARDINAL,
-                        1, NULL, &actual_format, &n_items, &prop)) {
+                        1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_format == 32 && n_items >= 1) {
             int pid = *(int*)prop;
@@ -127,7 +129,7 @@ void get_window_class(Display *display, Window window, char *instance, char *cla
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, window, wm_class, XA_STRING,
-                        1024, NULL, NULL, &n_items, &prop)) {
+                        1024, NULL, NULL, &n_items, &prop) == COFI_SUCCESS) {
         
         // WM_CLASS contains two null-terminated strings: instance, class
         char *str = (char*)prop;
@@ -177,7 +179,7 @@ int get_active_window_id(Display *display) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, root, net_active_window, XA_WINDOW,
-                        1, NULL, &actual_format, &n_items, &prop)) {
+                        1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_format == 32 && n_items >= 1) {
             int window_id = *(int*)prop;
@@ -204,7 +206,7 @@ int get_number_of_desktops(Display *display) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, DefaultRootWindow(display), net_num_desktops,
-                        XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop)) {
+                        XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_format == 32 && n_items >= 1) {
             int num_desktops = *(int*)prop;
@@ -223,20 +225,35 @@ char** get_desktop_names(Display *display, int *count) {
     Atom utf8_string = XInternAtom(display, "UTF8_STRING", False);
     Atom actual_type;
     int actual_format;
-    unsigned long n_items, bytes_after;
+    unsigned long n_items;
     unsigned char *prop = NULL;
     
     *count = get_number_of_desktops(display);
     char **names = malloc(*count * sizeof(char*));
+    if (!names) {
+        log_error("Failed to allocate memory for desktop names");
+        *count = 0;
+        return NULL;
+    }
     
     // Initialize with default names
     for (int i = 0; i < *count; i++) {
         names[i] = malloc(32);
+        if (!names[i]) {
+            log_error("Failed to allocate memory for desktop name %d", i);
+            // Clean up already allocated names
+            for (int j = 0; j < i; j++) {
+                free(names[j]);
+            }
+            free(names);
+            *count = 0;
+            return NULL;
+        }
         snprintf(names[i], 32, "Desktop %d", i);
     }
     
     if (get_x11_property(display, DefaultRootWindow(display), net_desktop_names,
-                        utf8_string, (~0L), &actual_type, &actual_format, &n_items, &prop)) {
+                        utf8_string, (~0L), &actual_type, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_type == utf8_string && actual_format == 8) {
             // Parse the null-terminated string list
@@ -267,7 +284,7 @@ int get_current_desktop(Display *display) {
     unsigned char *prop = NULL;
     
     if (get_x11_property(display, DefaultRootWindow(display), net_current_desktop,
-                        XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop)) {
+                        XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
         
         if (actual_format == 32 && n_items >= 1) {
             int current_desktop = *(int*)prop;

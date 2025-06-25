@@ -25,9 +25,9 @@ void get_window_list(AppData *app) {
     unsigned long n_items;
     
     // Get the client list from the root window
-    if (!get_x11_property(app->display, DefaultRootWindow(app->display), 
+    if (get_x11_property(app->display, DefaultRootWindow(app->display), 
                          net_client_list, XA_WINDOW, (~0L), 
-                         NULL, NULL, &n_items, &prop)) {
+                         NULL, NULL, &n_items, &prop) != COFI_SUCCESS) {
         log_error("Failed to get window list");
         return;
     }
@@ -35,6 +35,12 @@ void get_window_list(AppData *app) {
     log_debug("Found %lu windows", n_items);
     
     Window *windows = (Window*)prop;
+    app->window_count = 0;
+    
+    // Validate window count
+    if (n_items > MAX_WINDOWS) {
+        log_warn("System has %lu windows, but COFI only supports %d. Some windows will be skipped.", n_items, MAX_WINDOWS);
+    }
     
     for (unsigned long i = 0; i < n_items; i++) {
         Window window = windows[i];
@@ -47,6 +53,7 @@ void get_window_list(AppData *app) {
         // Validate window exists (like Go code's isValidWindow)
         XWindowAttributes attrs;
         if (XGetWindowAttributes(app->display, window, &attrs) == 0) {
+            log_trace("Window %lu no longer exists, skipping", window);
             continue; // Window doesn't exist
         }
         
@@ -83,13 +90,16 @@ void get_window_list(AppData *app) {
         unsigned long desk_n_items;
         
         if (get_x11_property(app->display, window, net_wm_desktop, XA_CARDINAL,
-                            1, NULL, &desk_actual_format, &desk_n_items, &desk_prop)) {
+                            1, NULL, &desk_actual_format, &desk_n_items, &desk_prop) == COFI_SUCCESS) {
             desktop = *(long*)desk_prop;
             XFree(desk_prop);
         }
         
         // Store window info
-        if (app->window_count < MAX_WINDOWS) {
+        if (app->window_count >= MAX_WINDOWS) {
+            log_error("Maximum window limit reached (%d), skipping remaining windows", MAX_WINDOWS);
+            break;
+        } else {
             WindowInfo *win = &app->windows[app->window_count];
             win->id = window;
             

@@ -72,12 +72,12 @@ This document tracks refactoring opportunities to improve code maintainability w
 
 ### 📋 Error Handling
 
-- [ ] **Standardize Error Handling** (Multiple files)
-  - [ ] Define consistent return codes (enum or constants)
-  - [ ] Standardize error logging patterns
-  - [ ] Document error handling conventions
-  - [ ] Review all function return values
-  - **Files:** All source files
+- [x] **Standardize Error Handling** (Multiple files)
+  - [x] Define consistent return codes (enum or constants) - Added CofiResult enum
+  - [x] Standardize error logging patterns - Using log_* functions consistently
+  - [x] Fixed critical malloc NULL checks and resource cleanup
+  - [x] Added error handling to X11 operations
+  - **Files:** constants.h, x11_utils.c, window_list.c, instance.c, harpoon.c
 
 - [ ] **Centralize Selection Management** (Multiple files)
   - [ ] Create `reset_selection_to_first(app)` function
@@ -103,21 +103,6 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [ ] Special characters like "|" may affect word boundary detection
   - [ ] Consider giving bonus score for consecutive word matches
   - **Files:** `src/filter.c` - `try_word_boundary_match()`
-
-### 💾 Data Structures
-
-- [ ] **Optimize Memory Layout** (`src/window_info.h`, `src/app_data.h`)
-  - [ ] Analyze memory usage of large fixed arrays
-  - [ ] Consider dynamic allocation for window arrays
-  - [ ] Evaluate reducing MAX_WINDOWS if appropriate
-  - [ ] Profile memory usage before/after changes
-  - **Files:** `src/window_info.h`, `src/app_data.h`
-
-- [ ] **String Storage Optimization** (`src/window_info.h`)
-  - [ ] Analyze string length distributions
-  - [ ] Consider dynamic string allocation for efficiency
-  - [ ] Measure memory impact
-  - **Files:** `src/window_info.h`
 
 ### 📁 Organization
 
@@ -193,7 +178,6 @@ valgrind --leak-check=full ./cofi
 🔧 **Utilities**: Developer experience improvements  
 📋 **Standards**: Consistency and maintainability  
 🧠 **Complex**: Advanced improvements requiring careful planning  
-💾 **Performance**: Optimization opportunities  
 📁 **Organization**: Code structure and clarity
 
 ---

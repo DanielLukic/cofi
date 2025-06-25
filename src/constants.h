@@ -57,4 +57,15 @@
 #define KEY_REPEAT_INITIAL_DELAY 1
 #define KEY_REPEAT_INTERVAL 100
 
+// Error codes for standardized error handling
+typedef enum {
+    COFI_SUCCESS = 0,           // Operation succeeded
+    COFI_ERROR = -1,            // Generic error
+    COFI_ERROR_X11 = -2,        // X11 operation failed
+    COFI_ERROR_MEMORY = -3,     // Memory allocation failed
+    COFI_ERROR_FILE = -4,       // File operation failed
+    COFI_ERROR_INVALID = -5,    // Invalid parameter or state
+    COFI_ERROR_NOT_FOUND = -6   // Resource not found
+} CofiResult;
+
 #endif // CONSTANTS_H
