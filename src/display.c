@@ -163,7 +163,11 @@ void update_display(AppData *app) {
         Window display_id = win->id;
         
         if (slot >= 0) {
-            snprintf(harpoon_col, sizeof(harpoon_col), "%d ", slot);
+            if (slot < 10) {
+                snprintf(harpoon_col, sizeof(harpoon_col), "%d ", slot);
+            } else {
+                snprintf(harpoon_col, sizeof(harpoon_col), "%c ", 'a' + (slot - 10));
+            }
             // Use the window ID from the harpoon slot since it may have been reassigned
             if (app->harpoon.slots[slot].assigned) {
                 display_id = app->harpoon.slots[slot].id;

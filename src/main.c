@@ -45,13 +45,19 @@ static void destroy_window(AppData *app);
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     (void)widget; // Unused parameter
     
-    // Check for Ctrl+number (assign/unassign harpoon) - only in window mode
+    // Check for Ctrl+number or Ctrl+letter (assign/unassign harpoon) - only in window mode
     if ((event->state & GDK_CONTROL_MASK) && app->current_tab == TAB_WINDOWS) {
         int slot = -1;
         if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
             slot = event->keyval - GDK_KEY_0;
         } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
             slot = event->keyval - GDK_KEY_KP_0;
+        } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
+            // Exclude navigation keys (h, j, k, l)
+            if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
+                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
+                slot = 10 + (event->keyval - GDK_KEY_a);
+            }
         }
         
         if (slot >= 0 && app->filtered_count > 0 && app->selected_index < app->filtered_count) {
@@ -81,13 +87,19 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         }
     }
     
-    // Check for Alt+number
+    // Check for Alt+number or Alt+letter
     if (event->state & GDK_MOD1_MASK) {  // GDK_MOD1_MASK is Alt
         int slot = -1;
         if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
             slot = event->keyval - GDK_KEY_0;
         } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
             slot = event->keyval - GDK_KEY_KP_0;
+        } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
+            // Exclude navigation keys (h, j, k, l)
+            if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
+                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
+                slot = 10 + (event->keyval - GDK_KEY_a);
+            }
         }
         
         if (slot >= 0) {
