@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "app_data.h"
 #include "display.h"
 #include "window_info.h"
-#include "app_data.h"
 #include "log.h"
 #include "constants.h"
 #include "x11_utils.h"

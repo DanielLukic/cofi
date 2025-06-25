@@ -3,7 +3,12 @@
 
 #include <X11/Xlib.h>
 #include <glib.h>
-#include "app_data.h"
+
+// Forward declaration (avoid duplicate typedef)
+#ifndef APPDATA_TYPEDEF_DEFINED
+#define APPDATA_TYPEDEF_DEFINED
+typedef struct AppData AppData;
+#endif
 
 // Initialize X11 event monitoring
 void setup_x11_event_monitoring(AppData *app);

@@ -1,5 +1,5 @@
 #ifndef BONUS_H
-#define BONUS_H BONUS_H
+#define BONUS_H
 
 #include "config.h"
 

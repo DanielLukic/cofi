@@ -54,4 +54,6 @@ typedef struct {
     HarpoonManager harpoon;                 // Harpoon number assignments
 } AppData;
 
+#define APPDATA_TYPEDEF_DEFINED
+
 #endif // APP_DATA_H

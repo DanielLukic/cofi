@@ -1,15 +1,13 @@
 #ifndef MATCH_H
-#define MATCH_H MATCH_H
-
-#include <math.h>
+#define MATCH_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef double score_t;
-#define SCORE_MAX INFINITY
-#define SCORE_MIN -INFINITY
+#define SCORE_MAX 1e308
+#define SCORE_MIN -1e308
 
 #define MATCH_MAX_LEN 1024
 

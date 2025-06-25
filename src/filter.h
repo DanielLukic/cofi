@@ -1,7 +1,11 @@
 #ifndef FILTER_H
 #define FILTER_H
 
-#include "app_data.h"
+// Forward declaration (avoid duplicate typedef)
+#ifndef APPDATA_TYPEDEF_DEFINED
+#define APPDATA_TYPEDEF_DEFINED
+typedef struct AppData AppData;
+#endif
 
 // Filter windows based on search text
 void filter_windows(AppData *app, const char *filter);

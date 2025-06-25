@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "app_data.h"
 #include "filter.h"
 #include "window_info.h"
 #include "history.h"

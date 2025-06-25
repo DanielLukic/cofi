@@ -11,9 +11,9 @@
 #include <sys/wait.h>
 #include <getopt.h>
 #include <ctype.h>
+#include "app_data.h"
 #include "x11_utils.h"
 #include "window_list.h"
-#include "app_data.h"
 #include "workspace_info.h"
 #include "history.h"
 #include "display.h"

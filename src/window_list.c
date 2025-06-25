@@ -4,6 +4,7 @@
 #include <X11/Xutil.h>
 #include <string.h>
 #include <strings.h>
+#include "app_data.h"
 #include "window_list.h"
 #include "x11_utils.h"
 #include "log.h"
