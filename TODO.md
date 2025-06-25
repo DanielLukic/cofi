@@ -22,9 +22,9 @@ This document tracks refactoring opportunities to improve code maintainability w
 
 ### 🧹 Cleanup
 
-- [ ] **Remove Debug Print Statements** (`src/filter.c`)
-  - [ ] Replace `fprintf(stderr, ...)` with `log_debug()` calls
-  - [ ] Remove or convert debugging output
+- [x] **Remove Debug Print Statements** (`src/filter.c`)
+  - [x] Replace `fprintf(stderr, ...)` with `log_debug()` calls
+  - [x] Remove or convert debugging output
   - **Files:** `src/filter.c` lines 124, 128, 141, 146
 
 - [ ] **Clean Up TODO Comments** (`src/main.c`)

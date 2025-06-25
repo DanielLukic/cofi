@@ -122,11 +122,11 @@ void filter_windows(AppData *app, const char *filter) {
             if (found_consecutive_at_word_start) {
                 // Consecutive match at word start - highest priority
                 best_score = SCORE_WORD_BOUNDARY;
-                fprintf(stderr, "WORD START MATCH: '%s' -> '%s' (score: %f)\n", filter, win->title, best_score);
+                log_debug("WORD START MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
             } else if (found_initials_match) {
                 // Initials match - very high priority
                 best_score = SCORE_INITIALS_MATCH;
-                fprintf(stderr, "INITIALS MATCH: '%s' -> '%s' (score: %f)\n", filter, win->title, best_score);
+                log_debug("INITIALS MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
             } else {
                 // Stage 2: Try simple subsequence match (e.g., "dll" -> d.*l.*l)
                 int filter_idx = 0;
@@ -139,12 +139,12 @@ void filter_windows(AppData *app, const char *filter) {
                 if (filter_idx == filter_len) {
                     // Subsequence match found - give it good score but less than word boundary
                     best_score = SCORE_SUBSEQUENCE_MATCH;
-                    fprintf(stderr, "SUBSEQUENCE MATCH: '%s' -> '%s' (score: %f)\n", filter, win->title, best_score);
+                    log_debug("SUBSEQUENCE MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
                 } else {
                     // Stage 3: Fall back to fuzzy matching
                     if (has_match(filter, win->title)) {
                         best_score = match(filter, win->title);
-                        fprintf(stderr, "FUZZY MATCH: '%s' -> '%s' (score: %f)\n", filter, win->title, best_score);
+                        log_debug("FUZZY MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
                     }
                 }
             }
@@ -160,7 +160,7 @@ void filter_windows(AppData *app, const char *filter) {
                 }
                 if (filter_idx == filter_len) {
                     best_score = SCORE_CLASS_INSTANCE_MATCH; // Slightly less than title subsequence
-                    fprintf(stderr, "CLASS SUBSEQUENCE: '%s' -> '%s' (score: %f)\n", filter, win->class_name, best_score);
+                    log_debug("CLASS SUBSEQUENCE: '%s' -> '%s' (score: %f)", filter, win->class_name, best_score);
                 }
             }
             
@@ -174,7 +174,7 @@ void filter_windows(AppData *app, const char *filter) {
                 }
                 if (filter_idx == filter_len) {
                     best_score = SCORE_CLASS_INSTANCE_MATCH; // Same as class
-                    fprintf(stderr, "INSTANCE SUBSEQUENCE: '%s' -> '%s' (score: %f)\n", filter, win->instance, best_score);
+                    log_debug("INSTANCE SUBSEQUENCE: '%s' -> '%s' (score: %f)", filter, win->instance, best_score);
                 }
             }
             
@@ -208,11 +208,11 @@ void filter_windows(AppData *app, const char *filter) {
         qsort(scored_windows, scored_count, sizeof(ScoredWindow), compare_scores);
         
         // Debug: print sorted results
-        fprintf(stderr, "\n=== Sorted results for filter '%s' ===\n", filter);
+        log_debug("=== Sorted results for filter '%s' ===", filter);
         for (int i = 0; i < scored_count && i < 5; i++) {
-            fprintf(stderr, "%d: %s (score: %f)\n", i, scored_windows[i].window.title, scored_windows[i].score);
+            log_debug("%d: %s (score: %f)", i, scored_windows[i].window.title, scored_windows[i].score);
         }
-        fprintf(stderr, "=====================================\n");
+        log_debug("=====================================");
     }
     
     // Copy sorted windows to filtered array
