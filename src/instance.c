@@ -177,7 +177,10 @@ static const char* get_lock_file_path(void) {
 
 InstanceManager* instance_manager_new(void) {
     InstanceManager *im = malloc(sizeof(InstanceManager));
-    if (!im) return NULL;
+    if (!im) {
+        log_error("Failed to allocate memory for InstanceManager");
+        return NULL;
+    }
     
     im->lock_fd = -1;
     im->pid = getpid();
@@ -187,6 +190,7 @@ InstanceManager* instance_manager_new(void) {
     im->lock_path = strdup(lock_path);
     
     if (!im->lock_path) {
+        log_error("Failed to allocate memory for lock path");
         free(im);
         return NULL;
     }
@@ -197,7 +201,7 @@ InstanceManager* instance_manager_new(void) {
 static bool create_lock_file(InstanceManager *im) {
     im->lock_fd = open(im->lock_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (im->lock_fd == -1) {
-        log_error("Failed to create lock file: %s", strerror(errno));
+        log_error("Failed to create lock file %s: %s", im->lock_path, strerror(errno));
         return false;
     }
     
@@ -205,12 +209,18 @@ static bool create_lock_file(InstanceManager *im) {
     char pid_str[32];
     snprintf(pid_str, sizeof(pid_str), "%d", im->pid);
     
-    if (write(im->lock_fd, pid_str, strlen(pid_str)) == -1) {
+    ssize_t written = write(im->lock_fd, pid_str, strlen(pid_str));
+    if (written == -1) {
         log_error("Failed to write PID to lock file: %s", strerror(errno));
         close(im->lock_fd);
-        unlink(im->lock_path);
         im->lock_fd = -1;
+        unlink(im->lock_path);
         return false;
+    }
+    
+    // Ensure data is written to disk
+    if (fsync(im->lock_fd) == -1) {
+        log_warn("Failed to sync lock file to disk: %s", strerror(errno));
     }
     
     return true;
@@ -241,19 +251,25 @@ bool instance_manager_check_existing(InstanceManager *im) {
             pid_t existing_pid = atoi(pid_str);
             fclose(lock_file);
             
-            // Check if process is still running
-            if (existing_pid != im->pid && is_process_running(existing_pid)) {
+            // Validate PID is reasonable
+            if (existing_pid <= 0 || existing_pid > 99999999) {
+                log_warn("Invalid PID in lock file: %d", existing_pid);
+                unlink(im->lock_path);
+            } else if (existing_pid != im->pid && is_process_running(existing_pid)) {
                 // Try to signal existing instance
                 if (signal_existing_instance(existing_pid)) {
                     return true; // Another instance exists and was signaled
                 }
+            } else {
+                // Remove stale lock file
+                log_debug("Removing stale lock file for PID %d", existing_pid);
+                unlink(im->lock_path);
             }
         } else {
             fclose(lock_file);
+            log_warn("Lock file exists but is empty, removing");
+            unlink(im->lock_path);
         }
-        
-        // Remove stale lock file
-        unlink(im->lock_path);
     }
     
     // No existing instance, create lock file
@@ -286,9 +302,27 @@ void instance_manager_cleanup(InstanceManager *im) {
     
     if (im->lock_fd != -1) {
         close(im->lock_fd);
-        unlink(im->lock_path);
+        im->lock_fd = -1;
     }
     
-    free(im->lock_path);
+    if (im->lock_path) {
+        // Only unlink if we own the lock (check PID matches)
+        FILE *lock_file = fopen(im->lock_path, "r");
+        if (lock_file) {
+            char pid_str[32];
+            if (fgets(pid_str, sizeof(pid_str), lock_file)) {
+                pid_t lock_pid = atoi(pid_str);
+                if (lock_pid == im->pid) {
+                    unlink(im->lock_path);
+                    log_debug("Removed lock file for PID %d", im->pid);
+                }
+            }
+            fclose(lock_file);
+        }
+        
+        free(im->lock_path);
+        im->lock_path = NULL;
+    }
+    
     free(im);
 }

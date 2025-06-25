@@ -145,9 +145,13 @@ void load_harpoon_config(HarpoonManager *manager) {
         while (*p && (*p == ' ' || *p == '\t')) p++;
         
         if (strstr(p, "\"slot\":")) {
-            sscanf(p, " \"slot\": %d", &slot);
+            if (sscanf(p, " \"slot\": %d", &slot) != 1) {
+                log_warn("Failed to parse slot number from JSON");
+            }
         } else if (strstr(p, "\"window_id\":")) {
-            sscanf(p, " \"window_id\": %lu", &temp_slot.id);
+            if (sscanf(p, " \"window_id\": %lu", &temp_slot.id) != 1) {
+                log_warn("Failed to parse window_id from JSON");
+            }
         } else if (strstr(p, "\"title\":")) {
             char *colon = strchr(p, ':');
             if (colon) {
