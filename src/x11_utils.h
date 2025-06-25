@@ -18,4 +18,16 @@ void get_window_class(Display *display, Window window, char *instance, char *cla
 // Get currently active window ID from _NET_ACTIVE_WINDOW
 int get_active_window_id(Display *display);
 
+// Get number of workspaces/desktops from _NET_NUMBER_OF_DESKTOPS
+int get_number_of_desktops(Display *display);
+
+// Get desktop names from _NET_DESKTOP_NAMES
+char** get_desktop_names(Display *display, int *count);
+
+// Get current desktop from _NET_CURRENT_DESKTOP
+int get_current_desktop(Display *display);
+
+// Switch to a specific desktop using _NET_CURRENT_DESKTOP
+void switch_to_desktop(Display *display, int desktop);
+
 #endif // X11_UTILS_H

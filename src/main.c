@@ -10,9 +10,11 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <getopt.h>
+#include <ctype.h>
 #include "x11_utils.h"
 #include "window_list.h"
 #include "app_data.h"
+#include "workspace_info.h"
 #include "history.h"
 #include "display.h"
 #include "filter.h"
@@ -20,6 +22,7 @@
 #include "x11_events.h"
 #include "instance.h"
 #include "harpoon.h"
+#include "match.h"
 
 #define COFI_VERSION "0.1.0"
 
@@ -32,7 +35,8 @@ static void on_entry_changed(GtkEntry *entry, AppData *app);
 static void print_usage(const char *prog_name);
 static int parse_log_level(const char *level_str);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
-static void position_window_after_realize(GtkWidget *window, gpointer user_data);
+static void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data);
+static void filter_workspaces(AppData *app, const char *filter);
 
 // Forward declaration for destroy_window function
 static void destroy_window(AppData *app);
@@ -41,8 +45,8 @@ static void destroy_window(AppData *app);
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     (void)widget; // Unused parameter
     
-    // Check for Ctrl+number (assign/unassign harpoon)
-    if (event->state & GDK_CONTROL_MASK) {
+    // Check for Ctrl+number (assign/unassign harpoon) - only in window mode
+    if ((event->state & GDK_CONTROL_MASK) && app->current_tab == TAB_WINDOWS) {
         int slot = -1;
         if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
             slot = event->keyval - GDK_KEY_0;
@@ -77,7 +81,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         }
     }
     
-    // Check for Alt+number (switch to harpooned window)
+    // Check for Alt+number
     if (event->state & GDK_MOD1_MASK) {  // GDK_MOD1_MASK is Alt
         int slot = -1;
         if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
@@ -87,13 +91,86 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         }
         
         if (slot >= 0) {
-            Window target_window = get_slot_window(&app->harpoon, slot);
-            if (target_window != 0) {
-                activate_window(target_window);
-                destroy_window(app);
-                log_info("Switched to harpooned window in slot %d", slot);
-                return TRUE;
+            if (app->current_tab == TAB_WINDOWS) {
+                // Switch to harpooned window
+                Window target_window = get_slot_window(&app->harpoon, slot);
+                if (target_window != 0) {
+                    activate_window(target_window);
+                    destroy_window(app);
+                    log_info("Switched to harpooned window in slot %d", slot);
+                    return TRUE;
+                }
+            } else {
+                // Switch to workspace by number
+                if (slot < app->workspace_count) {
+                    switch_to_desktop(app->display, slot);
+                    destroy_window(app);
+                    log_info("Switched to workspace %d", slot);
+                    return TRUE;
+                }
             }
+        }
+    }
+    
+    // Tab switching: Tab wraps around
+    if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
+        // Tab: switch to next tab with wrap-around
+        if (app->current_tab == TAB_WINDOWS) {
+            app->current_tab = TAB_WORKSPACES;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            filter_workspaces(app, "");
+            app->selected_workspace_index = 0;
+            update_display(app);
+            log_debug("Switched to Workspaces tab");
+        } else {
+            app->current_tab = TAB_WINDOWS;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            filter_windows(app, "");
+            app->selected_index = 0;
+            update_display(app);
+            log_debug("Switched to Windows tab");
+        }
+        return TRUE;
+    }
+    
+    // Ctrl+H/L for tab switching with wrap-around
+    if (event->state & GDK_CONTROL_MASK) {
+        if (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_H) {
+            // Ctrl+H: previous tab with wrap-around
+            if (app->current_tab == TAB_WINDOWS) {
+                app->current_tab = TAB_WORKSPACES;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                // TODO: filter_workspaces(app, "");
+                app->selected_workspace_index = 0;
+                update_display(app);
+                log_debug("Switched to Workspaces tab");
+            } else {
+                app->current_tab = TAB_WINDOWS;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                filter_windows(app, "");
+                app->selected_index = 0;
+                update_display(app);
+                log_debug("Switched to Windows tab");
+            }
+            return TRUE;
+        } else if (event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) {
+            // Ctrl+L: next tab with wrap-around
+            if (app->current_tab == TAB_WINDOWS) {
+                app->current_tab = TAB_WORKSPACES;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                // TODO: filter_workspaces(app, "");
+                app->selected_workspace_index = 0;
+                update_display(app);
+                log_debug("Switched to Workspaces tab");
+            } else {
+                app->current_tab = TAB_WINDOWS;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                filter_windows(app, "");
+                app->selected_index = 0;
+                update_display(app);
+                log_debug("Switched to Windows tab");
+            }
+            return TRUE;
         }
     }
     
@@ -104,33 +181,63 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
             
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter:
-            if (app->filtered_count > 0 && app->selected_index < app->filtered_count) {
-                // The swap is already applied in the filtered array, so just use the selected index
-                WindowInfo *win = &app->filtered[app->selected_index];
-                activate_window(win->id);
-                destroy_window(app);
+            if (app->current_tab == TAB_WINDOWS) {
+                if (app->filtered_count > 0 && app->selected_index < app->filtered_count) {
+                    // The swap is already applied in the filtered array, so just use the selected index
+                    WindowInfo *win = &app->filtered[app->selected_index];
+                    activate_window(win->id);
+                    destroy_window(app);
+                }
+            } else {
+                if (app->filtered_workspace_count > 0 && app->selected_workspace_index < app->filtered_workspace_count) {
+                    WorkspaceInfo *ws = &app->filtered_workspaces[app->selected_workspace_index];
+                    switch_to_desktop(app->display, ws->id);
+                    destroy_window(app);
+                    log_info("Switched to workspace %d: %s", ws->id, ws->name);
+                }
             }
             return TRUE;
             
         case GDK_KEY_Up:
-            if (app->selected_index < app->filtered_count - 1) {
-                app->selected_index++;
-                update_display(app);
+            if (app->current_tab == TAB_WINDOWS) {
+                if (app->selected_index < app->filtered_count - 1) {
+                    app->selected_index++;
+                    update_display(app);
+                }
+            } else {
+                if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
+                    app->selected_workspace_index++;
+                    update_display(app);
+                }
             }
             return TRUE;
             
         case GDK_KEY_Down:
-            if (app->selected_index > 0) {
-                app->selected_index--;
-                update_display(app);
+            if (app->current_tab == TAB_WINDOWS) {
+                if (app->selected_index > 0) {
+                    app->selected_index--;
+                    update_display(app);
+                }
+            } else {
+                if (app->selected_workspace_index > 0) {
+                    app->selected_workspace_index--;
+                    update_display(app);
+                }
             }
             return TRUE;
         
         case GDK_KEY_k:
             if (event->state & GDK_CONTROL_MASK) {
-                if (app->selected_index < app->filtered_count - 1) {
-                    app->selected_index++;
-                    update_display(app);
+                if (app->current_tab == TAB_WINDOWS) {
+                    if (app->selected_index < app->filtered_count - 1) {
+                        app->selected_index++;
+                        update_display(app);
+                    }
+                } else {
+                    if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
+                        app->selected_workspace_index++;
+                        update_display(app);
+                    }
                 }
                 return TRUE;
             }
@@ -138,9 +245,16 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
             
         case GDK_KEY_j:
             if (event->state & GDK_CONTROL_MASK) {
-                if (app->selected_index > 0) {
-                    app->selected_index--;
-                    update_display(app);
+                if (app->current_tab == TAB_WINDOWS) {
+                    if (app->selected_index > 0) {
+                        app->selected_index--;
+                        update_display(app);
+                    }
+                } else {
+                    if (app->selected_workspace_index > 0) {
+                        app->selected_workspace_index--;
+                        update_display(app);
+                    }
                 }
                 return TRUE;
             }
@@ -150,12 +264,45 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     return FALSE;
 }
 
+// Workspace filtering with fuzzy search
+static void filter_workspaces(AppData *app, const char *filter) {
+    app->filtered_workspace_count = 0;
+    
+    if (!filter || !*filter) {
+        // No filter - show all workspaces
+        for (int i = 0; i < app->workspace_count; i++) {
+            app->filtered_workspaces[app->filtered_workspace_count++] = app->workspaces[i];
+        }
+        return;
+    }
+    
+    // Build searchable string for each workspace: "id name"
+    char searchable[512];
+    for (int i = 0; i < app->workspace_count; i++) {
+        snprintf(searchable, sizeof(searchable), "%d %s", 
+                 app->workspaces[i].id, app->workspaces[i].name);
+        
+        // Use has_match and match functions from filter system
+        if (has_match(filter, searchable)) {
+            app->filtered_workspaces[app->filtered_workspace_count++] = app->workspaces[i];
+        }
+    }
+}
+
 // Handle entry text changes
 static void on_entry_changed(GtkEntry *entry, AppData *app) {
     const char *text = gtk_entry_get_text(entry);
-    filter_windows(app, text);
-    // Ensure selection is always 0 after filtering
-    app->selected_index = 0;
+    
+    if (app->current_tab == TAB_WINDOWS) {
+        filter_windows(app, text);
+        // Ensure selection is always 0 after filtering
+        app->selected_index = 0;
+    } else {
+        filter_workspaces(app, text);
+        // Ensure selection is always 0 after filtering
+        app->selected_workspace_index = 0;
+    }
+    
     update_display(app);
 }
 
@@ -191,7 +338,8 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     // Create main window
     app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(app->window), "cofi");
-    gtk_window_set_default_size(GTK_WINDOW(app->window), 800, 500);
+    // Set reasonable default size; will be adjusted based on content
+    gtk_window_set_default_size(GTK_WINDOW(app->window), 900, 500);
     // Set window position based on alignment
     switch (alignment) {
         case ALIGN_CENTER:
@@ -281,7 +429,10 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     
     // Position window manually for non-center alignments
     if (alignment != ALIGN_CENTER) {
-        g_signal_connect(app->window, "realize", G_CALLBACK(position_window_after_realize), GINT_TO_POINTER(alignment));
+        // Store alignment in app data for use in callback
+        app->alignment = alignment;
+        // Connect to size-allocate to reposition whenever size changes
+        g_signal_connect(app->window, "size-allocate", G_CALLBACK(on_window_size_allocate), app);
     }
 }
 
@@ -321,9 +472,15 @@ static WindowAlignment parse_alignment(const char *align_str) {
     return ALIGN_CENTER; // Default fallback
 }
 
-// Callback to position window after it's realized
-static void position_window_after_realize(GtkWidget *window, gpointer user_data) {
-    WindowAlignment alignment = GPOINTER_TO_INT(user_data);
+// Callback to reposition window whenever size changes
+static void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+    WindowAlignment alignment = app->alignment;
+    
+    // Only reposition if we have a valid size
+    if (allocation->width <= 1 || allocation->height <= 1) {
+        return;
+    }
     GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(window));
     GdkDisplay *display = gdk_screen_get_display(screen);
     
@@ -336,8 +493,12 @@ static void position_window_after_realize(GtkWidget *window, gpointer user_data)
     GdkRectangle monitor_geometry;
     gdk_screen_get_monitor_geometry(screen, monitor_num, &monitor_geometry);
     
-    gint window_width, window_height;
-    gtk_window_get_size(GTK_WINDOW(window), &window_width, &window_height);
+    // Use the allocation size
+    gint window_width = allocation->width;
+    gint window_height = allocation->height;
+    
+    log_debug("Repositioning window on size change: alignment=%d, size=%dx%d", 
+              alignment, window_width, window_height);
     
     gint x = 0, y = 0;
     
@@ -382,6 +543,13 @@ static void position_window_after_realize(GtkWidget *window, gpointer user_data)
             break;
     }
     
+    log_debug("Monitor geometry: x=%d, y=%d, width=%d, height=%d",
+              monitor_geometry.x, monitor_geometry.y, 
+              monitor_geometry.width, monitor_geometry.height);
+    log_debug("Calculated position: x=%d, y=%d", x, y);
+    
+    // Set gravity hint before moving
+    gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_STATIC);
     gtk_window_move(GTK_WINDOW(window), x, y);
 }
 
@@ -509,12 +677,40 @@ int main(int argc, char *argv[]) {
     app.history_count = 0;
     app.active_window_id = -1; // Use -1 to force initial active window to be moved to front
     
+    // Initialize tab mode
+    app.current_tab = TAB_WINDOWS;
+    app.selected_workspace_index = 0;
+    
     // Initialize harpoon manager
     init_harpoon_manager(&app.harpoon);
     load_harpoon_config(&app.harpoon);
     
     // Get window list
     get_window_list(&app);
+    
+    // Get workspace list
+    int num_desktops = get_number_of_desktops(app.display);
+    int current_desktop = get_current_desktop(app.display);
+    int desktop_count = 0;
+    char** desktop_names = get_desktop_names(app.display, &desktop_count);
+    
+    app.workspace_count = (num_desktops < MAX_WORKSPACES) ? num_desktops : MAX_WORKSPACES;
+    for (int i = 0; i < app.workspace_count; i++) {
+        app.workspaces[i].id = i;
+        strncpy(app.workspaces[i].name, desktop_names[i], MAX_WORKSPACE_NAME_LEN - 1);
+        app.workspaces[i].name[MAX_WORKSPACE_NAME_LEN - 1] = '\0';
+        app.workspaces[i].is_current = (i == current_desktop);
+        app.filtered_workspaces[i] = app.workspaces[i];
+    }
+    app.filtered_workspace_count = app.workspace_count;
+    
+    // Free desktop names
+    for (int i = 0; i < desktop_count; i++) {
+        free(desktop_names[i]);
+    }
+    free(desktop_names);
+    
+    log_debug("Found %d workspaces, current workspace: %d", app.workspace_count, current_desktop);
     
     // Check for automatic reassignments after loading config and getting window list
     check_and_reassign_windows(&app.harpoon, app.windows, app.window_count);

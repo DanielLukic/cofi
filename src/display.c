@@ -6,7 +6,30 @@
 #include <stdlib.h>
 #include "display.h"
 #include "window_info.h"
+#include "app_data.h"
 #include "log.h"
+
+// Format tab header with active tab indication
+static void format_tab_header(TabMode current_tab, GString *output) {
+    g_string_append(output, "\n");
+    g_string_append(output, "  ");
+    
+    if (current_tab == TAB_WINDOWS) {
+        g_string_append(output, "[ WINDOWS ]");
+    } else {
+        g_string_append(output, "  Windows  ");
+    }
+    
+    g_string_append(output, "    ");
+    
+    if (current_tab == TAB_WORKSPACES) {
+        g_string_append(output, "[ WORKSPACES ]");
+    } else {
+        g_string_append(output, "  Workspaces  ");
+    }
+    
+    g_string_append(output, "\n");
+}
 
 // Format desktop string like Go code
 static void format_desktop_str(int desktop, char *output) {
@@ -26,23 +49,49 @@ static void fit_column(const char *text, int width, char *output) {
         return;
     }
     
-    // Remove newlines and normalize spaces (simplified)
+    // Clean text: replace non-ASCII and newlines with spaces, squash consecutive spaces
     char clean_text[512];
-    strncpy(clean_text, text, sizeof(clean_text) - 1);
-    clean_text[sizeof(clean_text) - 1] = '\0';
+    int j = 0;
+    int last_was_space = 0;
     
-    // Replace newlines with spaces
-    for (char *p = clean_text; *p; p++) {
-        if (*p == '\n') *p = ' ';
+    for (int i = 0; text[i] && j < (int)sizeof(clean_text) - 1; i++) {
+        unsigned char c = (unsigned char)text[i];
+        if (c < 32 || c > 126) {
+            // Replace non-printable and non-ASCII with space
+            if (!last_was_space) {
+                clean_text[j++] = ' ';
+                last_was_space = 1;
+            }
+        } else if (c == ' ') {
+            // Regular space
+            if (!last_was_space) {
+                clean_text[j++] = ' ';
+                last_was_space = 1;
+            }
+        } else {
+            // Normal character
+            clean_text[j++] = text[i];
+            last_was_space = 0;
+        }
     }
+    clean_text[j] = '\0';
+    
+    // Trim leading spaces
+    char *start = clean_text;
+    while (*start == ' ') start++;
+    
+    // Trim trailing spaces
+    char *end = clean_text + strlen(clean_text) - 1;
+    while (end > start && *end == ' ') end--;
+    *(end + 1) = '\0';
     
     // Truncate if too long
-    if (strlen(clean_text) > (size_t)width) {
-        clean_text[width] = '\0';
+    if (strlen(start) > (size_t)width) {
+        start[width] = '\0';
     }
     
     // Left-align with padding
-    snprintf(output, width + 1, "%-*s", width, clean_text);
+    snprintf(output, width + 1, "%-*s", width, start);
 }
 
 // Update the text display with proper 5-column format like Go code
@@ -66,16 +115,17 @@ void update_display(AppData *app) {
     
     GString *text = g_string_new("");
     
-    // Column widths (from Go code)
-    const int HARPOON_WIDTH = 1;    // "0" or " "
-    const int DESKTOP_WIDTH = 4;   // "[0] "
-    const int INSTANCE_WIDTH = 20;
-    const int TITLE_WIDTH = 55;
-    const int CLASS_WIDTH = 18;
-    
-    // Display filtered windows in reverse order (bottom-up like fzf)
-    // The Alt-Tab swap is already applied in the filtered array
-    for (int i = app->filtered_count - 1; i >= 0; i--) {
+    if (app->current_tab == TAB_WINDOWS) {
+        // Column widths (from Go code)
+        const int HARPOON_WIDTH = 1;    // "0" or " "
+        const int DESKTOP_WIDTH = 4;   // "[0] "
+        const int INSTANCE_WIDTH = 20;
+        const int TITLE_WIDTH = 55;
+        const int CLASS_WIDTH = 18;
+        
+        // Display filtered windows in reverse order (bottom-up like fzf)
+        // The Alt-Tab swap is already applied in the filtered array
+        for (int i = app->filtered_count - 1; i >= 0; i--) {
         WindowInfo *win = &app->filtered[i];
         
         gboolean is_selected = (i == app->selected_index);
@@ -140,12 +190,45 @@ void update_display(AppData *app) {
         g_string_append(text, " ");
         g_string_append(text, window_id);
         g_string_append(text, "\n");
+        }
+        
+        // If no windows, show message
+        if (app->filtered_count == 0) {
+            g_string_append(text, "No matching windows found\n");
+        }
+    } else {
+        // Display workspaces
+        for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
+            WorkspaceInfo *ws = &app->filtered_workspaces[i];
+            
+            gboolean is_selected = (i == app->selected_workspace_index);
+            
+            // Selection indicator
+            if (is_selected) {
+                g_string_append(text, "> ");
+            } else {
+                g_string_append(text, "  ");
+            }
+            
+            // Current workspace indicator
+            if (ws->is_current) {
+                g_string_append(text, "* ");
+            } else {
+                g_string_append(text, "  ");
+            }
+            
+            // Format: [ID] Name
+            g_string_append_printf(text, "[%d] %s\n", ws->id, ws->name);
+        }
+        
+        // If no workspaces, show message
+        if (app->filtered_workspace_count == 0) {
+            g_string_append(text, "No matching workspaces found\n");
+        }
     }
     
-    // If no windows, show message
-    if (app->filtered_count == 0) {
-        g_string_append(text, "No matching windows found\n");
-    }
+    // Add tab header at the bottom
+    format_tab_header(app->current_tab, text);
     
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);
