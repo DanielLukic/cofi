@@ -20,18 +20,13 @@ void get_window_list(AppData *app) {
     log_trace("net_client_list atom = %lu", net_client_list);
     
     unsigned char *prop = NULL;
-    Atom actual_type;
-    int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     
     // Get the client list from the root window
-    int result = XGetWindowProperty(app->display, DefaultRootWindow(app->display), 
-                          net_client_list, 0, (~0L), False, XA_WINDOW,
-                          &actual_type, &actual_format, &nitems, 
-                          &bytes_after, &prop);
-    
-    if (result != Success || !prop) {
-        log_error("Failed to get window list. Result=%d, prop=%p", result, (void*)prop);
+    if (!get_x11_property(app->display, DefaultRootWindow(app->display), 
+                         net_client_list, XA_WINDOW, (~0L), 
+                         NULL, NULL, &nitems, &prop)) {
+        log_error("Failed to get window list");
         return;
     }
     
@@ -82,13 +77,11 @@ void get_window_list(AppData *app) {
         // Get desktop number
         int desktop = -1;
         unsigned char *desk_prop = NULL;
-        Atom desk_actual_type;
         int desk_actual_format;
-        unsigned long desk_nitems, desk_bytes_after;
+        unsigned long desk_nitems;
         
-        if (XGetWindowProperty(app->display, window, net_wm_desktop, 0, 1, False,
-                              XA_CARDINAL, &desk_actual_type, &desk_actual_format,
-                              &desk_nitems, &desk_bytes_after, &desk_prop) == Success && desk_prop) {
+        if (get_x11_property(app->display, window, net_wm_desktop, XA_CARDINAL,
+                            1, NULL, &desk_actual_format, &desk_nitems, &desk_prop)) {
             desktop = *(long*)desk_prop;
             XFree(desk_prop);
         }

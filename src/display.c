@@ -9,6 +9,7 @@
 #include "app_data.h"
 #include "log.h"
 #include "constants.h"
+#include "x11_utils.h"
 
 // Format tab header with active tab indication
 static void format_tab_header(TabMode current_tab, GString *output) {
@@ -273,16 +274,14 @@ void activate_window(Window window_id) {
     }
     
     // Get the window's desktop
-    Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *data = NULL;
     unsigned long desktop = 0;
     
     Atom desktop_atom = XInternAtom(disp, "_NET_WM_DESKTOP", False);
-    if (XGetWindowProperty(disp, window_id, desktop_atom, 0, 1, False,
-                          XA_CARDINAL, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &data) == Success && data) {
+    if (get_x11_property(disp, window_id, desktop_atom, XA_CARDINAL,
+                        1, NULL, &actual_format, &nitems, &data)) {
         desktop = *(unsigned long *)data;
         XFree(data);
         
