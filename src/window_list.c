@@ -21,21 +21,21 @@ void get_window_list(AppData *app) {
     log_trace("net_client_list atom = %lu", net_client_list);
     
     unsigned char *prop = NULL;
-    unsigned long nitems;
+    unsigned long n_items;
     
     // Get the client list from the root window
     if (!get_x11_property(app->display, DefaultRootWindow(app->display), 
                          net_client_list, XA_WINDOW, (~0L), 
-                         NULL, NULL, &nitems, &prop)) {
+                         NULL, NULL, &n_items, &prop)) {
         log_error("Failed to get window list");
         return;
     }
     
-    log_debug("Found %lu windows", nitems);
+    log_debug("Found %lu windows", n_items);
     
     Window *windows = (Window*)prop;
     
-    for (unsigned long i = 0; i < nitems; i++) {
+    for (unsigned long i = 0; i < n_items; i++) {
         Window window = windows[i];
         
         // Skip null window IDs (like Go code line 244)
@@ -79,10 +79,10 @@ void get_window_list(AppData *app) {
         int desktop = -1;
         unsigned char *desk_prop = NULL;
         int desk_actual_format;
-        unsigned long desk_nitems;
+        unsigned long desk_n_items;
         
         if (get_x11_property(app->display, window, net_wm_desktop, XA_CARDINAL,
-                            1, NULL, &desk_actual_format, &desk_nitems, &desk_prop)) {
+                            1, NULL, &desk_actual_format, &desk_n_items, &desk_prop)) {
             desktop = *(long*)desk_prop;
             XFree(desk_prop);
         }
