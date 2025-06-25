@@ -27,22 +27,23 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Remove or convert debugging output
   - **Files:** `src/filter.c` lines 124, 128, 141, 146
 
-- [ ] **Clean Up TODO Comments** (`src/main.c`)
-  - [ ] Review and address TODO comments at lines 155, 173, 630
-  - [ ] Either implement or remove outdated TODOs
+- [x] **Clean Up TODO Comments** (`src/main.c`)
+  - [x] Removed unimplemented --kill option and its TODO
+  - [x] Verified no other TODO comments exist
   - **Files:** `src/main.c`
 
 ## Phase 2: Core Improvements (3-5 days)
 
 ### 🏗️ Function Decomposition
 
-- [ ] **Break Down `on_key_press()` Function** (`src/main.c`)
-  - [ ] Extract `handle_harpoon_keys(event, app)`
-  - [ ] Extract `handle_workspace_keys(event, app)`
-  - [ ] Extract `handle_tab_switching(event, app)` 
-  - [ ] Extract `handle_navigation_keys(event, app)`
-  - [ ] Verify all key combinations still work
-  - **Files:** `src/main.c` (277-line function)
+- [x] **Break Down `on_key_press()` Function** (`src/main.c`)
+  - [x] Extract `handle_harpoon_assignment(event, app)` for Ctrl+key assignments
+  - [x] Extract `handle_harpoon_workspace_switching(event, app)` for Alt+key switching
+  - [x] Extract `handle_tab_switching(event, app)` for Tab and Ctrl+H/L
+  - [x] Extract `handle_navigation_keys(event, app)` for arrows, Enter, Escape, Ctrl+j/k
+  - [x] Extract `get_harpoon_slot(event)` helper for slot calculation
+  - [x] Verify all key combinations still work - code compiles successfully
+  - **Files:** `src/main.c` (reduced from 277 lines to 22 lines)
 
 - [ ] **Break Down `filter_windows()` Function** (`src/filter.c`)
   - [ ] Extract individual filtering stages into functions

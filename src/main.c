@@ -63,100 +63,102 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
     log_debug("Switched to %s tab", target_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
 }
 
-// Handle key press events
-static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
-    (void)widget; // Unused parameter
-    
-    // Check for Ctrl+number or Ctrl+letter (assign/unassign harpoon) - only in window mode
-    if ((event->state & GDK_CONTROL_MASK) && app->current_tab == TAB_WINDOWS) {
-        int slot = -1;
-        if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
-            slot = event->keyval - GDK_KEY_0;
-        } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
-            slot = event->keyval - GDK_KEY_KP_0;
-        } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-            // Exclude navigation keys (h, j, k, l) and text clearing key (u)
-            if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
-                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
-                event->keyval != GDK_KEY_u) {
-                slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
-            }
+// Helper function to get harpoon slot from key event
+static int get_harpoon_slot(GdkEventKey *event) {
+    if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
+        return event->keyval - GDK_KEY_0;
+    } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
+        return event->keyval - GDK_KEY_KP_0;
+    } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
+        // Exclude navigation keys (h, j, k, l) and text clearing key (u)
+        if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
+            event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
+            event->keyval != GDK_KEY_u) {
+            return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
         }
-        
-        if (slot >= 0 && app->filtered_count > 0 && app->selected_index < app->filtered_count) {
-            // Get the window that's displayed at the selected position
-            // The filtered array already has Alt-Tab swap applied, so use selected_index directly
-            WindowInfo *win = &app->filtered[app->selected_index];
-            
-            // Check if this window is already assigned to this slot
-            Window current_window = get_slot_window(&app->harpoon, slot);
-            if (current_window == win->id) {
-                // Unassign if same window
-                unassign_slot(&app->harpoon, slot);
-                log_info("Unassigned window '%s' from slot %d", win->title, slot);
-            } else {
-                // First unassign any other slot this window might have
-                int old_slot = get_window_slot(&app->harpoon, win->id);
-                if (old_slot >= 0) {
-                    unassign_slot(&app->harpoon, old_slot);
-                }
-                // Assign to new slot
-                assign_window_to_slot(&app->harpoon, slot, win);
-                log_info("Assigned window '%s' to slot %d", win->title, slot);
-            }
-            save_harpoon_config(&app->harpoon);
-            update_display(app);
+    }
+    return -1;
+}
+
+// Handle Ctrl+key for harpoon assignment/unassignment
+static gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
+    if (!(event->state & GDK_CONTROL_MASK) || app->current_tab != TAB_WINDOWS) {
+        return FALSE;
+    }
+    
+    int slot = get_harpoon_slot(event);
+    if (slot < 0 || app->filtered_count == 0 || app->selected_index >= app->filtered_count) {
+        return FALSE;
+    }
+    
+    // Get the window that's displayed at the selected position
+    WindowInfo *win = &app->filtered[app->selected_index];
+    
+    // Check if this window is already assigned to this slot
+    Window current_window = get_slot_window(&app->harpoon, slot);
+    if (current_window == win->id) {
+        // Unassign if same window
+        unassign_slot(&app->harpoon, slot);
+        log_info("Unassigned window '%s' from slot %d", win->title, slot);
+    } else {
+        // First unassign any other slot this window might have
+        int old_slot = get_window_slot(&app->harpoon, win->id);
+        if (old_slot >= 0) {
+            unassign_slot(&app->harpoon, old_slot);
+        }
+        // Assign to new slot
+        assign_window_to_slot(&app->harpoon, slot, win);
+        log_info("Assigned window '%s' to slot %d", win->title, slot);
+    }
+    
+    save_harpoon_config(&app->harpoon);
+    update_display(app);
+    return TRUE;
+}
+
+// Handle Alt+key for harpoon/workspace switching
+static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *app) {
+    if (!(event->state & GDK_MOD1_MASK)) {  // GDK_MOD1_MASK is Alt
+        return FALSE;
+    }
+    
+    int slot = get_harpoon_slot(event);
+    if (slot < 0) {
+        return FALSE;
+    }
+    
+    if (app->current_tab == TAB_WINDOWS) {
+        // Switch to harpooned window
+        Window target_window = get_slot_window(&app->harpoon, slot);
+        if (target_window != 0) {
+            activate_window(target_window);
+            destroy_window(app);
+            log_info("Switched to harpooned window in slot %d", slot);
+            return TRUE;
+        }
+    } else {
+        // Switch to workspace by number
+        if (slot < app->workspace_count) {
+            switch_to_desktop(app->display, slot);
+            destroy_window(app);
+            log_info("Switched to workspace %d", slot);
             return TRUE;
         }
     }
     
-    // Check for Alt+number or Alt+letter
-    if (event->state & GDK_MOD1_MASK) {  // GDK_MOD1_MASK is Alt
-        int slot = -1;
-        if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
-            slot = event->keyval - GDK_KEY_0;
-        } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
-            slot = event->keyval - GDK_KEY_KP_0;
-        } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-            // Exclude navigation keys (h, j, k, l) and text clearing key (u)
-            if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
-                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
-                event->keyval != GDK_KEY_u) {
-                slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
-            }
-        }
-        
-        if (slot >= 0) {
-            if (app->current_tab == TAB_WINDOWS) {
-                // Switch to harpooned window
-                Window target_window = get_slot_window(&app->harpoon, slot);
-                if (target_window != 0) {
-                    activate_window(target_window);
-                    destroy_window(app);
-                    log_info("Switched to harpooned window in slot %d", slot);
-                    return TRUE;
-                }
-            } else {
-                // Switch to workspace by number
-                if (slot < app->workspace_count) {
-                    switch_to_desktop(app->display, slot);
-                    destroy_window(app);
-                    log_info("Switched to workspace %d", slot);
-                    return TRUE;
-                }
-            }
-        }
-    }
-    
-    // Tab switching: Tab wraps around
+    return FALSE;
+}
+
+// Handle tab switching keys
+static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
+    // Tab key (without Ctrl)
     if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
-        // Tab: switch to next tab with wrap-around
         TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
         switch_to_tab(app, next_tab);
         return TRUE;
     }
     
-    // Ctrl+H/L for tab switching with wrap-around
+    // Ctrl+H/L for tab switching
     if (event->state & GDK_CONTROL_MASK) {
         if (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_H) {
             // Ctrl+H: previous tab with wrap-around
@@ -171,6 +173,11 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         }
     }
     
+    return FALSE;
+}
+
+// Handle navigation keys (arrows, Ctrl+j/k)
+static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
     switch (event->keyval) {
         case GDK_KEY_Escape:
             destroy_window(app);
@@ -180,7 +187,6 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         case GDK_KEY_KP_Enter:
             if (app->current_tab == TAB_WINDOWS) {
                 if (app->filtered_count > 0 && app->selected_index < app->filtered_count) {
-                    // The swap is already applied in the filtered array, so just use the selected index
                     WindowInfo *win = &app->filtered[app->selected_index];
                     activate_window(win->id);
                     destroy_window(app);
@@ -256,6 +262,30 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
                 return TRUE;
             }
             break;
+    }
+    
+    return FALSE;
+}
+
+// Handle key press events
+static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
+    (void)widget; // Unused parameter
+    
+    // Try handlers in order of priority
+    if (handle_harpoon_assignment(event, app)) {
+        return TRUE;
+    }
+    
+    if (handle_harpoon_workspace_switching(event, app)) {
+        return TRUE;
+    }
+    
+    if (handle_tab_switching(event, app)) {
+        return TRUE;
+    }
+    
+    if (handle_navigation_keys(event, app)) {
+        return TRUE;
     }
     
     return FALSE;
@@ -441,7 +471,6 @@ static void print_usage(const char *prog_name) {
     printf("  --no-log             Disable logging\n");
     printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
-    printf("  --kill               Kill running cofi instance\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
 }
@@ -559,7 +588,6 @@ int main(int argc, char *argv[]) {
         {"log-file", required_argument, 0, 'f'},
         {"no-log", no_argument, 0, 'n'},
         {"align", required_argument, 0, 'a'},
-        {"kill", no_argument, 0, 'k'},
         {"version", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -574,7 +602,7 @@ int main(int argc, char *argv[]) {
     // Parse command line arguments
     int option_index = 0;
     int c;
-    while ((c = getopt_long(argc, argv, "l:f:na:kvh", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "l:f:na:vh", long_options, &option_index)) != -1) {
         switch (c) {
             case 'l':
                 log_level = parse_log_level(optarg);
@@ -611,10 +639,6 @@ int main(int argc, char *argv[]) {
                 }
                 alignment = parse_alignment(optarg);
                 break;
-            case 'k':
-                // TODO: Implement kill functionality
-                printf("Kill functionality not yet implemented\n");
-                return 0;
             case 'v':
                 printf("cofi version %s\n", COFI_VERSION);
                 return 0;
