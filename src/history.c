@@ -1,6 +1,7 @@
 #include <string.h>
 #include <strings.h>
 #include <gtk/gtk.h>
+#include "app_data.h"
 #include "history.h"
 #include "x11_utils.h"
 #include "window_info.h"

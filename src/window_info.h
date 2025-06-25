@@ -2,12 +2,9 @@
 #define WINDOW_INFO_H
 
 #include <X11/Xlib.h>
+#include "types.h"
 
-#define MAX_WINDOWS 256
-#define MAX_TITLE_LEN 512
-#define MAX_CLASS_LEN 128
-
-typedef struct {
+typedef struct WindowInfo {
     Window id;
     char title[MAX_TITLE_LEN];
     char class_name[MAX_CLASS_LEN];

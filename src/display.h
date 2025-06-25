@@ -1,7 +1,13 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-#include "app_data.h"
+#include <X11/Xlib.h>
+
+// Forward declaration (avoid duplicate typedef)
+#ifndef APPDATA_TYPEDEF_DEFINED
+#define APPDATA_TYPEDEF_DEFINED
+typedef struct AppData AppData;
+#endif
 
 // Update the text display with proper 5-column format
 void update_display(AppData *app);

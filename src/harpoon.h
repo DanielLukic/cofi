@@ -2,12 +2,10 @@
 #define HARPOON_H
 
 #include <X11/Xlib.h>
-#include "window_info.h"
-
-#define MAX_HARPOON_SLOTS 36
+#include "types.h"
 
 // Structure to store a harpoon assignment
-typedef struct {
+typedef struct HarpoonSlot {
     Window id;
     char title[MAX_TITLE_LEN];
     char class_name[MAX_CLASS_LEN];
@@ -17,7 +15,7 @@ typedef struct {
 } HarpoonSlot;
 
 // Structure to manage all harpoon assignments
-typedef struct {
+typedef struct HarpoonManager {
     HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l,u)
 } HarpoonManager;
 

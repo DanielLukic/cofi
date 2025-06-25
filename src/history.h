@@ -1,7 +1,11 @@
 #ifndef HISTORY_H
 #define HISTORY_H
 
-#include "app_data.h"
+// Forward declaration (avoid duplicate typedef)
+#ifndef APPDATA_TYPEDEF_DEFINED
+#define APPDATA_TYPEDEF_DEFINED
+typedef struct AppData AppData;
+#endif
 
 // Update history with current window list
 void update_history(AppData *app);

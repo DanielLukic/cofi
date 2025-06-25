@@ -1,3 +1,4 @@
+#include "app_data.h"
 #include "x11_events.h"
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
