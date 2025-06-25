@@ -1,0 +1,183 @@
+# COFI Refactoring TODO
+
+This document tracks refactoring opportunities to improve code maintainability while preserving 1:1 behavior.
+
+## Phase 1: Quick Wins (1-2 days)
+
+### 🔥 High Priority
+
+- [x] **Extract Tab Navigation Duplication** (`src/main.c` lines 128-186)
+  - [x] Create `switch_to_tab(AppData *app, TabMode target_tab)` function
+  - [x] Replace 4 duplicated tab switching blocks
+  - [x] Test tab switching with Tab, Ctrl+H, Ctrl+L keys
+  - **Files:** `src/main.c`
+
+- [ ] **Create Constants File** (Multiple files)
+  - [ ] Create `src/constants.h` with all magic numbers
+  - [ ] Harpoon slot constants (0-9, a-z ranges)
+  - [ ] Display column widths (1, 4, 20, 55, 18)
+  - [ ] Filter scoring constants (2000, 1900, 1500, 1400)
+  - [ ] Replace hardcoded values throughout codebase
+  - **Files:** `src/main.c`, `src/display.c`, `src/filter.c`
+
+### 🧹 Cleanup
+
+- [ ] **Remove Debug Print Statements** (`src/filter.c`)
+  - [ ] Replace `fprintf(stderr, ...)` with `log_debug()` calls
+  - [ ] Remove or convert debugging output
+  - **Files:** `src/filter.c` lines 124, 128, 141, 146
+
+- [ ] **Clean Up TODO Comments** (`src/main.c`)
+  - [ ] Review and address TODO comments at lines 155, 173, 630
+  - [ ] Either implement or remove outdated TODOs
+  - **Files:** `src/main.c`
+
+## Phase 2: Core Improvements (3-5 days)
+
+### 🏗️ Function Decomposition
+
+- [ ] **Break Down `on_key_press()` Function** (`src/main.c`)
+  - [ ] Extract `handle_harpoon_keys(event, app)`
+  - [ ] Extract `handle_workspace_keys(event, app)`
+  - [ ] Extract `handle_tab_switching(event, app)` 
+  - [ ] Extract `handle_navigation_keys(event, app)`
+  - [ ] Verify all key combinations still work
+  - **Files:** `src/main.c` (277-line function)
+
+- [ ] **Break Down `filter_windows()` Function** (`src/filter.c`)
+  - [ ] Extract individual filtering stages into functions
+  - [ ] `try_word_boundary_match(filter, win)`
+  - [ ] `try_initials_match(filter, win)`
+  - [ ] `try_subsequence_match(filter, win)`
+  - [ ] `try_fuzzy_match(filter, win)`
+  - [ ] Test filtering behavior matches exactly
+  - **Files:** `src/filter.c` (235-line function)
+
+### 🔧 Utilities
+
+- [ ] **Extract X11 Property Utilities** (`src/x11_utils.c`)
+  - [ ] Create `get_x11_property(display, window, prop_name, prop_type, data, nitems)`
+  - [ ] Replace 6+ duplicated XGetWindowProperty patterns
+  - [ ] Test window property extraction still works
+  - **Files:** `src/x11_utils.c` lines 16-25, 42-61, 80-92
+
+- [ ] **Create String Copy Utility** (Multiple files)
+  - [ ] Create `safe_string_copy(dest, src, dest_size)` function
+  - [ ] Replace repeated strncpy + null termination patterns
+  - [ ] Test string handling behavior unchanged
+  - **Files:** `src/harpoon.c`, `src/window_list.c`
+
+### 📋 Error Handling
+
+- [ ] **Standardize Error Handling** (Multiple files)
+  - [ ] Define consistent return codes (enum or constants)
+  - [ ] Standardize error logging patterns
+  - [ ] Document error handling conventions
+  - [ ] Review all function return values
+  - **Files:** All source files
+
+- [ ] **Centralize Selection Management** (Multiple files)
+  - [ ] Create `reset_selection_to_first(app)` function
+  - [ ] Create `move_selection_up(app)` and `move_selection_down(app)`
+  - [ ] Replace scattered selection index management
+  - [ ] Test selection navigation unchanged
+  - **Files:** `src/main.c`, others
+
+## Phase 3: Advanced Optimizations (1-2 weeks)
+
+### 🧠 Complex Logic
+
+- [ ] **Refactor Filter Logic** (`src/filter.c`)
+  - [ ] Simplify nested conditional logic in filtering stages
+  - [ ] Extract complex scoring logic into separate functions
+  - [ ] Add comprehensive filter testing
+  - [ ] Verify filter results identical to current behavior
+  - **Files:** `src/filter.c` lines 84-179
+
+### 💾 Data Structures
+
+- [ ] **Optimize Memory Layout** (`src/window_info.h`, `src/app_data.h`)
+  - [ ] Analyze memory usage of large fixed arrays
+  - [ ] Consider dynamic allocation for window arrays
+  - [ ] Evaluate reducing MAX_WINDOWS if appropriate
+  - [ ] Profile memory usage before/after changes
+  - **Files:** `src/window_info.h`, `src/app_data.h`
+
+- [ ] **String Storage Optimization** (`src/window_info.h`)
+  - [ ] Analyze string length distributions
+  - [ ] Consider dynamic string allocation for efficiency
+  - [ ] Measure memory impact
+  - **Files:** `src/window_info.h`
+
+### 📁 Organization
+
+- [ ] **Clean Up Header Dependencies** (Multiple header files)
+  - [ ] Remove circular dependencies
+  - [ ] Remove unnecessary includes
+  - [ ] Organize include order consistently
+  - **Files:** All `.h` files
+
+- [ ] **Reorganize Function Order** (`src/main.c`)
+  - [ ] Group related static functions together
+  - [ ] Organize by logical functionality
+  - [ ] Add function group comments
+  - **Files:** `src/main.c`
+
+- [ ] **Variable Naming Consistency** (Multiple files)
+  - [ ] Standardize on snake_case throughout
+  - [ ] Fix any camelCase inconsistencies
+  - [ ] Update variable names for clarity
+  - **Files:** Multiple
+
+## Testing Strategy for Each Refactoring
+
+For every item above, follow this testing approach:
+
+### ✅ Verification Checklist
+- [ ] Code compiles without warnings
+- [ ] All window switching behavior identical
+- [ ] Alt-Tab behavior preserved exactly
+- [ ] Harpoon assignments work (Ctrl+key, Alt+key)
+- [ ] Navigation keys work (Ctrl+j/k/h/l, arrows)
+- [ ] Filtering behavior unchanged
+- [ ] Window property extraction works
+- [ ] No memory leaks introduced
+- [ ] Performance not degraded
+
+### 🧪 Test Commands
+```bash
+# Build and basic test
+make clean && make
+./cofi &
+
+# Memory testing
+valgrind --leak-check=full ./cofi
+
+# Window manager compatibility
+# Test with different window managers
+```
+
+## Implementation Notes
+
+- **Incremental approach**: Complete one item at a time
+- **Git commits**: Commit after each successful refactoring
+- **Backup strategy**: Create branch before major changes
+- **Behavior preservation**: Must maintain exact same functionality
+- **Testing**: Test each change thoroughly before moving to next
+
+## Priority Levels
+
+🔥 **High Priority**: Significant impact, should do first  
+🧹 **Cleanup**: Easy wins, good for momentum  
+🏗️ **Core**: Important structural improvements  
+🔧 **Utilities**: Developer experience improvements  
+📋 **Standards**: Consistency and maintainability  
+🧠 **Complex**: Advanced improvements requiring careful planning  
+💾 **Performance**: Optimization opportunities  
+📁 **Organization**: Code structure and clarity
+
+---
+
+**Status**: Ready to begin Phase 1  
+**Last Updated**: $(date)  
+**Estimated Total Effort**: 2-3 weeks part-time
