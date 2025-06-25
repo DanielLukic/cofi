@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "constants.h"
+#include "utils.h"
 
 // Generic X11 property getter - centralizes XGetWindowProperty pattern
 int get_x11_property(Display *display, Window window, Atom property, Atom req_type,
@@ -142,12 +143,10 @@ void get_window_class(Display *display, Window window, char *instance, char *cla
         
         if (null_pos >= 0 && null_pos + 1 < (int)nitems) {
             // Copy instance (first string)
-            strncpy(instance, str, MAX_CLASS_LEN - 1);
-            instance[MAX_CLASS_LEN - 1] = '\0';
+            safe_string_copy(instance, str, MAX_CLASS_LEN);
             
             // Copy class (second string, after null terminator)
-            strncpy(class_name, str + null_pos + 1, MAX_CLASS_LEN - 1);
-            class_name[MAX_CLASS_LEN - 1] = '\0';
+            safe_string_copy(class_name, str + null_pos + 1, MAX_CLASS_LEN);
             
             // Remove any trailing nulls from class_name
             int len = strlen(class_name);
@@ -157,8 +156,7 @@ void get_window_class(Display *display, Window window, char *instance, char *cla
             class_name[len] = '\0';
         } else if (null_pos == -1) {
             // Malformed, treat whole thing as instance
-            strncpy(instance, str, MAX_CLASS_LEN - 1);
-            instance[MAX_CLASS_LEN - 1] = '\0';
+            safe_string_copy(instance, str, MAX_CLASS_LEN);
         }
         
         XFree(prop);

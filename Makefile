@@ -16,7 +16,8 @@ SOURCES = src/main.c \
           src/instance.c \
           src/harpoon.c \
           src/window_matcher.c \
-          src/match.c
+          src/match.c \
+          src/utils.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

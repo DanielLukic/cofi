@@ -64,11 +64,11 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Test window property extraction still works - code compiles successfully
   - **Files:** `src/x11_utils.c`, `src/display.c`, `src/window_list.c`
 
-- [ ] **Create String Copy Utility** (Multiple files)
-  - [ ] Create `safe_string_copy(dest, src, dest_size)` function
-  - [ ] Replace repeated strncpy + null termination patterns
-  - [ ] Test string handling behavior unchanged
-  - **Files:** `src/harpoon.c`, `src/window_list.c`
+- [x] **Create String Copy Utility** (Multiple files)
+  - [x] Create `safe_string_copy(dest, src, dest_size)` function in `utils.c`
+  - [x] Replace 17 strncpy + null termination patterns
+  - [x] Test string handling behavior unchanged - code compiles successfully
+  - **Files:** `src/harpoon.c`, `src/window_list.c`, `src/main.c`, `src/x11_utils.c`
 
 ### 📋 Error Handling
 
