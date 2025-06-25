@@ -41,6 +41,27 @@ static void filter_workspaces(AppData *app, const char *filter);
 // Forward declaration for destroy_window function
 static void destroy_window(AppData *app);
 
+// Helper function to switch between tabs
+static void switch_to_tab(AppData *app, TabMode target_tab) {
+    if (app->current_tab == target_tab) {
+        return; // Already on the target tab
+    }
+    
+    app->current_tab = target_tab;
+    gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+    
+    if (target_tab == TAB_WINDOWS) {
+        filter_windows(app, "");
+        app->selected_index = 0;
+    } else {
+        filter_workspaces(app, "");
+        app->selected_workspace_index = 0;
+    }
+    
+    update_display(app);
+    log_debug("Switched to %s tab", target_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
+}
+
 // Handle key press events
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     (void)widget; // Unused parameter
@@ -127,21 +148,8 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     // Tab switching: Tab wraps around
     if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
         // Tab: switch to next tab with wrap-around
-        if (app->current_tab == TAB_WINDOWS) {
-            app->current_tab = TAB_WORKSPACES;
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            filter_workspaces(app, "");
-            app->selected_workspace_index = 0;
-            update_display(app);
-            log_debug("Switched to Workspaces tab");
-        } else {
-            app->current_tab = TAB_WINDOWS;
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            filter_windows(app, "");
-            app->selected_index = 0;
-            update_display(app);
-            log_debug("Switched to Windows tab");
-        }
+        TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
+        switch_to_tab(app, next_tab);
         return TRUE;
     }
     
@@ -149,39 +157,13 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     if (event->state & GDK_CONTROL_MASK) {
         if (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_H) {
             // Ctrl+H: previous tab with wrap-around
-            if (app->current_tab == TAB_WINDOWS) {
-                app->current_tab = TAB_WORKSPACES;
-                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                // TODO: filter_workspaces(app, "");
-                app->selected_workspace_index = 0;
-                update_display(app);
-                log_debug("Switched to Workspaces tab");
-            } else {
-                app->current_tab = TAB_WINDOWS;
-                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                filter_windows(app, "");
-                app->selected_index = 0;
-                update_display(app);
-                log_debug("Switched to Windows tab");
-            }
+            TabMode prev_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
+            switch_to_tab(app, prev_tab);
             return TRUE;
         } else if (event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) {
             // Ctrl+L: next tab with wrap-around
-            if (app->current_tab == TAB_WINDOWS) {
-                app->current_tab = TAB_WORKSPACES;
-                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                // TODO: filter_workspaces(app, "");
-                app->selected_workspace_index = 0;
-                update_display(app);
-                log_debug("Switched to Workspaces tab");
-            } else {
-                app->current_tab = TAB_WINDOWS;
-                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                filter_windows(app, "");
-                app->selected_index = 0;
-                update_display(app);
-                log_debug("Switched to Windows tab");
-            }
+            TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
+            switch_to_tab(app, next_tab);
             return TRUE;
         }
     }
