@@ -33,8 +33,8 @@ int has_match(const char *needle, const char *haystack) {
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 
 struct match_struct {
-	int needle_len;
-	int haystack_len;
+	int needle_length;
+	int haystack_length;
 
 	char lower_needle[MATCH_MAX_LEN];
 	char lower_haystack[MATCH_MAX_LEN];
@@ -53,25 +53,25 @@ static void precompute_bonus(const char *haystack, score_t *match_bonus) {
 }
 
 static void setup_match_struct(struct match_struct *match, const char *needle, const char *haystack) {
-	match->needle_len = strlen(needle);
-	match->haystack_len = strlen(haystack);
+	match->needle_length = strlen(needle);
+	match->haystack_length = strlen(haystack);
 
-	if (match->haystack_len > MATCH_MAX_LEN || match->needle_len > match->haystack_len) {
+	if (match->haystack_length > MATCH_MAX_LEN || match->needle_length > match->haystack_length) {
 		return;
 	}
 
-	for (int i = 0; i < match->needle_len; i++)
+	for (int i = 0; i < match->needle_length; i++)
 		match->lower_needle[i] = tolower(needle[i]);
 
-	for (int i = 0; i < match->haystack_len; i++)
+	for (int i = 0; i < match->haystack_length; i++)
 		match->lower_haystack[i] = tolower(haystack[i]);
 
 	precompute_bonus(haystack, match->match_bonus);
 }
 
 static inline void match_row(const struct match_struct *match, int row, score_t *curr_D, score_t *curr_M, const score_t *last_D, const score_t *last_M) {
-	int n = match->needle_len;
-	int m = match->haystack_len;
+	int n = match->needle_length;
+	int m = match->haystack_length;
 	int i = row;
 
 	const char *lower_needle = match->lower_needle;
@@ -109,8 +109,8 @@ score_t match(const char *needle, const char *haystack) {
 	struct match_struct match;
 	setup_match_struct(&match, needle, haystack);
 
-	int n = match.needle_len;
-	int m = match.haystack_len;
+	int n = match.needle_length;
+	int m = match.haystack_length;
 
 	if (m > MATCH_MAX_LEN || n > m) {
 		/*
@@ -158,8 +158,8 @@ score_t match_positions(const char *needle, const char *haystack, size_t *positi
 	struct match_struct match;
 	setup_match_struct(&match, needle, haystack);
 
-	int n = match.needle_len;
-	int m = match.haystack_len;
+	int n = match.needle_length;
+	int m = match.haystack_length;
 
 	if (m > MATCH_MAX_LEN || n > m) {
 		/*

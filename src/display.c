@@ -275,13 +275,13 @@ void activate_window(Window window_id) {
     
     // Get the window's desktop
     int actual_format;
-    unsigned long nitems;
+    unsigned long n_items;
     unsigned char *data = NULL;
     unsigned long desktop = 0;
     
     Atom desktop_atom = XInternAtom(disp, "_NET_WM_DESKTOP", False);
     if (get_x11_property(disp, window_id, desktop_atom, XA_CARDINAL,
-                        1, NULL, &actual_format, &nitems, &data)) {
+                        1, NULL, &actual_format, &n_items, &data)) {
         desktop = *(unsigned long *)data;
         XFree(data);
         

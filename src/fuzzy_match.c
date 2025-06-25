@@ -38,13 +38,13 @@ static int matches_initials(const char *needle, const char *haystack) {
     get_word_starts(haystack, word_starts, &word_count);
     
     // Check if needle matches the word starts exactly
-    int needle_len = strlen(needle);
-    if (needle_len > word_count) {
+    int needle_length = strlen(needle);
+    if (needle_length > word_count) {
         return 0;
     }
     
     // Case-insensitive comparison of needle with word starts
-    for (int i = 0; i < needle_len; i++) {
+    for (int i = 0; i < needle_length; i++) {
         if (tolower(needle[i]) != word_starts[i]) {
             return 0;
         }
@@ -54,7 +54,7 @@ static int matches_initials(const char *needle, const char *haystack) {
 }
 
 // Calculate match score for a single character match
-static int char_score(const char *haystack, int hay_idx, int is_word_start, int consecutive) {
+static int char_score(const char *haystack, int hay_index, int is_word_start, int consecutive) {
     int score = 1;  // Base score for any match
     
     // Bonus for matching at word start
@@ -68,7 +68,7 @@ static int char_score(const char *haystack, int hay_idx, int is_word_start, int 
     }
     
     // Bonus for matching at the very beginning
-    if (hay_idx == 0) {
+    if (hay_index == 0) {
         score += 15;
     }
     
@@ -77,21 +77,21 @@ static int char_score(const char *haystack, int hay_idx, int is_word_start, int 
 
 // Try to match needle as consecutive capitals in haystack
 static int match_consecutive_capitals(const char *needle, const char *haystack, int *matched_count) {
-    int needle_idx = 0;
-    int needle_len = strlen(needle);
+    int needle_index = 0;
+    int needle_length = strlen(needle);
     *matched_count = 0;
     
-    for (int i = 0; haystack[i] && needle_idx < needle_len; i++) {
+    for (int i = 0; haystack[i] && needle_index < needle_length; i++) {
         // Look for capital letters
         if (haystack[i] >= 'A' && haystack[i] <= 'Z') {
-            if (tolower(haystack[i]) == tolower(needle[needle_idx])) {
-                needle_idx++;
+            if (tolower(haystack[i]) == tolower(needle[needle_index])) {
+                needle_index++;
                 (*matched_count)++;
             }
         }
     }
     
-    return needle_idx == needle_len;
+    return needle_index == needle_length;
 }
 
 // Try multiple matching strategies and return the best score
@@ -130,15 +130,15 @@ int fuzzy_match(const char *needle, const char *haystack, int *out_score) {
     
     *out_score = 0;
     
-    int needle_len = strlen(needle);
-    int haystack_len = strlen(haystack);
+    int needle_length = strlen(needle);
+    int haystack_length = strlen(haystack);
     
-    if (needle_len == 0) {
+    if (needle_length == 0) {
         *out_score = 100;  // Empty needle matches everything with high score
         return 1;
     }
     
-    if (needle_len > haystack_len) {
+    if (needle_length > haystack_length) {
         return 0;
     }
     
@@ -150,33 +150,33 @@ int fuzzy_match(const char *needle, const char *haystack, int *out_score) {
     }
     
     // Now do regular fuzzy matching
-    int needle_idx = 0;
-    int prev_match_idx = -1;
+    int needle_index = 0;
+    int prev_match_index = -1;
     int score = 0;
     int consecutive = 0;
     
-    for (int hay_idx = 0; hay_idx < haystack_len && needle_idx < needle_len; hay_idx++) {
-        if (tolower(haystack[hay_idx]) == tolower(needle[needle_idx])) {
+    for (int hay_index = 0; hay_index < haystack_length && needle_index < needle_length; hay_index++) {
+        if (tolower(haystack[hay_index]) == tolower(needle[needle_index])) {
             // Check if this is a word start
-            int is_word_start = (hay_idx == 0) || 
-                               (hay_idx > 0 && is_word_boundary(haystack[hay_idx-1]));
+            int is_word_start = (hay_index == 0) || 
+                               (hay_index > 0 && is_word_boundary(haystack[hay_index-1]));
             
             // Check if consecutive with previous match
-            consecutive = (prev_match_idx >= 0 && hay_idx == prev_match_idx + 1);
+            consecutive = (prev_match_index >= 0 && hay_index == prev_match_index + 1);
             
-            score += char_score(haystack, hay_idx, is_word_start, consecutive);
+            score += char_score(haystack, hay_index, is_word_start, consecutive);
             
-            prev_match_idx = hay_idx;
-            needle_idx++;
+            prev_match_index = hay_index;
+            needle_index++;
         } else {
             consecutive = 0;
         }
     }
     
     // Did we match all characters?
-    if (needle_idx == needle_len) {
+    if (needle_index == needle_length) {
         // Penalty for longer strings (but not too harsh)
-        score = score - (haystack_len - needle_len) / 10;
+        score = score - (haystack_length - needle_length) / 10;
         if (score < 1) score = 1;  // Minimum score of 1 for any match
         
         *out_score = score;

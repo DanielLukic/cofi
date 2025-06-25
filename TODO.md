@@ -133,11 +133,21 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [ ] Add function group comments
   - **Files:** `src/main.c`
 
-- [ ] **Variable Naming Consistency** (Multiple files)
-  - [ ] Standardize on snake_case throughout
-  - [ ] Fix any camelCase inconsistencies
-  - [ ] Update variable names for clarity
+- [x] **Variable Naming Consistency** (Multiple files)
+  - [x] Standardize on snake_case throughout
+  - [x] Fix any camelCase inconsistencies
+  - [x] Update variable names for clarity
   - **Files:** Multiple
+
+### 💾 User Experience
+
+- [ ] **Remember Window Position** (`src/main.c`, config system)
+  - [ ] Save window position to config file when closing
+  - [ ] Restore saved position when reopening (override --align if position saved)
+  - [ ] Handle multi-monitor setups (validate position is still on-screen)
+  - [ ] Add option to reset to default alignment behavior
+  - [ ] Extend existing JSON config format to include window position
+  - **Files:** `src/main.c`, `src/harpoon.c` (config system), potentially new position utilities
 
 ## Testing Strategy for Each Refactoring
 
