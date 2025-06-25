@@ -30,6 +30,137 @@ static int compare_scores(const void *a, const void *b) {
     return 0;
 }
 
+// Check if a character is a word boundary separator
+static int is_word_boundary(char c) {
+    return c == ' ' || c == '-' || c == '_' || c == '.' || c == '(';
+}
+
+// Try word boundary match - returns score if matched, SCORE_MIN otherwise
+static score_t try_word_boundary_match(const char *filter, const WindowInfo *win) {
+    int filter_len = strlen(filter);
+    const char *title = win->title;
+    
+    // Check if filter appears consecutively at start of any word
+    for (int i = 0; title[i] && i + filter_len <= strlen(title); i++) {
+        int at_word_start = (i == 0 || is_word_boundary(title[i-1]));
+        
+        if (at_word_start) {
+            // Check if the filter matches starting from this word boundary
+            int matches = 1;
+            for (int j = 0; j < filter_len; j++) {
+                if (tolower(title[i + j]) != tolower(filter[j])) {
+                    matches = 0;
+                    break;
+                }
+            }
+            if (matches) {
+                log_debug("WORD START MATCH: '%s' -> '%s' (score: %f)", filter, title, SCORE_WORD_BOUNDARY);
+                return SCORE_WORD_BOUNDARY;
+            }
+        }
+    }
+    
+    return SCORE_MIN;
+}
+
+// Try initials match - returns score if matched, SCORE_MIN otherwise
+static score_t try_initials_match(const char *filter, const WindowInfo *win) {
+    int filter_len = strlen(filter);
+    const char *title = win->title;
+    int filter_idx = 0;
+    
+    for (int i = 0; title[i] && filter_idx < filter_len; i++) {
+        int at_word_start = (i == 0 || is_word_boundary(title[i-1]));
+        
+        if (at_word_start && tolower(title[i]) == tolower(filter[filter_idx])) {
+            filter_idx++;
+        }
+    }
+    
+    if (filter_idx == filter_len) {
+        log_debug("INITIALS MATCH: '%s' -> '%s' (score: %f)", filter, title, SCORE_INITIALS_MATCH);
+        return SCORE_INITIALS_MATCH;
+    }
+    
+    return SCORE_MIN;
+}
+
+// Try subsequence match - returns score if matched, SCORE_MIN otherwise
+static score_t try_subsequence_match(const char *filter, const char *text, const char *label) {
+    int filter_len = strlen(filter);
+    int filter_idx = 0;
+    
+    for (int i = 0; text[i] && filter_idx < filter_len; i++) {
+        if (tolower(text[i]) == tolower(filter[filter_idx])) {
+            filter_idx++;
+        }
+    }
+    
+    if (filter_idx == filter_len) {
+        score_t score = (label && strstr(label, "TITLE")) ? SCORE_SUBSEQUENCE_MATCH : SCORE_CLASS_INSTANCE_MATCH;
+        log_debug("%s SUBSEQUENCE: '%s' -> '%s' (score: %f)", label ? label : "TEXT", filter, text, score);
+        return score;
+    }
+    
+    return SCORE_MIN;
+}
+
+// Try fuzzy match - returns the match score
+static score_t try_fuzzy_match(const char *filter, const char *text, const char *label) {
+    if (has_match(filter, text)) {
+        score_t score = match(filter, text);
+        log_debug("%s FUZZY MATCH: '%s' -> '%s' (score: %f)", label ? label : "TEXT", filter, text, score);
+        return score;
+    }
+    return SCORE_MIN;
+}
+
+// Match a window against filter and return best score
+static score_t match_window(const char *filter, const WindowInfo *win) {
+    score_t best_score = SCORE_MIN;
+    
+    // Stage 1: Try word boundary match
+    best_score = try_word_boundary_match(filter, win);
+    if (best_score > SCORE_MIN) {
+        return best_score;
+    }
+    
+    // Stage 2: Try initials match
+    best_score = try_initials_match(filter, win);
+    if (best_score > SCORE_MIN) {
+        return best_score;
+    }
+    
+    // Stage 3: Try subsequence match on title
+    best_score = try_subsequence_match(filter, win->title, "TITLE");
+    if (best_score > SCORE_MIN) {
+        return best_score;
+    }
+    
+    // Stage 4: Try fuzzy match on title
+    best_score = try_fuzzy_match(filter, win->title, "TITLE");
+    
+    // Stage 5: Try subsequence match on class/instance (if no good title match)
+    if (best_score < SCORE_SUBSEQUENCE_MATCH) {
+        score_t class_score = try_subsequence_match(filter, win->class_name, "CLASS");
+        if (class_score > best_score) best_score = class_score;
+        
+        score_t instance_score = try_subsequence_match(filter, win->instance, "INSTANCE");
+        if (instance_score > best_score) best_score = instance_score;
+    }
+    
+    // Stage 6: Try fuzzy match on class/instance (final fallback)
+    if (best_score <= SCORE_MIN) {
+        score_t class_score = try_fuzzy_match(filter, win->class_name, "CLASS");
+        if (class_score > best_score) best_score = class_score;
+        
+        score_t instance_score = try_fuzzy_match(filter, win->instance, "INSTANCE");
+        if (instance_score > best_score) best_score = instance_score;
+    }
+    
+    return best_score;
+}
+
 // Filter windows based on search text (now works with history-ordered windows)
 void filter_windows(AppData *app, const char *filter) {
     app->filtered_count = 0;
@@ -75,121 +206,8 @@ void filter_windows(AppData *app, const char *filter) {
                 scored_count++;
             }
         } else {
-            // Multi-stage matching as suggested by user
-            score_t best_score = SCORE_MIN;
-            int filter_len = strlen(filter);
-            
-            // Stage 1: Try two types of word boundary matches
-            // 1a. Check if filter appears consecutively at start of any word
-            int found_consecutive_at_word_start = 0;
-            for (int i = 0; win->title[i] && i + filter_len <= strlen(win->title); i++) {
-                int at_word_start = (i == 0 || win->title[i-1] == ' ' || win->title[i-1] == '-' || 
-                                   win->title[i-1] == '_' || win->title[i-1] == '.' || win->title[i-1] == '(');
-                
-                if (at_word_start) {
-                    // Check if the filter matches starting from this word boundary
-                    int matches = 1;
-                    for (int j = 0; j < filter_len; j++) {
-                        if (tolower(win->title[i + j]) != tolower(filter[j])) {
-                            matches = 0;
-                            break;
-                        }
-                    }
-                    if (matches) {
-                        found_consecutive_at_word_start = 1;
-                        break;
-                    }
-                }
-            }
-            
-            // 1b. Check if filter matches initials of words
-            int found_initials_match = 0;
-            if (!found_consecutive_at_word_start) {
-                int filter_idx = 0;
-                for (int i = 0; win->title[i] && filter_idx < filter_len; i++) {
-                    int at_word_start = (i == 0 || win->title[i-1] == ' ' || win->title[i-1] == '-' || 
-                                       win->title[i-1] == '_' || win->title[i-1] == '.' || win->title[i-1] == '(');
-                    
-                    if (at_word_start && tolower(win->title[i]) == tolower(filter[filter_idx])) {
-                        filter_idx++;
-                    }
-                }
-                if (filter_idx == filter_len) {
-                    found_initials_match = 1;
-                }
-            }
-            
-            if (found_consecutive_at_word_start) {
-                // Consecutive match at word start - highest priority
-                best_score = SCORE_WORD_BOUNDARY;
-                log_debug("WORD START MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
-            } else if (found_initials_match) {
-                // Initials match - very high priority
-                best_score = SCORE_INITIALS_MATCH;
-                log_debug("INITIALS MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
-            } else {
-                // Stage 2: Try simple subsequence match (e.g., "dll" -> d.*l.*l)
-                int filter_idx = 0;
-                for (int i = 0; win->title[i] && filter_idx < filter_len; i++) {
-                    if (tolower(win->title[i]) == tolower(filter[filter_idx])) {
-                        filter_idx++;
-                    }
-                }
-                
-                if (filter_idx == filter_len) {
-                    // Subsequence match found - give it good score but less than word boundary
-                    best_score = SCORE_SUBSEQUENCE_MATCH;
-                    log_debug("SUBSEQUENCE MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
-                } else {
-                    // Stage 3: Fall back to fuzzy matching
-                    if (has_match(filter, win->title)) {
-                        best_score = match(filter, win->title);
-                        log_debug("FUZZY MATCH: '%s' -> '%s' (score: %f)", filter, win->title, best_score);
-                    }
-                }
-            }
-            
-            // Also check class and instance with simple subsequence matching
-            // Check class_name
-            if (best_score < 1500) { // Only if we don't already have a good match
-                int filter_idx = 0;
-                for (int i = 0; win->class_name[i] && filter_idx < filter_len; i++) {
-                    if (tolower(win->class_name[i]) == tolower(filter[filter_idx])) {
-                        filter_idx++;
-                    }
-                }
-                if (filter_idx == filter_len) {
-                    best_score = SCORE_CLASS_INSTANCE_MATCH; // Slightly less than title subsequence
-                    log_debug("CLASS SUBSEQUENCE: '%s' -> '%s' (score: %f)", filter, win->class_name, best_score);
-                }
-            }
-            
-            // Check instance
-            if (best_score < 1500) { // Only if we don't already have a good match
-                int filter_idx = 0;
-                for (int i = 0; win->instance[i] && filter_idx < filter_len; i++) {
-                    if (tolower(win->instance[i]) == tolower(filter[filter_idx])) {
-                        filter_idx++;
-                    }
-                }
-                if (filter_idx == filter_len) {
-                    best_score = SCORE_CLASS_INSTANCE_MATCH; // Same as class
-                    log_debug("INSTANCE SUBSEQUENCE: '%s' -> '%s' (score: %f)", filter, win->instance, best_score);
-                }
-            }
-            
-            // Final fallback to fuzzy matching on class/instance
-            if (best_score <= SCORE_MIN) {
-                if (has_match(filter, win->class_name)) {
-                    score_t class_score = match(filter, win->class_name);
-                    if (class_score > best_score) best_score = class_score;
-                }
-                
-                if (has_match(filter, win->instance)) {
-                    score_t instance_score = match(filter, win->instance);
-                    if (instance_score > best_score) best_score = instance_score;
-                }
-            }
+            // Use the new match_window function for all matching logic
+            score_t best_score = match_window(filter, win);
             
             // Add to scored list if we have a match
             if (best_score > SCORE_MIN) {
