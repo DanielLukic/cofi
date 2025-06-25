@@ -45,14 +45,16 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Verify all key combinations still work - code compiles successfully
   - **Files:** `src/main.c` (reduced from 277 lines to 22 lines)
 
-- [ ] **Break Down `filter_windows()` Function** (`src/filter.c`)
-  - [ ] Extract individual filtering stages into functions
-  - [ ] `try_word_boundary_match(filter, win)`
-  - [ ] `try_initials_match(filter, win)`
-  - [ ] `try_subsequence_match(filter, win)`
-  - [ ] `try_fuzzy_match(filter, win)`
-  - [ ] Test filtering behavior matches exactly
-  - **Files:** `src/filter.c` (235-line function)
+- [x] **Break Down `filter_windows()` Function** (`src/filter.c`)
+  - [x] Extract individual filtering stages into functions
+  - [x] `try_word_boundary_match(filter, win)` - checks consecutive match at word start
+  - [x] `try_initials_match(filter, win)` - matches first letters of words
+  - [x] `try_subsequence_match(filter, text, label)` - subsequence matching with label
+  - [x] `try_fuzzy_match(filter, text, label)` - fuzzy matching wrapper
+  - [x] `match_window(filter, win)` - orchestrates all match types
+  - [x] `is_word_boundary(c)` - helper to check word boundaries
+  - [x] Test filtering behavior matches exactly - code compiles successfully
+  - **Files:** `src/filter.c` (reduced from 235 lines to 91 lines)
 
 ### 🔧 Utilities
 
