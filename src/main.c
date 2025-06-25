@@ -24,6 +24,7 @@
 #include "harpoon.h"
 #include "match.h"
 #include "constants.h"
+#include "utils.h"
 
 #define COFI_VERSION "0.1.0"
 
@@ -718,8 +719,7 @@ int main(int argc, char *argv[]) {
     app.workspace_count = (num_desktops < MAX_WORKSPACES) ? num_desktops : MAX_WORKSPACES;
     for (int i = 0; i < app.workspace_count; i++) {
         app.workspaces[i].id = i;
-        strncpy(app.workspaces[i].name, desktop_names[i], MAX_WORKSPACE_NAME_LEN - 1);
-        app.workspaces[i].name[MAX_WORKSPACE_NAME_LEN - 1] = '\0';
+        safe_string_copy(app.workspaces[i].name, desktop_names[i], MAX_WORKSPACE_NAME_LEN);
         app.workspaces[i].is_current = (i == current_desktop);
         app.filtered_workspaces[i] = app.workspaces[i];
     }

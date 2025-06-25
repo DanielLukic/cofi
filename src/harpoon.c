@@ -6,6 +6,7 @@
 #include <errno.h>
 #include "log.h"
 #include "window_matcher.h"
+#include "utils.h"
 
 void init_harpoon_manager(HarpoonManager *manager) {
     if (!manager) return;
@@ -26,14 +27,10 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     
     // Store window information in the slot
     manager->slots[slot].id = window->id;
-    strncpy(manager->slots[slot].title, window->title, MAX_TITLE_LEN - 1);
-    manager->slots[slot].title[MAX_TITLE_LEN - 1] = '\0';
-    strncpy(manager->slots[slot].class_name, window->class_name, MAX_CLASS_LEN - 1);
-    manager->slots[slot].class_name[MAX_CLASS_LEN - 1] = '\0';
-    strncpy(manager->slots[slot].instance, window->instance, MAX_CLASS_LEN - 1);
-    manager->slots[slot].instance[MAX_CLASS_LEN - 1] = '\0';
-    strncpy(manager->slots[slot].type, window->type, 15);
-    manager->slots[slot].type[15] = '\0';
+    safe_string_copy(manager->slots[slot].title, window->title, MAX_TITLE_LEN);
+    safe_string_copy(manager->slots[slot].class_name, window->class_name, MAX_CLASS_LEN);
+    safe_string_copy(manager->slots[slot].instance, window->instance, MAX_CLASS_LEN);
+    safe_string_copy(manager->slots[slot].type, window->type, 16);
     manager->slots[slot].assigned = 1;
 }
 
@@ -161,8 +158,7 @@ void load_harpoon_config(HarpoonManager *manager) {
                     if (end) {
                         int len = end - start;
                         if (len >= MAX_TITLE_LEN) len = MAX_TITLE_LEN - 1;
-                        strncpy(temp_slot.title, start, len);
-                        temp_slot.title[len] = '\0';
+                        safe_string_copy(temp_slot.title, start, len + 1);
                     }
                 }
             }
@@ -176,8 +172,7 @@ void load_harpoon_config(HarpoonManager *manager) {
                     if (end) {
                         int len = end - start;
                         if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
-                        strncpy(temp_slot.class_name, start, len);
-                        temp_slot.class_name[len] = '\0';
+                        safe_string_copy(temp_slot.class_name, start, len + 1);
                     }
                 }
             }
@@ -191,8 +186,7 @@ void load_harpoon_config(HarpoonManager *manager) {
                     if (end) {
                         int len = end - start;
                         if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
-                        strncpy(temp_slot.instance, start, len);
-                        temp_slot.instance[len] = '\0';
+                        safe_string_copy(temp_slot.instance, start, len + 1);
                     }
                 }
             }
@@ -206,8 +200,7 @@ void load_harpoon_config(HarpoonManager *manager) {
                     if (end) {
                         int len = end - start;
                         if (len >= 15) len = 15;
-                        strncpy(temp_slot.type, start, len);
-                        temp_slot.type[len] = '\0';
+                        safe_string_copy(temp_slot.type, start, len + 1);
                     }
                 }
             }
@@ -315,8 +308,7 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
                         Window old_id = manager->slots[slot].id;
                         manager->slots[slot].id = windows[i].id;
                         // Update the stored title to the new one
-                        strncpy(manager->slots[slot].title, windows[i].title, MAX_TITLE_LEN - 1);
-                        manager->slots[slot].title[MAX_TITLE_LEN - 1] = '\0';
+                        safe_string_copy(manager->slots[slot].title, windows[i].title, MAX_TITLE_LEN);
                         config_changed = 1;
                         log_info("Automatically reassigned slot %d from window 0x%lx to 0x%lx (fuzzy match: %s)",
                                 slot, old_id, windows[i].id, windows[i].title);

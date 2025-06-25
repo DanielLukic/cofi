@@ -7,6 +7,7 @@
 #include "window_list.h"
 #include "x11_utils.h"
 #include "log.h"
+#include "utils.h"
 
 // Get list of all windows using _NET_CLIENT_LIST
 void get_window_list(AppData *app) {
@@ -92,23 +93,15 @@ void get_window_list(AppData *app) {
             win->id = window;
             
             // Store title
-            if (title) {
-                strncpy(win->title, title, MAX_TITLE_LEN - 1);
-                win->title[MAX_TITLE_LEN - 1] = '\0';
-            } else {
-                win->title[0] = '\0'; // Empty title
-            }
+            safe_string_copy(win->title, title, MAX_TITLE_LEN);
             
             // Store instance and class
-            strncpy(win->instance, instance, MAX_CLASS_LEN - 1);
-            win->instance[MAX_CLASS_LEN - 1] = '\0';
-            strncpy(win->class_name, class_name, MAX_CLASS_LEN - 1);
-            win->class_name[MAX_CLASS_LEN - 1] = '\0';
+            safe_string_copy(win->instance, instance, MAX_CLASS_LEN);
+            safe_string_copy(win->class_name, class_name, MAX_CLASS_LEN);
             
             // Store type
             if (type) {
-                strncpy(win->type, type, sizeof(win->type) - 1);
-                win->type[sizeof(win->type) - 1] = '\0';
+                safe_string_copy(win->type, type, sizeof(win->type));
                 g_free(type);
             } else {
                 strcpy(win->type, "Normal");
