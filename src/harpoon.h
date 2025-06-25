@@ -4,7 +4,7 @@
 #include <X11/Xlib.h>
 #include "window_info.h"
 
-#define MAX_HARPOON_SLOTS 10
+#define MAX_HARPOON_SLOTS 36
 
 // Structure to store a harpoon assignment
 typedef struct {
@@ -18,7 +18,7 @@ typedef struct {
 
 // Structure to manage all harpoon assignments
 typedef struct {
-    HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9
+    HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l)
 } HarpoonManager;
 
 // Function declarations
