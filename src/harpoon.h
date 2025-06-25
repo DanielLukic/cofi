@@ -18,7 +18,7 @@ typedef struct {
 
 // Structure to manage all harpoon assignments
 typedef struct {
-    HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l)
+    HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l,u)
 } HarpoonManager;
 
 // Function declarations

@@ -75,9 +75,10 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
             slot = event->keyval - GDK_KEY_KP_0;
         } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-            // Exclude navigation keys (h, j, k, l)
+            // Exclude navigation keys (h, j, k, l) and text clearing key (u)
             if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
-                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
+                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
+                event->keyval != GDK_KEY_u) {
                 slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
             }
         }
@@ -117,9 +118,10 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
             slot = event->keyval - GDK_KEY_KP_0;
         } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-            // Exclude navigation keys (h, j, k, l)
+            // Exclude navigation keys (h, j, k, l) and text clearing key (u)
             if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
-                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
+                event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
+                event->keyval != GDK_KEY_u) {
                 slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
             }
         }

@@ -53,17 +53,31 @@ Run cofi:
 
 ### Keyboard Shortcuts
 
-#### Window Navigation
+#### Window/Workspace Navigation
 - **Up/Down arrows** - Navigate through windows
 - **Ctrl+k/Ctrl+j** - Navigate up/down (Vim-style)
-- **Enter** - Activate selected window
+- **Tab** - Switch between Windows and Workspaces tabs
+- **Ctrl+h/Ctrl+l** - Switch to previous/next tab (Vim-style)
+- **Enter** - Activate selected window/workspace
 - **Escape** - Cancel and close
 - **Type to search** - Filter windows in real-time
 
 #### Harpoon-Style Window Assignment
-- **Ctrl+<number>** - Assign current window to number key (1-9)
-- **Alt+<number>** - Switch directly to assigned window
-- **Ctrl+<number>** on assigned window - Remove assignment
+- **Ctrl+0-9** - Assign current window to number key (0-9)
+- **Ctrl+a-z** - Assign current window to letter key (a-z, see exclusions below)
+- **Alt+0-9** - Switch directly to window assigned to number
+- **Alt+a-z** - Switch directly to window assigned to letter
+- **Ctrl+key** on assigned window - Remove assignment (toggle)
+
+**Excluded Keys:**
+The following keys are reserved for navigation and cannot be used for harpoon assignments:
+- **Ctrl+h** - Switch to previous tab (Workspaces/Windows)
+- **Ctrl+j** - Navigate down in selection
+- **Ctrl+k** - Navigate up in selection
+- **Ctrl+l** - Switch to next tab (Workspaces/Windows)
+- **Ctrl+u** - Clear search text (GTK default behavior)
+
+This gives you 31 available harpoon slots: 0-9 and a-g, i, m-t, v-z.
 
 ### Window Display
 
