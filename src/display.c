@@ -8,6 +8,7 @@
 #include "window_info.h"
 #include "app_data.h"
 #include "log.h"
+#include "constants.h"
 
 // Format tab header with active tab indication
 static void format_tab_header(TabMode current_tab, GString *output) {
@@ -34,9 +35,9 @@ static void format_tab_header(TabMode current_tab, GString *output) {
 // Format desktop string like Go code
 static void format_desktop_str(int desktop, char *output) {
     if (desktop < 0 || desktop > 99) {
-        strcpy(output, "[S] ");
+        strcpy(output, DESKTOP_STICKY_INDICATOR);
     } else {
-        snprintf(output, 5, "[%d] ", desktop);
+        snprintf(output, 5, DESKTOP_FORMAT, desktop);
     }
 }
 
@@ -117,11 +118,6 @@ void update_display(AppData *app) {
     
     if (app->current_tab == TAB_WINDOWS) {
         // Column widths (from Go code)
-        const int HARPOON_WIDTH = 1;    // "0" or " "
-        const int DESKTOP_WIDTH = 4;   // "[0] "
-        const int INSTANCE_WIDTH = 20;
-        const int TITLE_WIDTH = 55;
-        const int CLASS_WIDTH = 18;
         
         // Display filtered windows in reverse order (bottom-up like fzf)
         // The Alt-Tab swap is already applied in the filtered array
@@ -132,9 +128,9 @@ void update_display(AppData *app) {
         
         // Selection indicator
         if (is_selected) {
-            g_string_append(text, "> ");
+            g_string_append(text, SELECTION_INDICATOR);
         } else {
-            g_string_append(text, "  ");
+            g_string_append(text, NO_SELECTION_INDICATOR);
         }
         
         // Apply instance/class swapping rule like Go code (line 82-84)
@@ -151,11 +147,11 @@ void update_display(AppData *app) {
         }
         
         // Format each column
-        char harpoon_col[HARPOON_WIDTH + 2]; // +2 for space after
-        char desktop_col[DESKTOP_WIDTH + 1];
-        char instance_col[INSTANCE_WIDTH + 1];
-        char title_col[TITLE_WIDTH + 1];
-        char class_col[CLASS_WIDTH + 1];
+        char harpoon_col[DISPLAY_HARPOON_WIDTH + 2]; // +2 for space after
+        char desktop_col[DISPLAY_DESKTOP_WIDTH + 1];
+        char instance_col[DISPLAY_INSTANCE_WIDTH + 1];
+        char title_col[DISPLAY_TITLE_WIDTH + 1];
+        char class_col[DISPLAY_CLASS_WIDTH + 1];
         char window_id[32];
         
         // Check if this window has a harpoon assignment
@@ -163,10 +159,10 @@ void update_display(AppData *app) {
         Window display_id = win->id;
         
         if (slot >= 0) {
-            if (slot < 10) {
+            if (slot <= HARPOON_LAST_NUMBER) {
                 snprintf(harpoon_col, sizeof(harpoon_col), "%d ", slot);
             } else {
-                snprintf(harpoon_col, sizeof(harpoon_col), "%c ", 'a' + (slot - 10));
+                snprintf(harpoon_col, sizeof(harpoon_col), "%c ", 'a' + (slot - HARPOON_FIRST_LETTER));
             }
             // Use the window ID from the harpoon slot since it may have been reassigned
             if (app->harpoon.slots[slot].assigned) {
@@ -177,9 +173,9 @@ void update_display(AppData *app) {
         }
         
         format_desktop_str(win->desktop, desktop_col);
-        fit_column(display_instance, INSTANCE_WIDTH, instance_col);
-        fit_column(win->title, TITLE_WIDTH, title_col);
-        fit_column(display_class, CLASS_WIDTH, class_col);
+        fit_column(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col);
+        fit_column(win->title, DISPLAY_TITLE_WIDTH, title_col);
+        fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
         snprintf(window_id, sizeof(window_id), "0x%lx", display_id);
         
         // Build the line: harpoon desktop instance title class window_id
