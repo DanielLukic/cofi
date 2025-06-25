@@ -12,12 +12,12 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Test tab switching with Tab, Ctrl+H, Ctrl+L keys
   - **Files:** `src/main.c`
 
-- [ ] **Create Constants File** (Multiple files)
-  - [ ] Create `src/constants.h` with all magic numbers
-  - [ ] Harpoon slot constants (0-9, a-z ranges)
-  - [ ] Display column widths (1, 4, 20, 55, 18)
-  - [ ] Filter scoring constants (2000, 1900, 1500, 1400)
-  - [ ] Replace hardcoded values throughout codebase
+- [x] **Create Constants File** (Multiple files)
+  - [x] Create `src/constants.h` with all magic numbers
+  - [x] Harpoon slot constants (0-9, a-z ranges)
+  - [x] Display column widths (1, 4, 20, 55, 18)
+  - [x] Filter scoring constants (2000, 1900, 1500, 1400)
+  - [x] Replace hardcoded values throughout codebase
   - **Files:** `src/main.c`, `src/display.c`, `src/filter.c`
 
 ### 🧹 Cleanup

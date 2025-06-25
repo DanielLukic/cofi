@@ -23,6 +23,7 @@
 #include "instance.h"
 #include "harpoon.h"
 #include "match.h"
+#include "constants.h"
 
 #define COFI_VERSION "0.1.0"
 
@@ -77,7 +78,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
             // Exclude navigation keys (h, j, k, l)
             if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
                 event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
-                slot = 10 + (event->keyval - GDK_KEY_a);
+                slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
             }
         }
         
@@ -119,7 +120,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
             // Exclude navigation keys (h, j, k, l)
             if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
                 event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l) {
-                slot = 10 + (event->keyval - GDK_KEY_a);
+                slot = HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
             }
         }
         

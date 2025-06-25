@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "constants.h"
 
 // Get property from X11 window
 char *get_window_property(Display *display, Window window, Atom property) {
@@ -56,7 +57,7 @@ char *get_window_type(Display *display, Window window) {
             }
             
             XFree(prop);
-            return g_strdup(contains_only_normal && nitems > 0 && net_wm_window_type_normal != None ? "Normal" : "Special");
+            return g_strdup(contains_only_normal && nitems > 0 && net_wm_window_type_normal != None ? WINDOW_TYPE_NORMAL : WINDOW_TYPE_SPECIAL);
         }
         XFree(prop);
     }
