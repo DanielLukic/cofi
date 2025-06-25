@@ -13,6 +13,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
+#include <limits.h>
 
 #define LOCK_FILE "cofi.lock"
 
@@ -156,6 +157,24 @@ static gboolean grab_focus_delayed(gpointer data) {
     return FALSE; // Remove timeout
 }
 
+// Get the lock file path using XDG_RUNTIME_DIR with fallback
+static const char* get_lock_file_path(void) {
+    static char path[PATH_MAX];
+    const char* runtime_dir = getenv("XDG_RUNTIME_DIR");
+    
+    if (runtime_dir && access(runtime_dir, W_OK) == 0) {
+        // Preferred: Use XDG_RUNTIME_DIR
+        snprintf(path, sizeof(path), "%s/%s", runtime_dir, LOCK_FILE);
+        log_debug("Using XDG_RUNTIME_DIR for lock file: %s", path);
+    } else {
+        // Fallback: Use /tmp with user-specific name
+        snprintf(path, sizeof(path), "/tmp/%s-%d", LOCK_FILE, getuid());
+        log_debug("Using /tmp fallback for lock file: %s", path);
+    }
+    
+    return path;
+}
+
 InstanceManager* instance_manager_new(void) {
     InstanceManager *im = malloc(sizeof(InstanceManager));
     if (!im) return NULL;
@@ -163,16 +182,14 @@ InstanceManager* instance_manager_new(void) {
     im->lock_fd = -1;
     im->pid = getpid();
     
-    // Create lock file path in /tmp
-    const char *tmp_dir = "/tmp";
-    im->lock_path = malloc(strlen(tmp_dir) + strlen(LOCK_FILE) + 2);
+    // Get lock file path using XDG_RUNTIME_DIR or fallback
+    const char *lock_path = get_lock_file_path();
+    im->lock_path = strdup(lock_path);
     
     if (!im->lock_path) {
         free(im);
         return NULL;
     }
-    
-    sprintf(im->lock_path, "%s/%s", tmp_dir, LOCK_FILE);
     
     return im;
 }
