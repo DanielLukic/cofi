@@ -58,11 +58,11 @@ This document tracks refactoring opportunities to improve code maintainability w
 
 ### 🔧 Utilities
 
-- [ ] **Extract X11 Property Utilities** (`src/x11_utils.c`)
-  - [ ] Create `get_x11_property(display, window, prop_name, prop_type, data, nitems)`
-  - [ ] Replace 6+ duplicated XGetWindowProperty patterns
-  - [ ] Test window property extraction still works
-  - **Files:** `src/x11_utils.c` lines 16-25, 42-61, 80-92
+- [x] **Extract X11 Property Utilities** (`src/x11_utils.c`)
+  - [x] Create `get_x11_property()` generic utility function
+  - [x] Replace 11 duplicated XGetWindowProperty patterns across 3 files
+  - [x] Test window property extraction still works - code compiles successfully
+  - **Files:** `src/x11_utils.c`, `src/display.c`, `src/window_list.c`
 
 - [ ] **Create String Copy Utility** (Multiple files)
   - [ ] Create `safe_string_copy(dest, src, dest_size)` function
@@ -96,6 +96,13 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [ ] Add comprehensive filter testing
   - [ ] Verify filter results identical to current behavior
   - **Files:** `src/filter.c` lines 84-179
+
+- [ ] **Fix Word Boundary Scoring Edge Case** (`src/filter.c`) - Low Priority
+  - [ ] Improve scoring when filter matches multiple consecutive words
+  - [ ] Example: "cf" should prioritize "Code Fix" over "Coding | Focus..."
+  - [ ] Special characters like "|" may affect word boundary detection
+  - [ ] Consider giving bonus score for consecutive word matches
+  - **Files:** `src/filter.c` - `try_word_boundary_match()`
 
 ### 💾 Data Structures
 

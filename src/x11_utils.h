@@ -3,6 +3,12 @@
 
 #include <X11/Xlib.h>
 
+// Generic X11 property getter - centralizes XGetWindowProperty pattern
+int get_x11_property(Display *display, Window window, Atom property, Atom req_type,
+                     unsigned long max_items, Atom *actual_type_return,
+                     int *actual_format_return, unsigned long *nitems_return,
+                     unsigned char **prop_return);
+
 // Get a window property as a string
 char* get_window_property(Display *display, Window window, Atom property);
 

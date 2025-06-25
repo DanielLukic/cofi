@@ -7,21 +7,41 @@
 #include <stdio.h>
 #include "constants.h"
 
-// Get property from X11 window
-char *get_window_property(Display *display, Window window, Atom property) {
+// Generic X11 property getter - centralizes XGetWindowProperty pattern
+int get_x11_property(Display *display, Window window, Atom property, Atom req_type,
+                     unsigned long max_items, Atom *actual_type_return,
+                     int *actual_format_return, unsigned long *nitems_return,
+                     unsigned char **prop_return) {
     Atom actual_type;
     int actual_format;
     unsigned long nitems, bytes_after;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, window, property, 0, (~0L), False, 
-                          AnyPropertyType, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success) {
-        if (prop) {
-            char *result = g_strdup((char*)prop);
-            XFree(prop);
-            return result;
-        }
+    int result = XGetWindowProperty(display, window, property, 0, max_items, False,
+                                   req_type, &actual_type, &actual_format,
+                                   &nitems, &bytes_after, &prop);
+    
+    if (result == Success && prop) {
+        if (actual_type_return) *actual_type_return = actual_type;
+        if (actual_format_return) *actual_format_return = actual_format;
+        if (nitems_return) *nitems_return = nitems;
+        if (prop_return) *prop_return = prop;
+        return 1; // Success
+    }
+    
+    if (prop) XFree(prop);
+    return 0; // Failure
+}
+
+// Get property from X11 window
+char *get_window_property(Display *display, Window window, Atom property) {
+    unsigned char *prop = NULL;
+    
+    if (get_x11_property(display, window, property, AnyPropertyType, 
+                        (~0L), NULL, NULL, NULL, &prop)) {
+        char *result = g_strdup((char*)prop);
+        XFree(prop);
+        return result;
     }
     return NULL;
 }
@@ -37,12 +57,11 @@ char *get_window_type(Display *display, Window window) {
     
     Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, window, net_wm_window_type, 0, 64, False,
-                          XA_ATOM, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, window, net_wm_window_type, XA_ATOM,
+                        64, &actual_type, &actual_format, &nitems, &prop)) {
         
         if (actual_format == 32 && nitems > 0) {
             // Check if contains only normal type
@@ -73,14 +92,12 @@ int get_window_pid(Display *display, Window window) {
         return 0;
     }
     
-    Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, window, net_wm_pid, 0, 1, False,
-                          XA_CARDINAL, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, window, net_wm_pid, XA_CARDINAL,
+                        1, NULL, &actual_format, &nitems, &prop)) {
         
         if (actual_format == 32 && nitems >= 1) {
             int pid = *(int*)prop;
@@ -105,14 +122,11 @@ void get_window_class(Display *display, Window window, char *instance, char *cla
         return;
     }
     
-    Atom actual_type;
-    int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, window, wm_class, 0, 1024, False,
-                          XA_STRING, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, window, wm_class, XA_STRING,
+                        1024, NULL, NULL, &nitems, &prop)) {
         
         // WM_CLASS contains two null-terminated strings: instance, class
         char *str = (char*)prop;
@@ -160,14 +174,12 @@ int get_active_window_id(Display *display) {
     }
     
     Window root = DefaultRootWindow(display);
-    Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, root, net_active_window, 0, 1, False,
-                          XA_WINDOW, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, root, net_active_window, XA_WINDOW,
+                        1, NULL, &actual_format, &nitems, &prop)) {
         
         if (actual_format == 32 && nitems >= 1) {
             int window_id = *(int*)prop;
@@ -189,14 +201,12 @@ int get_active_window_id(Display *display) {
 // Get number of workspaces/desktops from _NET_NUMBER_OF_DESKTOPS
 int get_number_of_desktops(Display *display) {
     Atom net_num_desktops = XInternAtom(display, "_NET_NUMBER_OF_DESKTOPS", False);
-    Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, DefaultRootWindow(display), net_num_desktops, 
-                          0, 1, False, XA_CARDINAL, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, DefaultRootWindow(display), net_num_desktops,
+                        XA_CARDINAL, 1, NULL, &actual_format, &nitems, &prop)) {
         
         if (actual_format == 32 && nitems >= 1) {
             int num_desktops = *(int*)prop;
@@ -227,9 +237,8 @@ char** get_desktop_names(Display *display, int *count) {
         snprintf(names[i], 32, "Desktop %d", i);
     }
     
-    if (XGetWindowProperty(display, DefaultRootWindow(display), net_desktop_names,
-                          0, (~0L), False, utf8_string, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, DefaultRootWindow(display), net_desktop_names,
+                        utf8_string, (~0L), &actual_type, &actual_format, &nitems, &prop)) {
         
         if (actual_type == utf8_string && actual_format == 8) {
             // Parse the null-terminated string list
@@ -255,14 +264,12 @@ char** get_desktop_names(Display *display, int *count) {
 // Get current desktop from _NET_CURRENT_DESKTOP
 int get_current_desktop(Display *display) {
     Atom net_current_desktop = XInternAtom(display, "_NET_CURRENT_DESKTOP", False);
-    Atom actual_type;
     int actual_format;
-    unsigned long nitems, bytes_after;
+    unsigned long nitems;
     unsigned char *prop = NULL;
     
-    if (XGetWindowProperty(display, DefaultRootWindow(display), net_current_desktop,
-                          0, 1, False, XA_CARDINAL, &actual_type, &actual_format,
-                          &nitems, &bytes_after, &prop) == Success && prop) {
+    if (get_x11_property(display, DefaultRootWindow(display), net_current_desktop,
+                        XA_CARDINAL, 1, NULL, &actual_format, &nitems, &prop)) {
         
         if (actual_format == 32 && nitems >= 1) {
             int current_desktop = *(int*)prop;
