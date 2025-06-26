@@ -146,6 +146,14 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Extended existing JSON config format to include window position
   - **Files:** `src/main.c`, `src/harpoon.c`, `src/app_data.h`
 
+- [x] **Close Window on Focus Loss** (`src/main.c`, GTK event handling)
+  - [x] Monitor focus-out events on the GTK window
+  - [x] Hide/close window when focus is lost to another application
+  - [x] Make this behavior configurable via command-line option `--close-on-focus-loss`
+  - [x] Ensure window doesn't close during internal focus changes (e.g., entry to textview)
+  - [x] Uses 100ms delay to properly distinguish internal vs external focus changes
+  - **Files:** `src/main.c`, `src/app_data.h`, `src/cli_args.c`
+
 ## Testing Strategy for Each Refactoring
 
 For every item above, follow this testing approach:
