@@ -456,6 +456,9 @@ int main(int argc, char *argv[]) {
     FILE *log_file = NULL;
     int alignment_specified = 0;
     
+    // Set default log level to INFO
+    log_set_level(LOG_INFO);
+    
     // Parse command line arguments
     int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified);
     if (parse_result == 2) {
