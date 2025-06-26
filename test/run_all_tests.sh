@@ -34,10 +34,29 @@ run_test() {
     fi
 }
 
+# Compile new unit tests if needed
+echo "Compiling unit tests..."
+if [ -f "test/test_filter.c" ]; then
+    gcc -o test/test_filter test/test_filter.c src/filter.c src/match.c src/log.c $(pkg-config --cflags --libs gtk+-3.0 x11) -lm 2>/dev/null || echo "Warning: Failed to compile test_filter"
+fi
+
+if [ -f "test/test_history.c" ]; then
+    gcc -o test/test_history test/test_history.c src/history.c src/log.c $(pkg-config --cflags --libs gtk+-3.0 x11) -lm 2>/dev/null || echo "Warning: Failed to compile test_history"
+fi
+
 # Run unit tests
 echo "=== Unit Tests ==="
 
-# Fuzzy matching tests
+# Core functionality tests
+if [ -f "test/test_filter" ]; then
+    run_test "Filter (multi-stage matching)" "test/test_filter"
+fi
+
+if [ -f "test/test_history" ]; then
+    run_test "History (MRU and Alt-Tab)" "test/test_history"
+fi
+
+# Matching algorithm tests
 if [ -f "test/test_fuzzy" ]; then
     run_test "Fuzzy matching" "test/test_fuzzy"
 fi
@@ -96,13 +115,10 @@ if [ -f "test/test_display_id_bug.sh" ]; then
     run_test "Display ID bug test" "bash test/test_display_id_bug.sh"
 fi
 
-if [ -f "test/test_harpoon_assignment.sh" ]; then
-    run_test "Harpoon assignment test" "bash test/test_harpoon_assignment.sh"
-fi
-
-if [ -f "test/test_reassignment.sh" ]; then
-    run_test "Reassignment test" "bash test/test_reassignment.sh"
-fi
+# Note: The following tests require manual interaction and start the cofi app
+# They are excluded from automated testing but can be run manually:
+# - test/test_harpoon_assignment.sh - Tests harpoon slot assignment with gnome-terminal
+# - test/test_reassignment.sh - Tests window reassignment with cofi running
 
 echo
 echo "=== Test Suite Complete ==="
