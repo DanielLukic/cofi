@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     steps:
     - uses: actions/checkout@v4
@@ -23,8 +23,7 @@ jobs:
     
     - name: Build with build number
       run: |
-        make clean
-        make BUILD_NUMBER=${{ github.run_number }} 2>&1 || (echo "Build failed, showing errors:"; make BUILD_NUMBER=${{ github.run_number }} 2>&1; exit 1)
+        BUILD_NUMBER=${{ github.run_number }} ./scripts/build.sh
     
     - name: Run tests
       run: make test

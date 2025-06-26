@@ -1,0 +1,44 @@
+{
+    "name": "COFI Development",
+    "dockerFile": "Dockerfile",
+    
+    // Features to add to the dev container
+    "features": {},
+    
+    // Use 'forwardPorts' to make a list of ports inside the container available locally
+    // "forwardPorts": [],
+    
+    // Use 'postCreateCommand' to run commands after the container is created
+    "postCreateCommand": "make clean && make",
+    
+    // Configure tool-specific properties
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+    
+    // Uncomment to connect as root instead
+    // "remoteUser": "root"
+    
+    // Mount the X11 socket for GUI testing
+    "mounts": [
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+    ],
+    
+    // Set environment variables
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}"
+    },
+    
+    // Run arguments
+    "runArgs": [
+        "--network=host"
+    ]
+}
