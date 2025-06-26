@@ -83,7 +83,8 @@ static const char* get_config_path() {
     return path;
 }
 
-void save_harpoon_config(const HarpoonManager *manager) {
+// Save both harpoon slots and window position
+void save_config_with_position(const HarpoonManager *manager, int has_position, int x, int y) {
     if (!manager) return;
     
     const char *path = get_config_path();
@@ -94,6 +95,15 @@ void save_harpoon_config(const HarpoonManager *manager) {
     }
     
     fprintf(file, "{\n");
+    
+    // Save window position
+    fprintf(file, "  \"window_position\": {\n");
+    fprintf(file, "    \"x\": %d,\n", x);
+    fprintf(file, "    \"y\": %d,\n", y);
+    fprintf(file, "    \"saved\": %s\n", has_position ? "true" : "false");
+    fprintf(file, "  },\n");
+    
+    // Save harpoon slots
     fprintf(file, "  \"harpoon_slots\": [\n");
     
     int first = 1;
@@ -117,11 +127,22 @@ void save_harpoon_config(const HarpoonManager *manager) {
     fprintf(file, "}\n");
     
     fclose(file);
-    log_info("Saved harpoon config to %s", path);
+    log_info("Saved config with position to %s", path);
 }
 
-void load_harpoon_config(HarpoonManager *manager) {
+void save_harpoon_config(const HarpoonManager *manager) {
+    // Use save_config_with_position but don't save position (saved = false)
+    save_config_with_position(manager, 0, 0, 0);
+}
+
+// Load both harpoon slots and window position
+void load_config_with_position(HarpoonManager *manager, int *has_position, int *x, int *y) {
     if (!manager) return;
+    
+    // Initialize output parameters
+    if (has_position) *has_position = 0;
+    if (x) *x = 0;
+    if (y) *y = 0;
     
     const char *path = get_config_path();
     FILE *file = fopen(path, "r");
@@ -133,9 +154,9 @@ void load_harpoon_config(HarpoonManager *manager) {
     }
     
     // For simplicity, we'll use a basic parser
-    // In production, you'd want to use a proper JSON library
     char line[1024];
-    int in_slot = 0;
+    int in_position = 0;
+    int in_slots = 0;
     int slot = -1;
     HarpoonSlot temp_slot = {0};
     
@@ -144,84 +165,111 @@ void load_harpoon_config(HarpoonManager *manager) {
         char *p = line;
         while (*p && (*p == ' ' || *p == '\t')) p++;
         
-        if (strstr(p, "\"slot\":")) {
-            if (sscanf(p, " \"slot\": %d", &slot) != 1) {
-                log_warn("Failed to parse slot number from JSON");
-            }
-        } else if (strstr(p, "\"window_id\":")) {
-            if (sscanf(p, " \"window_id\": %lu", &temp_slot.id) != 1) {
-                log_warn("Failed to parse window_id from JSON");
-            }
-        } else if (strstr(p, "\"title\":")) {
-            char *colon = strchr(p, ':');
-            if (colon) {
-                char *start = strchr(colon + 1, '"');
-                if (start) {
-                    start++;  // Move past the opening quote
-                    char *end = strchr(start, '"');
-                    if (end) {
-                        int len = end - start;
-                        if (len >= MAX_TITLE_LEN) len = MAX_TITLE_LEN - 1;
-                        safe_string_copy(temp_slot.title, start, len + 1);
-                    }
+        // Check for window_position section
+        if (strstr(p, "\"window_position\":")) {
+            in_position = 1;
+            in_slots = 0;
+        } else if (strstr(p, "\"harpoon_slots\":")) {
+            in_position = 0;
+            in_slots = 1;
+        }
+        
+        // Parse window position
+        if (in_position) {
+            if (strstr(p, "\"x\":") && x) {
+                sscanf(p, " \"x\": %d", x);
+            } else if (strstr(p, "\"y\":") && y) {
+                sscanf(p, " \"y\": %d", y);
+            } else if (strstr(p, "\"saved\":") && has_position) {
+                if (strstr(p, "true")) {
+                    *has_position = 1;
                 }
             }
-        } else if (strstr(p, "\"class_name\":")) {
-            char *colon = strchr(p, ':');
-            if (colon) {
-                char *start = strchr(colon + 1, '"');
-                if (start) {
-                    start++;  // Move past the opening quote
-                    char *end = strchr(start, '"');
-                    if (end) {
-                        int len = end - start;
-                        if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
-                        safe_string_copy(temp_slot.class_name, start, len + 1);
+        }
+        
+        // Parse harpoon slots
+        if (in_slots) {
+            if (strstr(p, "\"slot\":")) {
+                if (sscanf(p, " \"slot\": %d", &slot) != 1) {
+                    log_warn("Failed to parse slot number from JSON");
+                }
+            } else if (strstr(p, "\"window_id\":")) {
+                if (sscanf(p, " \"window_id\": %lu", &temp_slot.id) != 1) {
+                    log_warn("Failed to parse window_id from JSON");
+                }
+            } else if (strstr(p, "\"title\":")) {
+                char *colon = strchr(p, ':');
+                if (colon) {
+                    char *start = strchr(colon + 1, '"');
+                    if (start) {
+                        start++;  // Move past the opening quote
+                        char *end = strchr(start, '"');
+                        if (end) {
+                            int len = end - start;
+                            if (len >= MAX_TITLE_LEN) len = MAX_TITLE_LEN - 1;
+                            safe_string_copy(temp_slot.title, start, len + 1);
+                        }
                     }
                 }
-            }
-        } else if (strstr(p, "\"instance\":")) {
-            char *colon = strchr(p, ':');
-            if (colon) {
-                char *start = strchr(colon + 1, '"');
-                if (start) {
-                    start++;  // Move past the opening quote
-                    char *end = strchr(start, '"');
-                    if (end) {
-                        int len = end - start;
-                        if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
-                        safe_string_copy(temp_slot.instance, start, len + 1);
+            } else if (strstr(p, "\"class_name\":")) {
+                char *colon = strchr(p, ':');
+                if (colon) {
+                    char *start = strchr(colon + 1, '"');
+                    if (start) {
+                        start++;  // Move past the opening quote
+                        char *end = strchr(start, '"');
+                        if (end) {
+                            int len = end - start;
+                            if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
+                            safe_string_copy(temp_slot.class_name, start, len + 1);
+                        }
                     }
                 }
-            }
-        } else if (strstr(p, "\"type\":")) {
-            char *colon = strchr(p, ':');
-            if (colon) {
-                char *start = strchr(colon + 1, '"');
-                if (start) {
-                    start++;  // Move past the opening quote
-                    char *end = strchr(start, '"');
-                    if (end) {
-                        int len = end - start;
-                        if (len >= 15) len = 15;
-                        safe_string_copy(temp_slot.type, start, len + 1);
+            } else if (strstr(p, "\"instance\":")) {
+                char *colon = strchr(p, ':');
+                if (colon) {
+                    char *start = strchr(colon + 1, '"');
+                    if (start) {
+                        start++;  // Move past the opening quote
+                        char *end = strchr(start, '"');
+                        if (end) {
+                            int len = end - start;
+                            if (len >= MAX_CLASS_LEN) len = MAX_CLASS_LEN - 1;
+                            safe_string_copy(temp_slot.instance, start, len + 1);
+                        }
                     }
                 }
+            } else if (strstr(p, "\"type\":")) {
+                char *colon = strchr(p, ':');
+                if (colon) {
+                    char *start = strchr(colon + 1, '"');
+                    if (start) {
+                        start++;  // Move past the opening quote
+                        char *end = strchr(start, '"');
+                        if (end) {
+                            int len = end - start;
+                            if (len >= sizeof(temp_slot.type)) len = sizeof(temp_slot.type) - 1;
+                            safe_string_copy(temp_slot.type, start, len + 1);
+                        }
+                    }
+                }
+            } else if (strstr(p, "}") && slot >= 0 && slot < MAX_HARPOON_SLOTS) {
+                // End of slot entry, save it
+                manager->slots[slot] = temp_slot;
+                manager->slots[slot].assigned = 1;
+                slot = -1;
+                memset(&temp_slot, 0, sizeof(temp_slot));
             }
-        } else if (strchr(p, '}') && slot >= 0 && slot < MAX_HARPOON_SLOTS) {
-            // End of slot object
-            temp_slot.assigned = 1;
-            manager->slots[slot] = temp_slot;
-            log_debug("Loaded slot %d: window 0x%lx, title '%s'", slot, temp_slot.id, temp_slot.title);
-            
-            // Reset for next slot
-            slot = -1;
-            memset(&temp_slot, 0, sizeof(temp_slot));
         }
     }
     
     fclose(file);
-    log_info("Loaded harpoon config from %s", path);
+    log_info("Loaded config from %s", path);
+}
+
+void load_harpoon_config(HarpoonManager *manager) {
+    // Use load_config_with_position but ignore position
+    load_config_with_position(manager, NULL, NULL, NULL);
 }
 
 void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count) {

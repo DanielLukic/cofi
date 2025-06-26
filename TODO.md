@@ -126,13 +126,13 @@ This document tracks refactoring opportunities to improve code maintainability w
 
 ### 💾 User Experience
 
-- [ ] **Remember Window Position** (`src/main.c`, config system)
-  - [ ] Save window position to config file when closing
-  - [ ] Restore saved position when reopening (override --align if position saved)
-  - [ ] Handle multi-monitor setups (validate position is still on-screen)
-  - [ ] Add option to reset to default alignment behavior
-  - [ ] Extend existing JSON config format to include window position
-  - **Files:** `src/main.c`, `src/harpoon.c` (config system), potentially new position utilities
+- [x] **Remember Window Position** (`src/main.c`, config system)
+  - [x] Save window position to config file when closing
+  - [x] Restore saved position when reopening (only if no --align specified)
+  - [x] Handle multi-monitor setups (validate position is still on-screen)
+  - [x] Clear saved position when --align is specified
+  - [x] Extended existing JSON config format to include window position
+  - **Files:** `src/main.c`, `src/harpoon.c`, `src/app_data.h`
 
 ## Testing Strategy for Each Refactoring
 
