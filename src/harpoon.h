@@ -4,6 +4,9 @@
 #include <X11/Xlib.h>
 #include "types.h"
 
+// Forward declare WindowAlignment
+struct AppData;
+
 // Structure to store a harpoon assignment
 typedef struct HarpoonSlot {
     Window id;
@@ -35,9 +38,9 @@ void load_config_with_position(HarpoonManager *manager, int *has_position, int *
 
 // New config functions with additional options
 void save_full_config(const HarpoonManager *manager, int has_position, int x, int y, 
-                      int close_on_focus_loss, WindowAlignment align);
+                      int close_on_focus_loss, int align);
 void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y,
-                      int *close_on_focus_loss, WindowAlignment *align);
+                      int *close_on_focus_loss, int *align);
 
 // Automatic reassignment functions
 void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);
