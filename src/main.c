@@ -345,6 +345,12 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
 // Destroy window instead of hiding it
 static void destroy_window(AppData *app) {
     if (app->window) {
+        // Save window position before destroying
+        gint x, y;
+        gtk_window_get_position(GTK_WINDOW(app->window), &x, &y);
+        save_config_with_position(&app->harpoon, 1, x, y);
+        log_debug("Saved window position: x=%d, y=%d", x, y);
+        
         gtk_widget_destroy(app->window);
         app->window = NULL;
         app->entry = NULL;
@@ -368,36 +374,71 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_window_set_title(GTK_WINDOW(app->window), "cofi");
     // Set reasonable default size; will be adjusted based on content
     gtk_window_set_default_size(GTK_WINDOW(app->window), 900, 500);
-    // Set window position based on alignment
-    switch (alignment) {
-        case ALIGN_CENTER:
+    // Set window position based on saved position or alignment
+    if (app->has_saved_position) {
+        // Validate saved position is still on-screen
+        GdkScreen *screen = gdk_screen_get_default();
+        gint n_monitors = gdk_screen_get_n_monitors(screen);
+        gboolean position_valid = FALSE;
+        
+        // Check if the saved position is on any monitor
+        for (gint i = 0; i < n_monitors; i++) {
+            GdkRectangle monitor_geometry;
+            gdk_screen_get_monitor_geometry(screen, i, &monitor_geometry);
+            
+            // Check if at least part of the window would be visible
+            if (app->saved_x < monitor_geometry.x + monitor_geometry.width - 50 &&
+                app->saved_x + 50 > monitor_geometry.x &&
+                app->saved_y < monitor_geometry.y + monitor_geometry.height - 50 &&
+                app->saved_y + 50 > monitor_geometry.y) {
+                position_valid = TRUE;
+                break;
+            }
+        }
+        
+        if (position_valid) {
+            // Use saved position
+            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+            gtk_window_move(GTK_WINDOW(app->window), app->saved_x, app->saved_y);
+            log_debug("Applied saved position: x=%d, y=%d", app->saved_x, app->saved_y);
+        } else {
+            // Saved position is off-screen, fall back to center
             gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_CENTER);
-            break;
-        case ALIGN_TOP:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            // Position will be set after window is realized
-            break;
-        case ALIGN_TOP_LEFT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_TOP_RIGHT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_LEFT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_RIGHT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_BOTTOM:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_BOTTOM_LEFT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
-        case ALIGN_BOTTOM_RIGHT:
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            break;
+            log_warn("Saved position (%d, %d) is off-screen, using center alignment", app->saved_x, app->saved_y);
+            app->has_saved_position = 0; // Clear invalid position
+        }
+    } else {
+        // Set window position based on alignment
+        switch (alignment) {
+            case ALIGN_CENTER:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_CENTER);
+                break;
+            case ALIGN_TOP:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                // Position will be set after window is realized
+                break;
+            case ALIGN_TOP_LEFT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_TOP_RIGHT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_LEFT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_RIGHT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_BOTTOM:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_BOTTOM_LEFT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+            case ALIGN_BOTTOM_RIGHT:
+                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
+                break;
+        }
     }
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(app->window), TRUE);
@@ -504,6 +545,11 @@ static void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation
     AppData *app = (AppData *)user_data;
     WindowAlignment alignment = app->alignment;
     
+    // Skip repositioning if we have a saved position
+    if (app->has_saved_position) {
+        return;
+    }
+    
     // Only reposition if we have a valid size
     if (allocation->width <= 1 || allocation->height <= 1) {
         return;
@@ -599,6 +645,7 @@ int main(int argc, char *argv[]) {
     bool logging_enabled = true;
     FILE *log_file = NULL;
     WindowAlignment alignment = ALIGN_CENTER;
+    bool alignment_specified = false;
     
     // Parse command line arguments
     int option_index = 0;
@@ -639,6 +686,7 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 alignment = parse_alignment(optarg);
+                alignment_specified = true;
                 break;
             case 'v':
                 printf("cofi version %s\n", COFI_VERSION);
@@ -705,7 +753,24 @@ int main(int argc, char *argv[]) {
     
     // Initialize harpoon manager
     init_harpoon_manager(&app.harpoon);
-    load_harpoon_config(&app.harpoon);
+    
+    // Load config with position info
+    app.has_saved_position = 0;
+    app.saved_x = 0;
+    app.saved_y = 0;
+    
+    if (alignment_specified) {
+        // If --align was specified, clear any saved position
+        load_harpoon_config(&app.harpoon);
+        save_config_with_position(&app.harpoon, 0, 0, 0); // Clear saved position
+        log_debug("Cleared saved position due to --align argument");
+    } else {
+        // Load position if no --align was specified
+        load_config_with_position(&app.harpoon, &app.has_saved_position, &app.saved_x, &app.saved_y);
+        if (app.has_saved_position) {
+            log_debug("Loaded saved position: x=%d, y=%d", app.saved_x, app.saved_y);
+        }
+    }
     
     // Get window list
     get_window_list(&app);
