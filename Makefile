@@ -19,7 +19,8 @@ SOURCES = src/main.c \
           src/match.c \
           src/utils.c \
           src/cli_args.c \
-          src/gtk_window.c
+          src/gtk_window.c \
+          src/app_init.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)
