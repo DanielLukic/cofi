@@ -378,7 +378,7 @@ static void destroy_window(AppData *app) {
         // Save window position before destroying
         gint x, y;
         gtk_window_get_position(GTK_WINDOW(app->window), &x, &y);
-        save_config_with_position(&app->harpoon, 1, x, y);
+        save_full_config(&app->harpoon, 1, x, y, app->close_on_focus_loss, (int)app->alignment);
         log_debug("Saved window position: x=%d, y=%d", x, y);
         
         gtk_widget_destroy(app->window);
@@ -490,12 +490,13 @@ int main(int argc, char *argv[]) {
     char *log_file_path = NULL;
     FILE *log_file = NULL;
     int alignment_specified = 0;
+    int close_on_focus_loss_specified = 0;
     
     // Set default log level to INFO
     log_set_level(LOG_INFO);
     
     // Parse command line arguments
-    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified);
+    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified, &close_on_focus_loss_specified);
     if (parse_result == 2) {
         // Version was printed
         return 0;
@@ -553,17 +554,37 @@ int main(int argc, char *argv[]) {
     // Open X11 display
     init_x11_connection(&app);
     
+    // Load full config with all options
+    int config_close_on_focus_loss;
+    int config_align_int;
+    load_full_config(&app.harpoon, &app.has_saved_position, &app.saved_x, &app.saved_y,
+                     &config_close_on_focus_loss, &config_align_int);
+    WindowAlignment config_align = (WindowAlignment)config_align_int;
+    
+    // Apply precedence rules for close_on_focus_loss
+    // Command line overrides config file
+    if (!close_on_focus_loss_specified) {
+        // Use config value if command line didn't specify
+        app.close_on_focus_loss = config_close_on_focus_loss;
+    }
+    log_debug("close_on_focus_loss = %d (cmdline_specified=%d)", app.close_on_focus_loss, close_on_focus_loss_specified);
+    
+    // Apply precedence rules for alignment/position:
+    // 1. Command line --align takes highest precedence
+    // 2. Saved window position takes precedence over config align
+    // 3. Config align is fallback
     if (alignment_specified) {
-        // If --align was specified, clear any saved position
-        load_harpoon_config(&app.harpoon);
-        save_config_with_position(&app.harpoon, 0, 0, 0); // Clear saved position
-        log_debug("Cleared saved position due to --align argument");
+        // Command line --align was specified, clear any saved position
+        app.has_saved_position = 0;
+        save_full_config(&app.harpoon, 0, 0, 0, app.close_on_focus_loss, (int)app.alignment);
+        log_debug("Using command line alignment: %d", app.alignment);
+    } else if (app.has_saved_position) {
+        // Use saved position
+        log_debug("Using saved position: x=%d, y=%d", app.saved_x, app.saved_y);
     } else {
-        // Load position if no --align was specified
-        load_config_with_position(&app.harpoon, &app.has_saved_position, &app.saved_x, &app.saved_y);
-        if (app.has_saved_position) {
-            log_debug("Loaded saved position: x=%d, y=%d", app.saved_x, app.saved_y);
-        }
+        // Use config align
+        app.alignment = config_align;
+        log_debug("Using config alignment: %d", app.alignment);
     }
     
     // Initialize window and workspace lists

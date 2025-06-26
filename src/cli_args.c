@@ -42,7 +42,7 @@ WindowAlignment parse_alignment(const char *align_str) {
     return ALIGN_CENTER; // Default fallback
 }
 
-int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified) {
+int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified, int *close_on_focus_loss_specified) {
     static struct option long_options[] = {
         {"log-level", required_argument, 0, 'l'},
         {"log-file", required_argument, 0, 'f'},
@@ -83,6 +83,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
             }
             case 'c':
                 app->close_on_focus_loss = 1;
+                if (close_on_focus_loss_specified) *close_on_focus_loss_specified = 1;
                 break;
             case 'v':
                 printf("cofi version %s\n", VERSION_STRING);
