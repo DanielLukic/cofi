@@ -38,10 +38,12 @@
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app);
 static void on_entry_changed(GtkEntry *entry, AppData *app);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
+static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 static void filter_workspaces(AppData *app, const char *filter);
 
 // Forward declaration for destroy_window function
 static void destroy_window(AppData *app);
+static gboolean check_focus_loss_delayed(AppData *app);
 
 // Selection management functions
 static void reset_selection(AppData *app) {
@@ -338,6 +340,39 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
     return TRUE; // Prevent default handler
 }
 
+// Handle focus out event
+static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app) {
+    (void)event;
+    
+    // Only close if close_on_focus_loss is enabled
+    if (!app->close_on_focus_loss) {
+        return FALSE;
+    }
+    
+    // Use a small delay to properly detect if focus is really lost
+    // This helps distinguish between internal widget focus changes and actual window focus loss
+    g_timeout_add(100, (GSourceFunc)check_focus_loss_delayed, app);
+    
+    return FALSE;
+}
+
+// Delayed check for focus loss
+static gboolean check_focus_loss_delayed(AppData *app) {
+    if (!app->window) {
+        return FALSE; // Window already destroyed
+    }
+    
+    // Check if our window still has toplevel focus
+    if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
+        log_debug("Window still has toplevel focus after delay, not closing");
+        return FALSE;
+    }
+    
+    log_info("Window lost focus to external application, closing");
+    destroy_window(app);
+    return FALSE; // Don't repeat the timeout
+}
+
 // Destroy window instead of hiding it
 static void destroy_window(AppData *app) {
     if (app->window) {
@@ -425,6 +460,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     g_signal_connect(app->window, "delete-event", G_CALLBACK(on_delete_event), app);
     g_signal_connect(app->window, "key-press-event", G_CALLBACK(on_key_press), app);
     g_signal_connect(app->entry, "changed", G_CALLBACK(on_entry_changed), app);
+    g_signal_connect(app->window, "focus-out-event", G_CALLBACK(on_focus_out_event), app);
     
     // Make window capture all key events
     gtk_widget_set_can_focus(app->window, TRUE);

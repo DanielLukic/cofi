@@ -55,6 +55,7 @@ typedef struct {
     
     Display *display;
     HarpoonManager harpoon;                 // Harpoon number assignments
+    int close_on_focus_loss;                // Whether to close window when focus is lost
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED
