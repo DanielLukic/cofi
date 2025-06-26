@@ -79,12 +79,12 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Added error handling to X11 operations
   - **Files:** constants.h, x11_utils.c, window_list.c, instance.c, harpoon.c
 
-- [ ] **Centralize Selection Management** (Multiple files)
-  - [ ] Create `reset_selection_to_first(app)` function
-  - [ ] Create `move_selection_up(app)` and `move_selection_down(app)`
-  - [ ] Replace scattered selection index management
-  - [ ] Test selection navigation unchanged
-  - **Files:** `src/main.c`, others
+- [x] **Centralize Selection Management** (Multiple files)
+  - [x] Create `reset_selection(app)` function
+  - [x] Create `move_selection_up(app)` and `move_selection_down(app)`
+  - [x] Replace scattered selection index management
+  - [x] Test selection navigation unchanged - builds successfully
+  - **Files:** `src/main.c`
 
 ## Phase 3: Advanced Optimizations (1-2 weeks)
 

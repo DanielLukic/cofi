@@ -43,6 +43,15 @@ static void filter_workspaces(AppData *app, const char *filter);
 // Forward declaration for destroy_window function
 static void destroy_window(AppData *app);
 
+// Selection management functions
+static void reset_selection(AppData *app) {
+    if (app->current_tab == TAB_WINDOWS) {
+        app->selected_index = 0;
+    } else {
+        app->selected_workspace_index = 0;
+    }
+}
+
 // Helper function to switch between tabs
 static void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == target_tab) {
@@ -54,11 +63,10 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
     
     if (target_tab == TAB_WINDOWS) {
         filter_windows(app, "");
-        app->selected_index = 0;
     } else {
         filter_workspaces(app, "");
-        app->selected_workspace_index = 0;
     }
+    reset_selection(app);
     
     update_display(app);
     log_debug("Switched to %s tab", target_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
@@ -79,6 +87,36 @@ static int get_harpoon_slot(GdkEventKey *event) {
         }
     }
     return -1;
+}
+
+// Move selection up (decrements index in display, moves up visually)
+static void move_selection_up(AppData *app) {
+    if (app->current_tab == TAB_WINDOWS) {
+        if (app->selected_index < app->filtered_count - 1) {
+            app->selected_index++;
+            update_display(app);
+        }
+    } else {
+        if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
+            app->selected_workspace_index++;
+            update_display(app);
+        }
+    }
+}
+
+// Move selection down (increments index in display, moves down visually)
+static void move_selection_down(AppData *app) {
+    if (app->current_tab == TAB_WINDOWS) {
+        if (app->selected_index > 0) {
+            app->selected_index--;
+            update_display(app);
+        }
+    } else {
+        if (app->selected_workspace_index > 0) {
+            app->selected_workspace_index--;
+            update_display(app);
+        }
+    }
 }
 
 // Handle Ctrl+key for harpoon assignment/unassignment
@@ -203,63 +241,23 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
             return TRUE;
             
         case GDK_KEY_Up:
-            if (app->current_tab == TAB_WINDOWS) {
-                if (app->selected_index < app->filtered_count - 1) {
-                    app->selected_index++;
-                    update_display(app);
-                }
-            } else {
-                if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
-                    app->selected_workspace_index++;
-                    update_display(app);
-                }
-            }
+            move_selection_up(app);
             return TRUE;
             
         case GDK_KEY_Down:
-            if (app->current_tab == TAB_WINDOWS) {
-                if (app->selected_index > 0) {
-                    app->selected_index--;
-                    update_display(app);
-                }
-            } else {
-                if (app->selected_workspace_index > 0) {
-                    app->selected_workspace_index--;
-                    update_display(app);
-                }
-            }
+            move_selection_down(app);
             return TRUE;
         
         case GDK_KEY_k:
             if (event->state & GDK_CONTROL_MASK) {
-                if (app->current_tab == TAB_WINDOWS) {
-                    if (app->selected_index < app->filtered_count - 1) {
-                        app->selected_index++;
-                        update_display(app);
-                    }
-                } else {
-                    if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
-                        app->selected_workspace_index++;
-                        update_display(app);
-                    }
-                }
+                move_selection_up(app);
                 return TRUE;
             }
             break;
             
         case GDK_KEY_j:
             if (event->state & GDK_CONTROL_MASK) {
-                if (app->current_tab == TAB_WINDOWS) {
-                    if (app->selected_index > 0) {
-                        app->selected_index--;
-                        update_display(app);
-                    }
-                } else {
-                    if (app->selected_workspace_index > 0) {
-                        app->selected_workspace_index--;
-                        update_display(app);
-                    }
-                }
+                move_selection_down(app);
                 return TRUE;
             }
             break;
@@ -323,13 +321,11 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
     
     if (app->current_tab == TAB_WINDOWS) {
         filter_windows(app, text);
-        // Ensure selection is always 0 after filtering
-        app->selected_index = 0;
     } else {
         filter_workspaces(app, text);
-        // Ensure selection is always 0 after filtering
-        app->selected_workspace_index = 0;
     }
+    // Ensure selection is always 0 after filtering
+    reset_selection(app);
     
     update_display(app);
 }
@@ -358,7 +354,7 @@ static void destroy_window(AppData *app) {
         app->scrolled = NULL;
         app->textbuffer = NULL;
         // ALWAYS reset selection to 0
-        app->selected_index = 0;
+        reset_selection(app);
         log_debug("Selection reset to 0 in destroy_window");
     }
 }
@@ -830,7 +826,7 @@ int main(int argc, char *argv[]) {
     update_display(&app);
     
     // ALWAYS reset selection to 0 before showing window
-    app.selected_index = 0;
+    reset_selection(&app);
     log_debug("Selection reset to 0 before showing window");
     
     // Show window and run
