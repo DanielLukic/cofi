@@ -166,7 +166,7 @@ static WindowAlignment string_to_alignment(const char *str) {
 
 // Save full config with all options
 void save_full_config(const HarpoonManager *manager, int has_position, int x, int y, 
-                      int close_on_focus_loss, WindowAlignment align) {
+                      int close_on_focus_loss, int align) {
     if (!manager) return;
     
     const char *path = get_config_path();
@@ -181,7 +181,7 @@ void save_full_config(const HarpoonManager *manager, int has_position, int x, in
     // Save options
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", close_on_focus_loss ? "true" : "false");
-    fprintf(file, "    \"align\": \"%s\"\n", alignment_to_string(align));
+    fprintf(file, "    \"align\": \"%s\"\n", alignment_to_string((WindowAlignment)align));
     fprintf(file, "  },\n");
     
     // Save window position
@@ -357,7 +357,7 @@ void load_harpoon_config(HarpoonManager *manager) {
 
 // Load full config with all options
 void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y,
-                      int *close_on_focus_loss, WindowAlignment *align) {
+                      int *close_on_focus_loss, int *align) {
     if (!manager) return;
     
     // Initialize output parameters with defaults
@@ -365,7 +365,7 @@ void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y
     if (x) *x = 0;
     if (y) *y = 0;
     if (close_on_focus_loss) *close_on_focus_loss = 1;  // Default to true
-    if (align) *align = ALIGN_CENTER;  // Default to center
+    if (align) *align = (int)ALIGN_CENTER;  // Default to center
     
     const char *path = get_config_path();
     FILE *file = fopen(path, "r");
@@ -425,7 +425,7 @@ void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y
                             if (len >= 32) len = 31;
                             strncpy(align_str, start, len);
                             align_str[len] = '\0';
-                            *align = string_to_alignment(align_str);
+                            *align = (int)string_to_alignment(align_str);
                         }
                     }
                 }
