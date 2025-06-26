@@ -51,6 +51,30 @@ Run cofi:
 ./cofi
 ```
 
+### Command-line Options
+
+- `--log-level LEVEL` (-l) - Set log level: trace, debug, info (default), warn, error, fatal
+- `--log-file FILE` (-f) - Write logs to file
+- `--no-log` (-n) - Disable logging
+- `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
+- `--close-on-focus-loss` (-c) - Close window when losing focus
+- `--version` (-v) - Show version
+- `--help` (-h) - Show help
+
+### Configuration
+
+COFI saves configuration to `~/.config/cofi.json`:
+
+- **options** - Application settings
+  - `close_on_focus_loss` - Auto-close on focus loss (boolean)
+  - `align` - Default window alignment
+- **window_position** - Saved window position
+  - `x`, `y` - Window coordinates
+  - `saved` - Use saved position (boolean)
+- **harpoon_slots** - Window assignments
+  - Slots 0-9: Ctrl+0-9 / Alt+0-9
+  - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
+
 ### Keyboard Shortcuts
 
 #### Window/Workspace Navigation
