@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Source backup utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/test_config_backup.sh"
+
+# Backup config at start
+backup_config
+
+# Restore config on exit
+trap 'restore_config' EXIT INT TERM
+
 # Kill any existing cofi instance
 pkill cofi || true
 
