@@ -15,18 +15,6 @@ void update_history(AppData *app) {
     log_debug("update_history() - current_active=0x%x, previous_active=0x%x", 
             current_active, app->active_window_id);
     
-    // Create a map of current windows for efficient lookup
-    int window_exists[MAX_WINDOWS] = {0};
-    for (int i = 0; i < app->window_count; i++) {
-        // Mark this window ID as existing
-        for (int j = 0; j < MAX_WINDOWS; j++) {
-            if (j < app->window_count && app->windows[j].id == app->windows[i].id) {
-                window_exists[j] = 1;
-                break;
-            }
-        }
-    }
-    
     // Keep only existing windows in history (KeepOnly logic)
     WindowInfo new_history[MAX_WINDOWS];
     int new_history_count = 0;
