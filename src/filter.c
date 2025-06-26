@@ -13,11 +13,20 @@
 #include "match.h"
 #include "constants.h"
 
+#define UNUSED __attribute__((unused))
+
 // Structure to hold window info with match score
 typedef struct {
     WindowInfo window;
     score_t score;
 } ScoredWindow;
+
+// Structure to track word boundary matches
+typedef struct {
+    int total_words_matched;      // Total number of words that matched
+    int consecutive_words;        // Max consecutive words matched
+    int match_at_start;          // 1 if match starts at beginning of title
+} WordMatchInfo;
 
 
 // Comparison function for qsort
@@ -33,7 +42,46 @@ static int compare_scores(const void *a, const void *b) {
 
 // Check if a character is a word boundary separator
 static int is_word_boundary(char c) {
-    return c == ' ' || c == '-' || c == '_' || c == '.' || c == '(';
+    return c == ' ' || c == '-' || c == '_' || c == '.' || c == '(' || c == '|';
+}
+
+// Count how many consecutive words match the filter characters
+static WordMatchInfo analyze_word_matches(const char *filter, const char *title) {
+    WordMatchInfo info = {0, 0, 0};
+    int filter_len = strlen(filter);
+    
+    // For each starting position, count consecutive word matches
+    for (int start = 0; filter[start]; start++) {
+        int filter_idx = start;
+        int consecutive = 0;
+        int word_position = 0;
+        
+        for (int i = 0; title[i] && filter_idx < filter_len; i++) {
+            int at_word_start = (i == 0 || is_word_boundary(title[i-1]));
+            
+            if (at_word_start) {
+                word_position++;
+                // Check if this word starts with the next filter character
+                if (tolower(title[i]) == tolower(filter[filter_idx])) {
+                    filter_idx++;
+                    consecutive++;
+                    
+                    // Check if this is the best sequence so far
+                    if (consecutive > info.consecutive_words) {
+                        info.consecutive_words = consecutive;
+                        info.total_words_matched = consecutive;
+                        if (start == 0 && word_position == 1) {
+                            info.match_at_start = 1;
+                        }
+                    }
+                } else {
+                    break; // This sequence ended
+                }
+            }
+        }
+    }
+    
+    return info;
 }
 
 // Try word boundary match - returns score if matched, SCORE_MIN otherwise
@@ -41,8 +89,8 @@ static score_t try_word_boundary_match(const char *filter, const WindowInfo *win
     int filter_len = strlen(filter);
     const char *title = win->title;
     
-    // Check if filter appears consecutively at start of any word
-    for (int i = 0; title[i] && i + filter_len <= strlen(title); i++) {
+    // First check if filter appears consecutively at start of any word
+    for (int i = 0; title[i] && i + filter_len <= (int)strlen(title); i++) {
         int at_word_start = (i == 0 || is_word_boundary(title[i-1]));
         
         if (at_word_start) {
@@ -55,8 +103,25 @@ static score_t try_word_boundary_match(const char *filter, const WindowInfo *win
                 }
             }
             if (matches) {
-                log_debug("WORD START MATCH: '%s' -> '%s' (score: %f)", filter, title, SCORE_WORD_BOUNDARY);
-                return SCORE_WORD_BOUNDARY;
+                // Found a word boundary match - calculate enhanced score
+                score_t base_score = SCORE_WORD_BOUNDARY;
+                
+                // Analyze the entire title for matching words
+                WordMatchInfo word_info = analyze_word_matches(filter, title);
+                
+                // Add bonus for consecutive word matches
+                if (word_info.consecutive_words > 1) {
+                    base_score += 300 * (word_info.consecutive_words - 1);
+                }
+                
+                // Add bonus for matching at start of title
+                if (i == 0) {
+                    base_score += 100;
+                }
+                
+                log_debug("WORD START MATCH: '%s' -> '%s' (base: %.0f, consecutive: %d, score: %.0f)", 
+                         filter, title, SCORE_WORD_BOUNDARY, word_info.consecutive_words, base_score);
+                return base_score;
             }
         }
     }
@@ -69,18 +134,29 @@ static score_t try_initials_match(const char *filter, const WindowInfo *win) {
     int filter_len = strlen(filter);
     const char *title = win->title;
     int filter_idx = 0;
+    int words_matched = 0;
     
     for (int i = 0; title[i] && filter_idx < filter_len; i++) {
         int at_word_start = (i == 0 || is_word_boundary(title[i-1]));
         
         if (at_word_start && tolower(title[i]) == tolower(filter[filter_idx])) {
             filter_idx++;
+            words_matched++;
         }
     }
     
     if (filter_idx == filter_len) {
-        log_debug("INITIALS MATCH: '%s' -> '%s' (score: %f)", filter, title, SCORE_INITIALS_MATCH);
-        return SCORE_INITIALS_MATCH;
+        score_t base_score = SCORE_INITIALS_MATCH;
+        
+        // Prefer matches where each character matches a word initial
+        // (e.g., "tdd" matching "Test Driven Development" vs just "TDD")
+        if (words_matched > filter_len) {
+            base_score += 50 * (words_matched - filter_len);
+        }
+        
+        log_debug("INITIALS MATCH: '%s' -> '%s' (words: %d, score: %f)", 
+                 filter, title, words_matched, base_score);
+        return base_score;
     }
     
     return SCORE_MIN;
@@ -116,57 +192,75 @@ static score_t try_fuzzy_match(const char *filter, const char *text, const char 
     return SCORE_MIN;
 }
 
+// Try a match function and update best score if better
+static void try_match_and_update(const char *filter, const char *text, const char *label,
+                                 score_t (*match_func)(const char*, const char*, const char*),
+                                 score_t *best_score) {
+    score_t score = match_func(filter, text, label);
+    if (score > *best_score) {
+        *best_score = score;
+    }
+}
+
 // Match a window against filter and return best score
 static score_t match_window(const char *filter, const WindowInfo *win) {
     score_t best_score = SCORE_MIN;
     
-    // Stage 1: Try word boundary match
+    // Priority 1: Word boundary match (highest priority, return immediately)
     best_score = try_word_boundary_match(filter, win);
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
-    // Stage 2: Try initials match
+    // Priority 2: Initials match (second highest, return immediately)
     best_score = try_initials_match(filter, win);
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
-    // Stage 3: Try subsequence match on title
+    // Priority 3: Subsequence match on title (return immediately)
     best_score = try_subsequence_match(filter, win->title, "TITLE");
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
-    // Stage 4: Try fuzzy match on title
+    // Priority 4: Try fuzzy match on title
     best_score = try_fuzzy_match(filter, win->title, "TITLE");
     
-    // Stage 5: Try subsequence match on class/instance (if no good title match)
+    // Priority 5: Try class/instance matching (only if no good title match)
     if (best_score < SCORE_SUBSEQUENCE_MATCH) {
-        score_t class_score = try_subsequence_match(filter, win->class_name, "CLASS");
-        if (class_score > best_score) best_score = class_score;
-        
-        score_t instance_score = try_subsequence_match(filter, win->instance, "INSTANCE");
-        if (instance_score > best_score) best_score = instance_score;
+        // Try subsequence on class and instance
+        try_match_and_update(filter, win->class_name, "CLASS", 
+                            try_subsequence_match, &best_score);
+        try_match_and_update(filter, win->instance, "INSTANCE", 
+                            try_subsequence_match, &best_score);
     }
     
-    // Stage 6: Try fuzzy match on class/instance (final fallback)
+    // Priority 6: Fuzzy fallback on class/instance (only if no matches yet)
     if (best_score <= SCORE_MIN) {
-        score_t class_score = try_fuzzy_match(filter, win->class_name, "CLASS");
-        if (class_score > best_score) best_score = class_score;
-        
-        score_t instance_score = try_fuzzy_match(filter, win->instance, "INSTANCE");
-        if (instance_score > best_score) best_score = instance_score;
+        try_match_and_update(filter, win->class_name, "CLASS", 
+                            try_fuzzy_match, &best_score);
+        try_match_and_update(filter, win->instance, "INSTANCE", 
+                            try_fuzzy_match, &best_score);
     }
     
     return best_score;
 }
 
-// Filter windows based on search text (now works with history-ordered windows)
-void filter_windows(AppData *app, const char *filter) {
-    app->filtered_count = 0;
-    
-    log_debug("filter_windows() called with filter='%s'", filter);
+// Apply Alt-Tab swap to a window array (swaps positions 0 and 1)
+// This modifies the array in-place
+static void apply_alt_tab_swap(WindowInfo *windows, int count) {
+    if (count >= 2) {
+        WindowInfo temp = windows[0];
+        windows[0] = windows[1];
+        windows[1] = temp;
+        log_debug("Alt-Tab swap applied: [0]='%s' [1]='%s'", 
+                 windows[0].title, windows[1].title);
+    }
+}
+
+// Prepare windows for filtering by updating history and partitioning
+static void prepare_windows_for_filtering(AppData *app) {
     log_trace("Before pipeline - history_count=%d", app->history_count);
     
     // First, update the complete window processing pipeline
@@ -174,30 +268,17 @@ void filter_windows(AppData *app, const char *filter) {
     partition_and_reorder(app);
     
     log_trace("After pipeline - history_count=%d", app->history_count);
-    
-    // Clone the history array for Alt-Tab processing
-    WindowInfo cloned_history[MAX_WINDOWS];
-    int cloned_count = app->history_count;
-    for (int i = 0; i < app->history_count; i++) {
-        cloned_history[i] = app->history[i];
-    }
-    
-    // Apply Alt-Tab swap ONCE on the cloned list (only if we have 2+ windows)
-    if (cloned_count >= 2) {
-        WindowInfo temp = cloned_history[0];
-        cloned_history[0] = cloned_history[1];
-        cloned_history[1] = temp;
-        log_debug("Alt-Tab swap applied: [0]='%s' [1]='%s'", 
-                 cloned_history[0].title, cloned_history[1].title);
-    }
-    
-    // Temporary array to hold scored windows
-    ScoredWindow scored_windows[MAX_WINDOWS];
+}
+
+// Score and filter windows based on search text
+static int score_and_filter_windows(AppData *app UNUSED, const char *filter, 
+                                   const WindowInfo *windows, int window_count,
+                                   ScoredWindow *scored_windows) {
     int scored_count = 0;
     
-    // Now filter the processed and swapped clone
-    for (int i = 0; i < cloned_count; i++) {
-        WindowInfo *win = &cloned_history[i];
+    // Filter and score windows
+    for (int i = 0; i < window_count; i++) {
+        const WindowInfo *win = &windows[i];
         
         if (strlen(filter) == 0) {
             // No filter - include all windows with max score
@@ -207,7 +288,7 @@ void filter_windows(AppData *app, const char *filter) {
                 scored_count++;
             }
         } else {
-            // Use the new match_window function for all matching logic
+            // Use the match_window function for all matching logic
             score_t best_score = match_window(filter, win);
             
             // Add to scored list if we have a match
@@ -222,26 +303,34 @@ void filter_windows(AppData *app, const char *filter) {
         }
     }
     
-    // Sort by score if we have a filter
-    if (strlen(filter) > 0 && scored_count > 0) {
-        qsort(scored_windows, scored_count, sizeof(ScoredWindow), compare_scores);
+    return scored_count;
+}
+
+// Sort scored windows by score (highest first)
+static void sort_scored_windows(ScoredWindow *scored_windows, int count, const char *filter) {
+    if (strlen(filter) > 0 && count > 0) {
+        qsort(scored_windows, count, sizeof(ScoredWindow), compare_scores);
         
         // Debug: print sorted results
         log_debug("=== Sorted results for filter '%s' ===", filter);
-        for (int i = 0; i < scored_count && i < 5; i++) {
+        for (int i = 0; i < count && i < 5; i++) {
             log_debug("%d: %s (score: %f)", i, scored_windows[i].window.title, scored_windows[i].score);
         }
         log_debug("=====================================");
     }
+}
+
+// Finalize filter results by copying to app's filtered array
+static void finalize_filter_results(AppData *app, const ScoredWindow *scored_windows, int count) {
+    app->filtered_count = 0;
     
     // Copy sorted windows to filtered array
-    for (int i = 0; i < scored_count && i < MAX_WINDOWS; i++) {
+    for (int i = 0; i < count && i < MAX_WINDOWS; i++) {
         app->filtered[i] = scored_windows[i].window;
         app->filtered_count++;
     }
     
     // ALWAYS select the FIRST window for Alt-Tab behavior
-    // After alt-tab swap, position 0 contains the previous window (the one we want to switch to)
     app->selected_index = 0;
     
     // Ensure selection is within bounds
@@ -252,4 +341,33 @@ void filter_windows(AppData *app, const char *filter) {
     }
     
     log_debug("Selection reset to %d (filtered_count=%d)", app->selected_index, app->filtered_count);
+}
+
+// Filter windows based on search text (now works with history-ordered windows)
+void filter_windows(AppData *app, const char *filter) {
+    log_debug("filter_windows() called with filter='%s'", filter);
+    
+    // Step 1: Prepare windows (update history and partition)
+    prepare_windows_for_filtering(app);
+    
+    // Step 2: Clone the history array for Alt-Tab processing
+    WindowInfo cloned_history[MAX_WINDOWS];
+    int cloned_count = app->history_count;
+    for (int i = 0; i < app->history_count; i++) {
+        cloned_history[i] = app->history[i];
+    }
+    
+    // Step 3: Apply Alt-Tab swap
+    apply_alt_tab_swap(cloned_history, cloned_count);
+    
+    // Step 4: Score and filter windows
+    ScoredWindow scored_windows[MAX_WINDOWS];
+    int scored_count = score_and_filter_windows(app, filter, cloned_history, 
+                                               cloned_count, scored_windows);
+    
+    // Step 5: Sort by score
+    sort_scored_windows(scored_windows, scored_count, filter);
+    
+    // Step 6: Finalize results
+    finalize_filter_results(app, scored_windows, scored_count);
 }
