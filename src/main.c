@@ -74,18 +74,31 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
 }
 
 // Helper function to get harpoon slot from key event
-static int get_harpoon_slot(GdkEventKey *event) {
+static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
     if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
         return event->keyval - GDK_KEY_0;
     } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
         return event->keyval - GDK_KEY_KP_0;
     } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-        // Exclude navigation keys (h, j, k, l) and text clearing key (u)
-        if (event->keyval != GDK_KEY_h && event->keyval != GDK_KEY_j && 
-            event->keyval != GDK_KEY_k && event->keyval != GDK_KEY_l &&
-            event->keyval != GDK_KEY_u) {
-            return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
+        // For activation (Alt+key), we allow all keys including h,j,k,l,u
+        // For assignment (Ctrl+key), we exclude h,j,k,l,u unless Shift is pressed
+        if (is_assignment) {
+            gboolean is_excluded_key = (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_j || 
+                                       event->keyval == GDK_KEY_k || event->keyval == GDK_KEY_l ||
+                                       event->keyval == GDK_KEY_u);
+            
+            if (is_excluded_key && !(event->state & GDK_SHIFT_MASK)) {
+                // Excluded key without Shift - reject for assignment
+                return -1;
+            }
         }
+        
+        return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
+    } else if (event->keyval >= GDK_KEY_A && event->keyval <= GDK_KEY_Z) {
+        // Handle uppercase letters (when Shift is pressed)
+        // For uppercase (shifted) keys, we allow even the normally excluded keys h,j,k,l,u
+        // because user explicitly pressed Shift
+        return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_A);
     }
     return -1;
 }
@@ -126,7 +139,7 @@ static gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
     
-    int slot = get_harpoon_slot(event);
+    int slot = get_harpoon_slot(event, TRUE);  // TRUE = this is assignment
     if (slot < 0 || app->filtered_count == 0 || app->selected_index >= app->filtered_count) {
         return FALSE;
     }
@@ -162,7 +175,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         return FALSE;
     }
     
-    int slot = get_harpoon_slot(event);
+    int slot = get_harpoon_slot(event, FALSE);  // FALSE = this is activation, not assignment
     if (slot < 0) {
         return FALSE;
     }

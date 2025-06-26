@@ -101,7 +101,13 @@ The following keys are reserved for navigation and cannot be used for harpoon as
 - **Ctrl+l** - Switch to next tab (Workspaces/Windows)
 - **Ctrl+u** - Clear search text (GTK default behavior)
 
-This gives you 31 available harpoon slots: 0-9 and a-g, i, m-t, v-z.
+**Override Exclusions with Shift:**
+You can override the key exclusions by holding Shift:
+- **Ctrl+Shift+h/j/k/l/u** - Assign these normally excluded keys as harpoon slots
+- This is safe because activation still uses Alt+key (without Shift)
+- Example: Ctrl+Shift+h assigns to slot 'h', then Alt+h activates it
+
+This gives you 31 available harpoon slots by default (0-9 and a-g, i, m-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
 
 ### Window Display
 
