@@ -118,19 +118,19 @@ This document tracks refactoring opportunities to improve code maintainability w
 
 ### 🧠 Complex Logic
 
-- [ ] **Refactor Filter Logic** (`src/filter.c`)
-  - [ ] Simplify nested conditional logic in filtering stages
-  - [ ] Extract complex scoring logic into separate functions
-  - [ ] Add comprehensive filter testing
-  - [ ] Verify filter results identical to current behavior
-  - **Files:** `src/filter.c` lines 84-179
+- [x] **Refactor Filter Logic** (`src/filter.c`)
+  - [x] Simplify nested conditional logic in filtering stages
+  - [x] Extract complex scoring logic into separate functions
+  - [x] Add comprehensive filter testing
+  - [x] Verify filter results identical to current behavior
+  - **Files:** `src/filter.c` - Refactored into cleaner pipeline structure with enhanced scoring
 
-- [ ] **Fix Word Boundary Scoring Edge Case** (`src/filter.c`) - Low Priority
-  - [ ] Improve scoring when filter matches multiple consecutive words
-  - [ ] Example: "cf" should prioritize "Code Fix" over "Coding | Focus..."
-  - [ ] Special characters like "|" may affect word boundary detection
-  - [ ] Consider giving bonus score for consecutive word matches
-  - **Files:** `src/filter.c` - `try_word_boundary_match()`
+- [x] **Fix Word Boundary Scoring Edge Case** (`src/filter.c`) - Low Priority
+  - [x] Improve scoring when filter matches multiple consecutive words
+  - [x] Example: "code" at start of title now scores higher (2100) than elsewhere (2000)
+  - [x] Special characters like "|" now properly detected as word boundaries
+  - [x] Implemented bonus scoring: +300 per consecutive word, +100 for match at start
+  - **Files:** `src/filter.c` - Enhanced `try_word_boundary_match()` and `try_initials_match()`
 
 ### 📁 Organization
 
