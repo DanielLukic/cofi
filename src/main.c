@@ -442,9 +442,17 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(app->textview), FALSE);
     gtk_widget_set_can_focus(app->textview, FALSE);
     
-    // Set monospace font
-    PangoFontDescription *font_desc = pango_font_description_from_string("monospace 12");
-    gtk_widget_override_font(app->textview, font_desc);
+    // Set monospace font using CSS
+    GtkCssProvider *css_provider = gtk_css_provider_new();
+    const char *css = 
+        "textview { font-family: monospace; font-size: 12pt; }\n"
+        "entry { font-family: monospace; font-size: 12pt; }";
+    gtk_css_provider_load_from_data(css_provider, css, -1, NULL);
+    
+    GtkStyleContext *textview_context = gtk_widget_get_style_context(app->textview);
+    gtk_style_context_add_provider(textview_context,
+                                   GTK_STYLE_PROVIDER(css_provider),
+                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     
     // Add margins
     gtk_text_view_set_left_margin(GTK_TEXT_VIEW(app->textview), 10);
@@ -460,10 +468,13 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     app->entry = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
     
-    // Set monospace font for entry too
-    gtk_widget_override_font(app->entry, font_desc);
+    // Apply CSS to entry widget too
+    GtkStyleContext *entry_context = gtk_widget_get_style_context(app->entry);
+    gtk_style_context_add_provider(entry_context,
+                                   GTK_STYLE_PROVIDER(css_provider),
+                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     
-    pango_font_description_free(font_desc);
+    g_object_unref(css_provider);
     
     // Pack widgets (text view on top, entry at bottom - like fzf)
     gtk_box_pack_start(GTK_BOX(vbox), app->textview, TRUE, TRUE, 0);
