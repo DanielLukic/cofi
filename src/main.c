@@ -28,8 +28,7 @@
 #include "cli_args.h"
 #include "gtk_window.h"
 #include "app_init.h"
-
-#define COFI_VERSION "0.1.0"
+#include "version.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
 // WindowInfo and AppData types are defined in src/app_data.h

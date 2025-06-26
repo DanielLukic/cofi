@@ -4,6 +4,10 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g $(shell pkg-config --cflags gtk+-3.0 x11)
 LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11) -lm
 
+# Build number from environment (GitHub Actions) or default to 0
+BUILD_NUMBER ?= 0
+CFLAGS += -DBUILD_NUMBER=$(BUILD_NUMBER)
+
 # Source files
 SOURCES = src/main.c \
           src/x11_utils.c \

@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libx11-dev build-essential
+    
+    - name: Show build environment
+      run: |
+        gcc --version
+        pkg-config --modversion gtk+-3.0
+        echo "CFLAGS will be: $(pkg-config --cflags gtk+-3.0 x11)"
+    
+    - name: Build with build number
+      run: |
+        make clean
+        make BUILD_NUMBER=${{ github.run_number }} 2>&1 || (echo "Build failed, showing errors:"; make BUILD_NUMBER=${{ github.run_number }} 2>&1; exit 1)
+    
+    - name: Run tests
+      run: make test
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cofi-linux-x64-${{ github.run_number }}
+        path: cofi
+        retention-days: 7

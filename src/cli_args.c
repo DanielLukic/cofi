@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include "cli_args.h"
 #include "log.h"
+#include "version.h"
 
 void print_usage(const char *prog_name) {
     printf("Usage: %s [options]\n", prog_name);
@@ -84,7 +85,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 app->close_on_focus_loss = 1;
                 break;
             case 'v':
-                printf("cofi version 0.1.0\n");
+                printf("cofi version %s\n", VERSION_STRING);
                 return 2; // Special return code for version
             case 'h':
                 print_usage(argv[0]);
