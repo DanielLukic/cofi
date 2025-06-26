@@ -5,8 +5,15 @@
 
 set -e
 
+# Source backup utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/test_config_backup.sh"
+
 LOG_FILE="cofi_test.log"
 TERMINAL_TITLE="TEST-TERM-COFI"
+
+# Backup config at start
+backup_config
 
 cleanup() {
     echo "Cleaning up..."
@@ -16,6 +23,8 @@ cleanup() {
     wmctrl -c "$TERMINAL_TITLE" || true
     # Remove lock file
     rm -f /tmp/cofi.lock
+    # Restore original config
+    restore_config
     echo "Cleanup complete"
 }
 
