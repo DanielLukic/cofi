@@ -13,6 +13,7 @@ void print_usage(const char *prog_name) {
     printf("  --no-log             Disable logging\n");
     printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
+    printf("  --close-on-focus-loss Close window when focus is lost\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
 }
@@ -46,6 +47,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
         {"log-file", required_argument, 0, 'f'},
         {"no-log", no_argument, 0, 'n'},
         {"align", required_argument, 0, 'a'},
+        {"close-on-focus-loss", no_argument, 0, 'c'},
         {"version", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -54,7 +56,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     int c;
     int option_index = 0;
     
-    while ((c = getopt_long(argc, argv, "l:f:navh", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "l:f:nacvh", long_options, &option_index)) != -1) {
         switch (c) {
             case 'l': {
                 int level = parse_log_level(optarg);
@@ -78,6 +80,9 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 *alignment_specified = 1;
                 break;
             }
+            case 'c':
+                app->close_on_focus_loss = 1;
+                break;
             case 'v':
                 printf("cofi version 0.1.0\n");
                 return 2; // Special return code for version
