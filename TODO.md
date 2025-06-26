@@ -86,7 +86,35 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Test selection navigation unchanged - builds successfully
   - **Files:** `src/main.c`
 
-## Phase 3: Advanced Optimizations (1-2 weeks)
+## Phase 3: Unit Test Coverage (1 week)
+
+### 🧪 Test Coverage Improvements
+
+- [x] **Create Unit Tests for filter.c** (High Priority)
+  - [x] Test multi-stage filtering (word boundary, initials, subsequence, fuzzy)
+  - [x] Test scoring system (2000, 1900, 1500, variable scores)
+  - [x] Test case-insensitive matching across all fields
+  - [x] Test filtering on title, class, and instance fields
+  - [x] Verify filter ordering and score-based ranking
+  - **Files:** Created `test/test_filter.c`
+
+- [x] **Create Unit Tests for history.c** (High Priority)
+  - [x] Test MRU ordering when windows gain/lose focus
+  - [x] Test Alt-Tab swap logic (positions 0 and 1 swap)
+  - [x] Test window removal from history when closed
+  - [x] Test self-window ("cofi") exclusion from history
+  - [x] Test history preservation across updates
+  - **Files:** Created `test/test_history.c`
+
+- [x] **Update Test Suite** (High Priority)
+  - [x] Created `test/test_utils.h` with test helper macros
+  - [x] Updated `test/run_all_tests.sh` to include new unit tests
+  - [x] Excluded interactive tests that require X11 or start cofi
+  - **Files:** `test/test_utils.h`, `test/run_all_tests.sh`
+
+**Note:** X11-dependent tests (x11_utils.c, window_list.c, instance.c) were skipped as they require X11 connections or start the cofi app
+
+## Phase 4: Advanced Optimizations (1-2 weeks)
 
 ### 🧠 Complex Logic
 
