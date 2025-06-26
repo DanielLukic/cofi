@@ -8,8 +8,21 @@ set -e  # Exit on first failure
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."  # Go to project root
 
+# Source the backup utilities
+source "$SCRIPT_DIR/test_config_backup.sh"
+
 echo "=== COFI Test Suite ==="
 echo
+
+# Backup config before running tests
+backup_config
+if [ $? -ne 0 ]; then
+    echo "Failed to backup config, aborting tests"
+    exit 1
+fi
+
+# Ensure config is restored on exit (including errors/interrupts)
+trap 'restore_config' EXIT INT TERM
 
 # Build the main project first
 echo "Building cofi..."
