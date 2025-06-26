@@ -1,7 +1,7 @@
 # Makefile for cofi - C/GTK window switcher
 
 CC = gcc
-CFLAGS = -Wall -Wextra -g $(shell pkg-config --cflags gtk+-3.0 x11)
+CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11)
 LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11) -lm
 
 # Build number from environment (GitHub Actions) or default to 0
