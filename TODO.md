@@ -112,11 +112,23 @@ This document tracks refactoring opportunities to improve code maintainability w
   - [x] Organize include order consistently
   - **Files:** All `.h` files
 
-- [ ] **Reorganize Function Order** (`src/main.c`)
-  - [ ] Group related static functions together
-  - [ ] Organize by logical functionality
-  - [ ] Add function group comments
-  - **Files:** `src/main.c`
+- [x] **Break Down Large Functions** (`src/main.c`)
+  - [x] Create `src/cli_args.c` for command-line parsing (~70 lines)
+    - [x] Move `print_usage()`, `parse_log_level()`, `parse_alignment()`
+    - [x] Extract `parse_command_line()` from main switch statement
+  - [x] Create `src/gtk_window.c` for window positioning (~100 lines)
+    - [x] Move window positioning logic from `setup_application()`
+    - [x] Extract `validate_saved_position()`, `apply_window_position()`
+    - [x] Move `on_window_size_allocate()` callback
+  - [ ] Create `src/app_init.c` for initialization (~50 lines)
+    - [ ] Extract `init_app_data()`, `init_x11_connection()`
+    - [ ] Move initial window/workspace population logic
+  - [ ] Enhance existing files:
+    - [ ] Move workspace init to `workspace_info.c`
+    - [ ] Move history init to `history.c`
+  - [x] Reduce `main()` from 235 to ~100 lines (reduced to ~140)
+  - [x] Reduce `setup_application()` from 139 to ~40 lines (reduced to ~80)
+  - **Files:** `src/main.c`, new files: `cli_args.c`, `gtk_window.c`, `app_init.c`
 
 - [x] **Variable Naming Consistency** (Multiple files)
   - [x] Standardize on snake_case throughout

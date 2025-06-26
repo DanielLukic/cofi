@@ -17,7 +17,9 @@ SOURCES = src/main.c \
           src/harpoon.c \
           src/window_matcher.c \
           src/match.c \
-          src/utils.c
+          src/utils.c \
+          src/cli_args.c \
+          src/gtk_window.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

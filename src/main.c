@@ -25,6 +25,8 @@
 #include "match.h"
 #include "constants.h"
 #include "utils.h"
+#include "cli_args.h"
+#include "gtk_window.h"
 
 #define COFI_VERSION "0.1.0"
 
@@ -34,10 +36,7 @@
 // Forward declarations
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app);
 static void on_entry_changed(GtkEntry *entry, AppData *app);
-static void print_usage(const char *prog_name);
-static int parse_log_level(const char *level_str);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
-static void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data);
 static void filter_workspaces(AppData *app, const char *filter);
 
 // Forward declaration for destroy_window function
@@ -374,67 +373,10 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     if (app->has_saved_position) {
         // Validate saved position is still on-screen
         GdkScreen *screen = gdk_screen_get_default();
-        gint n_monitors = gdk_screen_get_n_monitors(screen);
-        gboolean position_valid = FALSE;
-        
-        // Check if the saved position is on any monitor
-        for (gint i = 0; i < n_monitors; i++) {
-            GdkRectangle monitor_geometry;
-            gdk_screen_get_monitor_geometry(screen, i, &monitor_geometry);
-            
-            // Check if at least part of the window would be visible
-            if (app->saved_x < monitor_geometry.x + monitor_geometry.width - 50 &&
-                app->saved_x + 50 > monitor_geometry.x &&
-                app->saved_y < monitor_geometry.y + monitor_geometry.height - 50 &&
-                app->saved_y + 50 > monitor_geometry.y) {
-                position_valid = TRUE;
-                break;
-            }
-        }
-        
-        if (position_valid) {
-            // Use saved position
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-            gtk_window_move(GTK_WINDOW(app->window), app->saved_x, app->saved_y);
-            log_debug("Applied saved position: x=%d, y=%d", app->saved_x, app->saved_y);
-        } else {
-            // Saved position is off-screen, fall back to center
-            gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_CENTER);
-            log_warn("Saved position (%d, %d) is off-screen, using center alignment", app->saved_x, app->saved_y);
-            app->has_saved_position = 0; // Clear invalid position
-        }
+        validate_saved_position(app, screen);
     } else {
         // Set window position based on alignment
-        switch (alignment) {
-            case ALIGN_CENTER:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_CENTER);
-                break;
-            case ALIGN_TOP:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                // Position will be set after window is realized
-                break;
-            case ALIGN_TOP_LEFT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_TOP_RIGHT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_LEFT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_RIGHT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_BOTTOM:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_BOTTOM_LEFT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-            case ALIGN_BOTTOM_RIGHT:
-                gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-                break;
-        }
+        apply_window_position(app->window, alignment);
     }
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(app->window), TRUE);
@@ -501,206 +443,43 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     }
 }
 
-static void print_usage(const char *prog_name) {
-    printf("Usage: %s [options]\n", prog_name);
-    printf("Options:\n");
-    printf("  --log-level LEVEL    Set log level (trace, debug, info, warn, error, fatal)\n");
-    printf("  --log-file FILE      Write logs to FILE\n");
-    printf("  --no-log             Disable logging\n");
-    printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
-    printf("                       left, right, bottom, bottom_left, bottom_right)\n");
-    printf("  --version            Show version information\n");
-    printf("  --help               Show this help message\n");
-}
 
-static int parse_log_level(const char *level_str) {
-    if (strcasecmp(level_str, "trace") == 0) return LOG_TRACE;
-    if (strcasecmp(level_str, "debug") == 0) return LOG_DEBUG;
-    if (strcasecmp(level_str, "info") == 0) return LOG_INFO;
-    if (strcasecmp(level_str, "warn") == 0) return LOG_WARN;
-    if (strcasecmp(level_str, "error") == 0) return LOG_ERROR;
-    if (strcasecmp(level_str, "fatal") == 0) return LOG_FATAL;
-    return -1;
-}
-
-static WindowAlignment parse_alignment(const char *align_str) {
-    if (strcasecmp(align_str, "center") == 0) return ALIGN_CENTER;
-    if (strcasecmp(align_str, "top") == 0) return ALIGN_TOP;
-    if (strcasecmp(align_str, "top_left") == 0) return ALIGN_TOP_LEFT;
-    if (strcasecmp(align_str, "top_right") == 0) return ALIGN_TOP_RIGHT;
-    if (strcasecmp(align_str, "left") == 0) return ALIGN_LEFT;
-    if (strcasecmp(align_str, "right") == 0) return ALIGN_RIGHT;
-    if (strcasecmp(align_str, "bottom") == 0) return ALIGN_BOTTOM;
-    if (strcasecmp(align_str, "bottom_left") == 0) return ALIGN_BOTTOM_LEFT;
-    if (strcasecmp(align_str, "bottom_right") == 0) return ALIGN_BOTTOM_RIGHT;
-    return ALIGN_CENTER; // Default fallback
-}
-
-// Callback to reposition window whenever size changes
-static void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
-    AppData *app = (AppData *)user_data;
-    WindowAlignment alignment = app->alignment;
-    
-    // Skip repositioning if we have a saved position
-    if (app->has_saved_position) {
-        return;
-    }
-    
-    // Only reposition if we have a valid size
-    if (allocation->width <= 1 || allocation->height <= 1) {
-        return;
-    }
-    GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(window));
-    GdkDisplay *display = gdk_screen_get_display(screen);
-    
-    // Get mouse pointer position to determine current monitor
-    gint mouse_x, mouse_y;
-    gdk_display_get_pointer(display, NULL, &mouse_x, &mouse_y, NULL);
-    
-    // Get the monitor at mouse position
-    gint monitor_num = gdk_screen_get_monitor_at_point(screen, mouse_x, mouse_y);
-    GdkRectangle monitor_geometry;
-    gdk_screen_get_monitor_geometry(screen, monitor_num, &monitor_geometry);
-    
-    // Use the allocation size
-    gint window_width = allocation->width;
-    gint window_height = allocation->height;
-    
-    log_debug("Repositioning window on size change: alignment=%d, size=%dx%d", 
-              alignment, window_width, window_height);
-    
-    gint x = 0, y = 0;
-    
-    switch (alignment) {
-        case ALIGN_TOP:
-            x = monitor_geometry.x + (monitor_geometry.width - window_width) / 2;
-            y = monitor_geometry.y;
-            break;
-        case ALIGN_TOP_LEFT:
-            x = monitor_geometry.x;
-            y = monitor_geometry.y;
-            break;
-        case ALIGN_TOP_RIGHT:
-            x = monitor_geometry.x + monitor_geometry.width - window_width;
-            y = monitor_geometry.y;
-            break;
-        case ALIGN_LEFT:
-            x = monitor_geometry.x;
-            y = monitor_geometry.y + (monitor_geometry.height - window_height) / 2;
-            break;
-        case ALIGN_RIGHT:
-            x = monitor_geometry.x + monitor_geometry.width - window_width;
-            y = monitor_geometry.y + (monitor_geometry.height - window_height) / 2;
-            break;
-        case ALIGN_BOTTOM:
-            x = monitor_geometry.x + (monitor_geometry.width - window_width) / 2;
-            y = monitor_geometry.y + monitor_geometry.height - window_height;
-            break;
-        case ALIGN_BOTTOM_LEFT:
-            x = monitor_geometry.x;
-            y = monitor_geometry.y + monitor_geometry.height - window_height;
-            break;
-        case ALIGN_BOTTOM_RIGHT:
-            x = monitor_geometry.x + monitor_geometry.width - window_width;
-            y = monitor_geometry.y + monitor_geometry.height - window_height;
-            break;
-        case ALIGN_CENTER:
-        default:
-            // This shouldn't happen for non-center alignments
-            x = monitor_geometry.x + (monitor_geometry.width - window_width) / 2;
-            y = monitor_geometry.y + (monitor_geometry.height - window_height) / 2;
-            break;
-    }
-    
-    log_debug("Monitor geometry: x=%d, y=%d, width=%d, height=%d",
-              monitor_geometry.x, monitor_geometry.y, 
-              monitor_geometry.width, monitor_geometry.height);
-    log_debug("Calculated position: x=%d, y=%d", x, y);
-    
-    // Set gravity hint before moving
-    gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_STATIC);
-    gtk_window_move(GTK_WINDOW(window), x, y);
-}
 
 int main(int argc, char *argv[]) {
     AppData app = {0};
     
-    // Command line options
-    static struct option long_options[] = {
-        {"log-level", required_argument, 0, 'l'},
-        {"log-file", required_argument, 0, 'f'},
-        {"no-log", no_argument, 0, 'n'},
-        {"align", required_argument, 0, 'a'},
-        {"version", no_argument, 0, 'v'},
-        {"help", no_argument, 0, 'h'},
-        {0, 0, 0, 0}
-    };
-    
     // Default settings
-    int log_level = LOG_INFO;
-    bool logging_enabled = true;
+    app.alignment = ALIGN_CENTER;
+    int log_enabled = 1;
+    char *log_file_path = NULL;
     FILE *log_file = NULL;
-    WindowAlignment alignment = ALIGN_CENTER;
-    bool alignment_specified = false;
+    int alignment_specified = 0;
     
     // Parse command line arguments
-    int option_index = 0;
-    int c;
-    while ((c = getopt_long(argc, argv, "l:f:na:vh", long_options, &option_index)) != -1) {
-        switch (c) {
-            case 'l':
-                log_level = parse_log_level(optarg);
-                if (log_level == -1) {
-                    fprintf(stderr, "Invalid log level: %s\n", optarg);
-                    fprintf(stderr, "Valid levels are: trace, debug, info, warn, error, fatal\n");
-                    return 1;
-                }
-                break;
-            case 'f':
-                log_file = fopen(optarg, "a");
-                if (!log_file) {
-                    fprintf(stderr, "Failed to open log file: %s\n", optarg);
-                    return 1;
-                }
-                break;
-            case 'n':
-                logging_enabled = false;
-                break;
-            case 'a':
-                // Validate alignment argument first
-                if (strcasecmp(optarg, "center") != 0 &&
-                    strcasecmp(optarg, "top") != 0 &&
-                    strcasecmp(optarg, "top_left") != 0 &&
-                    strcasecmp(optarg, "top_right") != 0 &&
-                    strcasecmp(optarg, "left") != 0 &&
-                    strcasecmp(optarg, "right") != 0 &&
-                    strcasecmp(optarg, "bottom") != 0 &&
-                    strcasecmp(optarg, "bottom_left") != 0 &&
-                    strcasecmp(optarg, "bottom_right") != 0) {
-                    fprintf(stderr, "Invalid alignment: %s\n", optarg);
-                    fprintf(stderr, "Valid alignments: center, top, top_left, top_right, left, right, bottom, bottom_left, bottom_right\n");
-                    return 1;
-                }
-                alignment = parse_alignment(optarg);
-                alignment_specified = true;
-                break;
-            case 'v':
-                printf("cofi version %s\n", COFI_VERSION);
-                return 0;
-            case 'h':
-                print_usage(argv[0]);
-                return 0;
-            default:
-                print_usage(argv[0]);
-                return 1;
+    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified);
+    if (parse_result == 2) {
+        // Version was printed
+        return 0;
+    } else if (parse_result == 3) {
+        // Help was printed
+        return 0;
+    } else if (parse_result != 0) {
+        return 1;
+    }
+    
+    // Open log file if specified
+    if (log_file_path) {
+        log_file = fopen(log_file_path, "a");
+        if (!log_file) {
+            fprintf(stderr, "Failed to open log file: %s\n", log_file_path);
+            return 1;
         }
     }
     
     // Initialize logging
-    if (logging_enabled) {
-        log_set_level(log_level);
+    if (log_enabled) {
         if (log_file) {
-            log_add_fp(log_file, log_level);
+            log_add_fp(log_file, LOG_DEBUG);
         }
     } else {
         log_set_quiet(true);
@@ -812,7 +591,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Setup GUI
-    setup_application(&app, alignment);
+    setup_application(&app, app.alignment);
     
     // Set app data for instance manager and setup signal handler
     // Do this after GUI setup so the window exists
