@@ -90,6 +90,14 @@ COFI shows windows in a 5-column format:
 
 The display is bottom-aligned (fzf-style) with the most recent window at the bottom.
 
+## Example
+
+![COFI Example](doc/example.png)
+
+See how I assigned shortcuts for Thunderbird (m), and my current project (p), the terminal to that project (t), the volume control (v). Cofi makes it easy to jump to these windows directly. For example `<alt-tab><alt-m>` jumps to my mail. Without releasing the `<alt>` key.
+
+To achieve this, I have my Linux Mint window switching reconfigured to map <alt-tab> to `cofi`. That's it!
+
 ## Advanced Features
 
 ### Intelligent Search
@@ -146,17 +154,18 @@ make test
 
 ## Architecture
 
-The codebase is organized into focused modules:
+COFI uses a modular architecture with specialized components for:
 
-- `src/main.c` - Application entry and GTK setup
-- `src/x11_utils.c` - X11 window properties and activation
-- `src/window_list.c` - Window enumeration via EWMH
-- `src/history.c` - MRU ordering and Alt-Tab logic
-- `src/filter.c` - Multi-stage search with scoring
-- `src/display.c` - GTK display formatting
-- `src/x11_events.c` - Event-driven updates
-- `src/instance.c` - Single instance management
-- `src/harpoon.c` - Window assignments
+- Application lifecycle and GTK window management
+- X11 window property extraction and activation
+- Window enumeration via EWMH protocol
+- MRU (Most Recently Used) ordering and Alt-Tab logic
+- Multi-stage search with intelligent scoring
+- Display formatting and user interface
+- Event-driven updates for real-time synchronization
+- Single instance management with IPC
+- Harpoon-style window assignments
+- Workspace switching and management
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical documentation.
 
