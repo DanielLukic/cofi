@@ -331,7 +331,7 @@ void load_config_with_position(HarpoonManager *manager, int *has_position, int *
                         char *end = strchr(start, '"');
                         if (end) {
                             int len = end - start;
-                            if (len >= sizeof(temp_slot.type)) len = sizeof(temp_slot.type) - 1;
+                            if (len >= (int)sizeof(temp_slot.type)) len = sizeof(temp_slot.type) - 1;
                             safe_string_copy(temp_slot.type, start, len + 1);
                         }
                     }

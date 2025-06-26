@@ -354,6 +354,7 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
 
 // Handle focus out event
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app) {
+    (void)widget;
     (void)event;
     
     // Only close if close_on_focus_loss is enabled
