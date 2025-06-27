@@ -560,7 +560,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    if (instance_manager_check_existing(instance_manager)) {
+    // Check if --workspaces was specified
+    bool show_workspaces = (app.current_tab == TAB_WORKSPACES);
+    
+    if (instance_manager_check_existing(instance_manager, show_workspaces)) {
         log_info("Another instance is already running, exiting");
         instance_manager_cleanup(instance_manager);
         if (log_file) fclose(log_file);
