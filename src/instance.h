@@ -16,7 +16,8 @@ InstanceManager* instance_manager_new(void);
 
 // Check if another instance is running and signal it to show
 // Returns true if another instance exists and was signaled
-bool instance_manager_check_existing(InstanceManager *im);
+// show_workspaces: if true, signal to show workspaces tab; otherwise show windows tab
+bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces);
 
 // Setup signal handler for receiving show requests from other instances
 void instance_manager_setup_signal_handler(void);

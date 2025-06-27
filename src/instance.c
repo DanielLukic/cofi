@@ -27,11 +27,15 @@ extern void update_display(AppData *app);
 // Forward declaration for deferred window recreation
 static gboolean recreate_window_idle(gpointer data);
 
-// Signal handler for SIGUSR1 - show window request
+// Signal handler for SIGUSR1 - show window request (Windows tab)
 static void show_window_signal_handler(int sig) {
-    (void)sig; // Unused parameter
-    
     if (g_app_data) {
+        // SIGUSR1: Windows tab, SIGUSR2: Workspaces tab
+        if (sig == SIGUSR2) {
+            g_app_data->current_tab = TAB_WORKSPACES;
+        } else {
+            g_app_data->current_tab = TAB_WINDOWS;
+        }
         // Defer window recreation to the GTK main loop
         g_idle_add(recreate_window_idle, NULL);
     }
@@ -231,10 +235,12 @@ static bool is_process_running(pid_t pid) {
     return kill(pid, 0) == 0;
 }
 
-static bool signal_existing_instance(pid_t pid) {
-    // Send SIGUSR1 to existing instance to show window
-    if (kill(pid, SIGUSR1) == 0) {
-        log_info("Sent show signal to existing instance (PID %d)", pid);
+static bool signal_existing_instance(pid_t pid, bool show_workspaces) {
+    // Send SIGUSR1 for Windows tab or SIGUSR2 for Workspaces tab
+    int signal = show_workspaces ? SIGUSR2 : SIGUSR1;
+    if (kill(pid, signal) == 0) {
+        log_info("Sent show signal (%s) to existing instance (PID %d)", 
+                 show_workspaces ? "workspaces" : "windows", pid);
         return true;
     } else {
         log_error("Failed to signal existing instance: %s", strerror(errno));
@@ -242,7 +248,7 @@ static bool signal_existing_instance(pid_t pid) {
     }
 }
 
-bool instance_manager_check_existing(InstanceManager *im) {
+bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces) {
     // Try to read existing lock file
     FILE *lock_file = fopen(im->lock_path, "r");
     if (lock_file) {
@@ -257,7 +263,7 @@ bool instance_manager_check_existing(InstanceManager *im) {
                 unlink(im->lock_path);
             } else if (existing_pid != im->pid && is_process_running(existing_pid)) {
                 // Try to signal existing instance
-                if (signal_existing_instance(existing_pid)) {
+                if (signal_existing_instance(existing_pid, show_workspaces)) {
                     return true; // Another instance exists and was signaled
                 }
             } else {
@@ -286,10 +292,18 @@ void instance_manager_setup_signal_handler(void) {
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART; // Restart interrupted system calls
     
+    // Setup handler for SIGUSR1 (Windows tab)
     if (sigaction(SIGUSR1, &sa, NULL) == -1) {
-        log_error("Failed to setup signal handler: %s", strerror(errno));
+        log_error("Failed to setup SIGUSR1 signal handler: %s", strerror(errno));
     } else {
-        log_debug("Signal handler setup for SIGUSR1");
+        log_debug("Signal handler setup for SIGUSR1 (Windows tab)");
+    }
+    
+    // Setup handler for SIGUSR2 (Workspaces tab)
+    if (sigaction(SIGUSR2, &sa, NULL) == -1) {
+        log_error("Failed to setup SIGUSR2 signal handler: %s", strerror(errno));
+    } else {
+        log_debug("Signal handler setup for SIGUSR2 (Workspaces tab)");
     }
 }
 
