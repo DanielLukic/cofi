@@ -219,7 +219,7 @@ void update_display(AppData *app) {
             }
             
             // Format: [ID] Name
-            g_string_append_printf(text, "[%d] %s\n", ws->id, ws->name);
+            g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
         }
         
         // If no workspaces, show message

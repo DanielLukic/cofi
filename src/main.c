@@ -192,7 +192,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
     } else {
         // Switch to workspace by number
         if (slot < app->workspace_count) {
-            switch_to_desktop(app->display, slot);
+            switch_to_desktop(app->display, slot - 1);
             destroy_window(app);
             log_info("Switched to workspace %d", slot);
             return TRUE;
