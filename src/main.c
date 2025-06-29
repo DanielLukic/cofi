@@ -192,7 +192,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
     } else {
         // Switch to workspace by number
         if (slot < app->workspace_count) {
-            switch_to_desktop(app->display, slot);
+            switch_to_desktop(app->display, slot - 1);
             destroy_window(app);
             log_info("Switched to workspace %d", slot);
             return TRUE;
@@ -320,7 +320,7 @@ static void filter_workspaces(AppData *app, const char *filter) {
     char searchable[512];
     for (int i = 0; i < app->workspace_count; i++) {
         snprintf(searchable, sizeof(searchable), "%d %s", 
-                 app->workspaces[i].id, app->workspaces[i].name);
+                 app->workspaces[i].id + 1, app->workspaces[i].name);
         
         // Use has_match and match functions from filter system
         if (has_match(filter, searchable)) {
