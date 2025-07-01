@@ -15,6 +15,15 @@ static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
 static Atom atom_net_client_list = None;
 static Atom atom_net_active_window = None;
+static Atom atom_net_current_desktop = None;
+
+// Function to update the current workspace
+void update_current_workspace(AppData *app) {
+    int current_desktop = get_current_desktop(app->display);
+    for (int i = 0; i < app->workspace_count; i++) {
+        app->workspaces[i].is_current = (i == current_desktop);
+    }
+}
 
 void setup_x11_event_monitoring(AppData *app) {
     Display *display = app->display;
@@ -23,6 +32,7 @@ void setup_x11_event_monitoring(AppData *app) {
     // Get atoms we're interested in
     atom_net_client_list = XInternAtom(display, "_NET_CLIENT_LIST", False);
     atom_net_active_window = XInternAtom(display, "_NET_ACTIVE_WINDOW", False);
+    atom_net_current_desktop = XInternAtom(display, "_NET_CURRENT_DESKTOP", False);
     
     // Select events on root window
     XSelectInput(display, root, PropertyChangeMask | SubstructureNotifyMask);
@@ -125,6 +135,13 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 
                 // We don't need to refresh the whole list, just update history
                 // This will be handled by the next filter operation
+            }
+            else if (prop_event->atom == atom_net_current_desktop) {
+                log_debug("_NET_CURRENT_DESKTOP changed - updating current workspace");
+                update_current_workspace(app);
+                if (app->window) {
+                    update_display(app);
+                }
             }
             break;
         }
