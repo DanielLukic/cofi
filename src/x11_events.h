@@ -10,6 +10,9 @@
 typedef struct AppData AppData;
 #endif
 
+// Function to update the current workspace
+void update_current_workspace(AppData *app);
+
 // Initialize X11 event monitoring
 void setup_x11_event_monitoring(AppData *app);
 
