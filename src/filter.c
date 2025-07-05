@@ -363,7 +363,7 @@ void filter_windows(AppData *app, const char *filter) {
                  app->filtered[0].title, app->filtered[0].id,
                  app->filtered[1].title, app->filtered[1].id);
     } else if (app->last_commanded_window_id != 0) {
-        log_info("Alt-Tab swap: Skipped (commanded window: 0x%lx)", app->last_commanded_window_id);
+        log_trace("Alt-Tab swap: Skipped (commanded window: 0x%lx)", app->last_commanded_window_id);
     }
 
     // Step 5: Restore and validate selection

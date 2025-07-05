@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 // Global command history that persists across window recreations
 static struct {
@@ -298,6 +299,79 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
     }
 }
 
+// Helper function to parse commands that might not have spaces between command and argument
+// Returns TRUE if successfully parsed, FALSE otherwise
+static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *arg_out, size_t cmd_size, size_t arg_size) {
+    if (!input || !cmd_out || !arg_out) return FALSE;
+    
+    // Clear output buffers
+    cmd_out[0] = '\0';
+    arg_out[0] = '\0';
+    
+    // Skip leading whitespace
+    while (*input == ' ' || *input == '\t') input++;
+    
+    // Try to parse with space first (backward compatibility)
+    if (sscanf(input, "%31s %31s", cmd_out, arg_out) == 2) {
+        return TRUE;
+    }
+    
+    // If no space found, try to parse known commands without spaces
+    size_t len = strlen(input);
+    
+    // Check for 'cw' followed by number (change-workspace)
+    if (len >= 3 && strncmp(input, "cw", 2) == 0 && isdigit(input[2])) {
+        strncpy(cmd_out, "cw", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 2, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
+    // Check for 'jw' followed by number (jump-workspace)
+    if (len >= 3 && strncmp(input, "jw", 2) == 0 && isdigit(input[2])) {
+        strncpy(cmd_out, "jw", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 2, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
+    // Check for 'j' followed by number (jump shortcut)
+    if (len >= 2 && input[0] == 'j' && isdigit(input[1])) {
+        strncpy(cmd_out, "j", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 1, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
+    // Check for 'tw' followed by tiling option
+    if (len >= 3 && strncmp(input, "tw", 2) == 0 && 
+        (isdigit(input[2]) || strchr("LRTBFClrtbfc", input[2]))) {
+        strncpy(cmd_out, "tw", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 2, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
+    // Check for 't' followed by tiling option
+    if (len >= 2 && input[0] == 't' && 
+        (isdigit(input[1]) || strchr("LRTBFClrtbfc", input[1]))) {
+        strncpy(cmd_out, "t", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 1, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
+    // No argument found, just copy the command
+    strncpy(cmd_out, input, cmd_size - 1);
+    cmd_out[cmd_size - 1] = '\0';
+    return TRUE;
+}
+
 gboolean execute_command(const char *command, AppData *app) {
     if (!command || !app) return FALSE;
     
@@ -310,36 +384,30 @@ gboolean execute_command(const char *command, AppData *app) {
         return TRUE; // Empty command, just exit
     }
     
+    // Parse command and optional argument
+    char cmd_name[32] = {0};
+    char arg[32] = {0};
+    parse_command_and_arg(command, cmd_name, arg, sizeof(cmd_name), sizeof(arg));
+    
     // Command shortcuts
-    if (strncmp(command, "cw", 2) == 0 || strncmp(command, "change-workspace", 16) == 0) {
-        // Parse change-workspace command with optional workspace argument
-        char cmd_name[32];
-        char workspace_arg[32];
-        int parsed = sscanf(command, "%31s %31s", cmd_name, workspace_arg);
-
-        // Verify it's actually one of our change-workspace commands
-        if (!(strcmp(cmd_name, "cw") == 0 || strcmp(cmd_name, "change-workspace") == 0)) {
-            log_warn("Unknown command: '%s'. Type 'help' for available commands.", command);
-            return FALSE; // Stay in command mode
-        }
-
+    if (strcmp(cmd_name, "cw") == 0 || strcmp(cmd_name, "change-workspace") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (!selected_window) {
             log_warn("No window selected for workspace change");
             return FALSE; // Stay in command mode
         }
 
-        if (parsed == 2) {
+        if (strlen(arg) > 0) {
             // Direct move with workspace number
-            int workspace_num = atoi(workspace_arg);
+            int workspace_num = atoi(arg);
             if (workspace_num >= 1 && workspace_num <= 36) {
                 // Get workspace count to validate
                 int workspace_count = get_number_of_desktops(app->display);
                 if (workspace_num <= workspace_count) {
                     int target_workspace = workspace_num - 1; // Convert to 0-based
 
-                    log_info("USER: Command '%s %d' -> Moving window '%s' to workspace %d",
-                             cmd_name, workspace_num, selected_window->title, workspace_num);
+                    log_info("USER: Command '%s %s' -> Moving window '%s' to workspace %d",
+                             cmd_name, arg, selected_window->title, workspace_num);
 
                     // Move the window to the target workspace
                     move_window_to_desktop(app->display, selected_window->id, target_workspace);
@@ -365,7 +433,7 @@ gboolean execute_command(const char *command, AppData *app) {
             show_workspace_move_dialog((struct AppData *)app);
             return TRUE; // Exit command mode after opening dialog
         }
-    } else if (strcmp(command, "tm") == 0 || strcmp(command, "toggle-monitor") == 0) {
+    } else if (strcmp(cmd_name, "tm") == 0 || strcmp(cmd_name, "toggle-monitor") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             move_window_to_next_monitor(app);
@@ -374,7 +442,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for monitor move");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "sb") == 0 || strcmp(command, "skip-taskbar") == 0) {
+    } else if (strcmp(cmd_name, "sb") == 0 || strcmp(cmd_name, "skip-taskbar") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             log_info("USER: Command 'sb' -> Toggling skip-taskbar for window '%s' (ID: 0x%lx)",
@@ -386,7 +454,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for skip-taskbar toggle");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "aot") == 0 || strcmp(command, "at") == 0 || strcmp(command, "always-on-top") == 0) {
+    } else if (strcmp(cmd_name, "aot") == 0 || strcmp(cmd_name, "at") == 0 || strcmp(cmd_name, "always-on-top") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_ABOVE");
@@ -396,7 +464,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for always-on-top toggle");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "ew") == 0 || strcmp(command, "every-workspace") == 0) {
+    } else if (strcmp(cmd_name, "ew") == 0 || strcmp(cmd_name, "every-workspace") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_STICKY");
@@ -406,7 +474,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for every-workspace toggle");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "cl") == 0 || strcmp(command, "c") == 0 || strcmp(command, "close") == 0 || strcmp(command, "close-window") == 0) {
+    } else if (strcmp(cmd_name, "cl") == 0 || strcmp(cmd_name, "c") == 0 || strcmp(cmd_name, "close") == 0 || strcmp(cmd_name, "close-window") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             close_window(app->display, selected_window->id);
@@ -415,7 +483,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for close");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "mw") == 0 || strcmp(command, "m") == 0 || strcmp(command, "maximize-window") == 0) {
+    } else if (strcmp(cmd_name, "mw") == 0 || strcmp(cmd_name, "m") == 0 || strcmp(cmd_name, "maximize-window") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             toggle_maximize_window(app->display, selected_window->id);
@@ -425,7 +493,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for maximize");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "hmw") == 0 || strcmp(command, "hm") == 0 || strcmp(command, "horizontal-maximize-window") == 0) {
+    } else if (strcmp(cmd_name, "hmw") == 0 || strcmp(cmd_name, "hm") == 0 || strcmp(cmd_name, "horizontal-maximize-window") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             toggle_maximize_horizontal(app->display, selected_window->id);
@@ -435,7 +503,7 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for horizontal maximize");
             return FALSE; // Stay in command mode
         }
-    } else if (strcmp(command, "vmw") == 0 || strcmp(command, "vm") == 0 || strcmp(command, "vertical-maximize-window") == 0) {
+    } else if (strcmp(cmd_name, "vmw") == 0 || strcmp(cmd_name, "vm") == 0 || strcmp(cmd_name, "vertical-maximize-window") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
             toggle_maximize_vertical(app->display, selected_window->id);
@@ -445,21 +513,10 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for vertical maximize");
             return FALSE; // Stay in command mode
         }
-    } else if (strncmp(command, "jw", 2) == 0 || strncmp(command, "jump-workspace", 14) == 0 || strncmp(command, "j", 1) == 0) {
-        // Parse jump-workspace command with optional workspace argument
-        char cmd_name[32];
-        char workspace_arg[32];
-        int parsed = sscanf(command, "%31s %31s", cmd_name, workspace_arg);
-
-        // Verify it's actually one of our jump commands (not just starting with 'j')
-        if (!(strcmp(cmd_name, "j") == 0 || strcmp(cmd_name, "jw") == 0 || strcmp(cmd_name, "jump-workspace") == 0)) {
-            log_warn("Unknown command: '%s'. Type 'help' for available commands.", command);
-            return FALSE; // Stay in command mode
-        }
-
-        if (parsed == 2) {
+    } else if (strcmp(cmd_name, "jw") == 0 || strcmp(cmd_name, "jump-workspace") == 0 || strcmp(cmd_name, "j") == 0) {
+        if (strlen(arg) > 0) {
             // Direct jump with workspace number
-            int workspace_num = atoi(workspace_arg);
+            int workspace_num = atoi(arg);
             if (workspace_num >= 1 && workspace_num <= 36) {
                 // Get workspace count to validate
                 int workspace_count = get_number_of_desktops(app->display);
@@ -468,8 +525,8 @@ gboolean execute_command(const char *command, AppData *app) {
                     int target_workspace = workspace_num - 1; // Convert to 0-based
 
                     if (target_workspace != current_workspace) {
-                        log_info("USER: Command '%s %d' -> Jumping directly to workspace %d",
-                                 cmd_name, workspace_num, workspace_num);
+                        log_info("USER: Command '%s %s' -> Jumping directly to workspace %d",
+                                 cmd_name, arg, workspace_num);
                         switch_to_desktop(app->display, target_workspace);
                         log_info("Jumped from workspace %d to workspace %d",
                                  current_workspace + 1, workspace_num);
@@ -491,32 +548,21 @@ gboolean execute_command(const char *command, AppData *app) {
             show_workspace_jump_dialog((struct AppData *)app);
             return TRUE; // Exit command mode after opening dialog
         }
-    } else if (strncmp(command, "tw", 2) == 0 || strncmp(command, "tile-window", 11) == 0 || strncmp(command, "t", 1) == 0) {
-        // Parse tiling command with optional tiling option argument
-        char cmd_name[32];
-        char tiling_arg[32];
-        int parsed = sscanf(command, "%31s %31s", cmd_name, tiling_arg);
-
-        // Verify it's actually one of our tiling commands (not just starting with 't')
-        if (!(strcmp(cmd_name, "t") == 0 || strcmp(cmd_name, "tw") == 0 || strcmp(cmd_name, "tile-window") == 0)) {
-            log_warn("Unknown command: '%s'. Type 'help' for available commands.", command);
-            return FALSE; // Stay in command mode
-        }
-
+    } else if (strcmp(cmd_name, "tw") == 0 || strcmp(cmd_name, "tile-window") == 0 || strcmp(cmd_name, "t") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (!selected_window) {
             log_warn("No window selected for tiling");
             return FALSE; // Stay in command mode
         }
 
-        if (parsed == 2) {
+        if (strlen(arg) > 0) {
             // Direct tiling with option
             TileOption option;
             gboolean valid_option = TRUE;
 
             // Parse tiling option
-            if (strlen(tiling_arg) == 1) {
-                switch (tiling_arg[0]) {
+            if (strlen(arg) == 1) {
+                switch (arg[0]) {
                     case 'l':
                     case 'L':
                         option = TILE_LEFT_HALF;
@@ -578,7 +624,7 @@ gboolean execute_command(const char *command, AppData *app) {
 
             if (valid_option) {
                 log_info("USER: Command '%s %s' -> Tiling window '%s' with option %d",
-                         cmd_name, tiling_arg, selected_window->title, option);
+                         cmd_name, arg, selected_window->title, option);
 
                 // Apply the tiling directly
                 apply_tiling(app->display, selected_window->id, option);
@@ -587,11 +633,11 @@ gboolean execute_command(const char *command, AppData *app) {
                 activate_commanded_window(app, selected_window);
 
                 log_info("Applied tiling option %s to window '%s'",
-                         tiling_arg, selected_window->title);
+                         arg, selected_window->title);
 
                 return TRUE; // Exit command mode after direct tiling
             } else {
-                log_warn("Invalid tiling option: '%s' (use L/R/T/B, 1-9, F, or C)", tiling_arg);
+                log_warn("Invalid tiling option: '%s' (use L/R/T/B, 1-9, F, or C)", arg);
                 return FALSE; // Stay in command mode
             }
         } else {
@@ -599,11 +645,11 @@ gboolean execute_command(const char *command, AppData *app) {
             show_tiling_dialog((struct AppData *)app);
             return TRUE; // Exit command mode after opening dialog
         }
-    } else if (strcmp(command, "help") == 0 || strcmp(command, "h") == 0 || strcmp(command, "?") == 0) {
+    } else if (strcmp(cmd_name, "help") == 0 || strcmp(cmd_name, "h") == 0 || strcmp(cmd_name, "?") == 0) {
         show_help_commands(app);
         return FALSE; // Stay in command mode to show help
     } else {
-        log_warn("Unknown command: '%s'. Type 'help' for available commands.", command);
+        log_warn("Unknown command: '%s'. Type 'help' for available commands.", cmd_name);
         return FALSE; // Stay in command mode
     }
 }
@@ -657,6 +703,7 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "\nUsage:\n");
         strcat(help_text, "  Press ':' to enter command mode\n");
         strcat(help_text, "  Type command and press Enter\n");
+        strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
         strcat(help_text, "  Press Escape to cancel\n");
 
     } else {
@@ -675,6 +722,7 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "\nUsage:\n");
         strcat(help_text, "  Press ':' to enter command mode\n");
         strcat(help_text, "  Type command and press Enter\n");
+        strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
         strcat(help_text, "  Press Escape to cancel\n\n");
         strcat(help_text, "Press Escape to return to window list");
     }
