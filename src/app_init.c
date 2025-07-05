@@ -29,11 +29,6 @@ void init_app_data(AppData *app) {
     // Initialize harpoon manager
     init_harpoon_manager(&app->harpoon);
     
-    // Initialize saved position data
-    app->has_saved_position = 0;
-    app->saved_x = 0;
-    app->saved_y = 0;
-    
     // Initialize dialog active flag
     app->dialog_active = 0;
 

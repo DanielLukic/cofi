@@ -92,7 +92,6 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 break;
             case 'a': {
                 app->alignment = parse_alignment(optarg);
-                app->has_saved_position = 0;  // Clear saved position when alignment is specified
                 *alignment_specified = 1;
                 break;
             }
