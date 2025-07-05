@@ -317,3 +317,214 @@ void switch_to_desktop(Display *display, int desktop) {
                SubstructureRedirectMask | SubstructureNotifyMask, &event);
     XFlush(display);
 }
+
+// Move window to specific desktop (0-based index)
+void move_window_to_desktop(Display *display, Window window, int desktop_index) {
+    Atom net_wm_desktop = XInternAtom(display, "_NET_WM_DESKTOP", False);
+    
+    if (net_wm_desktop == None) {
+        log_error("_NET_WM_DESKTOP not supported by window manager");
+        return;
+    }
+    
+    // Method 1: Set property directly
+    XChangeProperty(display, window, net_wm_desktop, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char *)&desktop_index, 1);
+    
+    // Method 2: Send client message (more compatible)
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.type = ClientMessage;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.message_type = net_wm_desktop;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = desktop_index;  // 0-based for X11
+    event.xclient.data.l[1] = 2; // Source indication (2 = pager/user action)
+    
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+    
+    log_debug("Moved window %lu to desktop %d", window, desktop_index);
+}
+
+// Get window state (check if a specific state atom is set)
+gboolean get_window_state(Display *display, Window window, const char *state_atom_name) {
+    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom state_atom = XInternAtom(display, state_atom_name, False);
+
+    if (net_wm_state == None || state_atom == None) {
+        return FALSE;
+    }
+
+    Atom actual_type;
+    int actual_format;
+    unsigned long n_items;
+    unsigned char *prop = NULL;
+
+    if (get_x11_property(display, window, net_wm_state, XA_ATOM,
+                        64, &actual_type, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
+
+        if (actual_format == 32 && n_items > 0) {
+            Atom *atoms = (Atom*)prop;
+            for (unsigned long i = 0; i < n_items; i++) {
+                if (atoms[i] == state_atom) {
+                    XFree(prop);
+                    return TRUE;
+                }
+            }
+        }
+        XFree(prop);
+    }
+
+    return FALSE;
+}
+
+// Toggle window state (add or remove a specific state atom)
+void toggle_window_state(Display *display, Window window, const char *state_atom_name) {
+    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom state_atom = XInternAtom(display, state_atom_name, False);
+
+    if (net_wm_state == None || state_atom == None) {
+        log_error("Failed to get atoms for window state manipulation");
+        return;
+    }
+
+    // Check current state
+    gboolean is_set = get_window_state(display, window, state_atom_name);
+
+    // Send client message to toggle the state
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.type = ClientMessage;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.message_type = net_wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = is_set ? 0 : 1; // 0 = remove, 1 = add, 2 = toggle
+    event.xclient.data.l[1] = state_atom;
+    event.xclient.data.l[2] = 0; // Second property (unused for single state)
+    event.xclient.data.l[3] = 1; // Source indication (1 = application)
+    event.xclient.data.l[4] = 0; // Unused
+
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+
+    log_debug("Toggled window state %s for window %lu (was %s, now %s)",
+              state_atom_name, window,
+              is_set ? "set" : "unset",
+              is_set ? "unset" : "set");
+}
+
+// Close window by sending WM_DELETE_WINDOW message
+void close_window(Display *display, Window window) {
+    Atom wm_protocols = XInternAtom(display, "WM_PROTOCOLS", False);
+    Atom wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
+
+    if (wm_protocols == None || wm_delete_window == None) {
+        log_error("Failed to get atoms for window close");
+        return;
+    }
+
+    // Check if window supports WM_DELETE_WINDOW protocol
+    Atom *protocols = NULL;
+    int protocol_count = 0;
+    gboolean supports_delete = FALSE;
+
+    if (XGetWMProtocols(display, window, &protocols, &protocol_count)) {
+        for (int i = 0; i < protocol_count; i++) {
+            if (protocols[i] == wm_delete_window) {
+                supports_delete = TRUE;
+                break;
+            }
+        }
+        XFree(protocols);
+    }
+
+    if (supports_delete) {
+        // Send WM_DELETE_WINDOW message
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.type = ClientMessage;
+        event.xclient.send_event = True;
+        event.xclient.display = display;
+        event.xclient.window = window;
+        event.xclient.message_type = wm_protocols;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = wm_delete_window;
+        event.xclient.data.l[1] = CurrentTime;
+        event.xclient.data.l[2] = 0;
+        event.xclient.data.l[3] = 0;
+        event.xclient.data.l[4] = 0;
+
+        XSendEvent(display, window, False, NoEventMask, &event);
+        XFlush(display);
+
+        log_debug("Sent WM_DELETE_WINDOW message to window %lu", window);
+    } else {
+        // Fallback: forcefully destroy the window
+        XDestroyWindow(display, window);
+        XFlush(display);
+
+        log_debug("Forcefully destroyed window %lu (no WM_DELETE_WINDOW support)", window);
+    }
+}
+
+// Toggle maximize window (both horizontal and vertical)
+void toggle_maximize_window(Display *display, Window window) {
+    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+
+    if (net_wm_state == None || net_wm_state_maximized_vert == None || net_wm_state_maximized_horz == None) {
+        log_error("Failed to get atoms for window maximize");
+        return;
+    }
+
+    // Check current maximization state
+    gboolean is_maximized_vert = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
+    gboolean is_maximized_horz = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    gboolean is_fully_maximized = is_maximized_vert && is_maximized_horz;
+
+    // Send client message to toggle both maximize states
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.type = ClientMessage;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.message_type = net_wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = is_fully_maximized ? 0 : 1; // 0 = remove, 1 = add
+    event.xclient.data.l[1] = net_wm_state_maximized_vert;
+    event.xclient.data.l[2] = net_wm_state_maximized_horz;
+    event.xclient.data.l[3] = 1; // Source indication (1 = application)
+    event.xclient.data.l[4] = 0; // Unused
+
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+
+    log_debug("Toggled maximize for window %lu (was %s, now %s)",
+              window,
+              is_fully_maximized ? "maximized" : "not maximized",
+              is_fully_maximized ? "not maximized" : "maximized");
+}
+
+// Toggle horizontal maximize only
+void toggle_maximize_horizontal(Display *display, Window window) {
+    toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
+}
+
+// Toggle vertical maximize only
+void toggle_maximize_vertical(Display *display, Window window) {
+    toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
+}

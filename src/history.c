@@ -12,7 +12,7 @@ void update_history(AppData *app) {
     // Get current active window
     int current_active = get_active_window_id(app->display);
     
-    log_debug("update_history() - current_active=0x%x, previous_active=0x%x", 
+    log_trace("update_history() - current_active=0x%x, previous_active=0x%x",
             current_active, app->active_window_id);
     
     // Keep only existing windows in history (KeepOnly logic)
@@ -84,7 +84,7 @@ void update_history(AppData *app) {
         log_trace("Active window unchanged (0x%x)", current_active);
     }
     
-    log_debug("update_history() complete - history_count=%d", app->history_count);
+    log_trace("update_history() complete - history_count=%d", app->history_count);
 }
 
 // Partition windows by type and reorder (Normal first, then Special)
@@ -94,7 +94,7 @@ void partition_and_reorder(AppData *app) {
     int normal_count = 0;
     int special_count = 0;
     
-    log_debug("partition_and_reorder() - starting with %d windows", app->history_count);
+    log_trace("partition_and_reorder() - starting with %d windows", app->history_count);
     
     // Partition by type
     for (int i = 0; i < app->history_count; i++) {
@@ -120,16 +120,5 @@ void partition_and_reorder(AppData *app) {
     for (int i = 0; i < special_count && app->history_count < MAX_WINDOWS; i++) {
         app->history[app->history_count] = special_windows[i];
         app->history_count++;
-    }
-}
-
-// Apply Alt-Tab swap (swap first two windows for quick toggling)
-void apply_alttab_swap(AppData *app) {
-    if (app->history_count >= 2) {
-        log_trace("Swapping windows: '%s' <-> '%s'", 
-                app->history[0].title, app->history[1].title);
-        WindowInfo temp = app->history[0];
-        app->history[0] = app->history[1];
-        app->history[1] = temp;
     }
 }

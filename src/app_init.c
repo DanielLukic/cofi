@@ -8,15 +8,23 @@
 #include "log.h"
 #include "utils.h"
 #include "x11_utils.h"
+#include "command_mode.h"
+#include "selection.h"
 
 void init_app_data(AppData *app) {
     // Initialize history and active window tracking
     app->history_count = 0;
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
-    
-    // Initialize tab mode
-    app->current_tab = TAB_WINDOWS;
-    app->selected_workspace_index = 0;
+
+    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces
+    // This ensures reopening always starts in windows tab unless --workspaces is specified
+    // Note: Command line parsing sets current_tab to TAB_WORKSPACES when --workspaces is used
+    if (app->current_tab != TAB_WORKSPACES) {
+        app->current_tab = TAB_WINDOWS;
+    }
+
+    // Initialize selection state (will be properly set by init_selection later)
+    init_selection(app);
     
     // Initialize harpoon manager
     init_harpoon_manager(&app->harpoon);
@@ -25,6 +33,15 @@ void init_app_data(AppData *app) {
     app->has_saved_position = 0;
     app->saved_x = 0;
     app->saved_y = 0;
+    
+    // Initialize dialog active flag
+    app->dialog_active = 0;
+
+    // Initialize command mode
+    init_command_mode(&app->command_mode);
+    
+    // Initialize last commanded window tracking
+    app->last_commanded_window_id = 0;
 }
 
 void init_x11_connection(AppData *app) {

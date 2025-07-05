@@ -14,6 +14,7 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <limits.h>
+#include "selection.h"
 
 #define LOCK_FILE "cofi.lock"
 
@@ -61,8 +62,8 @@ static gboolean recreate_window_idle(gpointer data) {
         }
         
         // Reset selection to first entry (will be set again by filter_windows)
-        g_app_data->selected_index = 0;
-        log_debug("Reset selected_index to 0 before recreating window");
+        reset_selection(g_app_data);
+        log_debug("Reset selection before recreating window");
         
         // Create new window with stored alignment
         setup_application(g_app_data, g_app_data->alignment);
@@ -73,9 +74,9 @@ static gboolean recreate_window_idle(gpointer data) {
         // Initialize display with all windows
         filter_windows(g_app_data, "");
         
-        // ALWAYS reset selection to 0 after filtering
-        g_app_data->selected_index = 0;
-        log_debug("Selection reset to 0 after filtering in instance recreation");
+        // ALWAYS reset selection after filtering
+        reset_selection(g_app_data);
+        log_debug("Selection reset after filtering in instance recreation");
         
         update_display(g_app_data);
         
@@ -96,6 +97,11 @@ static gboolean recreate_window_idle(gpointer data) {
         gtk_window_present(GTK_WINDOW(g_app_data->window));
         
         log_info("Window recreated by signal from another instance");
+        
+        // Log last commanded window if set
+        if (g_app_data->last_commanded_window_id != 0) {
+            log_info("Last commanded window ID: 0x%lx", g_app_data->last_commanded_window_id);
+        }
     }
     
     return FALSE; // Remove from idle queue

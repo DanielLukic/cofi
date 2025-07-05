@@ -2,6 +2,7 @@
 #define X11_UTILS_H
 
 #include <X11/Xlib.h>
+#include <glib.h>
 #include "constants.h"
 
 // Generic X11 property getter - centralizes XGetWindowProperty pattern
@@ -36,5 +37,18 @@ int get_current_desktop(Display *display);
 
 // Switch to a specific desktop using _NET_CURRENT_DESKTOP
 void switch_to_desktop(Display *display, int desktop);
+
+// Move window to specific desktop (0-based index)
+void move_window_to_desktop(Display *display, Window window, int desktop_index);
+
+// Window state manipulation functions
+void toggle_window_state(Display *display, Window window, const char *state_atom_name);
+gboolean get_window_state(Display *display, Window window, const char *state_atom_name);
+
+// Window management functions
+void close_window(Display *display, Window window);
+void toggle_maximize_window(Display *display, Window window);
+void toggle_maximize_horizontal(Display *display, Window window);
+void toggle_maximize_vertical(Display *display, Window window);
 
 #endif // X11_UTILS_H

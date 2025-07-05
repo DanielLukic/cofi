@@ -167,38 +167,6 @@ void test_partition_and_reorder() {
     ASSERT_EQ(app.history[3].id, 1, "Dialog should be first Special");
 }
 
-// Test Alt-Tab swap function
-void test_alttab_swap() {
-    printf("\n=== Testing Alt-Tab Swap ===\n");
-    
-    AppData app;
-    init_test_app_data(&app);
-    
-    // Test with 2+ windows
-    add_history_window(&app, create_test_window(1, "Current", "Current", "current", "Normal", 0));
-    add_history_window(&app, create_test_window(2, "Previous", "Previous", "previous", "Normal", 0));
-    add_history_window(&app, create_test_window(3, "Third", "Third", "third", "Normal", 0));
-    
-    // Store original order
-    Window orig_first = app.history[0].id;
-    Window orig_second = app.history[1].id;
-    Window orig_third = app.history[2].id;
-    
-    // Apply swap
-    apply_alttab_swap(&app);
-    
-    ASSERT_EQ(app.history[0].id, orig_second, "First and second should be swapped");
-    ASSERT_EQ(app.history[1].id, orig_first, "Second should be original first");
-    ASSERT_EQ(app.history[2].id, orig_third, "Third should remain unchanged");
-    
-    // Test with only 1 window (no swap should occur)
-    init_test_app_data(&app);
-    add_history_window(&app, create_test_window(1, "Only", "Only", "only", "Normal", 0));
-    
-    apply_alttab_swap(&app);
-    ASSERT_EQ(app.history[0].id, 1, "Single window should not be affected");
-}
-
 // Test adding new windows to history
 void test_add_new_windows() {
     printf("\n=== Testing Add New Windows ===\n");
@@ -239,7 +207,6 @@ int main() {
     test_mru_ordering();
     test_cofi_exclusion();
     test_partition_and_reorder();
-    test_alttab_swap();
     test_add_new_windows();
     
     PRINT_TEST_SUMMARY();

@@ -166,7 +166,7 @@ static WindowAlignment string_to_alignment(const char *str) {
 
 // Save full config with all options
 void save_full_config(const HarpoonManager *manager, int has_position, int x, int y, 
-                      int close_on_focus_loss, int align) {
+                      int close_on_focus_loss, int align, int workspaces_per_row) {
     if (!manager) return;
     
     const char *path = get_config_path();
@@ -181,7 +181,8 @@ void save_full_config(const HarpoonManager *manager, int has_position, int x, in
     // Save options
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", close_on_focus_loss ? "true" : "false");
-    fprintf(file, "    \"align\": \"%s\"\n", alignment_to_string((WindowAlignment)align));
+    fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string((WindowAlignment)align));
+    fprintf(file, "    \"workspaces_per_row\": %d,\n", workspaces_per_row);
     fprintf(file, "  },\n");
     
     // Save window position
@@ -357,7 +358,7 @@ void load_harpoon_config(HarpoonManager *manager) {
 
 // Load full config with all options
 void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y,
-                      int *close_on_focus_loss, int *align) {
+                      int *close_on_focus_loss, int *align, int *workspaces_per_row) {
     if (!manager) return;
     
     // Initialize output parameters with defaults
@@ -366,6 +367,7 @@ void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y
     if (y) *y = 0;
     if (close_on_focus_loss) *close_on_focus_loss = 1;  // Default to true
     if (align) *align = (int)ALIGN_CENTER;  // Default to center
+    if (workspaces_per_row) *workspaces_per_row = 0;  // Default to linear layout
     
     const char *path = get_config_path();
     FILE *file = fopen(path, "r");
@@ -429,6 +431,8 @@ void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y
                         }
                     }
                 }
+            } else if (strstr(p, "\"workspaces_per_row\":") && workspaces_per_row) {
+                sscanf(p, " \"workspaces_per_row\": %d", workspaces_per_row);
             }
         }
         
@@ -531,7 +535,7 @@ void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y
 void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count) {
     if (!manager || !windows) return;
     
-    log_debug("check_and_reassign_windows: checking %d windows against %d slots", 
+    log_trace("check_and_reassign_windows: checking %d windows against %d slots",
              window_count, MAX_HARPOON_SLOTS);
     
     int config_changed = 0;  // Track if we need to save config
@@ -540,15 +544,15 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
     for (int slot = 0; slot < MAX_HARPOON_SLOTS; slot++) {
         if (!manager->slots[slot].assigned) continue;
         
-        log_debug("Checking slot %d: has window 0x%lx (%s)", 
+        log_trace("Checking slot %d: has window 0x%lx (%s)",
                  slot, manager->slots[slot].id, manager->slots[slot].title);
-        
+
         // Check if the window ID is still valid
         int window_still_exists = 0;
         for (int i = 0; i < window_count; i++) {
             if (windows[i].id == manager->slots[slot].id) {
                 window_still_exists = 1;
-                log_debug("Slot %d window 0x%lx still exists in current window list", 
+                log_trace("Slot %d window 0x%lx still exists in current window list",
                          slot, manager->slots[slot].id);
                 break;
             }
@@ -556,9 +560,9 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
         
         // If window doesn't exist anymore, try to find a matching window
         if (!window_still_exists) {
-            log_debug("Window 0x%lx in slot %d no longer exists, looking for replacement", 
+            log_trace("Window 0x%lx in slot %d no longer exists, looking for replacement",
                      manager->slots[slot].id, slot);
-            log_debug("Looking for: class='%s', instance='%s', type='%s', title='%s'",
+            log_trace("Looking for: class='%s', instance='%s', type='%s', title='%s'",
                      manager->slots[slot].class_name, manager->slots[slot].instance,
                      manager->slots[slot].type, manager->slots[slot].title);
             
@@ -582,7 +586,7 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
                 }
                 if (already_assigned) continue;
                 
-                log_debug("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
+                log_trace("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
                          i, windows[i].class_name, windows[i].instance, windows[i].type, windows[i].title);
                 
                 // Use pure function for exact match

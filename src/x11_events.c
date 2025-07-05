@@ -97,27 +97,34 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 // Get new window list
                 int old_count = app->window_count;
                 get_window_list(app);
-                log_debug("Window count changed from %d to %d", old_count, app->window_count);
-                
+                log_trace("Window count changed from %d to %d", old_count, app->window_count);
+
                 // Log current windows for debugging
                 for (int i = 0; i < app->window_count; i++) {
-                    log_debug("Current window %d: 0x%lx '%s' (%s)", 
+                    log_trace("Current window %d: 0x%lx '%s' (%s)",
                              i, app->windows[i].id, app->windows[i].title, app->windows[i].class_name);
                 }
-                
+
                 // Check for automatic reassignments
-                log_debug("Calling check_and_reassign_windows()");
+                log_trace("Calling check_and_reassign_windows()");
                 check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
                 
-                // Only process if window still exists
-                if (app->window && app->entry) {
-                    // Get current filter text
-                    const char *filter_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-                    
-                    // Re-apply filter (this resets selection to 0)
-                    filter_windows(app, filter_text);
+                // Only process if window still exists and is valid
+                if (app->window && GTK_IS_WIDGET(app->window) &&
+                    app->entry && GTK_IS_ENTRY(app->entry)) {
+                    // Skip filtering when in command mode
+                    if (app->command_mode.state == CMD_MODE_COMMAND) {
+                        // In command mode, don't apply entry text as filter
+                        filter_windows(app, "");
+                    } else {
+                        // Get current filter text
+                        const char *filter_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+
+                        // Re-apply filter
+                        filter_windows(app, filter_text);
+                    }
                 } else {
-                    // Window destroyed, just update with empty filter
+                    // Window destroyed or invalid, just update with empty filter
                     filter_windows(app, "");
                 }
                 
@@ -127,7 +134,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 }
             }
             else if (prop_event->atom == atom_net_active_window) {
-                log_debug("_NET_ACTIVE_WINDOW changed - updating active window");
+                log_trace("_NET_ACTIVE_WINDOW changed - updating active window");
                 
                 // Update active window ID
                 Window new_active_id = get_active_window_id(app->display);

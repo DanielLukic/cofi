@@ -23,11 +23,14 @@
 #include "instance.h"
 #include "harpoon.h"
 #include "match.h"
+#include "command_mode.h"
 #include "constants.h"
 #include "utils.h"
 #include "cli_args.h"
 #include "gtk_window.h"
+#include "selection.h"
 #include "app_init.h"
+#include "workspace_dialog.h"
 #include "version.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
@@ -44,14 +47,7 @@ static void filter_workspaces(AppData *app, const char *filter);
 static void destroy_window(AppData *app);
 static gboolean check_focus_loss_delayed(AppData *app);
 
-// Selection management functions
-static void reset_selection(AppData *app) {
-    if (app->current_tab == TAB_WINDOWS) {
-        app->selected_index = 0;
-    } else {
-        app->selected_workspace_index = 0;
-    }
-}
+// Note: Selection management functions moved to selection.c
 
 // Helper function to switch between tabs
 static void switch_to_tab(AppData *app, TabMode target_tab) {
@@ -74,7 +70,8 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
 }
 
 // Helper function to get harpoon slot from key event
-static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
+static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment, AppData *app) {
+    (void)app; // Unused parameter
     if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
         return event->keyval - GDK_KEY_0;
     } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
@@ -103,35 +100,7 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
     return -1;
 }
 
-// Move selection up (decrements index in display, moves up visually)
-static void move_selection_up(AppData *app) {
-    if (app->current_tab == TAB_WINDOWS) {
-        if (app->selected_index < app->filtered_count - 1) {
-            app->selected_index++;
-            update_display(app);
-        }
-    } else {
-        if (app->selected_workspace_index < app->filtered_workspace_count - 1) {
-            app->selected_workspace_index++;
-            update_display(app);
-        }
-    }
-}
-
-// Move selection down (increments index in display, moves down visually)
-static void move_selection_down(AppData *app) {
-    if (app->current_tab == TAB_WINDOWS) {
-        if (app->selected_index > 0) {
-            app->selected_index--;
-            update_display(app);
-        }
-    } else {
-        if (app->selected_workspace_index > 0) {
-            app->selected_workspace_index--;
-            update_display(app);
-        }
-    }
-}
+// Note: Selection movement functions moved to selection.c
 
 // Handle Ctrl+key for harpoon assignment/unassignment
 static gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
@@ -139,13 +108,19 @@ static gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
     
-    int slot = get_harpoon_slot(event, TRUE);  // TRUE = this is assignment
-    if (slot < 0 || app->filtered_count == 0 || app->selected_index >= app->filtered_count) {
+    int slot = get_harpoon_slot(event, TRUE, app);  // TRUE = this is assignment
+    if (slot < 0 || app->filtered_count == 0) {
         return FALSE;
     }
-    
-    // Get the window that's displayed at the selected position
-    WindowInfo *win = &app->filtered[app->selected_index];
+
+    // Get the selected window
+    WindowInfo *selected_window = get_selected_window(app);
+    if (!selected_window) {
+        return FALSE;
+    }
+
+    // Use the already retrieved selected window
+    WindowInfo *win = selected_window;
     
     // Check if this window is already assigned to this slot
     Window current_window = get_slot_window(&app->harpoon, slot);
@@ -175,7 +150,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         return FALSE;
     }
     
-    int slot = get_harpoon_slot(event, FALSE);  // FALSE = this is activation, not assignment
+    int slot = get_harpoon_slot(event, FALSE, app);  // FALSE = this is activation, not assignment
     if (slot < 0) {
         return FALSE;
     }
@@ -185,6 +160,13 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         Window target_window = get_slot_window(&app->harpoon, slot);
         if (target_window != 0) {
             activate_window(target_window);
+            
+            // Clear last commanded window since this is normal selection
+            if (app->last_commanded_window_id != 0) {
+                log_info("Clearing last commanded window ID (was: 0x%lx)", app->last_commanded_window_id);
+                app->last_commanded_window_id = 0;
+            }
+            
             destroy_window(app);
             log_info("Switched to harpooned window in slot %d", slot);
             return TRUE;
@@ -207,6 +189,8 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     // Tab key (without Ctrl)
     if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
         TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
+        log_info("USER: TAB pressed -> Switching to %s tab",
+                 next_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
         switch_to_tab(app, next_tab);
         return TRUE;
     }
@@ -233,23 +217,33 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
 static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
     switch (event->keyval) {
         case GDK_KEY_Escape:
+            log_info("USER: ESCAPE pressed -> Closing cofi");
             destroy_window(app);
             return TRUE;
             
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter:
             if (app->current_tab == TAB_WINDOWS) {
-                if (app->filtered_count > 0 && app->selected_index < app->filtered_count) {
-                    WindowInfo *win = &app->filtered[app->selected_index];
+                WindowInfo *win = get_selected_window(app);
+                if (win) {
+                    log_info("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
+                             win->title, win->id);
                     activate_window(win->id);
+                    
+                    // Clear last commanded window since this is normal selection
+                    if (app->last_commanded_window_id != 0) {
+                        log_info("Clearing last commanded window ID (was: 0x%lx)", app->last_commanded_window_id);
+                        app->last_commanded_window_id = 0;
+                    }
+                    
                     destroy_window(app);
                 }
             } else {
-                if (app->filtered_workspace_count > 0 && app->selected_workspace_index < app->filtered_workspace_count) {
-                    WorkspaceInfo *ws = &app->filtered_workspaces[app->selected_workspace_index];
+                WorkspaceInfo *ws = get_selected_workspace(app);
+                if (ws) {
+                    log_info("USER: ENTER pressed -> Switching to workspace %d: %s", ws->id, ws->name);
                     switch_to_desktop(app->display, ws->id);
                     destroy_window(app);
-                    log_info("Switched to workspace %d: %s", ws->id, ws->name);
                 }
             }
             return TRUE;
@@ -283,6 +277,33 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
 // Handle key press events
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     (void)widget; // Unused parameter
+    
+    // Handle command mode first if active
+    if (app->command_mode.state == CMD_MODE_COMMAND) {
+        return handle_command_key(event, app);
+    }
+    
+    // Handle ':' key to enter command mode
+    if (event->keyval == GDK_KEY_colon) {
+        log_info("USER: ':' pressed -> Entering command mode");
+        
+        // If Alt-Tab swap was applied (lcwi was 0) and we're at index 0,
+        // move selection to 1 to select the "actual" current window
+        if (app->last_commanded_window_id == 0 && 
+            app->current_tab == TAB_WINDOWS &&
+            app->selection.window_index == 0 && 
+            app->filtered_count >= 2) {
+            log_info("Command mode: Moving selection from 0 to 1 (Alt-Tab swap was active)");
+            app->selection.window_index = 1;
+            if (app->filtered_count > 1) {
+                app->selection.selected_window_id = app->filtered[1].id;
+            }
+            update_display(app);
+        }
+        
+        enter_command_mode(app);
+        return TRUE;
+    }
     
     // Try handlers in order of priority
     if (handle_harpoon_assignment(event, app)) {
@@ -331,8 +352,17 @@ static void filter_workspaces(AppData *app, const char *filter) {
 
 // Handle entry text changes
 static void on_entry_changed(GtkEntry *entry, AppData *app) {
-    const char *text = gtk_entry_get_text(entry);
+    // Skip filtering when in command mode
+    if (app->command_mode.state == CMD_MODE_COMMAND) {
+        return;
+    }
     
+    const char *text = gtk_entry_get_text(entry);
+
+    if (strlen(text) > 0) {
+        log_info("USER: Filter text changed -> '%s'", text);
+    }
+
     if (app->current_tab == TAB_WINDOWS) {
         filter_windows(app, text);
     } else {
@@ -340,7 +370,7 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
     }
     // Ensure selection is always 0 after filtering
     reset_selection(app);
-    
+
     update_display(app);
 }
 
@@ -356,6 +386,12 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app) {
     (void)widget;
     (void)event;
+    
+    // Always reset command mode when losing focus (unless dialog is active)
+    if (!app->dialog_active && app->command_mode.state == CMD_MODE_COMMAND) {
+        log_debug("Resetting command mode due to focus loss");
+        exit_command_mode(app);
+    }
     
     // Only close if close_on_focus_loss is enabled
     if (!app->close_on_focus_loss) {
@@ -375,6 +411,12 @@ static gboolean check_focus_loss_delayed(AppData *app) {
         return FALSE; // Window already destroyed
     }
     
+    // Don't close if a dialog is active
+    if (app->dialog_active) {
+        log_debug("Dialog is active, not closing main window on focus loss");
+        return FALSE;
+    }
+    
     // Check if our window still has toplevel focus
     if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
         log_debug("Window still has toplevel focus after delay, not closing");
@@ -392,7 +434,7 @@ static void destroy_window(AppData *app) {
         // Save window position before destroying
         gint x, y;
         gtk_window_get_position(GTK_WINDOW(app->window), &x, &y);
-        save_full_config(&app->harpoon, 1, x, y, app->close_on_focus_loss, (int)app->alignment);
+        save_full_config(&app->harpoon, 1, x, y, app->close_on_focus_loss, (int)app->alignment, app->workspaces_per_row);
         log_debug("Saved window position: x=%d, y=%d", x, y);
         
         gtk_widget_destroy(app->window);
@@ -401,6 +443,14 @@ static void destroy_window(AppData *app) {
         app->textview = NULL;
         app->scrolled = NULL;
         app->textbuffer = NULL;
+        
+        // Reset command mode state when window is destroyed
+        app->command_mode.state = CMD_MODE_NORMAL;
+        app->command_mode.showing_help = FALSE;
+        app->command_mode.command_buffer[0] = '\0';
+        app->command_mode.cursor_pos = 0;
+        app->command_mode.history_index = -1;
+        
         // ALWAYS reset selection to 0
         reset_selection(app);
         log_debug("Selection reset to 0 in destroy_window");
@@ -521,12 +571,15 @@ int main(int argc, char *argv[]) {
     log_set_level(LOG_INFO);
     
     // Parse command line arguments
-    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified, &close_on_focus_loss_specified);
+    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified, &close_on_focus_loss_specified, NULL);
     if (parse_result == 2) {
         // Version was printed
         return 0;
     } else if (parse_result == 3) {
         // Help was printed
+        return 0;
+    } else if (parse_result == 4) {
+        // Command mode help was printed
         return 0;
     } else if (parse_result != 0) {
         return 1;
@@ -586,8 +639,9 @@ int main(int argc, char *argv[]) {
     int config_close_on_focus_loss;
     int config_align_int;
     load_full_config(&app.harpoon, &app.has_saved_position, &app.saved_x, &app.saved_y,
-                     &config_close_on_focus_loss, &config_align_int);
+                     &config_close_on_focus_loss, &config_align_int, &app.workspaces_per_row);
     WindowAlignment config_align = (WindowAlignment)config_align_int;
+    
     
     // Apply precedence rules for close_on_focus_loss
     // Command line overrides config file
@@ -604,7 +658,7 @@ int main(int argc, char *argv[]) {
     if (alignment_specified) {
         // Command line --align was specified, clear any saved position
         app.has_saved_position = 0;
-        save_full_config(&app.harpoon, 0, 0, 0, app.close_on_focus_loss, (int)app.alignment);
+        save_full_config(&app.harpoon, 0, 0, 0, app.close_on_focus_loss, (int)app.alignment, app.workspaces_per_row);
         log_debug("Using command line alignment: %d", app.alignment);
     } else if (app.has_saved_position) {
         // Use saved position
@@ -618,9 +672,12 @@ int main(int argc, char *argv[]) {
     // Initialize window and workspace lists
     init_window_list(&app);
     init_workspaces(&app);
-    
+
     // Initialize history from windows
     init_history_from_windows(&app);
+
+    // Initialize selection management
+    init_selection(&app);
     
     // Setup GUI
     setup_application(&app, app.alignment);
@@ -643,6 +700,11 @@ int main(int argc, char *argv[]) {
     // Show window and run
     gtk_widget_show_all(app.window);
     gtk_widget_grab_focus(app.entry);
+    
+    // Log last commanded window if set
+    if (app.last_commanded_window_id != 0) {
+        log_info("Last commanded window ID: 0x%lx", app.last_commanded_window_id);
+    }
     
     // Get our own window ID for filtering
     GdkWindow *gdk_window = gtk_widget_get_window(app.window);
