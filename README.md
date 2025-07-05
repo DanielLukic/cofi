@@ -11,6 +11,7 @@ COFI is a fast window switcher for X11 Linux desktops, written in C with GTK3. I
   - Subsequence matching: "th" → "Thunderbird"
 - **Alt-Tab behavior** - pressing Enter switches to the most recent window
 - **Harpoon-style assignments** - assign windows to number keys for instant access
+- **Command mode** - vim-style commands for window management (`:cw2`, `:tL`, `:j5`)
 - **Event-driven updates** - real-time window list synchronization
 - **Single instance** - subsequent launches activate existing window
 - **Zero external dependencies** - direct X11 window activation
@@ -57,9 +58,11 @@ Run cofi:
 - `--log-file FILE` (-f) - Write logs to file
 - `--no-log` (-n) - Disable logging
 - `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
-- `--close-on-focus-loss` (-c) - Close window when losing focus
+- `--no-auto-close` (-C) - Don't close window when focus is lost
+- `--workspaces` (-w) - Start with the Workspaces tab active
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help
+- `--help-commands` (-H) - Show command mode help
 
 ### Configuration
 
@@ -68,9 +71,7 @@ COFI saves configuration to `~/.config/cofi.json`:
 - **options** - Application settings
   - `close_on_focus_loss` - Auto-close on focus loss (boolean)
   - `align` - Default window alignment
-- **window_position** - Saved window position
-  - `x`, `y` - Window coordinates
-  - `saved` - Use saved position (boolean)
+  - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
 - **harpoon_slots** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
@@ -108,6 +109,41 @@ You can override the key exclusions by holding Shift:
 - Example: Ctrl+Shift+h assigns to slot 'h', then Alt+h activates it
 
 This gives you 31 available harpoon slots by default (0-9 and a-g, i, m-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
+
+### Command Mode
+
+Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments.
+
+#### Available Commands
+
+**Window Management:**
+- `:cw [N]` or `:change-workspace [N]` - Move selected window to workspace N
+- `:tm` or `:toggle-monitor` - Move window to next monitor
+- `:tw [OPT]` or `:tile-window [OPT]` or `:t [OPT]` - Tile window
+  - Options: L/R/T/B (halves), 1-9 (grid), F (fullscreen), C (center)
+- `:cl` or `:close-window` or `:c` - Close selected window
+- `:mw` or `:maximize-window` or `:m` - Toggle maximize
+- `:hm` or `:horizontal-maximize-window` - Toggle horizontal maximize
+- `:vm` or `:vertical-maximize-window` - Toggle vertical maximize
+
+**Window Properties:**
+- `:sb` or `:skip-taskbar` - Toggle skip taskbar
+- `:at` or `:always-on-top` or `:aot` - Toggle always on top
+- `:ew` or `:every-workspace` - Toggle sticky (show on all workspaces)
+
+**Navigation:**
+- `:jw [N]` or `:jump-workspace [N]` or `:j [N]` - Jump to workspace N
+- `:help` or `:h` or `:?` - Show command help
+
+#### No-Space Syntax
+
+Commands with arguments can be typed without spaces for faster entry:
+- `:cw2` - Move window to workspace 2
+- `:j5` - Jump to workspace 5  
+- `:tL` - Tile window left
+- `:t5` - Tile to grid position 5
+
+This vim-style syntax works alongside traditional space-separated commands.
 
 ### Window Display
 

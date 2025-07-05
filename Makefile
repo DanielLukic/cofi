@@ -51,6 +51,8 @@ src/%.o: src/%.c
 # Clean build artifacts
 clean:
 	rm -f $(OBJECTS) $(TARGET)
+	rm -f test/test_command_parsing test/test_window_matcher
+
 
 # Install target (optional)
 install: $(TARGET)
@@ -69,8 +71,12 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher
+test: test_window_matcher test_command_parsing
 	cd test && ./run_tests.sh
+
+# Build command parsing test
+test_command_parsing: test/test_command_parsing.c
+	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c
 
 # Quick test targets for development
 test_quick: src/match.o
