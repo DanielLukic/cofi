@@ -5,6 +5,8 @@
 #include "cli_args.h"
 #include "log.h"
 #include "version.h"
+#include "utils.h"
+#include "command_mode.h"
 
 void print_usage(const char *prog_name) {
     printf("Usage: %s [options]\n", prog_name);
@@ -14,10 +16,19 @@ void print_usage(const char *prog_name) {
     printf("  --no-log             Disable logging\n");
     printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
-    printf("  --close-on-focus-loss Close window when focus is lost\n");
+    printf("  --no-auto-close      Don't close window when focus is lost\n");
     printf("  --workspaces         Start with the Workspaces tab active\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
+    printf("  --help-commands, -H  Show command mode help\n");
+}
+
+void print_command_mode_help(void) {
+    char *help_text = generate_command_help_text(HELP_FORMAT_CLI);
+    if (help_text) {
+        printf("%s\n", help_text);
+        free(help_text);
+    }
 }
 
 int parse_log_level(const char *level_str) {
@@ -43,23 +54,25 @@ WindowAlignment parse_alignment(const char *align_str) {
     return ALIGN_CENTER; // Default fallback
 }
 
-int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified, int *close_on_focus_loss_specified) {
+int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified, int *close_on_focus_loss_specified, int *workspace_shortcut_specified) {
+    (void)workspace_shortcut_specified; // Unused parameter
     static struct option long_options[] = {
         {"log-level", required_argument, 0, 'l'},
         {"log-file", required_argument, 0, 'f'},
         {"no-log", no_argument, 0, 'n'},
         {"align", required_argument, 0, 'a'},
-        {"close-on-focus-loss", no_argument, 0, 'c'},
+        {"no-auto-close", no_argument, 0, 'C'},
         {"workspaces", no_argument, 0, 'w'},
         {"version", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
+        {"help-commands", no_argument, 0, 'H'},
         {0, 0, 0, 0}
     };
     
     int c;
     int option_index = 0;
     
-    while ((c = getopt_long(argc, argv, "l:f:nacwvh", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "l:f:naCwvhH", long_options, &option_index)) != -1) {
         switch (c) {
             case 'l': {
                 int level = parse_log_level(optarg);
@@ -83,8 +96,8 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 *alignment_specified = 1;
                 break;
             }
-            case 'c':
-                app->close_on_focus_loss = 1;
+            case 'C':
+                app->close_on_focus_loss = 0;
                 if (close_on_focus_loss_specified) *close_on_focus_loss_specified = 1;
                 break;
             case 'w':
@@ -96,6 +109,9 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
             case 'h':
                 print_usage(argv[0]);
                 return 3; // Special return code for help
+            case 'H':
+                print_command_mode_help();
+                return 4; // Special return code for command mode help
             case '?':
             default:
                 print_usage(argv[0]);

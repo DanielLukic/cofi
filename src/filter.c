@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include "app_data.h"
 #include "filter.h"
@@ -12,6 +13,7 @@
 
 #include "match.h"
 #include "constants.h"
+#include "selection.h"
 
 #define UNUSED __attribute__((unused))
 
@@ -247,17 +249,6 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
     return best_score;
 }
 
-// Apply Alt-Tab swap to a window array (swaps positions 0 and 1)
-// This modifies the array in-place
-static void apply_alt_tab_swap(WindowInfo *windows, int count) {
-    if (count >= 2) {
-        WindowInfo temp = windows[0];
-        windows[0] = windows[1];
-        windows[1] = temp;
-        log_debug("Alt-Tab swap applied: [0]='%s' [1]='%s'", 
-                 windows[0].title, windows[1].title);
-    }
-}
 
 // Prepare windows for filtering by updating history and partitioning
 static void prepare_windows_for_filtering(AppData *app) {
@@ -330,44 +321,53 @@ static void finalize_filter_results(AppData *app, const ScoredWindow *scored_win
         app->filtered_count++;
     }
     
-    // ALWAYS select the FIRST window for Alt-Tab behavior
-    app->selected_index = 0;
-    
-    // Ensure selection is within bounds
-    if (app->filtered_count == 0) {
-        app->selected_index = 0;
-    } else if (app->selected_index >= app->filtered_count) {
-        app->selected_index = 0;
-    }
-    
-    log_debug("Selection reset to %d (filtered_count=%d)", app->selected_index, app->filtered_count);
+    // Don't reset selection here - it will be handled by the caller
+    // to preserve the selected window by ID
 }
 
 // Filter windows based on search text (now works with history-ordered windows)
 void filter_windows(AppData *app, const char *filter) {
-    log_debug("filter_windows() called with filter='%s'", filter);
+    log_trace("filter_windows() called with filter='%s'", filter);
+
+    // Preserve current selection
+    preserve_selection(app);
     
     // Step 1: Prepare windows (update history and partition)
     prepare_windows_for_filtering(app);
-    
-    // Step 2: Clone the history array for Alt-Tab processing
-    WindowInfo cloned_history[MAX_WINDOWS];
-    int cloned_count = app->history_count;
-    for (int i = 0; i < app->history_count; i++) {
-        cloned_history[i] = app->history[i];
-    }
-    
-    // Step 3: Apply Alt-Tab swap
-    apply_alt_tab_swap(cloned_history, cloned_count);
-    
-    // Step 4: Score and filter windows
+
+
+    // Step 2: Score and filter windows directly from history
     ScoredWindow scored_windows[MAX_WINDOWS];
-    int scored_count = score_and_filter_windows(app, filter, cloned_history, 
-                                               cloned_count, scored_windows);
+    int scored_count = score_and_filter_windows(app, filter, app->history, 
+                                               app->history_count, scored_windows);
     
-    // Step 5: Sort by score
+    // Step 3: Sort by score
     sort_scored_windows(scored_windows, scored_count, filter);
     
-    // Step 6: Finalize results
+    // Step 4: Finalize results
     finalize_filter_results(app, scored_windows, scored_count);
+
+    // Step 4.5: Apply Alt-Tab swap if no commanded window
+    if (app->last_commanded_window_id == 0 && app->filtered_count >= 2) {
+        log_info("Alt-Tab swap: Swapping positions 0 and 1 (no commanded window)");
+        log_info("  Before: [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
+                 app->filtered[0].title, app->filtered[0].id,
+                 app->filtered[1].title, app->filtered[1].id);
+        
+        // Swap positions 0 and 1
+        WindowInfo temp = app->filtered[0];
+        app->filtered[0] = app->filtered[1];
+        app->filtered[1] = temp;
+        
+        log_info("  After:  [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
+                 app->filtered[0].title, app->filtered[0].id,
+                 app->filtered[1].title, app->filtered[1].id);
+    } else if (app->last_commanded_window_id != 0) {
+        log_info("Alt-Tab swap: Skipped (commanded window: 0x%lx)", app->last_commanded_window_id);
+    }
+
+    // Step 5: Restore and validate selection
+    restore_selection(app);
+    validate_selection(app);
 }
+

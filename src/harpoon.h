@@ -38,9 +38,9 @@ void load_config_with_position(HarpoonManager *manager, int *has_position, int *
 
 // New config functions with additional options
 void save_full_config(const HarpoonManager *manager, int has_position, int x, int y, 
-                      int close_on_focus_loss, int align);
+                      int close_on_focus_loss, int align, int workspaces_per_row);
 void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y,
-                      int *close_on_focus_loss, int *align);
+                      int *close_on_focus_loss, int *align, int *workspaces_per_row);
 
 // Automatic reassignment functions
 void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);

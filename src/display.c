@@ -10,6 +10,7 @@
 #include "log.h"
 #include "constants.h"
 #include "x11_utils.h"
+#include "selection.h"
 
 // Format tab header with active tab indication
 static void format_tab_header(TabMode current_tab, GString *output) {
@@ -98,8 +99,15 @@ static void fit_column(const char *text, int width, char *output) {
 
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
-    log_debug("update_display() - filtered_count=%d, selected_index=%d", 
-            app->filtered_count, app->selected_index);
+    int selected_idx = get_selected_index(app);
+    log_debug("update_display() - filtered_count=%d, selected_index=%d",
+            app->filtered_count, selected_idx);
+    
+    // Don't update display if help is being shown in command mode
+    if (app->command_mode.state == CMD_MODE_COMMAND && app->command_mode.showing_help) {
+        log_debug("Skipping display update - help is being shown");
+        return;
+    }
     
     // Log first few windows to understand ordering
     if (app->filtered_count > 0) {
@@ -107,12 +115,9 @@ void update_display(AppData *app) {
                 app->filtered[0].title, app->filtered[0].id,
                 (app->filtered_count > 1) ? app->filtered[1].title : "(none)",
                 (app->filtered_count > 1) ? app->filtered[1].id : 0);
-        log_trace("Display order (after swap) - [0]: '%s', [1]: '%s'",
-                (app->filtered_count > 1) ? app->filtered[1].title : app->filtered[0].title,
-                (app->filtered_count > 1) ? app->filtered[0].title : "(none)");
-        log_trace("Selected index: %d (displaying '%s')", 
-                app->selected_index,
-                (app->filtered_count > 1) ? app->filtered[1].title : app->filtered[0].title);
+        log_trace("Selected index: %d (displaying '%s')",
+                selected_idx,
+                (selected_idx < app->filtered_count) ? app->filtered[selected_idx].title : "(none)");
     }
     
     GString *text = g_string_new("");
@@ -121,11 +126,10 @@ void update_display(AppData *app) {
         // Column widths (from Go code)
         
         // Display filtered windows in reverse order (bottom-up like fzf)
-        // The Alt-Tab swap is already applied in the filtered array
         for (int i = app->filtered_count - 1; i >= 0; i--) {
         WindowInfo *win = &app->filtered[i];
         
-        gboolean is_selected = (i == app->selected_index);
+        gboolean is_selected = (i == selected_idx);
         
         // Selection indicator
         if (is_selected) {
@@ -202,7 +206,7 @@ void update_display(AppData *app) {
         for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
             WorkspaceInfo *ws = &app->filtered_workspaces[i];
             
-            gboolean is_selected = (i == app->selected_workspace_index);
+            gboolean is_selected = (i == selected_idx);
             
             // Selection indicator
             if (is_selected) {
