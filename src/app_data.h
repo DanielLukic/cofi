@@ -66,9 +66,6 @@ typedef struct {
     int active_window_id;                   // Currently active window
     Window own_window_id;                   // Our own window ID for filtering
     WindowAlignment alignment;              // Window alignment setting
-    int has_saved_position;                 // Whether we have a saved position
-    int saved_x;                            // Saved window X position
-    int saved_y;                            // Saved window Y position
 
     WorkspaceInfo workspaces[MAX_WORKSPACES]; // Workspace list
     WorkspaceInfo filtered_workspaces[MAX_WORKSPACES]; // Filtered workspaces

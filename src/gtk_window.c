@@ -3,37 +3,6 @@
 #include "gtk_window.h"
 #include "log.h"
 
-void validate_saved_position(AppData *app, GdkScreen *screen) {
-    gint n_monitors = gdk_screen_get_n_monitors(screen);
-    gboolean position_valid = FALSE;
-    
-    // Check if the saved position is on any monitor
-    for (gint i = 0; i < n_monitors; i++) {
-        GdkRectangle monitor_geometry;
-        gdk_screen_get_monitor_geometry(screen, i, &monitor_geometry);
-        
-        // Check if at least part of the window would be visible
-        if (app->saved_x < monitor_geometry.x + monitor_geometry.width - 50 &&
-            app->saved_x + 50 > monitor_geometry.x &&
-            app->saved_y < monitor_geometry.y + monitor_geometry.height - 50 &&
-            app->saved_y + 50 > monitor_geometry.y) {
-            position_valid = TRUE;
-            break;
-        }
-    }
-    
-    if (position_valid) {
-        // Use saved position
-        gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_NONE);
-        gtk_window_move(GTK_WINDOW(app->window), app->saved_x, app->saved_y);
-        log_debug("Applied saved position: x=%d, y=%d", app->saved_x, app->saved_y);
-    } else {
-        // Saved position is off-screen, fall back to center
-        gtk_window_set_position(GTK_WINDOW(app->window), GTK_WIN_POS_CENTER);
-        log_warn("Saved position (%d, %d) is off-screen, using center alignment", app->saved_x, app->saved_y);
-        app->has_saved_position = 0; // Clear invalid position
-    }
-}
 
 void apply_window_position(GtkWidget *window, WindowAlignment alignment) {
     switch (alignment) {
@@ -58,11 +27,6 @@ void apply_window_position(GtkWidget *window, WindowAlignment alignment) {
 void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
     AppData *app = (AppData *)user_data;
     WindowAlignment alignment = app->alignment;
-    
-    // Skip repositioning if we have a saved position
-    if (app->has_saved_position) {
-        return;
-    }
     
     // Only reposition if we have a valid size
     if (allocation->width <= 1 || allocation->height <= 1) {

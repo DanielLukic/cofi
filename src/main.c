@@ -431,11 +431,8 @@ static gboolean check_focus_loss_delayed(AppData *app) {
 // Destroy window instead of hiding it
 static void destroy_window(AppData *app) {
     if (app->window) {
-        // Save window position before destroying
-        gint x, y;
-        gtk_window_get_position(GTK_WINDOW(app->window), &x, &y);
-        save_full_config(&app->harpoon, 1, x, y, app->close_on_focus_loss, (int)app->alignment, app->workspaces_per_row);
-        log_debug("Saved window position: x=%d, y=%d", x, y);
+        // Save configuration without position
+        save_full_config(&app->harpoon, 0, 0, 0, app->close_on_focus_loss, (int)app->alignment, app->workspaces_per_row);
         
         gtk_widget_destroy(app->window);
         app->window = NULL;
@@ -468,15 +465,8 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_window_set_title(GTK_WINDOW(app->window), "cofi");
     // Set reasonable default size; will be adjusted based on content
     gtk_window_set_default_size(GTK_WINDOW(app->window), 900, 500);
-    // Set window position based on saved position or alignment
-    if (app->has_saved_position) {
-        // Validate saved position is still on-screen
-        GdkScreen *screen = gdk_screen_get_default();
-        validate_saved_position(app, screen);
-    } else {
-        // Set window position based on alignment
-        apply_window_position(app->window, alignment);
-    }
+    // Set window position based on alignment
+    apply_window_position(app->window, alignment);
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_decorated(GTK_WINDOW(app->window), FALSE);
@@ -638,7 +628,8 @@ int main(int argc, char *argv[]) {
     // Load full config with all options
     int config_close_on_focus_loss;
     int config_align_int;
-    load_full_config(&app.harpoon, &app.has_saved_position, &app.saved_x, &app.saved_y,
+    int dummy_has_position, dummy_x, dummy_y; // Temporary variables for compatibility
+    load_full_config(&app.harpoon, &dummy_has_position, &dummy_x, &dummy_y,
                      &config_close_on_focus_loss, &config_align_int, &app.workspaces_per_row);
     WindowAlignment config_align = (WindowAlignment)config_align_int;
     
@@ -651,18 +642,13 @@ int main(int argc, char *argv[]) {
     }
     log_debug("close_on_focus_loss = %d (cmdline_specified=%d)", app.close_on_focus_loss, close_on_focus_loss_specified);
     
-    // Apply precedence rules for alignment/position:
+    // Apply precedence rules for alignment:
     // 1. Command line --align takes highest precedence
-    // 2. Saved window position takes precedence over config align
-    // 3. Config align is fallback
+    // 2. Config align is fallback
     if (alignment_specified) {
-        // Command line --align was specified, clear any saved position
-        app.has_saved_position = 0;
+        // Command line --align was specified
         save_full_config(&app.harpoon, 0, 0, 0, app.close_on_focus_loss, (int)app.alignment, app.workspaces_per_row);
         log_debug("Using command line alignment: %d", app.alignment);
-    } else if (app.has_saved_position) {
-        // Use saved position
-        log_debug("Using saved position: x=%d, y=%d", app.saved_x, app.saved_y);
     } else {
         // Use config align
         app.alignment = config_align;
