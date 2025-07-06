@@ -15,6 +15,7 @@
 #include <X11/Xlib.h>
 #include <limits.h>
 #include "selection.h"
+#include "command_mode.h"
 
 #define LOCK_FILE "cofi.lock"
 
@@ -28,14 +29,29 @@ extern void update_display(AppData *app);
 // Forward declaration for deferred window recreation
 static gboolean recreate_window_idle(gpointer data);
 
-// Signal handler for SIGUSR1 - show window request (Windows tab)
+// Deferred command mode entry callback
+static gboolean enter_command_mode_delayed(gpointer data) {
+    AppData *app = (AppData*)data;
+    if (app) {
+        enter_command_mode(app);
+    }
+    return FALSE; // Remove timeout
+}
+
+// Signal handler for show window requests
 static void show_window_signal_handler(int sig) {
     if (g_app_data) {
-        // SIGUSR1: Windows tab, SIGUSR2: Workspaces tab
+        // Set the appropriate tab/mode based on signal
         if (sig == SIGUSR2) {
             g_app_data->current_tab = TAB_WORKSPACES;
-        } else {
+            g_app_data->start_in_command_mode = 0;
+        } else if (sig == SIGWINCH) {
             g_app_data->current_tab = TAB_WINDOWS;
+            g_app_data->start_in_command_mode = 1;
+        } else {
+            // SIGUSR1 or default
+            g_app_data->current_tab = TAB_WINDOWS;
+            g_app_data->start_in_command_mode = 0;
         }
         // Defer window recreation to the GTK main loop
         g_idle_add(recreate_window_idle, NULL);
@@ -95,6 +111,14 @@ static gboolean recreate_window_idle(gpointer data) {
         
         // Present the window
         gtk_window_present(GTK_WINDOW(g_app_data->window));
+        
+        // Enter command mode if requested
+        if (g_app_data->start_in_command_mode) {
+            g_app_data->start_in_command_mode = 0; // Reset flag
+            // Defer entering command mode to ensure proper focus handling
+            g_timeout_add(100, enter_command_mode_delayed, g_app_data);
+            log_info("Scheduled command mode entry via signal");
+        }
         
         log_info("Window recreated by signal from another instance");
         
@@ -254,6 +278,38 @@ static bool signal_existing_instance(pid_t pid, bool show_workspaces) {
     }
 }
 
+static bool signal_existing_instance_with_mode(pid_t pid, ShowMode mode) {
+    // Map mode to appropriate signal
+    int signal;
+    const char *mode_name;
+    
+    switch (mode) {
+        case SHOW_MODE_WINDOWS:
+            signal = SIGUSR1;
+            mode_name = "windows";
+            break;
+        case SHOW_MODE_WORKSPACES:
+            signal = SIGUSR2;
+            mode_name = "workspaces";
+            break;
+        case SHOW_MODE_COMMAND:
+            signal = SIGWINCH;
+            mode_name = "command";
+            break;
+        default:
+            log_error("Unknown show mode: %d", mode);
+            return false;
+    }
+    
+    if (kill(pid, signal) == 0) {
+        log_info("Sent show signal (%s) to existing instance (PID %d)", mode_name, pid);
+        return true;
+    } else {
+        log_error("Failed to signal existing instance: %s", strerror(errno));
+        return false;
+    }
+}
+
 bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces) {
     // Try to read existing lock file
     FILE *lock_file = fopen(im->lock_path, "r");
@@ -270,6 +326,44 @@ bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces) 
             } else if (existing_pid != im->pid && is_process_running(existing_pid)) {
                 // Try to signal existing instance
                 if (signal_existing_instance(existing_pid, show_workspaces)) {
+                    return true; // Another instance exists and was signaled
+                }
+            } else {
+                // Remove stale lock file
+                log_debug("Removing stale lock file for PID %d", existing_pid);
+                unlink(im->lock_path);
+            }
+        } else {
+            fclose(lock_file);
+            log_warn("Lock file exists but is empty, removing");
+            unlink(im->lock_path);
+        }
+    }
+    
+    // No existing instance, create lock file
+    if (!create_lock_file(im)) {
+        return false;
+    }
+    
+    return false; // This is the first instance
+}
+
+bool instance_manager_check_existing_with_mode(InstanceManager *im, ShowMode mode) {
+    // Try to read existing lock file
+    FILE *lock_file = fopen(im->lock_path, "r");
+    if (lock_file) {
+        char pid_str[32];
+        if (fgets(pid_str, sizeof(pid_str), lock_file)) {
+            pid_t existing_pid = atoi(pid_str);
+            fclose(lock_file);
+            
+            // Validate PID is reasonable
+            if (existing_pid <= 0 || existing_pid > 99999999) {
+                log_warn("Invalid PID in lock file: %d", existing_pid);
+                unlink(im->lock_path);
+            } else if (existing_pid != im->pid && is_process_running(existing_pid)) {
+                // Try to signal existing instance
+                if (signal_existing_instance_with_mode(existing_pid, mode)) {
                     return true; // Another instance exists and was signaled
                 }
             } else {
@@ -310,6 +404,13 @@ void instance_manager_setup_signal_handler(void) {
         log_error("Failed to setup SIGUSR2 signal handler: %s", strerror(errno));
     } else {
         log_debug("Signal handler setup for SIGUSR2 (Workspaces tab)");
+    }
+    
+    // Setup handler for SIGWINCH (Command mode)
+    if (sigaction(SIGWINCH, &sa, NULL) == -1) {
+        log_error("Failed to setup SIGWINCH signal handler: %s", strerror(errno));
+    } else {
+        log_debug("Signal handler setup for SIGWINCH (Command mode)");
     }
 }
 

@@ -349,8 +349,8 @@ void filter_windows(AppData *app, const char *filter) {
 
     // Step 4.5: Apply Alt-Tab swap if no commanded window
     if (app->last_commanded_window_id == 0 && app->filtered_count >= 2) {
-        log_info("Alt-Tab swap: Swapping positions 0 and 1 (no commanded window)");
-        log_info("  Before: [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
+        log_trace("Alt-Tab swap: Swapping positions 0 and 1 (no commanded window)");
+        log_trace("  Before: [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
                  app->filtered[0].title, app->filtered[0].id,
                  app->filtered[1].title, app->filtered[1].id);
         
@@ -359,7 +359,7 @@ void filter_windows(AppData *app, const char *filter) {
         app->filtered[0] = app->filtered[1];
         app->filtered[1] = temp;
         
-        log_info("  After:  [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
+        log_trace("  After:  [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
                  app->filtered[0].title, app->filtered[0].id,
                  app->filtered[1].title, app->filtered[1].id);
     } else if (app->last_commanded_window_id != 0) {

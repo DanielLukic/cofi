@@ -80,6 +80,7 @@ typedef struct {
     int dialog_active;                      // Whether a dialog is currently active
     CommandMode command_mode;               // Command mode state
     Window last_commanded_window_id;        // Last window affected by command mode action
+    int start_in_command_mode;              // Whether to start in command mode (--command flag)
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

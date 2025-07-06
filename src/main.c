@@ -603,10 +603,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Check if --workspaces was specified
-    bool show_workspaces = (app.current_tab == TAB_WORKSPACES);
+    // Determine show mode based on command line arguments
+    ShowMode show_mode;
+    if (app.start_in_command_mode) {
+        show_mode = SHOW_MODE_COMMAND;
+    } else if (app.current_tab == TAB_WORKSPACES) {
+        show_mode = SHOW_MODE_WORKSPACES;
+    } else {
+        show_mode = SHOW_MODE_WINDOWS;
+    }
     
-    if (instance_manager_check_existing(instance_manager, show_workspaces)) {
+    if (instance_manager_check_existing_with_mode(instance_manager, show_mode)) {
         log_info("Another instance is already running, exiting");
         instance_manager_cleanup(instance_manager);
         if (log_file) fclose(log_file);
@@ -686,6 +693,12 @@ int main(int argc, char *argv[]) {
     // Show window and run
     gtk_widget_show_all(app.window);
     gtk_widget_grab_focus(app.entry);
+    
+    // Enter command mode if requested via --command
+    if (app.start_in_command_mode) {
+        enter_command_mode(&app);
+        log_info("Started in command mode via --command flag");
+    }
     
     // Log last commanded window if set
     if (app.last_commanded_window_id != 0) {

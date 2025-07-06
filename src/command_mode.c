@@ -135,6 +135,9 @@ void enter_command_mode(AppData *app) {
     
     // Clear the entry and set the command prompt
     gtk_entry_set_text(GTK_ENTRY(app->entry), ":");
+    
+    // Ensure no text is selected and cursor is after ':'
+    gtk_editable_select_region(GTK_EDITABLE(app->entry), -1, -1); // Deselect all
     gtk_editable_set_position(GTK_EDITABLE(app->entry), 1); // Position cursor after ':'
     
     log_info("USER: Entered command mode");
