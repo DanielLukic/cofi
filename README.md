@@ -54,12 +54,15 @@ Run cofi:
 
 ### Command-line Options
 
+![Command Line Options](doc/cofi-options.png)
+
 - `--log-level LEVEL` (-l) - Set log level: trace, debug, info (default), warn, error, fatal
 - `--log-file FILE` (-f) - Write logs to file
 - `--no-log` (-n) - Disable logging
 - `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
 - `--no-auto-close` (-C) - Don't close window when focus is lost
 - `--workspaces` (-w) - Start with the Workspaces tab active
+- `--command` - Start directly in command mode with `:` prompt active
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help
 - `--help-commands` (-H) - Show command mode help
@@ -72,6 +75,7 @@ COFI saves configuration to `~/.config/cofi.json`:
   - `close_on_focus_loss` - Auto-close on focus loss (boolean)
   - `align` - Default window alignment
   - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
+  - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
 - **harpoon_slots** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
@@ -114,13 +118,19 @@ This gives you 31 available harpoon slots by default (0-9 and a-g, i, m-t, v-z),
 
 Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments.
 
+![Command Mode](doc/cofi-commands.png)
+
 #### Available Commands
 
 **Window Management:**
 - `:cw [N]` or `:change-workspace [N]` - Move selected window to workspace N
+  
+  ![Change Workspace](doc/cofi-move-workspace.png)
 - `:tm` or `:toggle-monitor` - Move window to next monitor
 - `:tw [OPT]` or `:tile-window [OPT]` or `:t [OPT]` - Tile window
-  - Options: L/R/T/B (halves), 1-9 (grid), F (fullscreen), C (center)
+  - Options: L/R/T/B (halves), 1-4 (2x2 grid) or 1-6 (3x2 grid), F (fullscreen), C (center)
+  
+  ![Tiling Options](doc/cofi-tiling.png)
 - `:cl` or `:close-window` or `:c` - Close selected window
 - `:mw` or `:maximize-window` or `:m` - Toggle maximize
 - `:hm` or `:horizontal-maximize-window` - Toggle horizontal maximize
@@ -133,6 +143,8 @@ Press `:` to enter command mode for advanced window management operations. Comma
 
 **Navigation:**
 - `:jw [N]` or `:jump-workspace [N]` or `:j [N]` - Jump to workspace N
+  
+  ![Jump to Workspace](doc/cofi-jump-workspace.png)
 - `:help` or `:h` or `:?` - Show command help
 
 #### No-Space Syntax
@@ -163,6 +175,17 @@ The display is bottom-aligned (fzf-style) with the most recent window at the bot
 See how I assigned shortcuts for Thunderbird (m), and my current project (p), the terminal to that project (t), the volume control (v). Cofi makes it easy to jump to these windows directly. For example `<alt-tab><alt-m>` jumps to my mail. Without releasing the `<alt>` key.
 
 To achieve this, I have my Linux Mint window switching reconfigured to map <alt-tab> to `cofi`. That's it!
+
+## Recent Updates
+
+### Version 1.x (2025)
+
+- **Overlay Dialogs**: All dialogs (tiling, workspace operations) now use GTK overlays for seamless visual integration
+- **Configurable Tiling Grid**: Choose between 2x2 (4 positions) or 3x2 (6 positions) grid layouts via `tile_columns` in config
+- **Direct Command Mode**: Launch with `--command` to start directly in command mode
+- **Vim-Style Commands**: No-space command syntax (`:cw2`, `:tL`, `:j5`) for faster operation
+- **Improved Tiling**: Better window tiling using maximize states
+- **Enhanced Configuration**: Refactored configuration system with better validation
 
 ## Advanced Features
 
