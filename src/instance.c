@@ -82,7 +82,7 @@ static gboolean recreate_window_idle(gpointer data) {
         log_debug("Reset selection before recreating window");
         
         // Create new window with stored alignment
-        setup_application(g_app_data, g_app_data->alignment);
+        setup_application(g_app_data, g_app_data->config.alignment);
         
         // Connect map event to grab focus after window is mapped
         g_signal_connect(g_app_data->window, "map-event", G_CALLBACK(on_window_map), NULL);

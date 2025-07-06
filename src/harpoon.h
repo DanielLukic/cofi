@@ -30,17 +30,7 @@ int get_window_slot(const HarpoonManager *manager, Window id);
 Window get_slot_window(const HarpoonManager *manager, int slot);
 int is_slot_assigned(const HarpoonManager *manager, int slot);
 
-// Persistence functions
-void save_harpoon_config(const HarpoonManager *manager);
-void load_harpoon_config(HarpoonManager *manager);
-void save_config_with_position(const HarpoonManager *manager, int has_position, int x, int y);
-void load_config_with_position(HarpoonManager *manager, int *has_position, int *x, int *y);
 
-// New config functions with additional options
-void save_full_config(const HarpoonManager *manager, int has_position, int x, int y, 
-                      int close_on_focus_loss, int align, int workspaces_per_row);
-void load_full_config(HarpoonManager *manager, int *has_position, int *x, int *y,
-                      int *close_on_focus_loss, int *align, int *workspaces_per_row);
 
 // Automatic reassignment functions
 void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);

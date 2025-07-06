@@ -6,19 +6,7 @@
 #include "window_info.h"
 #include "workspace_info.h"
 #include "harpoon.h"
-
-// Forward declaration for WindowAlignment
-typedef enum {
-    ALIGN_CENTER,
-    ALIGN_TOP,
-    ALIGN_TOP_LEFT,
-    ALIGN_TOP_RIGHT,
-    ALIGN_LEFT,
-    ALIGN_RIGHT,
-    ALIGN_BOTTOM,
-    ALIGN_BOTTOM_LEFT,
-    ALIGN_BOTTOM_RIGHT
-} WindowAlignment;
+#include "config.h"
 
 typedef enum {
     TAB_WINDOWS,
@@ -65,7 +53,6 @@ typedef struct {
     SelectionState selection;               // Centralized selection management
     int active_window_id;                   // Currently active window
     Window own_window_id;                   // Our own window ID for filtering
-    WindowAlignment alignment;              // Window alignment setting
 
     WorkspaceInfo workspaces[MAX_WORKSPACES]; // Workspace list
     WorkspaceInfo filtered_workspaces[MAX_WORKSPACES]; // Filtered workspaces
@@ -75,8 +62,7 @@ typedef struct {
 
     Display *display;
     HarpoonManager harpoon;                 // Harpoon number assignments
-    int close_on_focus_loss;                // Whether to close window when focus is lost
-    int workspaces_per_row;                 // Number of workspaces per row in grid layout (0 = linear)
+    CofiConfig config;                      // Unified configuration settings
     int dialog_active;                      // Whether a dialog is currently active
     CommandMode command_mode;               // Command mode state
     Window last_commanded_window_id;        // Last window affected by command mode action

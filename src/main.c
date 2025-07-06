@@ -18,6 +18,7 @@
 #include "history.h"
 #include "display.h"
 #include "filter.h"
+#include "harpoon_config.h"
 #include "log.h"
 #include "x11_events.h"
 #include "instance.h"
@@ -139,7 +140,9 @@ static gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
         log_info("Assigned window '%s' to slot %d", win->title, slot);
     }
     
-    save_harpoon_config(&app->harpoon);
+    // Save config options and harpoon slots separately
+    save_config(&app->config);
+    save_harpoon_slots(&app->harpoon);
     update_display(app);
     return TRUE;
 }
@@ -394,7 +397,7 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
     }
     
     // Only close if close_on_focus_loss is enabled
-    if (!app->close_on_focus_loss) {
+    if (!app->config.close_on_focus_loss) {
         return FALSE;
     }
     
@@ -431,8 +434,9 @@ static gboolean check_focus_loss_delayed(AppData *app) {
 // Destroy window instead of hiding it
 static void destroy_window(AppData *app) {
     if (app->window) {
-        // Save configuration without position
-        save_full_config(&app->harpoon, 0, 0, 0, app->close_on_focus_loss, (int)app->alignment, app->workspaces_per_row);
+        // Save config options and harpoon slots separately
+        save_config(&app->config);
+        save_harpoon_slots(&app->harpoon);
         
         gtk_widget_destroy(app->window);
         app->window = NULL;
@@ -458,7 +462,7 @@ static void destroy_window(AppData *app) {
 // Application setup
 void setup_application(AppData *app, WindowAlignment alignment) {
     // Store alignment for future window recreations
-    app->alignment = alignment;
+    app->config.alignment = alignment;
     
     // Create main window
     app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -538,7 +542,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     // Position window manually for non-center alignments
     if (alignment != ALIGN_CENTER) {
         // Store alignment in app data for use in callback
-        app->alignment = alignment;
+        app->config.alignment = alignment;
         // Connect to size-allocate to reposition whenever size changes
         g_signal_connect(app->window, "size-allocate", G_CALLBACK(on_window_size_allocate), app);
     }
@@ -550,7 +554,8 @@ int main(int argc, char *argv[]) {
     AppData app = {0};
     
     // Default settings
-    app.alignment = ALIGN_CENTER;
+    // Initialize config with defaults
+    init_config_defaults(&app.config);
     int log_enabled = 1;
     char *log_file_path = NULL;
     FILE *log_file = NULL;
@@ -628,38 +633,28 @@ int main(int argc, char *argv[]) {
     
     // Initialize application data
     init_app_data(&app);
-    
+
     // Open X11 display
     init_x11_connection(&app);
-    
-    // Load full config with all options
-    int config_close_on_focus_loss;
-    int config_align_int;
-    int dummy_has_position, dummy_x, dummy_y; // Temporary variables for compatibility
-    load_full_config(&app.harpoon, &dummy_has_position, &dummy_x, &dummy_y,
-                     &config_close_on_focus_loss, &config_align_int, &app.workspaces_per_row);
-    WindowAlignment config_align = (WindowAlignment)config_align_int;
-    
-    
+
+    // Load config options and harpoon slots separately
+    // Note: load_harpoon_slots must come AFTER init_app_data since init_harpoon_manager clears slots
+    load_config(&app.config);
+    load_harpoon_slots(&app.harpoon);
+
     // Apply precedence rules for close_on_focus_loss
-    // Command line overrides config file
-    if (!close_on_focus_loss_specified) {
-        // Use config value if command line didn't specify
-        app.close_on_focus_loss = config_close_on_focus_loss;
-    }
-    log_debug("close_on_focus_loss = %d (cmdline_specified=%d)", app.close_on_focus_loss, close_on_focus_loss_specified);
-    
+    // Command line overrides config file (already set by cli_args.c if specified)
+    log_debug("close_on_focus_loss = %d (cmdline_specified=%d)", app.config.close_on_focus_loss, close_on_focus_loss_specified);
+
     // Apply precedence rules for alignment:
-    // 1. Command line --align takes highest precedence
-    // 2. Config align is fallback
+    // 1. Command line --align takes highest precedence (already set by cli_args.c if specified)
+    // 2. Config align is fallback (already loaded)
     if (alignment_specified) {
-        // Command line --align was specified
-        save_full_config(&app.harpoon, 0, 0, 0, app.close_on_focus_loss, (int)app.alignment, app.workspaces_per_row);
-        log_debug("Using command line alignment: %d", app.alignment);
+        // Command line --align was specified, save the updated config
+        save_config(&app.config);
+        log_debug("Using command line alignment: %d", app.config.alignment);
     } else {
-        // Use config align
-        app.alignment = config_align;
-        log_debug("Using config alignment: %d", app.alignment);
+        log_debug("Using config alignment: %d", app.config.alignment);
     }
     
     // Initialize window and workspace lists
@@ -673,7 +668,7 @@ int main(int argc, char *argv[]) {
     init_selection(&app);
     
     // Setup GUI
-    setup_application(&app, app.alignment);
+    setup_application(&app, app.config.alignment);
     
     // Set app data for instance manager and setup signal handler
     // Do this after GUI setup so the window exists
