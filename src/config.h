@@ -19,6 +19,7 @@ typedef struct {
     int close_on_focus_loss;        // Whether to close window when focus is lost
     WindowAlignment alignment;      // Window alignment setting
     int workspaces_per_row;        // Number of workspaces per row in grid layout (0 = linear)
+    int tile_columns;              // Number of columns for tiling grid (2 or 3, default 3)
 } CofiConfig;
 
 // Configuration management functions (options only - harpoon slots handled separately)

@@ -101,8 +101,14 @@ void show_tiling_dialog(struct AppData *app) {
     // Create tiling options display
     create_tiling_grid(dialog);
     
-    // Instructions
-    GtkWidget *instructions = gtk_label_new("[Press L/R/T/B for halves, 1-9 for grid, F for fullscreen, C for center, Esc to cancel]");
+    // Instructions (dynamic based on tile_columns)
+    char instructions_text[256];
+    int max_grid_num = appdata->config.tile_columns * 2;
+    snprintf(instructions_text, sizeof(instructions_text), 
+             "[Press L/R/T/B for halves, 1-%d for grid, F for fullscreen, C for center, Esc to cancel]", 
+             max_grid_num);
+    
+    GtkWidget *instructions = gtk_label_new(instructions_text);
     gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
     gtk_label_set_line_wrap(GTK_LABEL(instructions), TRUE);
     gtk_box_pack_end(GTK_BOX(dialog->content_box), instructions, FALSE, FALSE, 0);
@@ -160,13 +166,18 @@ static void create_tiling_grid(TilingDialog *dialog) {
     gtk_box_pack_start(GTK_BOX(halves_box), gtk_label_new("T - Top Half"), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(halves_box), gtk_label_new("B - Bottom Half"), FALSE, FALSE, 0);
     
-    // 3x3 Grid
-    GtkWidget *grid_label = gtk_label_new("<b>3x3 Grid:</b>");
+    // Dynamic Grid (get tile_columns from config)
+    AppData *appdata = (AppData *)dialog->app_data;
+    int tile_columns = appdata->config.tile_columns;
+    
+    char grid_label_text[64];
+    snprintf(grid_label_text, sizeof(grid_label_text), "<b>%dx2 Grid:</b>", tile_columns);
+    GtkWidget *grid_label = gtk_label_new(grid_label_text);
     gtk_label_set_use_markup(GTK_LABEL(grid_label), TRUE);
     gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
     gtk_box_pack_start(GTK_BOX(main_box), grid_label, FALSE, FALSE, 0);
     
-    // Create 3x3 visual grid
+    // Create dynamic visual grid
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
@@ -174,16 +185,19 @@ static void create_tiling_grid(TilingDialog *dialog) {
     gtk_grid_set_column_spacing(GTK_GRID(grid), 5);
     gtk_box_pack_start(GTK_BOX(main_box), grid, FALSE, FALSE, 0);
     
-    // Add grid buttons
-    for (int row = 0; row < 3; row++) {
-        for (int col = 0; col < 3; col++) {
-            int num = row * 3 + col + 1;
-            char label_text[16];
-            snprintf(label_text, sizeof(label_text), "%d", num);
-            
-            GtkWidget *button = gtk_button_new_with_label(label_text);
-            gtk_widget_set_size_request(button, 40, 30);
-            gtk_grid_attach(GTK_GRID(grid), button, col, row, 1, 1);
+    // Add grid buttons based on tile_columns
+    int max_positions = tile_columns * 2;  // columns * 2 rows
+    for (int row = 0; row < 2; row++) {
+        for (int col = 0; col < tile_columns; col++) {
+            int num = row * tile_columns + col + 1;
+            if (num <= max_positions) {
+                char label_text[16];
+                snprintf(label_text, sizeof(label_text), "%d", num);
+                
+                GtkWidget *button = gtk_button_new_with_label(label_text);
+                gtk_widget_set_size_request(button, 40, 30);
+                gtk_grid_attach(GTK_GRID(grid), button, col, row, 1, 1);
+            }
         }
     }
     
@@ -214,6 +228,11 @@ static gboolean on_tiling_dialog_key_press(GtkWidget *widget, GdkEventKey *event
     TileOption option;
     gboolean valid_option = TRUE;
 
+    // Get tile_columns from config for validation
+    AppData *appdata = (AppData *)dialog->app_data;
+    int tile_columns = appdata->config.tile_columns;
+    int max_positions = tile_columns * 2;  // columns * 2 rows
+
     // Handle tiling options
     switch (event->keyval) {
         case GDK_KEY_l:
@@ -234,30 +253,39 @@ static gboolean on_tiling_dialog_key_press(GtkWidget *widget, GdkEventKey *event
             break;
         case GDK_KEY_1:
             option = TILE_GRID_1;
+            valid_option = (1 <= max_positions);
             break;
         case GDK_KEY_2:
             option = TILE_GRID_2;
+            valid_option = (2 <= max_positions);
             break;
         case GDK_KEY_3:
             option = TILE_GRID_3;
+            valid_option = (3 <= max_positions);
             break;
         case GDK_KEY_4:
             option = TILE_GRID_4;
+            valid_option = (4 <= max_positions);
             break;
         case GDK_KEY_5:
             option = TILE_GRID_5;
+            valid_option = (5 <= max_positions);
             break;
         case GDK_KEY_6:
             option = TILE_GRID_6;
+            valid_option = (6 <= max_positions);
             break;
         case GDK_KEY_7:
             option = TILE_GRID_7;
+            valid_option = (7 <= max_positions);
             break;
         case GDK_KEY_8:
             option = TILE_GRID_8;
+            valid_option = (8 <= max_positions);
             break;
         case GDK_KEY_9:
             option = TILE_GRID_9;
+            valid_option = (9 <= max_positions);
             break;
         case GDK_KEY_f:
         case GDK_KEY_F:
@@ -307,11 +335,11 @@ static void tile_and_close(TilingDialog *dialog, TileOption option) {
              dialog->target_window->title, option);
 
     // Apply the tiling
-    apply_tiling(dialog->display, dialog->target_window->id, option);
+    AppData *appdata = (AppData *)dialog->app_data;
+    apply_tiling(dialog->display, dialog->target_window->id, option, appdata->config.tile_columns);
 
     // Store the window ID we need to activate
     Window target_window_id = dialog->target_window->id;
-    AppData *appdata = (AppData *)dialog->app_data;
 
     // Close dialog first
     gtk_widget_destroy(dialog->window);
@@ -334,7 +362,7 @@ static gboolean destroy_widget_idle(gpointer widget) {
 }
 
 // Apply tiling to window
-void apply_tiling(Display *display, Window window_id, TileOption option) {
+void apply_tiling(Display *display, Window window_id, TileOption option, int tile_columns) {
     if (!display || !window_id) {
         log_error("Invalid display or window for tiling");
         return;
@@ -457,68 +485,38 @@ void apply_tiling(Display *display, Window window_id, TileOption option) {
             height = work_height / 2;
             break;
 
-        // 3x3 Grid positions (relative to the work area)
-        case TILE_GRID_1: // Top-left
-            x = work_x;
-            y = work_y;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_2: // Top-center
-            x = work_x + work_width / 3;
-            y = work_y;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_3: // Top-right
-            x = work_x + (work_width * 2) / 3;
-            y = work_y;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_4: // Middle-left
-            x = work_x;
-            y = work_y + work_height / 3;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_5: // Middle-center (inner 3x3 tile)
-            x = work_x + work_width / 3;
-            y = work_y + work_height / 3;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_6: // Middle-right
-            x = work_x + (work_width * 2) / 3;
-            y = work_y + work_height / 3;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_7: // Bottom-left
-            x = work_x;
-            y = work_y + (work_height * 2) / 3;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_8: // Bottom-center
-            x = work_x + work_width / 3;
-            y = work_y + (work_height * 2) / 3;
-            width = work_width / 3;
-            height = work_height / 3;
-            break;
-
-        case TILE_GRID_9: // Bottom-right
-            x = work_x + (work_width * 2) / 3;
-            y = work_y + (work_height * 2) / 3;
-            width = work_width / 3;
-            height = work_height / 3;
+        // Dynamic Grid positions (configurable columns)
+        case TILE_GRID_1:
+        case TILE_GRID_2:
+        case TILE_GRID_3:
+        case TILE_GRID_4:
+        case TILE_GRID_5:
+        case TILE_GRID_6:
+        case TILE_GRID_7:
+        case TILE_GRID_8:
+        case TILE_GRID_9:
+            {
+                // Calculate position based on tile_columns
+                int position = option - TILE_GRID_1;  // 0-based position
+                int max_positions = tile_columns * 2;  // Total grid positions (columns * 2 rows)
+                
+                // Validate position is within bounds
+                if (position >= max_positions) {
+                    log_error("Invalid grid position %d for %d columns", position + 1, tile_columns);
+                    return;
+                }
+                
+                int col = position % tile_columns;     // Column (0 to tile_columns-1)
+                int row = position / tile_columns;     // Row (0 to 1)
+                
+                x = work_x + (col * work_width) / tile_columns;
+                y = work_y + (row * work_height) / 2;
+                width = work_width / tile_columns;
+                height = work_height / 2;
+                
+                log_debug("Grid position %d: col=%d, row=%d, %dx%d+%d+%d", 
+                         position + 1, col, row, width, height, x, y);
+            }
             break;
 
         case TILE_FULLSCREEN:

@@ -41,6 +41,6 @@ typedef struct {
 void show_tiling_dialog(struct AppData *app);
 
 // Apply tiling to window
-void apply_tiling(Display *display, Window window_id, TileOption option);
+void apply_tiling(Display *display, Window window_id, TileOption option, int tile_columns);
 
 #endif // TILING_DIALOG_H

@@ -630,7 +630,7 @@ gboolean execute_command(const char *command, AppData *app) {
                          cmd_name, arg, selected_window->title, option);
 
                 // Apply the tiling directly
-                apply_tiling(app->display, selected_window->id, option);
+                apply_tiling(app->display, selected_window->id, option, app->config.tile_columns);
 
                 // Activate the tiled window
                 activate_commanded_window(app, selected_window);
