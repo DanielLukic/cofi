@@ -93,12 +93,12 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 *log_enabled = 0;
                 break;
             case 'a': {
-                app->alignment = parse_alignment(optarg);
+                app->config.alignment = parse_alignment(optarg);
                 *alignment_specified = 1;
                 break;
             }
             case 'C':
-                app->close_on_focus_loss = 0;
+                app->config.close_on_focus_loss = 0;
                 if (close_on_focus_loss_specified) *close_on_focus_loss_specified = 1;
                 break;
             case 'w':

@@ -26,7 +26,7 @@ void apply_window_position(GtkWidget *window, WindowAlignment alignment) {
 // Callback to reposition window whenever size changes
 void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
     AppData *app = (AppData *)user_data;
-    WindowAlignment alignment = app->alignment;
+    WindowAlignment alignment = app->config.alignment;
     
     // Only reposition if we have a valid size
     if (allocation->width <= 1 || allocation->height <= 1) {
