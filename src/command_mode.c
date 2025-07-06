@@ -2,6 +2,7 @@
 #include "log.h"
 #include "workspace_dialog.h"
 #include "tiling_dialog.h"
+#include "overlay_manager.h"
 #include "monitor_move.h"
 #include "display.h"
 #include "selection.h"
@@ -432,9 +433,9 @@ gboolean execute_command(const char *command, AppData *app) {
                 return FALSE; // Stay in command mode
             }
         } else {
-            // No argument provided, show dialog
-            show_workspace_move_dialog((struct AppData *)app);
-            return TRUE; // Exit command mode after opening dialog
+            // No argument provided, show overlay
+            show_workspace_move_overlay(app);
+            return TRUE; // Exit command mode after opening overlay
         }
     } else if (strcmp(cmd_name, "tm") == 0 || strcmp(cmd_name, "toggle-monitor") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
@@ -547,9 +548,9 @@ gboolean execute_command(const char *command, AppData *app) {
                 return FALSE; // Stay in command mode
             }
         } else {
-            // No argument provided, show dialog
-            show_workspace_jump_dialog((struct AppData *)app);
-            return TRUE; // Exit command mode after opening dialog
+            // No argument provided, show overlay
+            show_workspace_jump_overlay(app);
+            return TRUE; // Exit command mode after opening overlay
         }
     } else if (strcmp(cmd_name, "tw") == 0 || strcmp(cmd_name, "tile-window") == 0 || strcmp(cmd_name, "t") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
@@ -644,9 +645,9 @@ gboolean execute_command(const char *command, AppData *app) {
                 return FALSE; // Stay in command mode
             }
         } else {
-            // No argument provided, show dialog
-            show_tiling_dialog((struct AppData *)app);
-            return TRUE; // Exit command mode after opening dialog
+            // No argument provided, show overlay
+            show_tiling_overlay((struct AppData *)app);
+            return TRUE; // Exit command mode after opening overlay
         }
     } else if (strcmp(cmd_name, "help") == 0 || strcmp(cmd_name, "h") == 0 || strcmp(cmd_name, "?") == 0) {
         show_help_commands(app);
