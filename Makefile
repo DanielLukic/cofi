@@ -29,7 +29,9 @@ SOURCES = src/main.c \
           src/tiling_dialog.c \
           src/command_mode.c \
           src/monitor_move.c \
-          src/selection.c
+          src/selection.c \
+          src/workarea.c \
+          src/size_hints.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

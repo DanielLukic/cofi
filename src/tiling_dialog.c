@@ -5,6 +5,8 @@
 #include "selection.h"
 #include "display.h"
 #include "monitor_move.h"
+#include "workarea.h"
+#include "size_hints.h"
 #include <string.h>
 #include <stdlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -404,103 +406,119 @@ void apply_tiling(Display *display, Window window_id, TileOption option) {
         free(monitors);
     }
 
-    // Account for typical panel/taskbar space (adjust as needed)
-    int panel_height = 30; // Typical panel height
-    int usable_height = monitor_height - panel_height;
+    // Get the actual work area (excluding panels/docks)
+    WorkArea work_area;
+    get_current_work_area(display, &work_area);
+    
+    // Intersect work area with monitor bounds
+    int work_x = (work_area.x > monitor_x) ? work_area.x : monitor_x;
+    int work_y = (work_area.y > monitor_y) ? work_area.y : monitor_y;
+    int work_right = (work_area.x + work_area.width < monitor_x + monitor_width) ? 
+                     work_area.x + work_area.width : monitor_x + monitor_width;
+    int work_bottom = (work_area.y + work_area.height < monitor_y + monitor_height) ?
+                      work_area.y + work_area.height : monitor_y + monitor_height;
+    int work_width = work_right - work_x;
+    int work_height = work_bottom - work_y;
+    
+    log_debug("Work area on monitor: %dx%d+%d+%d", work_width, work_height, work_x, work_y);
+    
+    // Get window size hints
+    WindowSizeHints size_hints;
+    get_window_size_hints(display, window_id, &size_hints);
 
     int x, y, width, height;
 
     switch (option) {
         case TILE_LEFT_HALF:
-            x = monitor_x;
-            y = monitor_y;
-            width = monitor_width / 2;
-            height = usable_height;
+            x = work_x;
+            y = work_y;
+            width = work_width / 2;
+            height = work_height;
             break;
 
         case TILE_RIGHT_HALF:
-            x = monitor_x + monitor_width / 2;
-            y = monitor_y;
-            width = monitor_width / 2;
-            height = usable_height;
+            x = work_x + work_width / 2;
+            y = work_y;
+            width = work_width / 2;
+            height = work_height;
             break;
 
         case TILE_TOP_HALF:
-            x = monitor_x;
-            y = monitor_y;
-            width = monitor_width;
-            height = usable_height / 2;
+            x = work_x;
+            y = work_y;
+            width = work_width;
+            height = work_height / 2;
             break;
 
         case TILE_BOTTOM_HALF:
-            x = monitor_x;
-            y = monitor_y + usable_height / 2;
-            width = monitor_width;
-            height = usable_height / 2;
+            x = work_x;
+            y = work_y + work_height / 2;
+            width = work_width;
+            height = work_height / 2;
             break;
 
-        // 3x3 Grid positions (relative to the monitor the window is on)
+        // 3x3 Grid positions (relative to the work area)
         case TILE_GRID_1: // Top-left
-            x = monitor_x;
-            y = monitor_y;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x;
+            y = work_y;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_2: // Top-center
-            x = monitor_x + monitor_width / 3;
-            y = monitor_y;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + work_width / 3;
+            y = work_y;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_3: // Top-right
-            x = monitor_x + (monitor_width * 2) / 3;
-            y = monitor_y;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + (work_width * 2) / 3;
+            y = work_y;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_4: // Middle-left
-            x = monitor_x;
-            y = monitor_y + usable_height / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x;
+            y = work_y + work_height / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_5: // Middle-center (inner 3x3 tile)
-            x = monitor_x + monitor_width / 3;
-            y = monitor_y + usable_height / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + work_width / 3;
+            y = work_y + work_height / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_6: // Middle-right
-            x = monitor_x + (monitor_width * 2) / 3;
-            y = monitor_y + usable_height / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + (work_width * 2) / 3;
+            y = work_y + work_height / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_7: // Bottom-left
-            x = monitor_x;
-            y = monitor_y + (usable_height * 2) / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x;
+            y = work_y + (work_height * 2) / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_8: // Bottom-center
-            x = monitor_x + monitor_width / 3;
-            y = monitor_y + (usable_height * 2) / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + work_width / 3;
+            y = work_y + (work_height * 2) / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_GRID_9: // Bottom-right
-            x = monitor_x + (monitor_width * 2) / 3;
-            y = monitor_y + (usable_height * 2) / 3;
-            width = monitor_width / 3;
-            height = usable_height / 3;
+            x = work_x + (work_width * 2) / 3;
+            y = work_y + (work_height * 2) / 3;
+            width = work_width / 3;
+            height = work_height / 3;
             break;
 
         case TILE_FULLSCREEN:
@@ -521,9 +539,9 @@ void apply_tiling(Display *display, Window window_id, TileOption option) {
                     return;
                 }
 
-                // Center the window on the monitor
-                x = monitor_x + (monitor_width - current_width) / 2;
-                y = monitor_y + (usable_height - current_height) / 2;
+                // Center the window in the work area
+                x = work_x + (work_width - current_width) / 2;
+                y = work_y + (work_height - current_height) / 2;
                 width = current_width;
                 height = current_height;
             }
@@ -535,11 +553,56 @@ void apply_tiling(Display *display, Window window_id, TileOption option) {
     }
 
     log_debug("Tiling window to position: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
+    
+    // Enforce size hints
+    ensure_size_hints_satisfied(&x, &y, &width, &height, &size_hints);
+    log_debug("After size hints: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
 
-    // Apply the tiling
+    // First, move and resize the window
     XMoveResizeWindow(display, window_id, x, y, width, height);
     XFlush(display);
-
+    
+    // Then apply maximization for certain tile modes (like Marco does)
+    // This helps fill gaps caused by size increment constraints
+    // (reuse atoms already defined above)
+    
+    XEvent maximize_event;
+    memset(&maximize_event, 0, sizeof(maximize_event));
+    maximize_event.type = ClientMessage;
+    maximize_event.xclient.window = window_id;
+    maximize_event.xclient.message_type = net_wm_state;
+    maximize_event.xclient.format = 32;
+    maximize_event.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+    maximize_event.xclient.data.l[3] = 1; // Source indication
+    
+    switch (option) {
+        case TILE_LEFT_HALF:
+        case TILE_RIGHT_HALF:
+            // Maximize vertically for left/right tiles (like Marco)
+            maximize_event.xclient.data.l[1] = net_wm_state_maximized_vert;
+            XSendEvent(display, DefaultRootWindow(display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &maximize_event);
+            log_debug("Applied vertical maximization for left/right tiling");
+            break;
+            
+        case TILE_TOP_HALF:
+        case TILE_BOTTOM_HALF:
+            // Maximize horizontally for top/bottom tiles
+            maximize_event.xclient.data.l[1] = net_wm_state_maximized_horz;
+            XSendEvent(display, DefaultRootWindow(display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &maximize_event);
+            log_debug("Applied horizontal maximization for top/bottom tiling");
+            break;
+            
+        // Note: For 3x3 grid tiles, we don't maximize since they should remain
+        // exactly 1/3 of the screen size
+            
+        default:
+            // No maximization for other tile modes
+            break;
+    }
+    
+    XFlush(display);
     log_info("Applied tiling option %d to window", option);
 }
 
