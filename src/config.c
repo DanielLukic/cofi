@@ -62,7 +62,8 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
     fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string(config->alignment));
-    fprintf(file, "    \"workspaces_per_row\": %d\n", config->workspaces_per_row);
+    fprintf(file, "    \"workspaces_per_row\": %d,\n", config->workspaces_per_row);
+    fprintf(file, "    \"tile_columns\": %d\n", config->tile_columns);
     fprintf(file, "  }");
 }
 
@@ -75,6 +76,7 @@ void init_config_defaults(CofiConfig *config) {
     config->close_on_focus_loss = 1;  // Default to true
     config->alignment = ALIGN_CENTER;  // Default to center
     config->workspaces_per_row = 0;   // Default to linear layout
+    config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
 }
 
 // Save configuration options only (harpoon slots saved separately)
@@ -127,6 +129,17 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         }
     } else if (strstr(line, "\"workspaces_per_row\":")) {
         sscanf(line, " \"workspaces_per_row\": %d", &config->workspaces_per_row);
+    } else if (strstr(line, "\"tile_columns\":")) {
+        int columns;
+        if (sscanf(line, " \"tile_columns\": %d", &columns) == 1) {
+            // Validate: only allow 2 or 3 columns
+            if (columns == 2 || columns == 3) {
+                config->tile_columns = columns;
+            } else {
+                log_warn("Invalid tile_columns value %d, using default 3", columns);
+                config->tile_columns = 3;
+            }
+        }
     }
 }
 
