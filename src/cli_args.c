@@ -18,6 +18,7 @@ void print_usage(const char *prog_name) {
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
     printf("  --no-auto-close      Don't close window when focus is lost\n");
     printf("  --workspaces         Start with the Workspaces tab active\n");
+    printf("  --command            Start in command mode (with ':' prompt)\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
     printf("  --help-commands, -H  Show command mode help\n");
@@ -63,6 +64,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
         {"align", required_argument, 0, 'a'},
         {"no-auto-close", no_argument, 0, 'C'},
         {"workspaces", no_argument, 0, 'w'},
+        {"command", no_argument, 0, 'c'},
         {"version", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {"help-commands", no_argument, 0, 'H'},
@@ -72,7 +74,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     int c;
     int option_index = 0;
     
-    while ((c = getopt_long(argc, argv, "l:f:naCwvhH", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "l:f:naCwcvhH", long_options, &option_index)) != -1) {
         switch (c) {
             case 'l': {
                 int level = parse_log_level(optarg);
@@ -101,6 +103,9 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
                 break;
             case 'w':
                 app->current_tab = TAB_WORKSPACES;
+                break;
+            case 'c':
+                app->start_in_command_mode = 1;
                 break;
             case 'v':
                 printf("cofi version %s\n", VERSION_STRING);
