@@ -27,14 +27,13 @@ SOURCES = src/main.c \
           src/cli_args.c \
           src/gtk_window.c \
           src/app_init.c \
-          src/workspace_dialog.c \
-          src/tiling_dialog.c \
           src/command_mode.c \
           src/monitor_move.c \
           src/selection.c \
           src/workarea.c \
           src/size_hints.c \
-          src/overlay_manager.c
+          src/overlay_manager.c \
+          src/tiling.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

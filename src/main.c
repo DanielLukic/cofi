@@ -31,7 +31,6 @@
 #include "gtk_window.h"
 #include "selection.h"
 #include "app_init.h"
-#include "workspace_dialog.h"
 #include "overlay_manager.h"
 #include "version.h"
 
@@ -396,8 +395,8 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
     (void)widget;
     (void)event;
     
-    // Always reset command mode when losing focus (unless dialog is active)
-    if (!app->dialog_active && app->command_mode.state == CMD_MODE_COMMAND) {
+    // Always reset command mode when losing focus
+    if (app->command_mode.state == CMD_MODE_COMMAND) {
         log_debug("Resetting command mode due to focus loss");
         exit_command_mode(app);
     }
@@ -420,11 +419,7 @@ static gboolean check_focus_loss_delayed(AppData *app) {
         return FALSE; // Window already destroyed
     }
     
-    // Don't close if a dialog is active
-    if (app->dialog_active) {
-        log_debug("Dialog is active, not closing main window on focus loss");
-        return FALSE;
-    }
+
     
     // Check if our window still has toplevel focus
     if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {

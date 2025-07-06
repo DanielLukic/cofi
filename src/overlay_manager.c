@@ -2,7 +2,7 @@
 #include "app_data.h"
 #include "log.h"
 #include "selection.h"
-#include "tiling_dialog.h"
+#include "tiling.h"
 #include "x11_utils.h"
 #include <gtk/gtk.h>
 

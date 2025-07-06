@@ -29,8 +29,7 @@ void init_app_data(AppData *app) {
     // Initialize harpoon manager
     init_harpoon_manager(&app->harpoon);
     
-    // Initialize dialog active flag
-    app->dialog_active = 0;
+
 
     // Initialize command mode
     init_command_mode(&app->command_mode);
