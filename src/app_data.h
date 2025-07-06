@@ -13,6 +13,14 @@ typedef enum {
     TAB_WORKSPACES
 } TabMode;
 
+// Overlay types for dialog management
+typedef enum {
+    OVERLAY_NONE,
+    OVERLAY_TILING,
+    OVERLAY_WORKSPACE_MOVE,
+    OVERLAY_WORKSPACE_JUMP
+} OverlayType;
+
 // Command mode definitions
 typedef enum {
     CMD_MODE_NORMAL,    // Regular window switching mode
@@ -44,6 +52,12 @@ typedef struct {
     GtkWidget *scrolled;
     GtkTextBuffer *textbuffer;
 
+    // Overlay system components
+    GtkWidget *main_overlay;        // Root GtkOverlay container
+    GtkWidget *main_content;        // Main content container (existing vbox)
+    GtkWidget *modal_background;    // Semi-transparent modal overlay
+    GtkWidget *dialog_container;    // Container for dialog content
+
     WindowInfo windows[MAX_WINDOWS];        // Raw window list from X11
     WindowInfo history[MAX_WINDOWS];        // History-ordered windows
     WindowInfo filtered[MAX_WINDOWS];       // Filtered and display-ready windows
@@ -67,6 +81,10 @@ typedef struct {
     CommandMode command_mode;               // Command mode state
     Window last_commanded_window_id;        // Last window affected by command mode action
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
+
+    // Overlay state management
+    gboolean overlay_active;                // Whether any overlay is currently shown
+    OverlayType current_overlay;            // Which overlay is currently active
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED
