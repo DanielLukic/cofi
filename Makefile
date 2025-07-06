@@ -19,6 +19,8 @@ SOURCES = src/main.c \
           src/x11_events.c \
           src/instance.c \
           src/harpoon.c \
+          src/config.c \
+          src/harpoon_config.c \
           src/window_matcher.c \
           src/match.c \
           src/utils.c \

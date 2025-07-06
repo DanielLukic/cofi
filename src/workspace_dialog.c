@@ -72,7 +72,7 @@ void show_workspace_move_dialog(struct AppData *app) {
     WorkspaceDialog *dialog = g_new0(WorkspaceDialog, 1);
     dialog->target_window = selected_window;
     dialog->display = appdata->display;
-    dialog->workspaces_per_row = appdata->workspaces_per_row;
+    dialog->workspaces_per_row = appdata->config.workspaces_per_row;
     dialog->app_data = (struct AppData *)appdata;
     dialog->workspace_selected = FALSE;
     g_dialog = dialog;
@@ -213,7 +213,7 @@ void show_workspace_jump_dialog(struct AppData *app) {
     WorkspaceDialog *dialog = g_new0(WorkspaceDialog, 1);
     dialog->target_window = NULL;  // No target window for jump dialog
     dialog->display = appdata->display;
-    dialog->workspaces_per_row = appdata->workspaces_per_row;
+    dialog->workspaces_per_row = appdata->config.workspaces_per_row;
     dialog->app_data = (struct AppData *)appdata;
     dialog->workspace_selected = FALSE;
     g_dialog = dialog;
@@ -683,7 +683,7 @@ static gboolean on_dialog_focus_out(GtkWidget *widget, GdkEventFocus *event, gpo
     AppData *appdata = (AppData *)dialog->app_data;
     
     // Only close if auto-close is enabled
-    if (!appdata || !appdata->close_on_focus_loss) {
+    if (!appdata || !appdata->config.close_on_focus_loss) {
         log_debug("Dialog focus lost but auto-close is disabled, not closing");
         return FALSE;
     }
