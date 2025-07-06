@@ -33,7 +33,8 @@ SOURCES = src/main.c \
           src/monitor_move.c \
           src/selection.c \
           src/workarea.c \
-          src/size_hints.c
+          src/size_hints.c \
+          src/overlay_manager.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

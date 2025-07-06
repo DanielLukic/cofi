@@ -32,6 +32,7 @@
 #include "selection.h"
 #include "app_init.h"
 #include "workspace_dialog.h"
+#include "overlay_manager.h"
 #include "version.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
@@ -45,7 +46,7 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
 static void filter_workspaces(AppData *app, const char *filter);
 
 // Forward declaration for destroy_window function
-static void destroy_window(AppData *app);
+void destroy_window(AppData *app);
 static gboolean check_focus_loss_delayed(AppData *app);
 
 // Note: Selection management functions moved to selection.c
@@ -280,8 +281,13 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
 // Handle key press events
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     (void)widget; // Unused parameter
-    
-    // Handle command mode first if active
+
+    // Handle overlay events first if any overlay is active
+    if (is_overlay_active(app)) {
+        return handle_overlay_key_press(app, event);
+    }
+
+    // Handle command mode if active
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         return handle_command_key(event, app);
     }
@@ -432,7 +438,7 @@ static gboolean check_focus_loss_delayed(AppData *app) {
 }
 
 // Destroy window instead of hiding it
-static void destroy_window(AppData *app) {
+void destroy_window(AppData *app) {
     if (app->window) {
         // Save config options and harpoon slots separately
         save_config(&app->config);
@@ -475,9 +481,13 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_window_set_keep_above(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_decorated(GTK_WINDOW(app->window), FALSE);
     
-    // Create main vertical box
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_container_add(GTK_CONTAINER(app->window), vbox);
+    // Create main overlay container
+    app->main_overlay = gtk_overlay_new();
+    gtk_container_add(GTK_CONTAINER(app->window), app->main_overlay);
+
+    // Create main content container (the original vbox)
+    app->main_content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_container_add(GTK_CONTAINER(app->main_overlay), app->main_content);
     
     // Create text view and buffer (bottom-aligned, no scrolling)
     app->textview = gtk_text_view_new();
@@ -486,11 +496,14 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(app->textview), FALSE);
     gtk_widget_set_can_focus(app->textview, FALSE);
     
-    // Set monospace font using CSS
+    // Set monospace font and overlay styling using CSS
     GtkCssProvider *css_provider = gtk_css_provider_new();
-    const char *css = 
+    const char *css =
         "textview { font-family: monospace; font-size: 12pt; }\n"
-        "entry { font-family: monospace; font-size: 12pt; }";
+        "entry { font-family: monospace; font-size: 12pt; }\n"
+        "#modal-background { background-color: rgba(0, 0, 0, 0.7); }\n"
+        "#dialog-overlay { background-color: @theme_bg_color; border: 2px solid @theme_border_color; border-radius: 8px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); padding: 20px; margin: 20px; }\n"
+        ".grid-cell { border: 1px solid @theme_border_color; background-color: @theme_base_color; border-radius: 3px; margin: 2px; }";
     gtk_css_provider_load_from_data(css_provider, css, -1, NULL);
     
     GtkStyleContext *textview_context = gtk_widget_get_style_context(app->textview);
@@ -517,12 +530,17 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_style_context_add_provider(entry_context,
                                    GTK_STYLE_PROVIDER(css_provider),
                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    
+
+    // Apply CSS globally to all widgets (needed for overlay styling)
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+                                               GTK_STYLE_PROVIDER(css_provider),
+                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
     g_object_unref(css_provider);
     
-    // Pack widgets (text view on top, entry at bottom - like fzf)
-    gtk_box_pack_start(GTK_BOX(vbox), app->textview, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), app->entry, FALSE, FALSE, 0);
+    // Pack widgets into main content container (text view on top, entry at bottom - like fzf)
+    gtk_box_pack_start(GTK_BOX(app->main_content), app->textview, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(app->main_content), app->entry, FALSE, FALSE, 0);
     
     // Connect signals
     g_signal_connect(app->window, "delete-event", G_CALLBACK(on_delete_event), app);
@@ -546,6 +564,9 @@ void setup_application(AppData *app, WindowAlignment alignment) {
         // Connect to size-allocate to reposition whenever size changes
         g_signal_connect(app->window, "size-allocate", G_CALLBACK(on_window_size_allocate), app);
     }
+
+    // Initialize overlay system
+    init_overlay_system(app);
 }
 
 
