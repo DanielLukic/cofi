@@ -1,7 +1,6 @@
 #include "command_mode.h"
 #include "log.h"
-#include "workspace_dialog.h"
-#include "tiling_dialog.h"
+#include "tiling.h"
 #include "overlay_manager.h"
 #include "monitor_move.h"
 #include "display.h"

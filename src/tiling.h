@@ -1,12 +1,7 @@
-#ifndef TILING_DIALOG_H
-#define TILING_DIALOG_H
+#ifndef TILING_H
+#define TILING_H
 
-#include <gtk/gtk.h>
 #include <X11/Xlib.h>
-#include "window_info.h"
-
-// Forward declaration
-struct AppData;
 
 // Tiling options
 typedef enum {
@@ -27,20 +22,7 @@ typedef enum {
     TILE_CENTER          // C - Center window (no resize)
 } TileOption;
 
-// Tiling dialog structure
-typedef struct {
-    GtkWidget *window;
-    GtkWidget *content_box;
-    WindowInfo *target_window;
-    Display *display;
-    struct AppData *app_data;
-    gboolean option_selected;
-} TilingDialog;
-
-// Show the tiling dialog
-void show_tiling_dialog(struct AppData *app);
-
 // Apply tiling to window
 void apply_tiling(Display *display, Window window_id, TileOption option, int tile_columns);
 
-#endif // TILING_DIALOG_H
+#endif // TILING_H
