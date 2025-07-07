@@ -19,6 +19,7 @@
 typedef enum {
     SHOW_MODE_WINDOWS,      // Show windows tab
     SHOW_MODE_WORKSPACES,   // Show workspaces tab
+    SHOW_MODE_HARPOON,      // Show harpoon tab
     SHOW_MODE_COMMAND       // Show in command mode
 } ShowMode;
 

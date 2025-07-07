@@ -46,6 +46,9 @@ static void show_window_signal_handler(int sig) {
         if (sig == SIGUSR2) {
             g_app_data->current_tab = TAB_WORKSPACES;
             g_app_data->start_in_command_mode = 0;
+        } else if (sig == SIGALRM) {
+            g_app_data->current_tab = TAB_HARPOON;
+            g_app_data->start_in_command_mode = 0;
         } else if (sig == SIGWINCH) {
             g_app_data->current_tab = TAB_WINDOWS;
             g_app_data->start_in_command_mode = 1;
@@ -297,6 +300,10 @@ static bool signal_existing_instance_with_mode(pid_t pid, ShowMode mode) {
         case SHOW_MODE_COMMAND:
             signal = SIGWINCH;
             mode_name = "command";
+            break;
+        case SHOW_MODE_HARPOON:
+            signal = SIGALRM;  // Using SIGALRM for harpoon mode
+            mode_name = "harpoon";
             break;
         default:
             log_error("Unknown show mode: %d", mode);

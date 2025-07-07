@@ -10,7 +10,8 @@
 
 typedef enum {
     TAB_WINDOWS,
-    TAB_WORKSPACES
+    TAB_WORKSPACES,
+    TAB_HARPOON
 } TabMode;
 
 // Overlay types for dialog management
@@ -41,6 +42,7 @@ typedef struct {
 typedef struct {
     int window_index;                       // Selected index in filtered windows array
     int workspace_index;                    // Selected index in filtered workspaces array
+    int harpoon_index;                      // Selected index in harpoon tab
     Window selected_window_id;              // ID of currently selected window (for persistence)
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 } SelectionState;
@@ -73,6 +75,23 @@ typedef struct AppData {
     int workspace_count;
     int filtered_workspace_count;
     TabMode current_tab;                    // Current active tab
+
+    // Harpoon tab data
+    HarpoonSlot filtered_harpoon[MAX_HARPOON_SLOTS];
+    int filtered_harpoon_count;
+
+    // Edit state for harpoon
+    struct {
+        gboolean editing;
+        int editing_slot;
+        char edit_buffer[MAX_TITLE_LEN];
+    } harpoon_edit;
+
+    // Delete confirmation state
+    struct {
+        gboolean pending_delete;
+        int delete_slot;
+    } harpoon_delete;
 
     Display *display;
     HarpoonManager harpoon;                 // Harpoon number assignments

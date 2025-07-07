@@ -16,10 +16,10 @@ void init_app_data(AppData *app) {
     app->history_count = 0;
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
 
-    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces
-    // This ensures reopening always starts in windows tab unless --workspaces is specified
-    // Note: Command line parsing sets current_tab to TAB_WORKSPACES when --workspaces is used
-    if (app->current_tab != TAB_WORKSPACES) {
+    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces or --harpoon
+    // This ensures reopening always starts in windows tab unless a specific tab is requested
+    // Note: Command line parsing sets current_tab when --workspaces or --harpoon is used
+    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON) {
         app->current_tab = TAB_WINDOWS;
     }
 
@@ -29,7 +29,13 @@ void init_app_data(AppData *app) {
     // Initialize harpoon manager
     init_harpoon_manager(&app->harpoon);
     
-
+    // Initialize harpoon tab data
+    app->filtered_harpoon_count = 0;
+    app->harpoon_edit.editing = FALSE;
+    app->harpoon_edit.editing_slot = 0;
+    app->harpoon_edit.edit_buffer[0] = '\0';
+    app->harpoon_delete.pending_delete = FALSE;
+    app->harpoon_delete.delete_slot = 0;
 
     // Initialize command mode
     init_command_mode(&app->command_mode);
