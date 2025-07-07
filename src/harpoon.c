@@ -28,7 +28,23 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     
     // Store window information in the slot
     manager->slots[slot].id = window->id;
-    safe_string_copy(manager->slots[slot].title, window->title, MAX_TITLE_LEN);
+    
+    // Copy title, replacing '*' with '.' to escape wildcards
+    const char *src = window->title;
+    char *dst = manager->slots[slot].title;
+    size_t i = 0;
+    
+    while (*src && i < MAX_TITLE_LEN - 1) {
+        if (*src == '*') {
+            dst[i] = '.';
+        } else {
+            dst[i] = *src;
+        }
+        src++;
+        i++;
+    }
+    dst[i] = '\0';
+    
     safe_string_copy(manager->slots[slot].class_name, window->class_name, MAX_CLASS_LEN);
     safe_string_copy(manager->slots[slot].instance, window->instance, MAX_CLASS_LEN);
     safe_string_copy(manager->slots[slot].type, window->type, 16);
@@ -111,15 +127,7 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
                      manager->slots[slot].class_name, manager->slots[slot].instance,
                      manager->slots[slot].type, manager->slots[slot].title);
             
-            // Convert slot to WindowInfo for easier comparison
-            WindowInfo slot_window;
-            slot_window.id = manager->slots[slot].id;
-            strcpy(slot_window.title, manager->slots[slot].title);
-            strcpy(slot_window.class_name, manager->slots[slot].class_name);
-            strcpy(slot_window.instance, manager->slots[slot].instance);
-            strcpy(slot_window.type, manager->slots[slot].type);
-            
-            // First, look for exact match
+            // Look for a matching window using wildcard support
             for (int i = 0; i < window_count; i++) {
                 // Skip if this window is already assigned to a slot
                 int already_assigned = 0;
@@ -134,43 +142,15 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
                 log_trace("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
                          i, windows[i].class_name, windows[i].instance, windows[i].type, windows[i].title);
                 
-                // Use pure function for exact match
-                if (windows_match_exact(&slot_window, &windows[i])) {
+                // Use wildcard matching
+                if (window_matches_harpoon_slot(&windows[i], &manager->slots[slot])) {
                     // Found a match! Reassign the slot
                     Window old_id = manager->slots[slot].id;
                     manager->slots[slot].id = windows[i].id;
                     config_changed = 1;
-                    log_info("Automatically reassigned slot %d from window 0x%lx to 0x%lx (exact match: %s)",
+                    log_info("Automatically reassigned slot %d from window 0x%lx to 0x%lx (wildcard match: %s)",
                             slot, old_id, windows[i].id, windows[i].title);
                     break;
-                }
-            }
-            
-            // If no exact match found, try fuzzy matching
-            if (!window_still_exists && manager->slots[slot].id != 0) {
-                for (int i = 0; i < window_count; i++) {
-                    // Skip if this window is already assigned to a slot
-                    int already_assigned = 0;
-                    for (int j = 0; j < MAX_HARPOON_SLOTS; j++) {
-                        if (manager->slots[j].assigned && manager->slots[j].id == windows[i].id) {
-                            already_assigned = 1;
-                            break;
-                        }
-                    }
-                    if (already_assigned) continue;
-                    
-                    // Use pure function for fuzzy match
-                    if (windows_match_fuzzy(&slot_window, &windows[i])) {
-                        // Found a fuzzy match!
-                        Window old_id = manager->slots[slot].id;
-                        manager->slots[slot].id = windows[i].id;
-                        // Update the stored title to the new one
-                        safe_string_copy(manager->slots[slot].title, windows[i].title, MAX_TITLE_LEN);
-                        config_changed = 1;
-                        log_info("Automatically reassigned slot %d from window 0x%lx to 0x%lx (fuzzy match: %s)",
-                                slot, old_id, windows[i].id, windows[i].title);
-                        break;
-                    }
                 }
             }
         }

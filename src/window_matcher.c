@@ -1,5 +1,6 @@
 #include "window_matcher.h"
 #include <string.h>
+#include <stdbool.h>
 
 bool windows_match_exact(const WindowInfo *window1, const WindowInfo *window2) {
     if (!window1 || !window2) return false;
@@ -57,4 +58,62 @@ bool titles_match_fuzzy(const char *title1, const char *title2) {
     }
     
     return false;
+}
+
+// Helper function to match a string against a pattern with wildcards
+// '*' matches any sequence of characters (including empty)
+// '.' matches any single character
+static bool wildcard_match(const char *pattern, const char *str) {
+    if (!pattern || !str) return false;
+    
+    while (*pattern && *str) {
+        if (*pattern == '*') {
+            // Skip consecutive stars
+            while (*pattern == '*') pattern++;
+            
+            // If pattern ends with *, it matches everything remaining
+            if (!*pattern) return true;
+            
+            // Try to match the rest of the pattern at each position
+            while (*str) {
+                if (wildcard_match(pattern, str)) {
+                    return true;
+                }
+                str++;
+            }
+            return false;
+        } else if (*pattern == '.') {
+            // '.' matches any single character
+            pattern++;
+            str++;
+        } else if (*pattern == *str) {
+            // Exact character match
+            pattern++;
+            str++;
+        } else {
+            // Characters don't match
+            return false;
+        }
+    }
+    
+    // Skip any trailing stars in the pattern
+    while (*pattern == '*') pattern++;
+    
+    // Both should be at the end for a match
+    return !*pattern && !*str;
+}
+
+// Check if window matches harpoon slot with wildcard support
+bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot) {
+    if (!window || !slot || !slot->assigned) return false;
+    
+    // Class and instance must match exactly
+    if (strcmp(window->class_name, slot->class_name) != 0 ||
+        strcmp(window->instance, slot->instance) != 0 ||
+        strcmp(window->type, slot->type) != 0) {
+        return false;
+    }
+    
+    // Title can use wildcard matching
+    return wildcard_match(slot->title, window->title);
 }
