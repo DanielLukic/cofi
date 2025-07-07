@@ -241,7 +241,7 @@ void update_display(AppData *app) {
         }
     } else if (app->current_tab == TAB_HARPOON) {
         // Display harpoon slots
-        for (int i = MAX_HARPOON_SLOTS - 1; i >= 0; i--) {
+        for (int i = app->filtered_harpoon_count - 1; i >= 0; i--) {
             HarpoonSlot *slot = &app->filtered_harpoon[i];
             
             gboolean is_selected = (i == selected_idx);
@@ -255,17 +255,11 @@ void update_display(AppData *app) {
             
             // Format slot name (0-9, a-z)
             char slot_name[4];
-            if (i < 10) {
-                snprintf(slot_name, sizeof(slot_name), "%d", i);
+            int slot_idx = app->filtered_harpoon_indices[i];
+            if (slot_idx < 10) {
+                snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
             } else {
-                // Skip h, j, k, l, u (indices 17, 18, 19, 21)
-                int letter_index = i - 10;
-                if (letter_index >= 7) letter_index++; // Skip 'h'
-                if (letter_index >= 9) letter_index++; // Skip 'j'
-                if (letter_index >= 10) letter_index++; // Skip 'k'
-                if (letter_index >= 11) letter_index++; // Skip 'l'
-                if (letter_index >= 20) letter_index++; // Skip 'u'
-                snprintf(slot_name, sizeof(slot_name), "%c", 'a' + letter_index);
+                snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
             }
             
             // Format slot display
@@ -276,17 +270,8 @@ void update_display(AppData *app) {
                 fit_column(slot->instance, 20, instance_col);
                 fit_column(slot->type, 8, type_col);
                 
-                // Check if this slot is pending deletion
-                if (app->harpoon_delete.pending_delete && 
-                    app->harpoon_delete.delete_slot == i && 
-                    is_selected) {
-                    // Show delete confirmation
-                    g_string_append_printf(text, "%-4s %-43s [DELETE? y/n] %s %s %s\n",
-                        slot_name, title_col, class_col, instance_col, type_col);
-                } else {
-                    g_string_append_printf(text, "%-4s %s %s %s %s\n",
-                        slot_name, title_col, class_col, instance_col, type_col);
-                }
+                g_string_append_printf(text, "%-4s %s %s %s %s\n",
+                    slot_name, title_col, class_col, instance_col, type_col);
             } else {
                 g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
                     slot_name, "* EMPTY *", "-", "-", "-");

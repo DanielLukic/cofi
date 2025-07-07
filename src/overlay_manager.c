@@ -17,9 +17,14 @@ static GtkWidget* create_workspace_widget_overlay(int workspace_num, const char 
                                                   gboolean is_current, gboolean is_user_current);
 static gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event);
+static void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index);
+static gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event);
 
 // External function declarations
 void destroy_window(AppData *app); // From main.c
+void unassign_slot(HarpoonManager *harpoon, int slot); // From harpoon.c
+void update_display(AppData *app); // From display.c
+void save_harpoon_slots(const HarpoonManager *harpoon); // From harpoon_config.c
 
 // Initialize the overlay system
 void init_overlay_system(AppData *app) {
@@ -64,6 +69,7 @@ void init_overlay_system(AppData *app) {
 
 // Show an overlay of the specified type
 void show_overlay(AppData *app, OverlayType type, gpointer data) {
+    (void)data; // Currently unused
     if (app->overlay_active) {
         log_debug("Overlay already active, hiding current overlay first");
         hide_overlay(app);
@@ -85,6 +91,9 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
             break;
         case OVERLAY_WORKSPACE_JUMP:
             create_workspace_jump_overlay_content(app->dialog_container, app);
+            break;
+        case OVERLAY_HARPOON_DELETE:
+            create_harpoon_delete_overlay_content(app->dialog_container, app, app->harpoon_delete.delete_slot);
             break;
         case OVERLAY_NONE:
         default:
@@ -192,6 +201,8 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_move_key_press(app, event);
         case OVERLAY_WORKSPACE_JUMP:
             return handle_workspace_jump_key_press(app, event);
+        case OVERLAY_HARPOON_DELETE:
+            return handle_harpoon_delete_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -945,6 +956,58 @@ static gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event
     return FALSE; // Invalid key, don't handle
 }
 
+// Handle key press events for harpoon delete overlay
+static gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event) {
+    // Handle Y or Ctrl+D to confirm
+    if (event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
+        ((event->state & GDK_CONTROL_MASK) && (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D))) {
+        
+        int slot_index = app->harpoon_delete.delete_slot;
+        
+        log_debug("=== EXECUTING HARPOON DELETE ===");
+        log_debug("Deleting harpoon assignment for slot %d", slot_index);
+        
+        // Remove the harpoon assignment
+        unassign_slot(&app->harpoon, slot_index);
+        save_harpoon_slots(&app->harpoon);
+        
+        log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
+        
+        // Clear delete state
+        app->harpoon_delete.pending_delete = FALSE;
+        app->harpoon_delete.delete_slot = -1;
+        
+        // Update the harpoon display
+        // Since filter_harpoon is static in main.c, we'll trigger filtering by
+        // simulating entry change which will call the proper filtering
+        if (app->current_tab == TAB_HARPOON) {
+            const char *current_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            // Force a refresh by clearing and re-setting the text
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            gtk_entry_set_text(GTK_ENTRY(app->entry), current_text);
+        }
+        
+        // Hide overlay
+        hide_overlay(app);
+        return TRUE;
+    }
+    
+    // Handle N to cancel
+    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
+        log_debug("User cancelled harpoon delete");
+        
+        // Clear delete state
+        app->harpoon_delete.pending_delete = FALSE;
+        app->harpoon_delete.delete_slot = -1;
+        
+        // Hide overlay
+        hide_overlay(app);
+        return TRUE;
+    }
+    
+    return FALSE; // Let Escape be handled by main overlay handler
+}
+
 // Center dialog content in the overlay (utility function)
 void center_dialog_in_overlay(GtkWidget *dialog_content, AppData *app) {
     // This is handled by the dialog_container's alignment properties
@@ -952,4 +1015,64 @@ void center_dialog_in_overlay(GtkWidget *dialog_content, AppData *app) {
     (void)app; // Suppress unused parameter warning
     gtk_widget_set_halign(dialog_content, GTK_ALIGN_CENTER);
     gtk_widget_set_valign(dialog_content, GTK_ALIGN_CENTER);
+}
+
+// Create harpoon delete overlay content
+static void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index) {
+    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
+    
+    // Header
+    GtkWidget *header_label = gtk_label_new(NULL);
+    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
+    
+    char *header_markup = g_strdup_printf("<b>Delete Harpoon Assignment?</b>");
+    gtk_label_set_markup(GTK_LABEL(header_label), header_markup);
+    g_free(header_markup);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
+    
+    // Separator
+    GtkWidget *separator1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(parent_container), separator1, FALSE, FALSE, 10);
+    
+    // Slot info
+    char slot_name[4];
+    if (slot_index < 10) {
+        snprintf(slot_name, sizeof(slot_name), "%d", slot_index);
+    } else {
+        snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_index - 10));
+    }
+    
+    char *escaped_title = g_markup_escape_text(slot->title, -1);
+    char *slot_info = g_strdup_printf(
+        "<b>Slot:</b> %s\n"
+        "<b>Window:</b> %s\n"
+        "<b>Class:</b> %s",
+        slot_name, escaped_title, slot->class_name);
+    
+    GtkWidget *info_label = gtk_label_new(NULL);
+    gtk_widget_set_halign(info_label, GTK_ALIGN_CENTER);
+    gtk_label_set_markup(GTK_LABEL(info_label), slot_info);
+    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    
+    g_free(escaped_title);
+    g_free(slot_info);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), info_label, FALSE, FALSE, 10);
+    
+    // Separator
+    GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(parent_container), separator2, FALSE, FALSE, 10);
+    
+    // Instructions
+    GtkWidget *instructions = gtk_label_new("[Press Y or Ctrl+D to confirm, N or Esc to cancel]");
+    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
+}
+
+// Public function to show harpoon delete overlay
+void show_harpoon_delete_overlay(AppData *app, int slot_index) {
+    app->harpoon_delete.pending_delete = TRUE;
+    app->harpoon_delete.delete_slot = slot_index;
+    show_overlay(app, OVERLAY_HARPOON_DELETE, NULL);
 }
