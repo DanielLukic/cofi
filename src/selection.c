@@ -81,11 +81,14 @@ void move_selection_up(AppData *app) {
     if (!app) return;
     
     if (app->current_tab == TAB_WINDOWS) {
-        if (app->selection.window_index < app->filtered_count - 1) {
-            app->selection.window_index++;
-            if (app->filtered_count > 0) {
-                app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
+        if (app->filtered_count > 0) {
+            if (app->selection.window_index < app->filtered_count - 1) {
+                app->selection.window_index++;
+            } else {
+                // Wrap around to the bottom
+                app->selection.window_index = 0;
             }
+            app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
             update_display(app);
             log_info("USER: Selection UP -> Window[%d] '%s' (ID: 0x%lx)",
                      app->selection.window_index,
@@ -93,11 +96,14 @@ void move_selection_up(AppData *app) {
                      app->filtered[app->selection.window_index].id);
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
-        if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
-            app->selection.workspace_index++;
-            if (app->filtered_workspace_count > 0) {
-                app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
+        if (app->filtered_workspace_count > 0) {
+            if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
+                app->selection.workspace_index++;
+            } else {
+                // Wrap around to the bottom
+                app->selection.workspace_index = 0;
             }
+            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
             update_display(app);
             log_info("USER: Selection UP -> Workspace[%d] '%s' (ID: %d)",
                      app->selection.workspace_index,
@@ -107,9 +113,12 @@ void move_selection_up(AppData *app) {
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->selection.harpoon_index < MAX_HARPOON_SLOTS - 1) {
             app->selection.harpoon_index++;
-            update_display(app);
-            log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
+        } else {
+            // Wrap around to the bottom
+            app->selection.harpoon_index = 0;
         }
+        update_display(app);
+        log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
     }
 }
 
@@ -118,11 +127,14 @@ void move_selection_down(AppData *app) {
     if (!app) return;
     
     if (app->current_tab == TAB_WINDOWS) {
-        if (app->selection.window_index > 0) {
-            app->selection.window_index--;
-            if (app->filtered_count > 0) {
-                app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
+        if (app->filtered_count > 0) {
+            if (app->selection.window_index > 0) {
+                app->selection.window_index--;
+            } else {
+                // Wrap around to the top
+                app->selection.window_index = app->filtered_count - 1;
             }
+            app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
             update_display(app);
             log_info("USER: Selection DOWN -> Window[%d] '%s' (ID: 0x%lx)",
                      app->selection.window_index,
@@ -130,11 +142,14 @@ void move_selection_down(AppData *app) {
                      app->filtered[app->selection.window_index].id);
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
-        if (app->selection.workspace_index > 0) {
-            app->selection.workspace_index--;
-            if (app->filtered_workspace_count > 0) {
-                app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
+        if (app->filtered_workspace_count > 0) {
+            if (app->selection.workspace_index > 0) {
+                app->selection.workspace_index--;
+            } else {
+                // Wrap around to the top
+                app->selection.workspace_index = app->filtered_workspace_count - 1;
             }
+            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
             update_display(app);
             log_info("USER: Selection DOWN -> Workspace[%d] '%s' (ID: %d)",
                      app->selection.workspace_index,
@@ -144,9 +159,12 @@ void move_selection_down(AppData *app) {
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->selection.harpoon_index > 0) {
             app->selection.harpoon_index--;
-            update_display(app);
-            log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
+        } else {
+            // Wrap around to the top
+            app->selection.harpoon_index = MAX_HARPOON_SLOTS - 1;
         }
+        update_display(app);
+        log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
     }
 }
 
