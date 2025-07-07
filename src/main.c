@@ -405,12 +405,18 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     if (event->keyval == GDK_KEY_colon) {
         log_info("USER: ':' pressed -> Entering command mode");
         
+        // Check if user has typed any filter text
+        const char *filter_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        gboolean has_filter = (filter_text && strlen(filter_text) > 0);
+        
         // If Alt-Tab swap was applied (lcwi was 0) and we're at index 0,
         // move selection to 1 to select the "actual" current window
+        // BUT only if no filter was typed (we're in pure Alt-Tab mode, not search mode)
         if (app->last_commanded_window_id == 0 && 
             app->current_tab == TAB_WINDOWS &&
             app->selection.window_index == 0 && 
-            app->filtered_count >= 2) {
+            app->filtered_count >= 2 &&
+            !has_filter) {
             log_info("Command mode: Moving selection from 0 to 1 (Alt-Tab swap was active)");
             app->selection.window_index = 1;
             if (app->filtered_count > 1) {
