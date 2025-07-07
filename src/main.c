@@ -201,15 +201,62 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     // Tab key (without Ctrl)
     if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
         TabMode next_tab;
+        
+        // Check if Shift is pressed for reverse direction
+        if (event->state & GDK_SHIFT_MASK) {
+            // Shift+Tab - go backwards
+            switch (app->current_tab) {
+                case TAB_WINDOWS:
+                    next_tab = TAB_HARPOON;
+                    break;
+                case TAB_WORKSPACES:
+                    next_tab = TAB_WINDOWS;
+                    break;
+                case TAB_HARPOON:
+                    next_tab = TAB_WORKSPACES;
+                    break;
+                default:
+                    next_tab = TAB_WINDOWS;
+                    break;
+            }
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+            log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        } else {
+            // Regular Tab - go forwards
+            switch (app->current_tab) {
+                case TAB_WINDOWS:
+                    next_tab = TAB_WORKSPACES;
+                    break;
+                case TAB_WORKSPACES:
+                    next_tab = TAB_HARPOON;
+                    break;
+                case TAB_HARPOON:
+                    next_tab = TAB_WINDOWS;
+                    break;
+                default:
+                    next_tab = TAB_WINDOWS;
+                    break;
+            }
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+            log_info("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        }
+        
+        switch_to_tab(app, next_tab);
+        return TRUE;
+    }
+    
+    // Handle ISO_Left_Tab (Shift+Tab on some systems)
+    if (event->keyval == GDK_KEY_ISO_Left_Tab) {
+        TabMode next_tab;
         switch (app->current_tab) {
             case TAB_WINDOWS:
-                next_tab = TAB_WORKSPACES;
-                break;
-            case TAB_WORKSPACES:
                 next_tab = TAB_HARPOON;
                 break;
-            case TAB_HARPOON:
+            case TAB_WORKSPACES:
                 next_tab = TAB_WINDOWS;
+                break;
+            case TAB_HARPOON:
+                next_tab = TAB_WORKSPACES;
                 break;
             default:
                 next_tab = TAB_WINDOWS;
@@ -217,7 +264,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
         }
         
         const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
-        log_info("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
         return TRUE;
     }
