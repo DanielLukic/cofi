@@ -235,7 +235,7 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
             // Convert mode string to ShowMode and set app state
             ShowMode mode = string_to_show_mode(mode_str);
 
-            // Set the appropriate tab/mode based on D-Bus call (replaces signal handler logic)
+            // Set the appropriate tab/mode based on D-Bus call
             switch (mode) {
                 case SHOW_MODE_WORKSPACES:
                     g_app_data->current_tab = TAB_WORKSPACES;
@@ -256,7 +256,7 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
                     break;
             }
 
-            // Defer window recreation to the GTK main loop (same as signal handler)
+            // Defer window recreation to the GTK main loop
             g_idle_add(recreate_window_idle, NULL);
 
             log_info("Window recreation scheduled via D-Bus call");
