@@ -44,6 +44,7 @@ static void on_entry_changed(GtkEntry *entry, AppData *app);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 static void filter_workspaces(AppData *app, const char *filter);
+static void filter_harpoon(AppData *app, const char *filter);
 static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 
 // Forward declaration for destroy_window function
@@ -61,17 +62,17 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
     app->current_tab = target_tab;
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
     
+    // Update placeholder text based on tab
     if (target_tab == TAB_WINDOWS) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
         filter_windows(app, "");
     } else if (target_tab == TAB_WORKSPACES) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
         filter_workspaces(app, "");
     } else if (target_tab == TAB_HARPOON) {
-        // Initialize harpoon display (will be implemented in display.c)
-        app->filtered_harpoon_count = 0;
-        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-            app->filtered_harpoon[i] = app->harpoon.slots[i];
-            app->filtered_harpoon_count++;
-        }
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
+        // Initialize harpoon display with no filter
+        filter_harpoon(app, "");
     }
     reset_selection(app);
     
@@ -279,50 +280,21 @@ static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
     
-    // Handle delete confirmation
-    if (app->harpoon_delete.pending_delete) {
-        switch (event->keyval) {
-            case GDK_KEY_d:
-            case GDK_KEY_y:
-                // Confirm delete
-                {
-                    int slot = app->harpoon_delete.delete_slot;
-                    unassign_slot(&app->harpoon, slot);
-                    save_harpoon_slots(&app->harpoon);
-                    log_info("Deleted harpoon assignment from slot %d", slot);
-                    app->harpoon_delete.pending_delete = FALSE;
-                    update_display(app);
-                }
-                return TRUE;
+    // Handle Ctrl+d for delete
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        // Get current harpoon slot from filtered list
+        if (app->selection.harpoon_index < app->filtered_harpoon_count) {
+            HarpoonSlot *slot = &app->filtered_harpoon[app->selection.harpoon_index];
+            
+            // Only allow delete if slot is assigned
+            if (slot->assigned) {
+                // Get the actual slot index from the filtered indices
+                int actual_slot = app->filtered_harpoon_indices[app->selection.harpoon_index];
                 
-            case GDK_KEY_n:
-            case GDK_KEY_Escape:
-                // Cancel delete
-                app->harpoon_delete.pending_delete = FALSE;
-                log_info("Cancelled harpoon delete");
-                update_display(app);
+                // Show delete confirmation overlay
+                show_harpoon_delete_overlay(app, actual_slot);
                 return TRUE;
-                
-            default:
-                // Any other key cancels delete mode
-                app->harpoon_delete.pending_delete = FALSE;
-                update_display(app);
-                return FALSE;
-        }
-    }
-    
-    // Handle initial 'd' press
-    if (event->keyval == GDK_KEY_d && !(event->state & GDK_CONTROL_MASK)) {
-        // Get current harpoon slot
-        int slot = app->selection.harpoon_index;
-        
-        // Only allow delete if slot is assigned
-        if (app->harpoon.slots[slot].assigned) {
-            app->harpoon_delete.pending_delete = TRUE;
-            app->harpoon_delete.delete_slot = slot;
-            log_info("Entered harpoon delete mode for slot %d", slot);
-            update_display(app);
-            return TRUE;
+            }
         }
     }
     
@@ -482,6 +454,51 @@ static void filter_workspaces(AppData *app, const char *filter) {
     }
 }
 
+// Harpoon filtering
+static void filter_harpoon(AppData *app, const char *filter) {
+    app->filtered_harpoon_count = 0;
+    
+    if (!filter || !*filter) {
+        // No filter - show all harpoon slots
+        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+            app->filtered_harpoon[app->filtered_harpoon_count] = app->harpoon.slots[i];
+            app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
+            app->filtered_harpoon_count++;
+        }
+        return;
+    }
+    
+    // Build searchable string for each harpoon slot
+    char searchable[1024];
+    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+        HarpoonSlot *slot = &app->harpoon.slots[i];
+        
+        // Get slot name
+        char slot_name[4];
+        if (i < 10) {
+            snprintf(slot_name, sizeof(slot_name), "%d", i);
+        } else {
+            snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (i - 10));
+        }
+        
+        if (slot->assigned) {
+            // Build searchable string: "slot title class instance"
+            snprintf(searchable, sizeof(searchable), "%s %s %s %s", 
+                     slot_name, slot->title, slot->class_name, slot->instance);
+        } else {
+            // For empty slots, just search by slot name
+            snprintf(searchable, sizeof(searchable), "%s empty", slot_name);
+        }
+        
+        // Use has_match for filtering
+        if (has_match(filter, searchable)) {
+            app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
+            app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
+            app->filtered_harpoon_count++;
+        }
+    }
+}
+
 // Handle entry text changes
 static void on_entry_changed(GtkEntry *entry, AppData *app) {
     // Skip filtering when in command mode
@@ -497,8 +514,10 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
 
     if (app->current_tab == TAB_WINDOWS) {
         filter_windows(app, text);
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         filter_workspaces(app, text);
+    } else if (app->current_tab == TAB_HARPOON) {
+        filter_harpoon(app, text);
     }
     // Ensure selection is always 0 after filtering
     reset_selection(app);
@@ -642,7 +661,14 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     
     // Create entry
     app->entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
+    // Set placeholder text based on current tab
+    if (app->current_tab == TAB_WORKSPACES) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
+    } else if (app->current_tab == TAB_HARPOON) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
+    } else {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
+    }
     
     // Apply CSS to entry widget too
     GtkStyleContext *entry_context = gtk_widget_get_style_context(app->entry);
@@ -820,6 +846,15 @@ int main(int argc, char *argv[]) {
     
     // Setup X11 event monitoring for dynamic window list updates
     setup_x11_event_monitoring(&app);
+    
+    // Initialize the correct tab data based on start tab
+    if (app.current_tab == TAB_WINDOWS) {
+        filter_windows(&app, "");
+    } else if (app.current_tab == TAB_WORKSPACES) {
+        filter_workspaces(&app, "");
+    } else if (app.current_tab == TAB_HARPOON) {
+        filter_harpoon(&app, "");
+    }
     
     // Update display
     update_display(&app);

@@ -19,7 +19,8 @@ typedef enum {
     OVERLAY_NONE,
     OVERLAY_TILING,
     OVERLAY_WORKSPACE_MOVE,
-    OVERLAY_WORKSPACE_JUMP
+    OVERLAY_WORKSPACE_JUMP,
+    OVERLAY_HARPOON_DELETE
 } OverlayType;
 
 // Command mode definitions
@@ -78,6 +79,7 @@ typedef struct AppData {
 
     // Harpoon tab data
     HarpoonSlot filtered_harpoon[MAX_HARPOON_SLOTS];
+    int filtered_harpoon_indices[MAX_HARPOON_SLOTS];  // Actual slot indices for filtered items
     int filtered_harpoon_count;
 
     // Edit state for harpoon

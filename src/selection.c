@@ -111,14 +111,16 @@ void move_selection_up(AppData *app) {
                      app->filtered_workspaces[app->selection.workspace_index].id);
         }
     } else if (app->current_tab == TAB_HARPOON) {
-        if (app->selection.harpoon_index < MAX_HARPOON_SLOTS - 1) {
-            app->selection.harpoon_index++;
-        } else {
-            // Wrap around to the bottom
-            app->selection.harpoon_index = 0;
+        if (app->filtered_harpoon_count > 0) {
+            if (app->selection.harpoon_index < app->filtered_harpoon_count - 1) {
+                app->selection.harpoon_index++;
+            } else {
+                // Wrap around to the bottom
+                app->selection.harpoon_index = 0;
+            }
+            update_display(app);
+            log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
         }
-        update_display(app);
-        log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
     }
 }
 
@@ -157,14 +159,16 @@ void move_selection_down(AppData *app) {
                      app->filtered_workspaces[app->selection.workspace_index].id);
         }
     } else if (app->current_tab == TAB_HARPOON) {
-        if (app->selection.harpoon_index > 0) {
-            app->selection.harpoon_index--;
-        } else {
-            // Wrap around to the top
-            app->selection.harpoon_index = MAX_HARPOON_SLOTS - 1;
+        if (app->filtered_harpoon_count > 0) {
+            if (app->selection.harpoon_index > 0) {
+                app->selection.harpoon_index--;
+            } else {
+                // Wrap around to the top
+                app->selection.harpoon_index = app->filtered_harpoon_count - 1;
+            }
+            update_display(app);
+            log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
         }
-        update_display(app);
-        log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
     }
 }
 

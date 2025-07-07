@@ -19,6 +19,7 @@ gboolean on_modal_background_button_press(GtkWidget *widget, GdkEventButton *eve
 void show_tiling_overlay(AppData *app);
 void show_workspace_move_overlay(AppData *app);
 void show_workspace_jump_overlay(AppData *app);
+void show_harpoon_delete_overlay(AppData *app, int slot_index);
 
 // Note: Content creation functions are now static within overlay_manager.c
 // following the new overlay pattern where content is added directly to parent_container
