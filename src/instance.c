@@ -16,6 +16,7 @@
 #include <limits.h>
 #include "selection.h"
 #include "command_mode.h"
+#include "dbus_service.h"
 
 #define LOCK_FILE "cofi.lock"
 
@@ -215,20 +216,21 @@ InstanceManager* instance_manager_new(void) {
         log_error("Failed to allocate memory for InstanceManager");
         return NULL;
     }
-    
+
     im->lock_fd = -1;
     im->pid = getpid();
-    
-    // Get lock file path using XDG_RUNTIME_DIR or fallback
+    im->dbus_service = NULL;
+
+    // Get lock file path using XDG_RUNTIME_DIR or fallback (keep for backward compatibility)
     const char *lock_path = get_lock_file_path();
     im->lock_path = strdup(lock_path);
-    
+
     if (!im->lock_path) {
         log_error("Failed to allocate memory for lock path");
         free(im);
         return NULL;
     }
-    
+
     return im;
 }
 
@@ -349,69 +351,38 @@ bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces) 
 }
 
 bool instance_manager_check_existing_with_mode(InstanceManager *im, ShowMode mode) {
-    // Try to read existing lock file
-    FILE *lock_file = fopen(im->lock_path, "r");
-    if (lock_file) {
-        char pid_str[32];
-        if (fgets(pid_str, sizeof(pid_str), lock_file)) {
-            pid_t existing_pid = atoi(pid_str);
-            fclose(lock_file);
-            
-            // Validate PID is reasonable
-            if (existing_pid <= 0 || existing_pid > 99999999) {
-                log_warn("Invalid PID in lock file: %d", existing_pid);
-                unlink(im->lock_path);
-            } else if (existing_pid != im->pid && is_process_running(existing_pid)) {
-                // Try to signal existing instance
-                if (signal_existing_instance_with_mode(existing_pid, mode)) {
-                    return true; // Another instance exists and was signaled
-                }
-            } else {
-                // Remove stale lock file
-                log_debug("Removing stale lock file for PID %d", existing_pid);
-                unlink(im->lock_path);
-            }
-        } else {
-            fclose(lock_file);
-            log_warn("Lock file exists but is empty, removing");
-            unlink(im->lock_path);
-        }
+    // Try to call existing D-Bus service first
+    const char *mode_str = show_mode_to_string(mode);
+    if (dbus_service_check_existing_and_show(mode_str)) {
+        log_info("Found existing instance via D-Bus, called ShowWindow(%s)", mode_str);
+        return true; // Another instance exists and was called successfully
     }
-    
-    // No existing instance, create lock file
+
+    log_debug("No existing D-Bus service found, this will be the first instance");
+
+    // No existing instance found via D-Bus, so we'll be the first instance
+    // Still create lock file for backward compatibility during transition
     if (!create_lock_file(im)) {
-        return false;
+        log_warn("Failed to create lock file, but continuing with D-Bus service");
     }
-    
+
     return false; // This is the first instance
 }
 
-void instance_manager_setup_signal_handler(void) {
-    struct sigaction sa;
-    sa.sa_handler = show_window_signal_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART; // Restart interrupted system calls
-    
-    // Setup handler for SIGUSR1 (Windows tab)
-    if (sigaction(SIGUSR1, &sa, NULL) == -1) {
-        log_error("Failed to setup SIGUSR1 signal handler: %s", strerror(errno));
-    } else {
-        log_debug("Signal handler setup for SIGUSR1 (Windows tab)");
+void instance_manager_setup_dbus_service(InstanceManager *im) {
+    if (!im) {
+        log_error("Cannot setup D-Bus service: InstanceManager is NULL");
+        return;
     }
-    
-    // Setup handler for SIGUSR2 (Workspaces tab)
-    if (sigaction(SIGUSR2, &sa, NULL) == -1) {
-        log_error("Failed to setup SIGUSR2 signal handler: %s", strerror(errno));
-    } else {
-        log_debug("Signal handler setup for SIGUSR2 (Workspaces tab)");
+
+    // Initialize D-Bus service for this instance
+    im->dbus_service = dbus_service_new(g_app_data);
+    if (!im->dbus_service) {
+        log_error("Failed to initialize D-Bus service");
+        return;
     }
-    
-    // Setup handler for SIGWINCH (Command mode)
-    if (sigaction(SIGWINCH, &sa, NULL) == -1) {
-        log_error("Failed to setup SIGWINCH signal handler: %s", strerror(errno));
-    } else {
-        log_debug("Signal handler setup for SIGWINCH (Command mode)");
-    }
+
+    log_info("D-Bus service setup completed");
 }
 
 void instance_manager_set_app_data(void *app_data) {
@@ -420,12 +391,18 @@ void instance_manager_set_app_data(void *app_data) {
 
 void instance_manager_cleanup(InstanceManager *im) {
     if (!im) return;
-    
+
+    // Cleanup D-Bus service
+    if (im->dbus_service) {
+        dbus_service_cleanup(im->dbus_service);
+        im->dbus_service = NULL;
+    }
+
     if (im->lock_fd != -1) {
         close(im->lock_fd);
         im->lock_fd = -1;
     }
-    
+
     if (im->lock_path) {
         // Only unlink if we own the lock (check PID matches)
         FILE *lock_file = fopen(im->lock_path, "r");
@@ -440,10 +417,10 @@ void instance_manager_cleanup(InstanceManager *im) {
             }
             fclose(lock_file);
         }
-        
+
         free(im->lock_path);
         im->lock_path = NULL;
     }
-    
+
     free(im);
 }

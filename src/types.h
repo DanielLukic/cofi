@@ -15,10 +15,18 @@
 #define WINDOW_TYPE_NORMAL "Normal"
 #define WINDOW_TYPE_SPECIAL "Special"
 
-// Forward declarations for main structures  
+// Show mode for instance communication
+typedef enum {
+    SHOW_MODE_WINDOWS,      // Show windows tab
+    SHOW_MODE_WORKSPACES,   // Show workspaces tab
+    SHOW_MODE_COMMAND       // Show in command mode
+} ShowMode;
+
+// Forward declarations for main structures
 typedef struct WindowInfo WindowInfo;
 typedef struct WorkspaceInfo WorkspaceInfo;
 typedef struct HarpoonSlot HarpoonSlot;
 typedef struct HarpoonManager HarpoonManager;
+typedef struct DBusService DBusService;
 
 #endif // TYPES_H
