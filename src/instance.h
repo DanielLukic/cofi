@@ -7,8 +7,8 @@
 
 // Instance manager for single instance enforcement using D-Bus
 typedef struct {
-    char *lock_path;        // Keep for backward compatibility during transition
-    int lock_fd;            // Keep for backward compatibility during transition
+    char *lock_path;        // Legacy lock file (unused, kept for cleanup)
+    int lock_fd;            // Legacy lock file descriptor (unused, kept for cleanup)
     pid_t pid;
     DBusService *dbus_service;  // D-Bus service for first instance
 } InstanceManager;
@@ -16,10 +16,7 @@ typedef struct {
 // Initialize instance manager
 InstanceManager* instance_manager_new(void);
 
-// Check if another instance is running and signal it to show
-// Returns true if another instance exists and was signaled
-// show_workspaces: if true, signal to show workspaces tab; otherwise show windows tab
-bool instance_manager_check_existing(InstanceManager *im, bool show_workspaces);
+
 
 // Check if another instance is running and call it with the specified mode via D-Bus
 // Returns true if another instance exists and was called successfully

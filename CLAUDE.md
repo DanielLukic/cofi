@@ -97,8 +97,8 @@ Case-insensitive matching on window title, class name, and instance name.
 
 ### 9. Single Instance Management
 
-- Uses lock file (/tmp/cofi.lock) to store PID of running instance
-- Second instance signals first via SIGUSR1 to show window
+- Uses D-Bus IPC for inter-process communication
+- Second instance calls ShowWindow method on first instance via D-Bus
 - Clean inter-process communication with automatic cleanup
 
 ### 10. Harpoon-Style Window Assignment
