@@ -20,7 +20,8 @@ typedef enum {
     OVERLAY_TILING,
     OVERLAY_WORKSPACE_MOVE,
     OVERLAY_WORKSPACE_JUMP,
-    OVERLAY_HARPOON_DELETE
+    OVERLAY_HARPOON_DELETE,
+    OVERLAY_HARPOON_EDIT
 } OverlayType;
 
 // Command mode definitions

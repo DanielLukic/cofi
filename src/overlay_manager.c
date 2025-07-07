@@ -4,6 +4,8 @@
 #include "selection.h"
 #include "tiling.h"
 #include "x11_utils.h"
+#include "utils.h"
+#include "harpoon_config.h"
 #include <gtk/gtk.h>
 
 // Forward declarations
@@ -19,12 +21,31 @@ static gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event
 static gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event);
 static void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index);
 static gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event);
+static void create_harpoon_edit_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index);
+static gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event);
 
 // External function declarations
 void destroy_window(AppData *app); // From main.c
 void unassign_slot(HarpoonManager *harpoon, int slot); // From harpoon.c
 void update_display(AppData *app); // From display.c
 void save_harpoon_slots(const HarpoonManager *harpoon); // From harpoon_config.c
+
+// Helper function to focus the harpoon edit entry
+static gboolean focus_harpoon_edit_entry(gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+    
+    if (app->current_overlay == OVERLAY_HARPOON_EDIT) {
+        GtkWidget *entry = g_object_get_data(G_OBJECT(app->dialog_container), "edit-entry");
+        if (entry && GTK_IS_ENTRY(entry)) {
+            gtk_widget_grab_focus(entry);
+            // Set cursor position to end without selection
+            gtk_editable_set_position(GTK_EDITABLE(entry), -1);
+            gtk_editable_select_region(GTK_EDITABLE(entry), -1, -1);
+        }
+    }
+    
+    return G_SOURCE_REMOVE; // Run only once
+}
 
 // Initialize the overlay system
 void init_overlay_system(AppData *app) {
@@ -95,6 +116,9 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_HARPOON_DELETE:
             create_harpoon_delete_overlay_content(app->dialog_container, app, app->harpoon_delete.delete_slot);
             break;
+        case OVERLAY_HARPOON_EDIT:
+            create_harpoon_edit_overlay_content(app->dialog_container, app, app->harpoon_edit.editing_slot);
+            break;
         case OVERLAY_NONE:
         default:
             log_error("Invalid overlay type: %d", type);
@@ -118,19 +142,34 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
     // Disable pass-through for modal background when showing
     gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(app->main_overlay),
                                          app->modal_background, FALSE);
-
-    // Remove focus from entry widget to prevent typing
-    if (app->entry && gtk_widget_has_focus(app->entry)) {
-        gtk_widget_grab_focus(app->modal_background);
-        log_debug("Removed focus from entry widget during overlay");
-    } else {
-        // Grab focus to prevent input to main window
-        gtk_widget_grab_focus(app->modal_background);
+    
+    // Make main window components non-focusable during overlay
+    if (app->entry) {
+        gtk_widget_set_can_focus(app->entry, FALSE);
+    }
+    if (app->textview) {
+        gtk_widget_set_can_focus(app->textview, FALSE);
     }
 
-    // Also grab keyboard focus more aggressively
-    if (gtk_widget_get_realized(app->modal_background)) {
-        gdk_window_focus(gtk_widget_get_window(app->modal_background), GDK_CURRENT_TIME);
+    // Handle focus based on overlay type
+    if (type == OVERLAY_HARPOON_EDIT) {
+        // For edit overlay, we'll focus the entry after a short delay
+        // to ensure it's properly realized
+        g_idle_add((GSourceFunc)focus_harpoon_edit_entry, app);
+    } else {
+        // Remove focus from entry widget to prevent typing
+        if (app->entry && gtk_widget_has_focus(app->entry)) {
+            gtk_widget_grab_focus(app->modal_background);
+            log_debug("Removed focus from entry widget during overlay");
+        } else {
+            // Grab focus to prevent input to main window
+            gtk_widget_grab_focus(app->modal_background);
+        }
+
+        // Also grab keyboard focus more aggressively
+        if (gtk_widget_get_realized(app->modal_background)) {
+            gdk_window_focus(gtk_widget_get_window(app->modal_background), GDK_CURRENT_TIME);
+        }
     }
 
     log_debug("Overlay shown successfully");
@@ -160,6 +199,14 @@ void hide_overlay(AppData *app) {
     app->overlay_active = FALSE;
     app->current_overlay = OVERLAY_NONE;
     // NOTE: Don't clear dialog_active here since overlays don't set it
+    
+    // Restore focusability of main window components
+    if (app->entry) {
+        gtk_widget_set_can_focus(app->entry, TRUE);
+    }
+    if (app->textview) {
+        gtk_widget_set_can_focus(app->textview, TRUE);
+    }
     
     // Return focus to main entry
     if (app->entry) {
@@ -203,6 +250,8 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_jump_key_press(app, event);
         case OVERLAY_HARPOON_DELETE:
             return handle_harpoon_delete_key_press(app, event);
+        case OVERLAY_HARPOON_EDIT:
+            return handle_harpoon_edit_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -1075,4 +1124,93 @@ void show_harpoon_delete_overlay(AppData *app, int slot_index) {
     app->harpoon_delete.pending_delete = TRUE;
     app->harpoon_delete.delete_slot = slot_index;
     show_overlay(app, OVERLAY_HARPOON_DELETE, NULL);
+}
+
+// Create harpoon edit overlay content
+static void create_harpoon_edit_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index) {
+    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
+    
+    // Header
+    char slot_name[4];
+    if (slot_index < 10) {
+        snprintf(slot_name, sizeof(slot_name), "%d", slot_index);
+    } else {
+        snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_index - 10));
+    }
+    
+    char *header = g_strdup_printf("<b>Edit Harpoon Slot: %s</b>", slot_name);
+    GtkWidget *header_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(header_label), header);
+    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
+    g_free(header);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
+    
+    // Separator
+    GtkWidget *separator1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(parent_container), separator1, FALSE, FALSE, 10);
+    
+    // Entry widget
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), slot->title);
+    gtk_entry_set_max_length(GTK_ENTRY(entry), MAX_TITLE_LEN - 1);
+    gtk_widget_set_size_request(entry, 400, -1);
+    
+    // Store entry reference for key handler
+    g_object_set_data(G_OBJECT(parent_container), "edit-entry", entry);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), entry, FALSE, FALSE, 20);
+    
+    // Separator
+    GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(parent_container), separator2, FALSE, FALSE, 10);
+    
+    // Instructions
+    GtkWidget *instructions = gtk_label_new("Press Enter to save, Escape to cancel");
+    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
+    
+    // Focus will be handled by the idle callback to ensure proper widget realization
+}
+
+// Handle key press in edit overlay
+static gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {
+    GtkWidget *entry = g_object_get_data(G_OBJECT(app->dialog_container), "edit-entry");
+    
+    // Block Tab key to prevent focus escaping
+    if (event->keyval == GDK_KEY_Tab || event->keyval == GDK_KEY_ISO_Left_Tab) {
+        return TRUE; // Consume the event
+    }
+    
+    if (event->keyval == GDK_KEY_Return) {
+        // Save the edited title
+        const char *new_title = gtk_entry_get_text(GTK_ENTRY(entry));
+        int slot_index = app->harpoon_edit.editing_slot;
+        
+        // Update slot title directly (no wildcard conversion needed here)
+        safe_string_copy(app->harpoon.slots[slot_index].title, new_title, MAX_TITLE_LEN);
+        save_harpoon_slots(&app->harpoon);
+        
+        log_info("USER: Edited harpoon slot %d title to: %s", slot_index, new_title);
+        
+        // Update display
+        if (app->current_tab == TAB_HARPOON) {
+            const char *filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            gtk_entry_set_text(GTK_ENTRY(app->entry), filter);
+        }
+        
+        hide_overlay(app);
+        return TRUE;
+    }
+    
+    // Let GTK Entry handle all other keys
+    return FALSE;
+}
+
+// Public function to show harpoon edit overlay
+void show_harpoon_edit_overlay(AppData *app, int slot_index) {
+    app->harpoon_edit.editing = TRUE;
+    app->harpoon_edit.editing_slot = slot_index;
+    show_overlay(app, OVERLAY_HARPOON_EDIT, NULL);
 }
