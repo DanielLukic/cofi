@@ -44,6 +44,7 @@ static void on_entry_changed(GtkEntry *entry, AppData *app);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 static void filter_workspaces(AppData *app, const char *filter);
+static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 
 // Forward declaration for destroy_window function
 void destroy_window(AppData *app);
@@ -272,10 +273,73 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
+// Handle harpoon tab specific keys
+static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_HARPOON) {
+        return FALSE;
+    }
+    
+    // Handle delete confirmation
+    if (app->harpoon_delete.pending_delete) {
+        switch (event->keyval) {
+            case GDK_KEY_d:
+            case GDK_KEY_y:
+                // Confirm delete
+                {
+                    int slot = app->harpoon_delete.delete_slot;
+                    unassign_slot(&app->harpoon, slot);
+                    save_harpoon_slots(&app->harpoon);
+                    log_info("Deleted harpoon assignment from slot %d", slot);
+                    app->harpoon_delete.pending_delete = FALSE;
+                    update_display(app);
+                }
+                return TRUE;
+                
+            case GDK_KEY_n:
+            case GDK_KEY_Escape:
+                // Cancel delete
+                app->harpoon_delete.pending_delete = FALSE;
+                log_info("Cancelled harpoon delete");
+                update_display(app);
+                return TRUE;
+                
+            default:
+                // Any other key cancels delete mode
+                app->harpoon_delete.pending_delete = FALSE;
+                update_display(app);
+                return FALSE;
+        }
+    }
+    
+    // Handle initial 'd' press
+    if (event->keyval == GDK_KEY_d && !(event->state & GDK_CONTROL_MASK)) {
+        // Get current harpoon slot
+        int slot = app->selection.harpoon_index;
+        
+        // Only allow delete if slot is assigned
+        if (app->harpoon.slots[slot].assigned) {
+            app->harpoon_delete.pending_delete = TRUE;
+            app->harpoon_delete.delete_slot = slot;
+            log_info("Entered harpoon delete mode for slot %d", slot);
+            update_display(app);
+            return TRUE;
+        }
+    }
+    
+    return FALSE;
+}
+
 // Handle navigation keys (arrows, Ctrl+j/k)
 static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
     switch (event->keyval) {
         case GDK_KEY_Escape:
+            // If in harpoon delete mode, cancel it instead of closing
+            if (app->current_tab == TAB_HARPOON && app->harpoon_delete.pending_delete) {
+                app->harpoon_delete.pending_delete = FALSE;
+                log_info("Cancelled harpoon delete");
+                update_display(app);
+                return TRUE;
+            }
             log_info("USER: ESCAPE pressed -> Closing cofi");
             destroy_window(app);
             return TRUE;
@@ -375,6 +439,10 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     }
     
     if (handle_harpoon_workspace_switching(event, app)) {
+        return TRUE;
+    }
+    
+    if (handle_harpoon_tab_keys(event, app)) {
         return TRUE;
     }
     

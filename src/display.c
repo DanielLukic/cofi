@@ -276,8 +276,17 @@ void update_display(AppData *app) {
                 fit_column(slot->instance, 20, instance_col);
                 fit_column(slot->type, 8, type_col);
                 
-                g_string_append_printf(text, "%-4s %s %s %s %s\n",
-                    slot_name, title_col, class_col, instance_col, type_col);
+                // Check if this slot is pending deletion
+                if (app->harpoon_delete.pending_delete && 
+                    app->harpoon_delete.delete_slot == i && 
+                    is_selected) {
+                    // Show delete confirmation
+                    g_string_append_printf(text, "%-4s %-43s [DELETE? y/n] %s %s %s\n",
+                        slot_name, title_col, class_col, instance_col, type_col);
+                } else {
+                    g_string_append_printf(text, "%-4s %s %s %s %s\n",
+                        slot_name, title_col, class_col, instance_col, type_col);
+                }
             } else {
                 g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
                     slot_name, "* EMPTY *", "-", "-", "-");
