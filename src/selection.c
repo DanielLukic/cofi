@@ -8,6 +8,7 @@ void init_selection(AppData *app) {
     
     app->selection.window_index = 0;
     app->selection.workspace_index = 0;
+    app->selection.harpoon_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
     
@@ -24,16 +25,18 @@ void reset_selection(AppData *app) {
         if (app->filtered_count > 0) {
             app->selection.selected_window_id = app->filtered[0].id;
         }
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         app->selection.workspace_index = 0;
         app->selection.selected_workspace_id = -1;
         if (app->filtered_workspace_count > 0) {
             app->selection.selected_workspace_id = app->filtered_workspaces[0].id;
         }
+    } else if (app->current_tab == TAB_HARPOON) {
+        app->selection.harpoon_index = 0;
     }
     
-    log_debug("Selection reset for %s tab", 
-              app->current_tab == TAB_WINDOWS ? "windows" : "workspaces");
+    const char *tab_names[] = {"windows", "workspaces", "harpoon"};
+    log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
 // Get currently selected window (no Alt-Tab swap confusion)
@@ -64,9 +67,13 @@ int get_selected_index(AppData *app) {
     
     if (app->current_tab == TAB_WINDOWS) {
         return app->selection.window_index;
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         return app->selection.workspace_index;
+    } else if (app->current_tab == TAB_HARPOON) {
+        return app->selection.harpoon_index;
     }
+    
+    return 0;
 }
 
 // Move selection up (decrements index in display, moves up visually)
@@ -85,7 +92,7 @@ void move_selection_up(AppData *app) {
                      app->filtered[app->selection.window_index].title,
                      app->filtered[app->selection.window_index].id);
         }
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
             app->selection.workspace_index++;
             if (app->filtered_workspace_count > 0) {
@@ -96,6 +103,12 @@ void move_selection_up(AppData *app) {
                      app->selection.workspace_index,
                      app->filtered_workspaces[app->selection.workspace_index].name,
                      app->filtered_workspaces[app->selection.workspace_index].id);
+        }
+    } else if (app->current_tab == TAB_HARPOON) {
+        if (app->selection.harpoon_index < MAX_HARPOON_SLOTS - 1) {
+            app->selection.harpoon_index++;
+            update_display(app);
+            log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
         }
     }
 }
@@ -116,7 +129,7 @@ void move_selection_down(AppData *app) {
                      app->filtered[app->selection.window_index].title,
                      app->filtered[app->selection.window_index].id);
         }
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->selection.workspace_index > 0) {
             app->selection.workspace_index--;
             if (app->filtered_workspace_count > 0) {
@@ -127,6 +140,12 @@ void move_selection_down(AppData *app) {
                      app->selection.workspace_index,
                      app->filtered_workspaces[app->selection.workspace_index].name,
                      app->filtered_workspaces[app->selection.workspace_index].id);
+        }
+    } else if (app->current_tab == TAB_HARPOON) {
+        if (app->selection.harpoon_index > 0) {
+            app->selection.harpoon_index--;
+            update_display(app);
+            log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
         }
     }
 }

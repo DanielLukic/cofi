@@ -24,6 +24,7 @@ void print_usage(const char *prog_name) {
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
     printf("  --no-auto-close      Don't close window when focus is lost\n");
     printf("  --workspaces         Start with the Workspaces tab active\n");
+    printf("  --harpoon            Start with the Harpoon tab active\n");
     printf("  --command            Start in command mode (with ':' prompt)\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
@@ -74,6 +75,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto align_opt = op.add<Value<std::string>>("a", "align", "Set window alignment");
     auto no_auto_close_opt = op.add<Switch>("C", "no-auto-close", "Don't close window when focus is lost");
     auto workspaces_opt = op.add<Switch>("w", "workspaces", "Start with the Workspaces tab active");
+    auto harpoon_opt = op.add<Switch>("", "harpoon", "Start with the Harpoon tab active");
     auto command_opt = op.add<Switch>("c", "command", "Start in command mode (with ':' prompt)");
     auto version_opt = op.add<Switch>("v", "version", "Show version information");
     auto help_opt = op.add<Switch>("h", "help", "Show this help message");
@@ -146,6 +148,10 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     
     if (workspaces_opt->is_set()) {
         app->current_tab = TAB_WORKSPACES;
+    }
+    
+    if (harpoon_opt->is_set()) {
+        app->current_tab = TAB_HARPOON;
     }
     
     if (command_opt->is_set()) {

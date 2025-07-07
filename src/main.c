@@ -62,13 +62,21 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
     
     if (target_tab == TAB_WINDOWS) {
         filter_windows(app, "");
-    } else {
+    } else if (target_tab == TAB_WORKSPACES) {
         filter_workspaces(app, "");
+    } else if (target_tab == TAB_HARPOON) {
+        // Initialize harpoon display (will be implemented in display.c)
+        app->filtered_harpoon_count = 0;
+        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+            app->filtered_harpoon[i] = app->harpoon.slots[i];
+            app->filtered_harpoon_count++;
+        }
     }
     reset_selection(app);
     
     update_display(app);
-    log_debug("Switched to %s tab", target_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+    log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
 // Helper function to get harpoon slot from key event
@@ -192,9 +200,24 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
 static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     // Tab key (without Ctrl)
     if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
-        TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
-        log_info("USER: TAB pressed -> Switching to %s tab",
-                 next_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
+        TabMode next_tab;
+        switch (app->current_tab) {
+            case TAB_WINDOWS:
+                next_tab = TAB_WORKSPACES;
+                break;
+            case TAB_WORKSPACES:
+                next_tab = TAB_HARPOON;
+                break;
+            case TAB_HARPOON:
+                next_tab = TAB_WINDOWS;
+                break;
+            default:
+                next_tab = TAB_WINDOWS;
+                break;
+        }
+        
+        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+        log_info("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
         return TRUE;
     }
@@ -616,6 +639,8 @@ int main(int argc, char *argv[]) {
         show_mode = SHOW_MODE_COMMAND;
     } else if (app.current_tab == TAB_WORKSPACES) {
         show_mode = SHOW_MODE_WORKSPACES;
+    } else if (app.current_tab == TAB_HARPOON) {
+        show_mode = SHOW_MODE_HARPOON;
     } else {
         show_mode = SHOW_MODE_WINDOWS;
     }

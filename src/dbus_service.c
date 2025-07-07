@@ -61,6 +61,8 @@ const char* show_mode_to_string(ShowMode mode) {
             return "windows";
         case SHOW_MODE_WORKSPACES:
             return "workspaces";
+        case SHOW_MODE_HARPOON:
+            return "harpoon";
         case SHOW_MODE_COMMAND:
             return "command";
         default:
@@ -74,6 +76,8 @@ ShowMode string_to_show_mode(const char *mode_str) {
     
     if (strcmp(mode_str, "workspaces") == 0) {
         return SHOW_MODE_WORKSPACES;
+    } else if (strcmp(mode_str, "harpoon") == 0) {
+        return SHOW_MODE_HARPOON;
     } else if (strcmp(mode_str, "command") == 0) {
         return SHOW_MODE_COMMAND;
     } else {
@@ -235,6 +239,10 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
             switch (mode) {
                 case SHOW_MODE_WORKSPACES:
                     g_app_data->current_tab = TAB_WORKSPACES;
+                    g_app_data->start_in_command_mode = 0;
+                    break;
+                case SHOW_MODE_HARPOON:
+                    g_app_data->current_tab = TAB_HARPOON;
                     g_app_data->start_in_command_mode = 0;
                     break;
                 case SHOW_MODE_COMMAND:

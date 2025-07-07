@@ -11,6 +11,7 @@
 #include "constants.h"
 #include "x11_utils.h"
 #include "selection.h"
+#include "harpoon.h"
 
 // Format tab header with active tab indication
 static void format_tab_header(TabMode current_tab, GString *output) {
@@ -29,6 +30,14 @@ static void format_tab_header(TabMode current_tab, GString *output) {
         g_string_append(output, "[ WORKSPACES ]");
     } else {
         g_string_append(output, "  Workspaces  ");
+    }
+    
+    g_string_append(output, "    ");
+    
+    if (current_tab == TAB_HARPOON) {
+        g_string_append(output, "[ HARPOON ]");
+    } else {
+        g_string_append(output, "  Harpoon  ");
     }
     
     g_string_append(output, "\n");
@@ -201,7 +210,7 @@ void update_display(AppData *app) {
         if (app->filtered_count == 0) {
             g_string_append(text, "No matching windows found\n");
         }
-    } else {
+    } else if (app->current_tab == TAB_WORKSPACES) {
         // Display workspaces
         for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
             WorkspaceInfo *ws = &app->filtered_workspaces[i];
@@ -229,6 +238,50 @@ void update_display(AppData *app) {
         // If no workspaces, show message
         if (app->filtered_workspace_count == 0) {
             g_string_append(text, "No matching workspaces found\n");
+        }
+    } else if (app->current_tab == TAB_HARPOON) {
+        // Display harpoon slots
+        for (int i = MAX_HARPOON_SLOTS - 1; i >= 0; i--) {
+            HarpoonSlot *slot = &app->filtered_harpoon[i];
+            
+            gboolean is_selected = (i == selected_idx);
+            
+            // Selection indicator
+            if (is_selected) {
+                g_string_append(text, "> ");
+            } else {
+                g_string_append(text, "  ");
+            }
+            
+            // Format slot name (0-9, a-z)
+            char slot_name[4];
+            if (i < 10) {
+                snprintf(slot_name, sizeof(slot_name), "%d", i);
+            } else {
+                // Skip h, j, k, l, u (indices 17, 18, 19, 21)
+                int letter_index = i - 10;
+                if (letter_index >= 7) letter_index++; // Skip 'h'
+                if (letter_index >= 9) letter_index++; // Skip 'j'
+                if (letter_index >= 10) letter_index++; // Skip 'k'
+                if (letter_index >= 11) letter_index++; // Skip 'l'
+                if (letter_index >= 20) letter_index++; // Skip 'u'
+                snprintf(slot_name, sizeof(slot_name), "%c", 'a' + letter_index);
+            }
+            
+            // Format slot display
+            if (slot->assigned) {
+                char title_col[56], class_col[19], instance_col[21], type_col[9];
+                fit_column(slot->title, 55, title_col);
+                fit_column(slot->class_name, 18, class_col);
+                fit_column(slot->instance, 20, instance_col);
+                fit_column(slot->type, 8, type_col);
+                
+                g_string_append_printf(text, "%-4s %s %s %s %s\n",
+                    slot_name, title_col, class_col, instance_col, type_col);
+            } else {
+                g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
+                    slot_name, "* EMPTY *", "-", "-", "-");
+            }
         }
     }
     
