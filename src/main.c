@@ -79,11 +79,11 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment, AppData 
     } else if (event->keyval >= GDK_KEY_KP_0 && event->keyval <= GDK_KEY_KP_9) {
         return event->keyval - GDK_KEY_KP_0;
     } else if (event->keyval >= GDK_KEY_a && event->keyval <= GDK_KEY_z) {
-        // For activation (Alt+key), we allow all keys including h,j,k,l,u
-        // For assignment (Ctrl+key), we exclude h,j,k,l,u unless Shift is pressed
+        // For activation (Alt+key), we allow all keys including j,k,u
+        // For assignment (Ctrl+key), we exclude j,k,u unless Shift is pressed
         if (is_assignment) {
-            gboolean is_excluded_key = (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_j || 
-                                       event->keyval == GDK_KEY_k || event->keyval == GDK_KEY_l ||
+            gboolean is_excluded_key = (event->keyval == GDK_KEY_j || 
+                                       event->keyval == GDK_KEY_k ||
                                        event->keyval == GDK_KEY_u);
             
             if (is_excluded_key && !(event->state & GDK_SHIFT_MASK)) {
@@ -95,7 +95,7 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment, AppData 
         return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_a);
     } else if (event->keyval >= GDK_KEY_A && event->keyval <= GDK_KEY_Z) {
         // Handle uppercase letters (when Shift is pressed)
-        // For uppercase (shifted) keys, we allow even the normally excluded keys h,j,k,l,u
+        // For uppercase (shifted) keys, we allow even the normally excluded keys j,k,u
         // because user explicitly pressed Shift
         return HARPOON_FIRST_LETTER + (event->keyval - GDK_KEY_A);
     }
@@ -197,21 +197,6 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                  next_tab == TAB_WINDOWS ? "Windows" : "Workspaces");
         switch_to_tab(app, next_tab);
         return TRUE;
-    }
-    
-    // Ctrl+H/L for tab switching
-    if (event->state & GDK_CONTROL_MASK) {
-        if (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_H) {
-            // Ctrl+H: previous tab with wrap-around
-            TabMode prev_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
-            switch_to_tab(app, prev_tab);
-            return TRUE;
-        } else if (event->keyval == GDK_KEY_l || event->keyval == GDK_KEY_L) {
-            // Ctrl+L: next tab with wrap-around
-            TabMode next_tab = (app->current_tab == TAB_WINDOWS) ? TAB_WORKSPACES : TAB_WINDOWS;
-            switch_to_tab(app, next_tab);
-            return TRUE;
-        }
     }
     
     return FALSE;

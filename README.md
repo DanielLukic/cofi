@@ -86,7 +86,6 @@ COFI saves configuration to `~/.config/cofi.json`:
 - **Up/Down arrows** - Navigate through windows
 - **Ctrl+k/Ctrl+j** - Navigate up/down (Vim-style)
 - **Tab** - Switch between Windows and Workspaces tabs
-- **Ctrl+h/Ctrl+l** - Switch to previous/next tab (Vim-style)
 - **Enter** - Activate selected window/workspace
 - **Escape** - Cancel and close
 - **Type to search** - Filter windows in real-time
@@ -100,19 +99,17 @@ COFI saves configuration to `~/.config/cofi.json`:
 
 **Excluded Keys:**
 The following keys are reserved for navigation and cannot be used for harpoon assignments:
-- **Ctrl+h** - Switch to previous tab (Workspaces/Windows)
 - **Ctrl+j** - Navigate down in selection
 - **Ctrl+k** - Navigate up in selection
-- **Ctrl+l** - Switch to next tab (Workspaces/Windows)
 - **Ctrl+u** - Clear search text (GTK default behavior)
 
 **Override Exclusions with Shift:**
 You can override the key exclusions by holding Shift:
-- **Ctrl+Shift+h/j/k/l/u** - Assign these normally excluded keys as harpoon slots
+- **Ctrl+Shift+j/k/u** - Assign these normally excluded keys as harpoon slots
 - This is safe because activation still uses Alt+key (without Shift)
-- Example: Ctrl+Shift+h assigns to slot 'h', then Alt+h activates it
+- Example: Ctrl+Shift+j assigns to slot 'j', then Alt+j activates it
 
-This gives you 31 available harpoon slots by default (0-9 and a-g, i, m-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
+This gives you 33 available harpoon slots by default (0-9 and a-i, l-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
 
 ### Command Mode
 
