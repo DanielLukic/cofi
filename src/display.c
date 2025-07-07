@@ -13,6 +13,11 @@
 #include "selection.h"
 #include "harpoon.h"
 
+// Check if instance and class should be swapped for display
+static gboolean should_swap_instance_class(const char *instance) {
+    return (instance && strlen(instance) > 0 && instance[0] >= 'A' && instance[0] <= 'Z');
+}
+
 // Format tab header with active tab indication
 static void format_tab_header(TabMode current_tab, GString *output) {
     g_string_append(output, "\n");
@@ -52,6 +57,53 @@ static void format_desktop_str(int desktop, char *output) {
     }
 }
 
+// Clean text: replace non-ASCII and newlines with spaces, squash consecutive spaces
+static void clean_text(const char *text, char *output, size_t output_size) {
+    int j = 0;
+    int last_was_space = 0;
+    
+    for (int i = 0; text[i] && j < (int)output_size - 1; i++) {
+        unsigned char c = (unsigned char)text[i];
+        if (c < 32 || c > 126) {
+            // Replace non-printable and non-ASCII with space
+            if (!last_was_space) {
+                output[j++] = ' ';
+                last_was_space = 1;
+            }
+        } else if (c == ' ') {
+            // Regular space
+            if (!last_was_space) {
+                output[j++] = ' ';
+                last_was_space = 1;
+            }
+        } else {
+            // Normal character
+            output[j++] = text[i];
+            last_was_space = 0;
+        }
+    }
+    output[j] = '\0';
+}
+
+// Trim leading and trailing spaces from text
+static char* trim_text(char *text) {
+    // Trim leading spaces
+    char *start = text;
+    while (*start == ' ') start++;
+    
+    // Trim trailing spaces
+    char *end = start + strlen(start) - 1;
+    while (end > start && *end == ' ') end--;
+    *(end + 1) = '\0';
+    
+    return start;
+}
+
+// Pad text to specified width
+static void pad_text(const char *text, int width, char *output) {
+    snprintf(output, width + 1, "%-*s", width, text);
+}
+
 // Fit text to column width like Go code
 static void fit_column(const char *text, int width, char *output) {
     if (!text || text[0] == '\0') {
@@ -61,81 +113,26 @@ static void fit_column(const char *text, int width, char *output) {
         return;
     }
     
-    // Clean text: replace non-ASCII and newlines with spaces, squash consecutive spaces
-    char clean_text[512];
-    int j = 0;
-    int last_was_space = 0;
+    // Clean text
+    char clean_buffer[512];
+    clean_text(text, clean_buffer, sizeof(clean_buffer));
     
-    for (int i = 0; text[i] && j < (int)sizeof(clean_text) - 1; i++) {
-        unsigned char c = (unsigned char)text[i];
-        if (c < 32 || c > 126) {
-            // Replace non-printable and non-ASCII with space
-            if (!last_was_space) {
-                clean_text[j++] = ' ';
-                last_was_space = 1;
-            }
-        } else if (c == ' ') {
-            // Regular space
-            if (!last_was_space) {
-                clean_text[j++] = ' ';
-                last_was_space = 1;
-            }
-        } else {
-            // Normal character
-            clean_text[j++] = text[i];
-            last_was_space = 0;
-        }
-    }
-    clean_text[j] = '\0';
-    
-    // Trim leading spaces
-    char *start = clean_text;
-    while (*start == ' ') start++;
-    
-    // Trim trailing spaces
-    char *end = clean_text + strlen(clean_text) - 1;
-    while (end > start && *end == ' ') end--;
-    *(end + 1) = '\0';
+    // Trim spaces
+    char *trimmed = trim_text(clean_buffer);
     
     // Truncate if too long
-    if (strlen(start) > (size_t)width) {
-        start[width] = '\0';
+    if (strlen(trimmed) > (size_t)width) {
+        trimmed[width] = '\0';
     }
     
     // Left-align with padding
-    snprintf(output, width + 1, "%-*s", width, start);
+    pad_text(trimmed, width, output);
 }
 
-// Update the text display with proper 5-column format like Go code
-void update_display(AppData *app) {
-    int selected_idx = get_selected_index(app);
-    log_debug("update_display() - filtered_count=%d, selected_index=%d",
-            app->filtered_count, selected_idx);
-    
-    // Don't update display if help is being shown in command mode
-    if (app->command_mode.state == CMD_MODE_COMMAND && app->command_mode.showing_help) {
-        log_debug("Skipping display update - help is being shown");
-        return;
-    }
-    
-    // Log first few windows to understand ordering
-    if (app->filtered_count > 0) {
-        log_trace("Data order - [0]: '%s' (0x%lx), [1]: '%s' (0x%lx)", 
-                app->filtered[0].title, app->filtered[0].id,
-                (app->filtered_count > 1) ? app->filtered[1].title : "(none)",
-                (app->filtered_count > 1) ? app->filtered[1].id : 0);
-        log_trace("Selected index: %d (displaying '%s')",
-                selected_idx,
-                (selected_idx < app->filtered_count) ? app->filtered[selected_idx].title : "(none)");
-    }
-    
-    GString *text = g_string_new("");
-    
-    if (app->current_tab == TAB_WINDOWS) {
-        // Column widths (from Go code)
-        
-        // Display filtered windows in reverse order (bottom-up like fzf)
-        for (int i = app->filtered_count - 1; i >= 0; i--) {
+// Format and display windows tab content
+static void format_windows_display(AppData *app, GString *text, int selected_idx) {
+    // Display filtered windows in reverse order (bottom-up like fzf)
+    for (int i = app->filtered_count - 1; i >= 0; i--) {
         WindowInfo *win = &app->filtered[i];
         
         gboolean is_selected = (i == selected_idx);
@@ -151,7 +148,7 @@ void update_display(AppData *app) {
         char display_instance[MAX_CLASS_LEN];
         char display_class[MAX_CLASS_LEN];
         
-        if (strlen(win->instance) > 0 && win->instance[0] >= 'A' && win->instance[0] <= 'Z') {
+        if (should_swap_instance_class(win->instance)) {
             // Swap if instance starts with uppercase
             strcpy(display_instance, win->class_name);
             strcpy(display_class, win->instance);
@@ -204,79 +201,123 @@ void update_display(AppData *app) {
         g_string_append(text, " ");
         g_string_append(text, window_id);
         g_string_append(text, "\n");
+    }
+    
+    // If no windows, show message
+    if (app->filtered_count == 0) {
+        g_string_append(text, "No matching windows found\n");
+    }
+}
+
+// Format and display workspaces tab content
+static void format_workspaces_display(AppData *app, GString *text, int selected_idx) {
+    // Display workspaces
+    for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
+        WorkspaceInfo *ws = &app->filtered_workspaces[i];
+        
+        gboolean is_selected = (i == selected_idx);
+        
+        // Selection indicator
+        if (is_selected) {
+            g_string_append(text, "> ");
+        } else {
+            g_string_append(text, "  ");
         }
         
-        // If no windows, show message
-        if (app->filtered_count == 0) {
-            g_string_append(text, "No matching windows found\n");
-        }
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        // Display workspaces
-        for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
-            WorkspaceInfo *ws = &app->filtered_workspaces[i];
-            
-            gboolean is_selected = (i == selected_idx);
-            
-            // Selection indicator
-            if (is_selected) {
-                g_string_append(text, "> ");
-            } else {
-                g_string_append(text, "  ");
-            }
-            
-            // Current workspace indicator
-            if (ws->is_current) {
-                g_string_append(text, "* ");
-            } else {
-                g_string_append(text, "  ");
-            }
-            
-            // Format: [ID] Name
-            g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
+        // Current workspace indicator
+        if (ws->is_current) {
+            g_string_append(text, "* ");
+        } else {
+            g_string_append(text, "  ");
         }
         
-        // If no workspaces, show message
-        if (app->filtered_workspace_count == 0) {
-            g_string_append(text, "No matching workspaces found\n");
+        // Format: [ID] Name
+        g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
+    }
+    
+    // If no workspaces, show message
+    if (app->filtered_workspace_count == 0) {
+        g_string_append(text, "No matching workspaces found\n");
+    }
+}
+
+// Format and display harpoon tab content
+static void format_harpoon_display(AppData *app, GString *text, int selected_idx) {
+    // Display harpoon slots
+    for (int i = app->filtered_harpoon_count - 1; i >= 0; i--) {
+        HarpoonSlot *slot = &app->filtered_harpoon[i];
+        
+        gboolean is_selected = (i == selected_idx);
+        
+        // Selection indicator
+        if (is_selected) {
+            g_string_append(text, "> ");
+        } else {
+            g_string_append(text, "  ");
         }
-    } else if (app->current_tab == TAB_HARPOON) {
-        // Display harpoon slots
-        for (int i = app->filtered_harpoon_count - 1; i >= 0; i--) {
-            HarpoonSlot *slot = &app->filtered_harpoon[i];
-            
-            gboolean is_selected = (i == selected_idx);
-            
-            // Selection indicator
-            if (is_selected) {
-                g_string_append(text, "> ");
-            } else {
-                g_string_append(text, "  ");
-            }
-            
-            // Format slot name (0-9, a-z)
-            char slot_name[4];
-            int slot_idx = app->filtered_harpoon_indices[i];
-            if (slot_idx < 10) {
-                snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
-            } else {
-                snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
-            }
-            
-            // Format slot display
-            if (slot->assigned) {
-                char title_col[56], class_col[19], instance_col[21], type_col[9];
-                fit_column(slot->title, 55, title_col);
-                fit_column(slot->class_name, 18, class_col);
-                fit_column(slot->instance, 20, instance_col);
-                fit_column(slot->type, 8, type_col);
-                
-                g_string_append_printf(text, "%-4s %s %s %s %s\n",
-                    slot_name, title_col, class_col, instance_col, type_col);
-            } else {
-                g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
-                    slot_name, "* EMPTY *", "-", "-", "-");
-            }
+        
+        // Format slot name (0-9, a-z)
+        char slot_name[4];
+        int slot_idx = app->filtered_harpoon_indices[i];
+        if (slot_idx < 10) {
+            snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
+        } else {
+            snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
         }
+        
+        // Format slot display
+        if (slot->assigned) {
+            char title_col[56], class_col[19], instance_col[21], type_col[9];
+            fit_column(slot->title, 55, title_col);
+            fit_column(slot->class_name, 18, class_col);
+            fit_column(slot->instance, 20, instance_col);
+            fit_column(slot->type, 8, type_col);
+            
+            g_string_append_printf(text, "%-4s %s %s %s %s\n",
+                slot_name, title_col, class_col, instance_col, type_col);
+        } else {
+            g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
+                slot_name, "* EMPTY *", "-", "-", "-");
+        }
+    }
+}
+
+// Update the text display with proper 5-column format like Go code
+void update_display(AppData *app) {
+    int selected_idx = get_selected_index(app);
+    log_debug("update_display() - filtered_count=%d, selected_index=%d",
+            app->filtered_count, selected_idx);
+    
+    // Don't update display if help is being shown in command mode
+    if (app->command_mode.state == CMD_MODE_COMMAND && app->command_mode.showing_help) {
+        log_debug("Skipping display update - help is being shown");
+        return;
+    }
+    
+    // Log first few windows to understand ordering
+    if (app->filtered_count > 0) {
+        log_trace("Data order - [0]: '%s' (0x%lx), [1]: '%s' (0x%lx)", 
+                app->filtered[0].title, app->filtered[0].id,
+                (app->filtered_count > 1) ? app->filtered[1].title : "(none)",
+                (app->filtered_count > 1) ? app->filtered[1].id : 0);
+        log_trace("Selected index: %d (displaying '%s')",
+                selected_idx,
+                (selected_idx < app->filtered_count) ? app->filtered[selected_idx].title : "(none)");
+    }
+    
+    GString *text = g_string_new("");
+    
+    // Format content based on current tab
+    switch (app->current_tab) {
+        case TAB_WINDOWS:
+            format_windows_display(app, text, selected_idx);
+            break;
+        case TAB_WORKSPACES:
+            format_workspaces_display(app, text, selected_idx);
+            break;
+        case TAB_HARPOON:
+            format_harpoon_display(app, text, selected_idx);
+            break;
     }
     
     // Add tab header at the bottom
