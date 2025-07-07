@@ -1,8 +1,8 @@
 # Makefile for cofi - C/GTK window switcher
 
 CC = gcc
-CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11)
-LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11) -lm -lXrandr
+CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11 gio-2.0)
+LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr
 
 # Build number from environment (GitHub Actions) or default to 0
 BUILD_NUMBER ?= 0
@@ -33,7 +33,8 @@ SOURCES = src/main.c \
           src/workarea.c \
           src/size_hints.c \
           src/overlay_manager.c \
-          src/tiling.c
+          src/tiling.c \
+          src/dbus_service.c
 
 # Object files
 OBJECTS = $(SOURCES:.c=.o)

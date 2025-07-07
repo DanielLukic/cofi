@@ -33,6 +33,7 @@
 #include "app_init.h"
 #include "overlay_manager.h"
 #include "version.h"
+#include "dbus_service.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
 // WindowInfo and AppData types are defined in src/app_data.h
@@ -686,10 +687,11 @@ int main(int argc, char *argv[]) {
     // Setup GUI
     setup_application(&app, app.config.alignment);
     
-    // Set app data for instance manager and setup signal handler
+    // Set app data for instance manager and setup D-Bus service
     // Do this after GUI setup so the window exists
     instance_manager_set_app_data(&app);
-    instance_manager_setup_signal_handler();
+    dbus_service_set_app_data(&app);
+    instance_manager_setup_dbus_service(instance_manager);
     
     // Setup X11 event monitoring for dynamic window list updates
     setup_x11_event_monitoring(&app);
