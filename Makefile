@@ -1,8 +1,10 @@
 # Makefile for cofi - C/GTK window switcher
 
 CC = gcc
+CXX = g++
 CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11 gio-2.0)
-LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr
+CXXFLAGS = $(CFLAGS) -std=c++11 -Iinclude
+LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr -lstdc++
 
 # Build number from environment (GitHub Actions) or default to 0
 BUILD_NUMBER ?= 0
@@ -24,7 +26,7 @@ SOURCES = src/main.c \
           src/window_matcher.c \
           src/match.c \
           src/utils.c \
-          src/cli_args.c \
+          src/cli_args.cpp \
           src/gtk_window.c \
           src/app_init.c \
           src/command_mode.c \
@@ -36,8 +38,14 @@ SOURCES = src/main.c \
           src/tiling.c \
           src/dbus_service.c
 
+# Separate C and C++ sources
+C_SOURCES = $(filter %.c,$(SOURCES))
+CPP_SOURCES = $(filter %.cpp,$(SOURCES))
+
 # Object files
-OBJECTS = $(SOURCES:.c=.o)
+C_OBJECTS = $(C_SOURCES:.c=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
 
 # Target executable
 TARGET = cofi
@@ -47,11 +55,15 @@ all: $(TARGET)
 
 # Build the executable
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
-# Compile source files
+# Compile C source files
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile C++ source files
+src/%.o: src/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean build artifacts
 clean:

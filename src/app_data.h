@@ -45,7 +45,7 @@ typedef struct {
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 } SelectionState;
 
-typedef struct {
+typedef struct AppData {
     GtkWidget *window;
     GtkWidget *entry;
     GtkWidget *textview;
