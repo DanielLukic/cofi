@@ -21,29 +21,6 @@ WindowInfo create_test_window(Window id, const char *title, const char *class_na
     return window;
 }
 
-void test_windows_match_exact() {
-    printf("Testing windows_match_exact...\n");
-    
-    WindowInfo w1 = create_test_window(1, "Firefox", "Firefox", "firefox", "Normal");
-    WindowInfo w2 = create_test_window(2, "Firefox", "Firefox", "firefox", "Normal");
-    WindowInfo w3 = create_test_window(3, "Firefox - Page 1", "Firefox", "firefox", "Normal");
-    WindowInfo w4 = create_test_window(4, "Firefox", "Chrome", "firefox", "Normal");
-    
-    // Exact match
-    assert(windows_match_exact(&w1, &w2) == true);
-    
-    // Different title
-    assert(windows_match_exact(&w1, &w3) == false);
-    
-    // Different class
-    assert(windows_match_exact(&w1, &w4) == false);
-    
-    // NULL checks
-    assert(windows_match_exact(NULL, &w1) == false);
-    assert(windows_match_exact(&w1, NULL) == false);
-    
-    printf("  ✓ All tests passed\n");
-}
 
 void test_get_title_base_length() {
     printf("Testing get_title_base_length...\n");
@@ -117,13 +94,13 @@ void test_commodoro_case() {
     WindowInfo stored = create_test_window(0x640000c, "Commodoro", "Commodoro", "commodoro", "Normal");
     WindowInfo current = create_test_window(0x3e0000c, "Commodoro", "Commodoro", "commodoro", "Normal");
     
-    // Should match exactly
-    assert(windows_match_exact(&stored, &current) == true);
+    // Should match with fuzzy matching (same class/instance/type, identical titles)
+    assert(windows_match_fuzzy(&stored, &current) == true);
     
     // Even with different IDs, the content matches
     stored.id = 1;
     current.id = 2;
-    assert(windows_match_exact(&stored, &current) == true);
+    assert(windows_match_fuzzy(&stored, &current) == true);
     
     printf("  ✓ All tests passed\n");
 }
@@ -131,7 +108,6 @@ void test_commodoro_case() {
 int main() {
     printf("Running window matcher tests...\n\n");
     
-    test_windows_match_exact();
     test_get_title_base_length();
     test_titles_match_fuzzy();
     test_windows_match_fuzzy();

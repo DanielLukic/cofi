@@ -2,15 +2,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-bool windows_match_exact(const WindowInfo *window1, const WindowInfo *window2) {
-    if (!window1 || !window2) return false;
-    
-    return strcmp(window1->class_name, window2->class_name) == 0 &&
-           strcmp(window1->instance, window2->instance) == 0 &&
-           strcmp(window1->type, window2->type) == 0 &&
-           strcmp(window1->title, window2->title) == 0;
-}
-
 bool windows_match_fuzzy(const WindowInfo *window1, const WindowInfo *window2) {
     if (!window1 || !window2) return false;
     
