@@ -267,53 +267,122 @@ gboolean fuzzy_match_window(HarpoonSlot *slot, WindowInfo *window) {
 }
 ```
 
-### Step 5: Inline Editing
+### Step 5: Overlay-based Editing
 
 **Edit flow:**
-1. Press `e` or `Enter` on a slot - Enter edit mode
-2. Show editable text field with current title
+1. Press `Ctrl+E` on a slot - Show edit overlay dialog
+2. GTK Entry widget pre-filled with current title
 3. `Enter` - Save changes
 4. `Escape` - Cancel edit
 
-**Visual feedback:**
+**Visual Design:**
 ```
-> 5   [Editing: Meet - Xyz Dubby Bubby____________]
+┌─────────────────────────────────────────┐
+│       Edit Harpoon Slot: m              │
+├─────────────────────────────────────────┤
+│                                         │
+│  Title: [Terminal*________________]     │
+│                                         │
+├─────────────────────────────────────────┤
+│  Press Enter to save, Escape to cancel  │
+└─────────────────────────────────────────┘
 ```
+
+**Why Overlay Manager:**
+- **Clean focus handling** - Overlay captures all input, no keyboard interception needed
+- **Proper GTK Entry** - Real text widget with cursor, selection, copy/paste support
+- **UI consistency** - Matches delete confirmation overlay pattern
+- **Simpler implementation** - No custom text editing logic needed
 
 **Implementation:**
 ```c
-// In main.c
-void start_harpoon_edit(AppData *app) {
-    int slot_num = get_selected_harpoon_slot(app);
-    HarpoonSlot *slot = &app->harpoon.slots[slot_num];
+// In app_data.h
+typedef enum {
+    OVERLAY_NONE,
+    OVERLAY_TILING,
+    OVERLAY_WORKSPACE_MOVE,
+    OVERLAY_WORKSPACE_JUMP,
+    OVERLAY_HARPOON_DELETE,
+    OVERLAY_HARPOON_EDIT  // New overlay type
+} OverlayType;
+
+// In overlay_manager.c
+static void create_harpoon_edit_overlay_content(GtkWidget *parent_container, AppData *app, int slot_index) {
+    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
     
-    app->harpoon_edit.editing = TRUE;
-    app->harpoon_edit.editing_slot = slot_num;
-    strncpy(app->harpoon_edit.edit_buffer, slot->title, MAX_TITLE_LEN);
+    // Header
+    char slot_name[4];
+    format_slot_name(slot_index, slot_name);
+    char *header = g_strdup_printf("Edit Harpoon Slot: %s", slot_name);
+    GtkWidget *header_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(header_label), header);
+    g_free(header);
+    
+    // Entry widget
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), slot->title);
+    gtk_entry_set_max_length(GTK_ENTRY(entry), MAX_TITLE_LEN - 1);
+    gtk_widget_set_size_request(entry, 400, -1);
+    
+    // Store entry reference for key handler
+    g_object_set_data(G_OBJECT(parent_container), "edit-entry", entry);
+    
+    // Instructions
+    GtkWidget *instructions = gtk_label_new("Press Enter to save, Escape to cancel");
+    
+    // Layout
+    gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
+    gtk_box_pack_start(GTK_BOX(parent_container), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 10);
+    gtk_box_pack_start(GTK_BOX(parent_container), entry, FALSE, FALSE, 20);
+    gtk_box_pack_start(GTK_BOX(parent_container), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 10);
+    gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
+    
+    // Focus the entry
+    gtk_widget_grab_focus(entry);
 }
 
-void handle_harpoon_edit_keys(AppData *app, guint keyval) {
-    if (keyval == GDK_KEY_Return) {
-        // Save edited title
-        HarpoonSlot *slot = &app->harpoon.slots[app->harpoon_edit.editing_slot];
+// Handle key press in edit overlay
+static gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {
+    GtkWidget *entry = g_object_get_data(G_OBJECT(app->dialog_container), "edit-entry");
+    
+    if (event->keyval == GDK_KEY_Return) {
+        // Save the edited title
+        const char *new_title = gtk_entry_get_text(GTK_ENTRY(entry));
+        int slot_index = app->harpoon_edit.editing_slot;
         
-        // Sanitize asterisks in input
-        char *p = app->harpoon_edit.edit_buffer;
-        while ((p = strchr(p, '*')) != NULL && p > app->harpoon_edit.edit_buffer) {
-            if (*(p-1) != ' ' && *(p+1) != ' ') {
-                *p = '.';  // Replace embedded * with .
-            }
-            p++;
+        // Update slot title directly (no wildcard conversion needed here)
+        safe_string_copy(app->harpoon.slots[slot_index].title, new_title, MAX_TITLE_LEN);
+        save_harpoon_slots(&app->harpoon);
+        
+        log_info("USER: Edited harpoon slot %d title to: %s", slot_index, new_title);
+        
+        // Update display
+        if (app->current_tab == TAB_HARPOON) {
+            const char *filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            gtk_entry_set_text(GTK_ENTRY(app->entry), filter);
         }
         
-        strncpy(slot->title, app->harpoon_edit.edit_buffer, MAX_TITLE_LEN);
-        save_harpoon_config(&app->harpoon);
-        app->harpoon_edit.editing = FALSE;
-    } else if (keyval == GDK_KEY_Escape) {
-        app->harpoon_edit.editing = FALSE;
-    } else {
-        // Handle character input
-        handle_edit_buffer_input(app, keyval);
+        hide_overlay(app);
+        return TRUE;
+    }
+    
+    // Let GTK Entry handle all other keys
+    return FALSE;
+}
+
+// In main.c - handle Ctrl+E
+if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+    if (app->selection.harpoon_index < app->filtered_harpoon_count) {
+        HarpoonSlot *slot = &app->filtered_harpoon[app->selection.harpoon_index];
+        
+        // Only allow edit if slot is assigned
+        if (slot->assigned) {
+            int actual_slot = app->filtered_harpoon_indices[app->selection.harpoon_index];
+            app->harpoon_edit.editing_slot = actual_slot;
+            show_harpoon_edit_overlay(app, actual_slot);
+            return TRUE;
+        }
     }
 }
 ```

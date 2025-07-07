@@ -298,6 +298,24 @@ static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
         }
     }
     
+    // Handle Ctrl+e for edit
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        // Get current harpoon slot from filtered list
+        if (app->selection.harpoon_index < app->filtered_harpoon_count) {
+            HarpoonSlot *slot = &app->filtered_harpoon[app->selection.harpoon_index];
+            
+            // Only allow edit if slot is assigned
+            if (slot->assigned) {
+                // Get the actual slot index from the filtered indices
+                int actual_slot = app->filtered_harpoon_indices[app->selection.harpoon_index];
+                
+                // Show edit overlay
+                show_harpoon_edit_overlay(app, actual_slot);
+                return TRUE;
+            }
+        }
+    }
+    
     return FALSE;
 }
 
