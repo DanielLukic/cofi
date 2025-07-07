@@ -467,6 +467,16 @@ gboolean execute_command(const char *command, AppData *app) {
             log_warn("No window selected for always-on-top toggle");
             return FALSE; // Stay in command mode
         }
+    } else if (strcmp(cmd_name, "ab") == 0 || strcmp(cmd_name, "always-below") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_BELOW");
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling state
+        } else {
+            log_warn("No window selected for always-below toggle");
+            return FALSE; // Stay in command mode
+        }
     } else if (strcmp(cmd_name, "ew") == 0 || strcmp(cmd_name, "every-workspace") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
         if (selected_window) {
@@ -672,6 +682,7 @@ char* generate_command_help_text(HelpFormat format) {
         {"tm, toggle-monitor", "Move selected window to next monitor"},
         {"sb, skip-taskbar", "Toggle skip taskbar for selected window"},
         {"at, always-on-top, aot", "Toggle always on top for selected window"},
+        {"ab, always-below", "Toggle always below for selected window"},
         {"ew, every-workspace", "Toggle show on every workspace for selected window"},
         {"cl, close-window, c", "Close selected window"},
         {"mw, maximize-window, m", "Toggle maximize selected window"},
