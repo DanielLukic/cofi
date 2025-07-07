@@ -5,9 +5,6 @@
 #include "window_info.h"
 #include "harpoon.h"
 
-// Check if two windows match exactly (same class, instance, type, and title)
-bool windows_match_exact(const WindowInfo *window1, const WindowInfo *window2);
-
 // Check if two windows match with fuzzy title matching (same class, instance, type, but title can differ)
 bool windows_match_fuzzy(const WindowInfo *window1, const WindowInfo *window2);
 

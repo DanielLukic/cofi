@@ -31,8 +31,6 @@ typedef struct {
 } Callback;
 
 static struct {
-  void *udata;
-  log_LockFn lock;
   int level;
   bool quiet;
   Callback callbacks[MAX_CALLBACKS];
@@ -82,23 +80,17 @@ static void file_callback(log_Event *ev) {
 
 
 static void lock(void)   {
-  if (L.lock) { L.lock(true, L.udata); }
+  // Locking removed - not used
 }
 
 
 static void unlock(void) {
-  if (L.lock) { L.lock(false, L.udata); }
+  // Locking removed - not used
 }
 
 
 const char* log_level_string(int level) {
   return level_strings[level];
-}
-
-
-void log_set_lock(log_LockFn fn, void *udata) {
-  L.lock = fn;
-  L.udata = udata;
 }
 
 
@@ -112,19 +104,14 @@ void log_set_quiet(bool enable) {
 }
 
 
-int log_add_callback(log_LogFn fn, void *udata, int level) {
+int log_add_fp(FILE *fp, int level) {
   for (int i = 0; i < MAX_CALLBACKS; i++) {
     if (!L.callbacks[i].fn) {
-      L.callbacks[i] = (Callback) { fn, udata, level };
+      L.callbacks[i] = (Callback) { file_callback, fp, level };
       return 0;
     }
   }
   return -1;
-}
-
-
-int log_add_fp(FILE *fp, int level) {
-  return log_add_callback(file_callback, fp, level);
 }
 
 
