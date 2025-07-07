@@ -35,6 +35,9 @@ SOURCES = src/main.c \
           src/workarea.c \
           src/size_hints.c \
           src/overlay_manager.c \
+          src/tiling_overlay.c \
+          src/workspace_overlay.c \
+          src/harpoon_overlay.c \
           src/tiling.c \
           src/dbus_service.c
 
