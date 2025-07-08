@@ -12,6 +12,7 @@
 #include "x11_utils.h"
 #include "selection.h"
 #include "harpoon.h"
+#include "dynamic_display.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -129,9 +130,31 @@ static void fit_column(const char *text, int width, char *output) {
     pad_text(trimmed, width, output);
 }
 
-// Use fixed max display lines to prevent window jumping
+// Get maximum display lines using dynamic calculation
 int get_max_display_lines(void) {
+    // For now, we need access to the app data to get the window
+    // This is a temporary solution until we refactor the display system
+    // to pass the app data or window context properly
+
+    // TODO: This is a temporary approach - ideally we should pass AppData* to this function
+    // For now, fall back to the constant but log that we need dynamic calculation
+    static gboolean logged_warning = FALSE;
+    if (!logged_warning) {
+        log_debug("get_max_display_lines() called without app context - using fallback constant");
+        logged_warning = TRUE;
+    }
+
     return MAX_DISPLAY_LINES;
+}
+
+// Dynamic version that takes app data for proper calculation
+int get_max_display_lines_dynamic(AppData *app) {
+    if (!app) {
+        log_warn("get_max_display_lines_dynamic called with NULL app data");
+        return MAX_DISPLAY_LINES;
+    }
+
+    return get_dynamic_max_display_lines(app);
 }
 
 // Generate text-based scrollbar
@@ -176,7 +199,7 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 // Format and display windows tab content
 static void format_windows_display(AppData *app, GString *text, int selected_idx) {
     int total_count = app->filtered_count;
-    int max_lines = get_max_display_lines();
+    int max_lines = get_max_display_lines_dynamic(app);
 
     // If no windows, show message
     if (app->filtered_count == 0) {
@@ -281,7 +304,7 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
 // Format and display workspaces tab content
 static void format_workspaces_display(AppData *app, GString *text, int selected_idx) {
     int total_count = app->filtered_workspace_count;
-    int max_lines = get_max_display_lines();
+    int max_lines = get_max_display_lines_dynamic(app);
 
     // If no workspaces, show message
     if (app->filtered_workspace_count == 0) {
@@ -338,7 +361,7 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
 // Format and display harpoon tab content
 static void format_harpoon_display(AppData *app, GString *text, int selected_idx) {
     int total_count = app->filtered_harpoon_count;
-    int max_lines = get_max_display_lines();
+    int max_lines = get_max_display_lines_dynamic(app);
 
     int scroll_offset = get_scroll_offset(app);
 

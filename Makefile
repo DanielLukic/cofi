@@ -40,7 +40,8 @@ SOURCES = src/main.c \
           src/harpoon_overlay.c \
           src/tiling.c \
           src/dbus_service.c \
-          src/atom_cache.c
+          src/atom_cache.c \
+          src/dynamic_display.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
