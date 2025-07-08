@@ -87,12 +87,11 @@ static void add_to_history(CommandMode *cmd, const char *command) {
     log_debug("Added command to global history: '%s' (total: %d)", command, g_command_history.history_count);
 }
 
-// Clear command line to just ':'
+// Clear command line
 static void clear_command_line(AppData *app) {
     if (!app || !app->entry) return;
     
-    gtk_entry_set_text(GTK_ENTRY(app->entry), ":");
-    gtk_editable_set_position(GTK_EDITABLE(app->entry), 1);
+    gtk_entry_set_text(GTK_ENTRY(app->entry), "");
     app->command_mode.history_index = -1; // Reset history browsing
 }
 
@@ -130,19 +129,6 @@ void init_command_mode(CommandMode *cmd) {
     log_debug("Command mode initialized with %d history entries restored", cmd->history_count);
 }
 
-// Helper function to fix cursor position after focus events
-static gboolean fix_command_mode_cursor(gpointer user_data) {
-    AppData *app = (AppData *)user_data;
-    
-    if (app && app->entry && app->command_mode.state == CMD_MODE_COMMAND) {
-        // Ensure no text is selected and cursor is after ':'
-        gtk_editable_select_region(GTK_EDITABLE(app->entry), -1, -1); // Deselect all
-        gtk_editable_set_position(GTK_EDITABLE(app->entry), 1); // Position cursor after ':'
-        log_debug("Fixed command mode cursor position");
-    }
-    
-    return G_SOURCE_REMOVE; // Run only once
-}
 
 void enter_command_mode(AppData *app) {
     if (!app || !app->entry) return;
@@ -151,15 +137,13 @@ void enter_command_mode(AppData *app) {
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
     
-    // Clear the entry and set the command prompt
-    gtk_entry_set_text(GTK_ENTRY(app->entry), ":");
+    // Change mode indicator to ":"
+    if (app->mode_indicator) {
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), ":");
+    }
     
-    // Ensure no text is selected and cursor is after ':'
-    gtk_editable_select_region(GTK_EDITABLE(app->entry), -1, -1); // Deselect all
-    gtk_editable_set_position(GTK_EDITABLE(app->entry), 1); // Position cursor after ':'
-    
-    // Schedule another cursor fix to handle focus-related selection changes
-    g_idle_add(fix_command_mode_cursor, app);
+    // Clear the entry field
+    gtk_entry_set_text(GTK_ENTRY(app->entry), "");
     
     log_info("USER: Entered command mode");
 }
@@ -185,6 +169,11 @@ void exit_command_mode(AppData *app) {
     }
     
     // Otherwise, return to normal search mode
+    // Change mode indicator back to ">"
+    if (app->mode_indicator) {
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
+    }
+    
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
     update_display(app);
     log_info("USER: Exited command mode");
@@ -217,9 +206,8 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter: {
-            // Get command from entry widget (skip the ':' prefix)
-            const char *entry_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-            const char *command = (entry_text && entry_text[0] == ':') ? entry_text + 1 : entry_text;
+            // Get command from entry widget (no prefix anymore)
+            const char *command = gtk_entry_get_text(GTK_ENTRY(app->entry));
             
             // Add to history if not empty
             if (command && strlen(command) > 0) {
@@ -238,28 +226,10 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             return TRUE;
         }
         
-        case GDK_KEY_BackSpace: {
-            // Prevent deleting the ':' prefix
-            int cursor_pos = gtk_editable_get_position(GTK_EDITABLE(app->entry));
-            if (cursor_pos <= 1) {
-                return TRUE; // Block the backspace
-            }
-            return FALSE; // Let GTK handle it
-        }
-        
-        case GDK_KEY_Left:
-        case GDK_KEY_Home: {
-            // Prevent cursor from going before ':'
-            int cursor_pos = gtk_editable_get_position(GTK_EDITABLE(app->entry));
-            if (cursor_pos <= 1) {
-                return TRUE; // Block the movement
-            }
-            return FALSE; // Let GTK handle it
-        }
         
         case GDK_KEY_u:
             if (event->state & GDK_CONTROL_MASK) {
-                // Ctrl+U: Clear line but keep the ':' prefix
+                // Ctrl+U: Clear line
                 clear_command_line(app);
                 return TRUE;
             }
@@ -291,10 +261,8 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
                 }
 
                 // Set the entry text to the historical command
-                char full_command[258];
-                snprintf(full_command, sizeof(full_command), ":%s",
+                gtk_entry_set_text(GTK_ENTRY(app->entry), 
                         app->command_mode.history[app->command_mode.history_index]);
-                gtk_entry_set_text(GTK_ENTRY(app->entry), full_command);
                 gtk_editable_set_position(GTK_EDITABLE(app->entry), -1); // Move cursor to end
                 log_debug("History backward: index=%d, command='%s'",
                           app->command_mode.history_index,
@@ -309,10 +277,8 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
                 app->command_mode.history_index--;
 
                 // Set the entry text to the historical command
-                char full_command[258];
-                snprintf(full_command, sizeof(full_command), ":%s",
+                gtk_entry_set_text(GTK_ENTRY(app->entry), 
                         app->command_mode.history[app->command_mode.history_index]);
-                gtk_entry_set_text(GTK_ENTRY(app->entry), full_command);
                 gtk_editable_set_position(GTK_EDITABLE(app->entry), -1); // Move cursor to end
                 log_debug("History forward: index=%d, command='%s'",
                           app->command_mode.history_index,

@@ -54,6 +54,7 @@ typedef struct {
 typedef struct AppData {
     GtkWidget *window;
     GtkWidget *entry;
+    GtkWidget *mode_indicator;      // Label showing ">" or ":" for mode
     GtkWidget *textview;
     GtkWidget *scrolled;
     GtkTextBuffer *textbuffer;

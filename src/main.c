@@ -609,6 +609,7 @@ void destroy_window(AppData *app) {
         gtk_widget_destroy(app->window);
         app->window = NULL;
         app->entry = NULL;
+        app->mode_indicator = NULL;
         app->textview = NULL;
         app->scrolled = NULL;
         app->textbuffer = NULL;
@@ -663,6 +664,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     const char *css =
         "textview { font-family: monospace; font-size: 12pt; }\n"
         "entry { font-family: monospace; font-size: 12pt; }\n"
+        "#mode-indicator { font-family: monospace; font-size: 12pt; padding-left: 10px; padding-right: 5px; }\n"
         "#modal-background { background-color: rgba(0, 0, 0, 0.7); }\n"
         "#dialog-overlay { background-color: @theme_bg_color; border: 2px solid @theme_border_color; border-radius: 8px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); padding: 20px; margin: 20px; }\n"
         ".grid-cell { border: 1px solid @theme_border_color; background-color: @theme_base_color; border-radius: 3px; margin: 2px; }";
@@ -683,8 +685,19 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     gtk_widget_set_vexpand(app->textview, TRUE);
     gtk_widget_set_valign(app->textview, GTK_ALIGN_END);
     
+    // Create horizontal box for mode indicator and entry
+    GtkWidget *entry_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    
+    // Create mode indicator label
+    app->mode_indicator = gtk_label_new(">");
+    gtk_widget_set_name(app->mode_indicator, "mode-indicator");
+    gtk_label_set_width_chars(GTK_LABEL(app->mode_indicator), 2);  // Fixed width
+    gtk_widget_set_halign(app->mode_indicator, GTK_ALIGN_CENTER);
+    
     // Create entry
     app->entry = gtk_entry_new();
+    gtk_widget_set_hexpand(app->entry, TRUE);  // Entry expands to fill space
+    
     // Set placeholder text based on current tab
     if (app->current_tab == TAB_WORKSPACES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
@@ -694,9 +707,14 @@ void setup_application(AppData *app, WindowAlignment alignment) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
     }
     
-    // Apply CSS to entry widget too
+    // Apply CSS to entry widget and mode indicator
     GtkStyleContext *entry_context = gtk_widget_get_style_context(app->entry);
     gtk_style_context_add_provider(entry_context,
+                                   GTK_STYLE_PROVIDER(css_provider),
+                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    
+    GtkStyleContext *indicator_context = gtk_widget_get_style_context(app->mode_indicator);
+    gtk_style_context_add_provider(indicator_context,
                                    GTK_STYLE_PROVIDER(css_provider),
                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
@@ -707,9 +725,18 @@ void setup_application(AppData *app, WindowAlignment alignment) {
 
     g_object_unref(css_provider);
     
-    // Pack widgets into main content container (text view on top, entry at bottom - like fzf)
+    // Pack mode indicator and entry into horizontal box
+    gtk_box_pack_start(GTK_BOX(entry_box), app->mode_indicator, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry_box), app->entry, TRUE, TRUE, 0);
+    
+    // Add margins to the entry box
+    gtk_widget_set_margin_start(entry_box, 10);
+    gtk_widget_set_margin_end(entry_box, 10);
+    gtk_widget_set_margin_bottom(entry_box, 10);
+    
+    // Pack widgets into main content container (text view on top, entry box at bottom - like fzf)
     gtk_box_pack_start(GTK_BOX(app->main_content), app->textview, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(app->main_content), app->entry, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(app->main_content), entry_box, FALSE, FALSE, 0);
     
     // Connect signals
     g_signal_connect(app->window, "delete-event", G_CALLBACK(on_delete_event), app);
