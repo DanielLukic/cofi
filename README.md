@@ -126,6 +126,9 @@ Press `:` to enter command mode for advanced window management operations. Comma
 - `:tm` or `:toggle-monitor` - Move window to next monitor
 - `:tw [OPT]` or `:tile-window [OPT]` or `:t [OPT]` - Tile window
   - Options: L/R/T/B (halves), 1-4 (2x2 grid) or 1-6 (3x2 grid), F (fullscreen), C (center)
+  - Direct tiling: `:t[lrtbc][1-4]` for quick sizing
+    - Sizes: 1=25%, 2=50%, 3=66%, 4=75% (or 100% for center)
+    - Examples: `:tr4` (right 75%), `:tl2` (left 50%), `:tc1` (center 33%), `:tc4` (fullscreen)
   
   ![Tiling Options](doc/cofi-tiling.png)
 - `:cl` or `:close-window` or `:c` - Close selected window
@@ -149,8 +152,11 @@ Press `:` to enter command mode for advanced window management operations. Comma
 Commands with arguments can be typed without spaces for faster entry:
 - `:cw2` - Move window to workspace 2
 - `:j5` - Jump to workspace 5  
-- `:tL` - Tile window left
+- `:tL` - Tile window left half
 - `:t5` - Tile to grid position 5
+- `:tr4` - Tile window right 75%
+- `:tl1` - Tile window left 25%
+- `:tc3` - Center window at 75% size
 
 This vim-style syntax works alongside traditional space-separated commands.
 
@@ -181,6 +187,7 @@ To achieve this, I have my Linux Mint window switching reconfigured to map <alt-
 - **Configurable Tiling Grid**: Choose between 2x2 (4 positions) or 3x2 (6 positions) grid layouts via `tile_columns` in config
 - **Direct Command Mode**: Launch with `--command` to start directly in command mode
 - **Vim-Style Commands**: No-space command syntax (`:cw2`, `:tL`, `:j5`) for faster operation
+- **Direct Tiling Commands**: New syntax `:t[lrtbc][1-4]` for quick window tiling with specific sizes (25%, 50%, 66%, 75%)
 - **Improved Tiling**: Better window tiling using maximize states
 - **Enhanced Configuration**: Refactored configuration system with better validation
 
