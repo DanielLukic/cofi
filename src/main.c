@@ -483,11 +483,14 @@ static void filter_harpoon(AppData *app, const char *filter) {
     app->filtered_harpoon_count = 0;
     
     if (!filter || !*filter) {
-        // No filter - show all harpoon slots
+        // No filter - show only assigned harpoon slots
         for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-            app->filtered_harpoon[app->filtered_harpoon_count] = app->harpoon.slots[i];
-            app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
-            app->filtered_harpoon_count++;
+            HarpoonSlot *slot = &app->harpoon.slots[i];
+            if (slot->assigned) {
+                app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
+                app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
+                app->filtered_harpoon_count++;
+            }
         }
         return;
     }
@@ -505,20 +508,18 @@ static void filter_harpoon(AppData *app, const char *filter) {
             snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (i - 10));
         }
         
+        // Only include assigned slots in search results
         if (slot->assigned) {
             // Build searchable string: "slot title class instance"
-            snprintf(searchable, sizeof(searchable), "%s %s %s %s", 
+            snprintf(searchable, sizeof(searchable), "%s %s %s %s",
                      slot_name, slot->title, slot->class_name, slot->instance);
-        } else {
-            // For empty slots, just search by slot name
-            snprintf(searchable, sizeof(searchable), "%s empty", slot_name);
-        }
-        
-        // Use has_match for filtering
-        if (has_match(filter, searchable)) {
-            app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
-            app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
-            app->filtered_harpoon_count++;
+
+            // Use has_match for filtering
+            if (has_match(filter, searchable)) {
+                app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
+                app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
+                app->filtered_harpoon_count++;
+            }
         }
     }
 }
