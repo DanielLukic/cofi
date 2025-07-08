@@ -213,39 +213,75 @@ gboolean handle_tiling_overlay_key_press(AppData *app, GdkEventKey *event) {
             option = TILE_BOTTOM_HALF;
             break;
         case GDK_KEY_1:
-            option = TILE_GRID_1;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_1_WIDE;
+            } else {
+                option = TILE_GRID_1;
+            }
             valid_option = (1 <= max_positions);
             break;
         case GDK_KEY_2:
-            option = TILE_GRID_2;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_2_WIDE;
+            } else {
+                option = TILE_GRID_2;
+            }
             valid_option = (2 <= max_positions);
             break;
         case GDK_KEY_3:
-            option = TILE_GRID_3;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_3_WIDE;
+            } else {
+                option = TILE_GRID_3;
+            }
             valid_option = (3 <= max_positions);
             break;
         case GDK_KEY_4:
-            option = TILE_GRID_4;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_4_WIDE;
+            } else {
+                option = TILE_GRID_4;
+            }
             valid_option = (4 <= max_positions);
             break;
         case GDK_KEY_5:
-            option = TILE_GRID_5;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_5_WIDE;
+            } else {
+                option = TILE_GRID_5;
+            }
             valid_option = (5 <= max_positions);
             break;
         case GDK_KEY_6:
-            option = TILE_GRID_6;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_6_WIDE;
+            } else {
+                option = TILE_GRID_6;
+            }
             valid_option = (6 <= max_positions);
             break;
         case GDK_KEY_7:
-            option = TILE_GRID_7;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_7_WIDE;
+            } else {
+                option = TILE_GRID_7;
+            }
             valid_option = (7 <= max_positions);
             break;
         case GDK_KEY_8:
-            option = TILE_GRID_8;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_8_WIDE;
+            } else {
+                option = TILE_GRID_8;
+            }
             valid_option = (8 <= max_positions);
             break;
         case GDK_KEY_9:
-            option = TILE_GRID_9;
+            if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_GRID_9_WIDE;
+            } else {
+                option = TILE_GRID_9;
+            }
             valid_option = (9 <= max_positions);
             break;
         case GDK_KEY_f:
@@ -254,7 +290,15 @@ gboolean handle_tiling_overlay_key_press(AppData *app, GdkEventKey *event) {
             break;
         case GDK_KEY_c:
         case GDK_KEY_C:
-            option = TILE_CENTER;
+            if (event->state & GDK_CONTROL_MASK && event->state & GDK_SHIFT_MASK) {
+                option = TILE_CENTER_THREE_QUARTERS;
+            } else if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_CENTER_TWO_THIRDS;
+            } else if (event->state & GDK_SHIFT_MASK) {
+                option = TILE_CENTER_THIRD;
+            } else {
+                option = TILE_CENTER;
+            }
             break;
         default:
             valid_option = FALSE;

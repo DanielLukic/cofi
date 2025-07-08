@@ -176,6 +176,90 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
             width = window_width;
             height = window_height;
             break;
+        case TILE_CENTER_THIRD:
+            // Center window at 1/3 of screen size
+            width = work_width / 3;
+            height = work_height / 3;
+            x = work_x + (work_width - width) / 2;
+            y = work_y + (work_height - height) / 2;
+            break;
+        case TILE_CENTER_TWO_THIRDS:
+            // Center window at 2/3 of screen size
+            width = (work_width * 2) / 3;
+            height = (work_height * 2) / 3;
+            x = work_x + (work_width - width) / 2;
+            y = work_y + (work_height - height) / 2;
+            break;
+        case TILE_CENTER_THREE_QUARTERS:
+            // Center window at 3/4 of screen size
+            width = (work_width * 3) / 4;
+            height = (work_height * 3) / 4;
+            x = work_x + (work_width - width) / 2;
+            y = work_y + (work_height - height) / 2;
+            break;
+        case TILE_GRID_1_NARROW:
+        case TILE_GRID_2_NARROW:
+        case TILE_GRID_3_NARROW:
+        case TILE_GRID_4_NARROW:
+        case TILE_GRID_5_NARROW:
+        case TILE_GRID_6_NARROW:
+        case TILE_GRID_7_NARROW:
+        case TILE_GRID_8_NARROW:
+        case TILE_GRID_9_NARROW: {
+            // Grid positions with narrow width (1/3 of tile width)
+            int grid_position = option - TILE_GRID_1_NARROW;
+            int row = grid_position / tile_columns;
+            int col = grid_position % tile_columns;
+            
+            int tile_width = work_width / tile_columns;
+            width = tile_width / 3;
+            height = work_height / 2; // Normal height
+            x = work_x + col * tile_width;
+            y = work_y + row * height;
+            break;
+        }
+        case TILE_GRID_1_WIDE:
+        case TILE_GRID_2_WIDE:
+        case TILE_GRID_3_WIDE:
+        case TILE_GRID_4_WIDE:
+        case TILE_GRID_5_WIDE:
+        case TILE_GRID_6_WIDE:
+        case TILE_GRID_7_WIDE:
+        case TILE_GRID_8_WIDE:
+        case TILE_GRID_9_WIDE: {
+            // Grid positions with wide width (3/2 of tile width)
+            int grid_position = option - TILE_GRID_1_WIDE;
+            int row = grid_position / tile_columns;
+            int col = grid_position % tile_columns;
+            
+            int tile_width = work_width / tile_columns;
+            width = (tile_width * 3) / 2;
+            height = work_height / 2; // Normal height
+            x = work_x + col * tile_width;
+            y = work_y + row * height;
+            break;
+        }
+        case TILE_GRID_1_WIDER:
+        case TILE_GRID_2_WIDER:
+        case TILE_GRID_3_WIDER:
+        case TILE_GRID_4_WIDER:
+        case TILE_GRID_5_WIDER:
+        case TILE_GRID_6_WIDER:
+        case TILE_GRID_7_WIDER:
+        case TILE_GRID_8_WIDER:
+        case TILE_GRID_9_WIDER: {
+            // Grid positions with wider width (4/3 of tile width)
+            int grid_position = option - TILE_GRID_1_WIDER;
+            int row = grid_position / tile_columns;
+            int col = grid_position % tile_columns;
+            
+            int tile_width = work_width / tile_columns;
+            width = (tile_width * 4) / 3;
+            height = work_height / 2; // Normal height
+            x = work_x + col * tile_width;
+            y = work_y + row * height;
+            break;
+        }
         default:
             log_error("Unknown tiling option: %d", option);
             return;
