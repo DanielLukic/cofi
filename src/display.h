@@ -12,8 +12,11 @@ typedef struct AppData AppData;
 // Update the text display with proper 5-column format
 void update_display(AppData *app);
 
-// Get maximum number of lines that can be displayed
+// Get maximum number of lines that can be displayed (legacy function)
 int get_max_display_lines(void);
+
+// Get maximum number of lines using dynamic calculation
+int get_max_display_lines_dynamic(AppData *app);
 
 // Generate text-based scrollbar
 void generate_scrollbar(int total_items, int visible_items, int scroll_offset, char *scrollbar, int scrollbar_height);

@@ -309,7 +309,7 @@ void update_scroll_position(AppData *app) {
     if (!app) return;
 
     int selected_idx = get_selected_index(app);
-    int max_lines = get_max_display_lines();
+    int max_lines = get_max_display_lines_dynamic(app);
     int total_count = 0;
 
     // Get total count for current tab
