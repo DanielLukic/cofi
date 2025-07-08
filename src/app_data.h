@@ -7,6 +7,7 @@
 #include "workspace_info.h"
 #include "harpoon.h"
 #include "config.h"
+#include "atom_cache.h"
 
 typedef enum {
     TAB_WINDOWS,
@@ -97,6 +98,7 @@ typedef struct AppData {
     } harpoon_delete;
 
     Display *display;
+    AtomCache atoms;                        // Cached X11 atoms
     HarpoonManager harpoon;                 // Harpoon number assignments
     CofiConfig config;                      // Unified configuration settings
     CommandMode command_mode;               // Command mode state

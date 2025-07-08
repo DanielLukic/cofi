@@ -13,9 +13,6 @@
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
-static Atom atom_net_client_list = None;
-static Atom atom_net_active_window = None;
-static Atom atom_net_current_desktop = None;
 
 // Function to update the current workspace
 void update_current_workspace(AppData *app) {
@@ -28,11 +25,6 @@ void update_current_workspace(AppData *app) {
 void setup_x11_event_monitoring(AppData *app) {
     Display *display = app->display;
     Window root = DefaultRootWindow(display);
-    
-    // Get atoms we're interested in
-    atom_net_client_list = XInternAtom(display, "_NET_CLIENT_LIST", False);
-    atom_net_active_window = XInternAtom(display, "_NET_ACTIVE_WINDOW", False);
-    atom_net_current_desktop = XInternAtom(display, "_NET_CURRENT_DESKTOP", False);
     
     // Select events on root window
     XSelectInput(display, root, PropertyChangeMask | SubstructureNotifyMask);
@@ -91,7 +83,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
             }
             
             // Check which property changed
-            if (prop_event->atom == atom_net_client_list) {
+            if (prop_event->atom == app->atoms.net_client_list) {
                 log_debug("_NET_CLIENT_LIST changed - updating window list");
                 
                 // Get new window list
@@ -133,7 +125,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     update_display(app);
                 }
             }
-            else if (prop_event->atom == atom_net_active_window) {
+            else if (prop_event->atom == app->atoms.net_active_window) {
                 log_trace("_NET_ACTIVE_WINDOW changed - updating active window");
                 
                 // Update active window ID
@@ -143,7 +135,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 // We don't need to refresh the whole list, just update history
                 // This will be handled by the next filter operation
             }
-            else if (prop_event->atom == atom_net_current_desktop) {
+            else if (prop_event->atom == app->atoms.net_current_desktop) {
                 log_debug("_NET_CURRENT_DESKTOP changed - updating current workspace");
                 update_current_workspace(app);
                 if (app->window) {

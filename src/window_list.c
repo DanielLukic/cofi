@@ -14,19 +14,15 @@
 void get_window_list(AppData *app) {
     app->window_count = 0;
     
-    Atom net_client_list = XInternAtom(app->display, "_NET_CLIENT_LIST", False);
-    Atom net_wm_name = XInternAtom(app->display, "_NET_WM_NAME", False);
-    Atom net_wm_desktop = XInternAtom(app->display, "_NET_WM_DESKTOP", False);
-    
     log_debug("Getting window list...");
-    log_trace("net_client_list atom = %lu", net_client_list);
+    log_trace("net_client_list atom = %lu", app->atoms.net_client_list);
     
     unsigned char *prop = NULL;
     unsigned long n_items;
     
     // Get the client list from the root window
     if (get_x11_property(app->display, DefaultRootWindow(app->display), 
-                         net_client_list, XA_WINDOW, (~0L), 
+                         app->atoms.net_client_list, XA_WINDOW, (~0L), 
                          NULL, NULL, &n_items, &prop) != COFI_SUCCESS) {
         log_error("Failed to get window list");
         return;
@@ -58,7 +54,7 @@ void get_window_list(AppData *app) {
         }
         
         // Get window title - prefer _NET_WM_NAME, fallback to WM_NAME
-        char *title = get_window_property(app->display, window, net_wm_name);
+        char *title = get_window_property(app->display, window, app->atoms.net_wm_name);
         if (!title) {
             title = get_window_property(app->display, window, XA_WM_NAME);
         }
@@ -78,10 +74,10 @@ void get_window_list(AppData *app) {
         }
         
         // Get window type
-        char *type = get_window_type(app->display, window);
+        char *type = get_window_type_cached(app->display, window, &app->atoms);
         
         // Get window PID
-        int pid = get_window_pid(app->display, window);
+        int pid = get_window_pid_cached(app->display, window, &app->atoms);
         
         // Get desktop number
         int desktop = -1;
@@ -89,7 +85,7 @@ void get_window_list(AppData *app) {
         int desk_actual_format;
         unsigned long desk_n_items;
         
-        if (get_x11_property(app->display, window, net_wm_desktop, XA_CARDINAL,
+        if (get_x11_property(app->display, window, app->atoms.net_wm_desktop, XA_CARDINAL,
                             1, NULL, &desk_actual_format, &desk_n_items, &desk_prop) == COFI_SUCCESS) {
             desktop = *(long*)desk_prop;
             XFree(desk_prop);
