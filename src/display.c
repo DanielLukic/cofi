@@ -134,6 +134,45 @@ int get_max_display_lines(void) {
     return MAX_DISPLAY_LINES;
 }
 
+// Generate text-based scrollbar
+void generate_scrollbar(int total_items, int visible_items, int scroll_offset, char *scrollbar, int scrollbar_height) {
+    if (!scrollbar || scrollbar_height <= 0) return;
+
+    // If all items fit on screen, no scrollbar needed
+    if (total_items <= visible_items) {
+        for (int i = 0; i < scrollbar_height; i++) {
+            scrollbar[i] = ' ';
+        }
+        scrollbar[scrollbar_height] = '\0';
+        return;
+    }
+
+    // Calculate scrollbar thumb position and size
+    double visible_ratio = (double)visible_items / total_items;
+    double position_ratio = (double)scroll_offset / (total_items - visible_items);
+
+    int thumb_size = (int)(visible_ratio * scrollbar_height);
+    if (thumb_size < 1) thumb_size = 1;
+    if (thumb_size > scrollbar_height) thumb_size = scrollbar_height;
+
+    // Invert the scrollbar since entry 0 (best match) is displayed at bottom
+    int thumb_start = scrollbar_height - thumb_size - (int)(position_ratio * (scrollbar_height - thumb_size));
+    if (thumb_start < 0) thumb_start = 0;
+    if (thumb_start + thumb_size > scrollbar_height) {
+        thumb_start = scrollbar_height - thumb_size;
+    }
+
+    // Fill scrollbar characters
+    for (int i = 0; i < scrollbar_height; i++) {
+        if (i >= thumb_start && i < thumb_start + thumb_size) {
+            scrollbar[i] = '#';  // Solid block for thumb
+        } else {
+            scrollbar[i] = '.';  // Light shade for track
+        }
+    }
+    scrollbar[scrollbar_height] = '\0';
+}
+
 // Format and display windows tab content
 static void format_windows_display(AppData *app, GString *text, int selected_idx) {
     int total_count = app->filtered_count;
@@ -145,16 +184,23 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
         return;
     }
 
-    // Calculate which windows to show - always show the best matches (first N items)
-    int end_idx = total_count;
-    if (total_count > max_lines) {
-        end_idx = max_lines;
-        // Add indicator for truncated items AT THE TOP (where bad matches would be)
-        g_string_append_printf(text, "  ... %d more matches ...\n", total_count - max_lines);
+    int scroll_offset = get_scroll_offset(app);
+
+    // Generate scrollbar if needed
+    char scrollbar[MAX_DISPLAY_LINES + 1];
+    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
+
+    // Calculate visible range
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
     }
 
     // Display windows in reverse order (best matches at bottom, fzf-style)
-    for (int i = end_idx - 1; i >= 0; i--) {
+    // But we need to account for scrolling
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
         WindowInfo *win = &app->filtered[i];
         
         gboolean is_selected = (i == selected_idx);
@@ -222,6 +268,12 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
         g_string_append(text, class_col);
         g_string_append(text, " ");
         g_string_append(text, window_id);
+
+        // Add scrollbar character if needed
+        if (total_count > max_lines) {
+            g_string_append_printf(text, " %c", scrollbar[display_line]);
+        }
+
         g_string_append(text, "\n");
     }
 }
@@ -237,14 +289,22 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
         return;
     }
 
-    // Calculate which workspaces to show - show first N items for workspaces
-    int end_idx = total_count;
-    if (total_count > max_lines) {
-        end_idx = max_lines;
+    int scroll_offset = get_scroll_offset(app);
+
+    // Generate scrollbar if needed
+    char scrollbar[MAX_DISPLAY_LINES + 1];
+    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
+
+    // Calculate visible range
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
     }
 
-    // Display workspaces in normal order
-    for (int i = 0; i < end_idx; i++) {
+    // Display workspaces in reverse order (entry 0 at bottom like windows)
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
         WorkspaceInfo *ws = &app->filtered_workspaces[i];
 
         gboolean is_selected = (i == selected_idx);
@@ -264,12 +324,14 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
         }
 
         // Format: [ID] Name
-        g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
-    }
+        g_string_append_printf(text, "[%d] %s", ws->id + 1, ws->name);
 
-    // Add indicator for truncated items
-    if (total_count > max_lines) {
-        g_string_append_printf(text, "  ... %d more workspaces ...\n", total_count - end_idx);
+        // Add scrollbar character if needed
+        if (total_count > max_lines) {
+            g_string_append_printf(text, " %c", scrollbar[display_line]);
+        }
+
+        g_string_append(text, "\n");
     }
 }
 
@@ -278,14 +340,22 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
     int total_count = app->filtered_harpoon_count;
     int max_lines = get_max_display_lines();
 
-    // Calculate which slots to show - show first N items for harpoon
-    int end_idx = total_count;
-    if (total_count > max_lines) {
-        end_idx = max_lines;
+    int scroll_offset = get_scroll_offset(app);
+
+    // Generate scrollbar if needed
+    char scrollbar[MAX_DISPLAY_LINES + 1];
+    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
+
+    // Calculate visible range
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
     }
 
-    // Display harpoon slots in normal order
-    for (int i = 0; i < end_idx; i++) {
+    // Display harpoon slots in reverse order (entry 0 at bottom like windows)
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
         HarpoonSlot *slot = &app->filtered_harpoon[i];
 
         gboolean is_selected = (i == selected_idx);
@@ -314,17 +384,19 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
             fit_column(slot->instance, 20, instance_col);
             fit_column(slot->type, 8, type_col);
 
-            g_string_append_printf(text, "%-4s %s %s %s %s\n",
+            g_string_append_printf(text, "%-4s %s %s %s %s",
                 slot_name, title_col, class_col, instance_col, type_col);
         } else {
-            g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
+            g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s",
                 slot_name, "* EMPTY *", "-", "-", "-");
         }
-    }
 
-    // Add indicator for truncated items
-    if (total_count > max_lines) {
-        g_string_append_printf(text, "  ... %d more slots ...\n", total_count - end_idx);
+        // Add scrollbar character if needed
+        if (total_count > max_lines) {
+            g_string_append_printf(text, " %c", scrollbar[display_line]);
+        }
+
+        g_string_append(text, "\n");
     }
 }
 

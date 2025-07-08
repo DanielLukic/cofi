@@ -49,6 +49,11 @@ typedef struct {
     int harpoon_index;                      // Selected index in harpoon tab
     Window selected_window_id;              // ID of currently selected window (for persistence)
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
+
+    // Scroll state for each tab
+    int window_scroll_offset;               // First visible item index for windows tab
+    int workspace_scroll_offset;            // First visible item index for workspaces tab
+    int harpoon_scroll_offset;              // First visible item index for harpoon tab
 } SelectionState;
 
 typedef struct AppData {

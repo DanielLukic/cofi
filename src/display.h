@@ -15,6 +15,9 @@ void update_display(AppData *app);
 // Get maximum number of lines that can be displayed
 int get_max_display_lines(void);
 
+// Generate text-based scrollbar
+void generate_scrollbar(int total_items, int visible_items, int scroll_offset, char *scrollbar, int scrollbar_height);
+
 // Activate window using wmctrl
 void activate_window(Window window_id);
 
