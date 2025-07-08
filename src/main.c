@@ -790,6 +790,9 @@ int main(int argc, char *argv[]) {
     
     log_debug("Starting cofi...");
     
+    // Timing measurement
+    gint64 start_time = g_get_monotonic_time();
+    
     // Check for existing instance
     InstanceManager *instance_manager = instance_manager_new();
     if (!instance_manager) {
@@ -810,12 +813,18 @@ int main(int argc, char *argv[]) {
         show_mode = SHOW_MODE_WINDOWS;
     }
     
+    gint64 instance_check_start = g_get_monotonic_time();
     if (instance_manager_check_existing_with_mode(instance_manager, show_mode)) {
-        log_info("Another instance is already running, exiting");
+        gint64 instance_check_end = g_get_monotonic_time();
+        log_info("Another instance is already running, exiting (check took %.2fms)", 
+                 (instance_check_end - instance_check_start) / 1000.0);
         instance_manager_cleanup(instance_manager);
         if (log_file) fclose(log_file);
         return 0;
     }
+    gint64 instance_check_end = g_get_monotonic_time();
+    log_info("Instance check completed in %.2fms", 
+             (instance_check_end - instance_check_start) / 1000.0);
     
     // Set program name for WM_CLASS property
     g_set_prgname("cofi");
@@ -850,8 +859,12 @@ int main(int argc, char *argv[]) {
     }
     
     // Initialize window and workspace lists
+    gint64 window_enum_start = g_get_monotonic_time();
     init_window_list(&app);
     init_workspaces(&app);
+    gint64 window_enum_end = g_get_monotonic_time();
+    log_info("Window enumeration completed in %.2fms (%d windows)", 
+             (window_enum_end - window_enum_start) / 1000.0, app.window_count);
 
     // Initialize history from windows
     init_history_from_windows(&app);
@@ -890,6 +903,10 @@ int main(int argc, char *argv[]) {
     // Show window and run
     gtk_widget_show_all(app.window);
     gtk_widget_grab_focus(app.entry);
+    
+    gint64 window_show_time = g_get_monotonic_time();
+    log_info("Total startup time: %.2fms (window visible)", 
+             (window_show_time - start_time) / 1000.0);
     
     // Enter command mode if requested via --command
     if (app.start_in_command_mode) {

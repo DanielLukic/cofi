@@ -391,7 +391,7 @@ bool dbus_service_check_existing_and_show(const char *mode) {
         g_variant_new("(s)", mode),
         G_VARIANT_TYPE("(b)"),
         G_DBUS_CALL_FLAGS_NONE,
-        1000, // 1 second timeout
+        150, // 150ms timeout
         NULL,
         &error
     );

@@ -83,6 +83,48 @@ InstanceManager* instance_manager_new(void) {
     return im;
 }
 
+static bool check_lock_file_exists(InstanceManager *im) {
+    // Try to open existing lock file
+    int fd = open(im->lock_path, O_RDONLY);
+    if (fd == -1) {
+        // No lock file exists
+        return false;
+    }
+    
+    // Read PID from lock file
+    char pid_str[32] = {0};
+    ssize_t bytes_read = read(fd, pid_str, sizeof(pid_str) - 1);
+    close(fd);
+    
+    if (bytes_read <= 0) {
+        // Empty or unreadable lock file
+        return false;
+    }
+    
+    // Parse PID
+    pid_t pid = atoi(pid_str);
+    if (pid <= 0) {
+        // Invalid PID
+        return false;
+    }
+    
+    // Check if process is still running
+    if (kill(pid, 0) == 0) {
+        // Process exists
+        log_debug("Found existing instance with PID %d via lock file", pid);
+        return true;
+    } else if (errno == ESRCH) {
+        // Process doesn't exist, stale lock file
+        log_debug("Lock file contains stale PID %d, removing", pid);
+        unlink(im->lock_path);
+        return false;
+    } else {
+        // Permission denied or other error - assume process exists
+        log_debug("Cannot check PID %d (errno=%d), assuming it exists", pid, errno);
+        return true;
+    }
+}
+
 static bool create_lock_file(InstanceManager *im) {
     im->lock_fd = open(im->lock_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (im->lock_fd == -1) {
@@ -118,17 +160,23 @@ static bool create_lock_file(InstanceManager *im) {
 
 
 bool instance_manager_check_existing_with_mode(InstanceManager *im, ShowMode mode) {
-    // Try to call existing D-Bus service first
-    const char *mode_str = show_mode_to_string(mode);
-    if (dbus_service_check_existing_and_show(mode_str)) {
-        log_info("Found existing instance via D-Bus, called ShowWindow(%s)", mode_str);
-        return true; // Another instance exists and was called successfully
+    // First, do a quick lock file check to avoid D-Bus timeout
+    if (check_lock_file_exists(im)) {
+        // Lock file indicates an instance exists, now verify with D-Bus
+        const char *mode_str = show_mode_to_string(mode);
+        if (dbus_service_check_existing_and_show(mode_str)) {
+            log_info("Found existing instance via D-Bus, called ShowWindow(%s)", mode_str);
+            return true; // Another instance exists and was called successfully
+        } else {
+            // Lock file exists but D-Bus call failed - instance may be starting up or crashed
+            log_warn("Lock file exists but D-Bus call failed, assuming no instance");
+        }
+    } else {
+        log_debug("No lock file found, skipping D-Bus check");
     }
 
-    log_debug("No existing D-Bus service found, this will be the first instance");
-
-    // No existing instance found via D-Bus, so we'll be the first instance
-    // Still create lock file for legacy compatibility
+    // No existing instance found, so we'll be the first instance
+    // Create lock file for future checks
     if (!create_lock_file(im)) {
         log_warn("Failed to create lock file, but continuing with D-Bus service");
     }
