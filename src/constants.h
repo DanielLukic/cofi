@@ -14,6 +14,9 @@
 #define DISPLAY_TITLE_WIDTH 55
 #define DISPLAY_CLASS_WIDTH 18
 
+// Maximum number of lines to display (to fit in 3/4 screen height)
+#define MAX_DISPLAY_LINES 20
+
 // Filter scoring constants
 #define SCORE_WORD_BOUNDARY 2000
 #define SCORE_INITIALS_MATCH 1900
