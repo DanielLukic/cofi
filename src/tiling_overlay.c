@@ -198,19 +198,51 @@ gboolean handle_tiling_overlay_key_press(AppData *app, GdkEventKey *event) {
     switch (event->keyval) {
         case GDK_KEY_l:
         case GDK_KEY_L:
-            option = TILE_LEFT_HALF;
+            if (event->state & GDK_CONTROL_MASK && event->state & GDK_SHIFT_MASK) {
+                option = TILE_LEFT_THREE_QUARTERS;
+            } else if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_LEFT_TWO_THIRDS;
+            } else if (event->state & GDK_SHIFT_MASK) {
+                option = TILE_LEFT_QUARTER;
+            } else {
+                option = TILE_LEFT_HALF;
+            }
             break;
         case GDK_KEY_r:
         case GDK_KEY_R:
-            option = TILE_RIGHT_HALF;
+            if (event->state & GDK_CONTROL_MASK && event->state & GDK_SHIFT_MASK) {
+                option = TILE_RIGHT_THREE_QUARTERS;
+            } else if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_RIGHT_TWO_THIRDS;
+            } else if (event->state & GDK_SHIFT_MASK) {
+                option = TILE_RIGHT_QUARTER;
+            } else {
+                option = TILE_RIGHT_HALF;
+            }
             break;
         case GDK_KEY_t:
         case GDK_KEY_T:
-            option = TILE_TOP_HALF;
+            if (event->state & GDK_CONTROL_MASK && event->state & GDK_SHIFT_MASK) {
+                option = TILE_TOP_THREE_QUARTERS;
+            } else if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_TOP_TWO_THIRDS;
+            } else if (event->state & GDK_SHIFT_MASK) {
+                option = TILE_TOP_QUARTER;
+            } else {
+                option = TILE_TOP_HALF;
+            }
             break;
         case GDK_KEY_b:
         case GDK_KEY_B:
-            option = TILE_BOTTOM_HALF;
+            if (event->state & GDK_CONTROL_MASK && event->state & GDK_SHIFT_MASK) {
+                option = TILE_BOTTOM_THREE_QUARTERS;
+            } else if (event->state & GDK_CONTROL_MASK) {
+                option = TILE_BOTTOM_TWO_THIRDS;
+            } else if (event->state & GDK_SHIFT_MASK) {
+                option = TILE_BOTTOM_QUARTER;
+            } else {
+                option = TILE_BOTTOM_HALF;
+            }
             break;
         case GDK_KEY_1:
             if (event->state & GDK_CONTROL_MASK) {

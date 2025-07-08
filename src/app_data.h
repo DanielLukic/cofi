@@ -39,6 +39,7 @@ typedef struct {
     char history[10][256];          // Command history (last 10 commands)
     int history_count;              // Number of commands in history
     int history_index;              // Current position in history (-1 = not browsing)
+    gboolean close_on_exit;         // True when window should close after exiting command mode
 } CommandMode;
 
 // Selection management structure

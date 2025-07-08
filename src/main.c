@@ -910,6 +910,7 @@ int main(int argc, char *argv[]) {
     
     // Enter command mode if requested via --command
     if (app.start_in_command_mode) {
+        app.command_mode.close_on_exit = TRUE; // Set flag to close window on exit
         enter_command_mode(&app);
         log_info("Started in command mode via --command flag");
     }

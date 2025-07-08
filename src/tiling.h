@@ -9,6 +9,18 @@ typedef enum {
     TILE_RIGHT_HALF,     // R - Tile right half  
     TILE_TOP_HALF,       // T - Tile top half
     TILE_BOTTOM_HALF,    // B - Tile bottom half
+    TILE_LEFT_QUARTER,   // Shift+L - Tile left quarter
+    TILE_RIGHT_QUARTER,  // Shift+R - Tile right quarter
+    TILE_TOP_QUARTER,    // Shift+T - Tile top quarter
+    TILE_BOTTOM_QUARTER, // Shift+B - Tile bottom quarter
+    TILE_LEFT_TWO_THIRDS,    // Ctrl+L - Tile left 2/3
+    TILE_RIGHT_TWO_THIRDS,   // Ctrl+R - Tile right 2/3
+    TILE_TOP_TWO_THIRDS,     // Ctrl+T - Tile top 2/3
+    TILE_BOTTOM_TWO_THIRDS,  // Ctrl+B - Tile bottom 2/3
+    TILE_LEFT_THREE_QUARTERS,    // Ctrl+Shift+L - Tile left 3/4
+    TILE_RIGHT_THREE_QUARTERS,   // Ctrl+Shift+R - Tile right 3/4
+    TILE_TOP_THREE_QUARTERS,     // Ctrl+Shift+T - Tile top 3/4
+    TILE_BOTTOM_THREE_QUARTERS,  // Ctrl+Shift+B - Tile bottom 3/4
     TILE_GRID_1,         // 1 - Top-left (3x3 grid)
     TILE_GRID_2,         // 2 - Top-center (3x3 grid)
     TILE_GRID_3,         // 3 - Top-right (3x3 grid)

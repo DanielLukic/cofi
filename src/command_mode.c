@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+// External function from main.c
+extern void destroy_window(AppData *app);
+
 // Global command history that persists across window recreations
 static struct {
     char history[10][256];
@@ -101,6 +104,7 @@ void init_command_mode(CommandMode *cmd) {
     cmd->cursor_pos = 0;
     cmd->showing_help = FALSE;
     cmd->history_index = -1;
+    cmd->close_on_exit = FALSE;
 
     // Initialize global history if needed
     if (!g_command_history.initialized) {
@@ -126,6 +130,20 @@ void init_command_mode(CommandMode *cmd) {
     log_debug("Command mode initialized with %d history entries restored", cmd->history_count);
 }
 
+// Helper function to fix cursor position after focus events
+static gboolean fix_command_mode_cursor(gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+    
+    if (app && app->entry && app->command_mode.state == CMD_MODE_COMMAND) {
+        // Ensure no text is selected and cursor is after ':'
+        gtk_editable_select_region(GTK_EDITABLE(app->entry), -1, -1); // Deselect all
+        gtk_editable_set_position(GTK_EDITABLE(app->entry), 1); // Position cursor after ':'
+        log_debug("Fixed command mode cursor position");
+    }
+    
+    return G_SOURCE_REMOVE; // Run only once
+}
+
 void enter_command_mode(AppData *app) {
     if (!app || !app->entry) return;
     
@@ -140,24 +158,35 @@ void enter_command_mode(AppData *app) {
     gtk_editable_select_region(GTK_EDITABLE(app->entry), -1, -1); // Deselect all
     gtk_editable_set_position(GTK_EDITABLE(app->entry), 1); // Position cursor after ':'
     
+    // Schedule another cursor fix to handle focus-related selection changes
+    g_idle_add(fix_command_mode_cursor, app);
+    
     log_info("USER: Entered command mode");
 }
 
 void exit_command_mode(AppData *app) {
     if (!app || !app->entry) return;
     
+    // Check if we should close the window when exiting command mode
+    gboolean should_close = app->command_mode.close_on_exit;
+    
     app->command_mode.state = CMD_MODE_NORMAL;
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
     app->command_mode.showing_help = FALSE;
     app->command_mode.history_index = -1;
+    app->command_mode.close_on_exit = FALSE; // Reset flag
     
-    // Clear the entry back to normal search mode
+    // If we should close, close the window
+    if (should_close) {
+        log_info("USER: Exited command mode (started with --command, closing window)");
+        destroy_window(app);
+        return;
+    }
+    
+    // Otherwise, return to normal search mode
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-    
-    // Refresh display to show normal window list
     update_display(app);
-    
     log_info("USER: Exited command mode");
 }
 
@@ -434,7 +463,7 @@ gboolean execute_command(const char *command, AppData *app) {
         } else {
             // No argument provided, show overlay
             show_workspace_move_overlay(app);
-            return TRUE; // Exit command mode after opening overlay
+            return FALSE; // Stay in command mode while overlay is shown
         }
     } else if (strcmp(cmd_name, "tm") == 0 || strcmp(cmd_name, "toggle-monitor") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
@@ -559,7 +588,7 @@ gboolean execute_command(const char *command, AppData *app) {
         } else {
             // No argument provided, show overlay
             show_workspace_jump_overlay(app);
-            return TRUE; // Exit command mode after opening overlay
+            return FALSE; // Stay in command mode while overlay is shown
         }
     } else if (strcmp(cmd_name, "tw") == 0 || strcmp(cmd_name, "tile-window") == 0 || strcmp(cmd_name, "t") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
@@ -656,7 +685,7 @@ gboolean execute_command(const char *command, AppData *app) {
         } else {
             // No argument provided, show overlay
             show_tiling_overlay((struct AppData *)app);
-            return TRUE; // Exit command mode after opening overlay
+            return FALSE; // Stay in command mode while overlay is shown
         }
     } else if (strcmp(cmd_name, "help") == 0 || strcmp(cmd_name, "h") == 0 || strcmp(cmd_name, "?") == 0) {
         show_help_commands(app);

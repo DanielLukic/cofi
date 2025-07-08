@@ -31,6 +31,7 @@ static gboolean grab_focus_delayed(gpointer data);
 static gboolean enter_command_mode_delayed(gpointer data) {
     AppData *app = (AppData*)data;
     if (app) {
+        app->command_mode.close_on_exit = TRUE; // Set flag to close window on exit
         enter_command_mode(app);
     }
     return FALSE; // Remove timeout
