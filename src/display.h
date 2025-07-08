@@ -12,6 +12,9 @@ typedef struct AppData AppData;
 // Update the text display with proper 5-column format
 void update_display(AppData *app);
 
+// Get maximum number of lines that can be displayed
+int get_max_display_lines(void);
+
 // Activate window using wmctrl
 void activate_window(Window window_id);
 

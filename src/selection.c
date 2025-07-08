@@ -79,13 +79,17 @@ int get_selected_index(AppData *app) {
 // Move selection up (decrements index in display, moves up visually)
 void move_selection_up(AppData *app) {
     if (!app) return;
-    
+
     if (app->current_tab == TAB_WINDOWS) {
         if (app->filtered_count > 0) {
-            if (app->selection.window_index < app->filtered_count - 1) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_count > max_lines) ? max_lines : app->filtered_count;
+
+            if (app->selection.window_index < visible_count - 1) {
                 app->selection.window_index++;
             } else {
-                // Wrap around to the bottom
+                // Wrap around to the bottom (index 0 is the best match, shown at bottom)
                 app->selection.window_index = 0;
             }
             app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
@@ -97,7 +101,11 @@ void move_selection_up(AppData *app) {
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->filtered_workspace_count > 0) {
-            if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_workspace_count > max_lines) ? max_lines : app->filtered_workspace_count;
+
+            if (app->selection.workspace_index < visible_count - 1) {
                 app->selection.workspace_index++;
             } else {
                 // Wrap around to the bottom
@@ -112,7 +120,11 @@ void move_selection_up(AppData *app) {
         }
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->filtered_harpoon_count > 0) {
-            if (app->selection.harpoon_index < app->filtered_harpoon_count - 1) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_harpoon_count > max_lines) ? max_lines : app->filtered_harpoon_count;
+
+            if (app->selection.harpoon_index < visible_count - 1) {
                 app->selection.harpoon_index++;
             } else {
                 // Wrap around to the bottom
@@ -127,14 +139,18 @@ void move_selection_up(AppData *app) {
 // Move selection down (increments index in display, moves down visually)
 void move_selection_down(AppData *app) {
     if (!app) return;
-    
+
     if (app->current_tab == TAB_WINDOWS) {
         if (app->filtered_count > 0) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_count > max_lines) ? max_lines : app->filtered_count;
+
             if (app->selection.window_index > 0) {
                 app->selection.window_index--;
             } else {
-                // Wrap around to the top
-                app->selection.window_index = app->filtered_count - 1;
+                // Wrap around to the top (highest visible index)
+                app->selection.window_index = visible_count - 1;
             }
             app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
             update_display(app);
@@ -145,11 +161,15 @@ void move_selection_down(AppData *app) {
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->filtered_workspace_count > 0) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_workspace_count > max_lines) ? max_lines : app->filtered_workspace_count;
+
             if (app->selection.workspace_index > 0) {
                 app->selection.workspace_index--;
             } else {
-                // Wrap around to the top
-                app->selection.workspace_index = app->filtered_workspace_count - 1;
+                // Wrap around to the top (highest visible index)
+                app->selection.workspace_index = visible_count - 1;
             }
             app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
             update_display(app);
@@ -160,11 +180,15 @@ void move_selection_down(AppData *app) {
         }
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->filtered_harpoon_count > 0) {
+            // Calculate visible count (what's actually displayed)
+            int max_lines = get_max_display_lines();
+            int visible_count = (app->filtered_harpoon_count > max_lines) ? max_lines : app->filtered_harpoon_count;
+
             if (app->selection.harpoon_index > 0) {
                 app->selection.harpoon_index--;
             } else {
-                // Wrap around to the top
-                app->selection.harpoon_index = app->filtered_harpoon_count - 1;
+                // Wrap around to the top (highest visible index)
+                app->selection.harpoon_index = visible_count - 1;
             }
             update_display(app);
             log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);

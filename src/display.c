@@ -129,10 +129,32 @@ static void fit_column(const char *text, int width, char *output) {
     pad_text(trimmed, width, output);
 }
 
+// Use fixed max display lines to prevent window jumping
+int get_max_display_lines(void) {
+    return MAX_DISPLAY_LINES;
+}
+
 // Format and display windows tab content
 static void format_windows_display(AppData *app, GString *text, int selected_idx) {
-    // Display filtered windows in reverse order (bottom-up like fzf)
-    for (int i = app->filtered_count - 1; i >= 0; i--) {
+    int total_count = app->filtered_count;
+    int max_lines = get_max_display_lines();
+
+    // If no windows, show message
+    if (app->filtered_count == 0) {
+        g_string_append(text, "No matching windows found\n");
+        return;
+    }
+
+    // Calculate which windows to show - always show the best matches (first N items)
+    int end_idx = total_count;
+    if (total_count > max_lines) {
+        end_idx = max_lines;
+        // Add indicator for truncated items AT THE TOP (where bad matches would be)
+        g_string_append_printf(text, "  ... %d more matches ...\n", total_count - max_lines);
+    }
+
+    // Display windows in reverse order (best matches at bottom, fzf-style)
+    for (int i = end_idx - 1; i >= 0; i--) {
         WindowInfo *win = &app->filtered[i];
         
         gboolean is_selected = (i == selected_idx);
@@ -202,60 +224,79 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
         g_string_append(text, window_id);
         g_string_append(text, "\n");
     }
-    
-    // If no windows, show message
-    if (app->filtered_count == 0) {
-        g_string_append(text, "No matching windows found\n");
-    }
 }
 
 // Format and display workspaces tab content
 static void format_workspaces_display(AppData *app, GString *text, int selected_idx) {
-    // Display workspaces
-    for (int i = app->filtered_workspace_count - 1; i >= 0; i--) {
+    int total_count = app->filtered_workspace_count;
+    int max_lines = get_max_display_lines();
+
+    // If no workspaces, show message
+    if (app->filtered_workspace_count == 0) {
+        g_string_append(text, "No matching workspaces found\n");
+        return;
+    }
+
+    // Calculate which workspaces to show - show first N items for workspaces
+    int end_idx = total_count;
+    if (total_count > max_lines) {
+        end_idx = max_lines;
+    }
+
+    // Display workspaces in normal order
+    for (int i = 0; i < end_idx; i++) {
         WorkspaceInfo *ws = &app->filtered_workspaces[i];
-        
+
         gboolean is_selected = (i == selected_idx);
-        
+
         // Selection indicator
         if (is_selected) {
             g_string_append(text, "> ");
         } else {
             g_string_append(text, "  ");
         }
-        
+
         // Current workspace indicator
         if (ws->is_current) {
             g_string_append(text, "* ");
         } else {
             g_string_append(text, "  ");
         }
-        
+
         // Format: [ID] Name
         g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
     }
-    
-    // If no workspaces, show message
-    if (app->filtered_workspace_count == 0) {
-        g_string_append(text, "No matching workspaces found\n");
+
+    // Add indicator for truncated items
+    if (total_count > max_lines) {
+        g_string_append_printf(text, "  ... %d more workspaces ...\n", total_count - end_idx);
     }
 }
 
 // Format and display harpoon tab content
 static void format_harpoon_display(AppData *app, GString *text, int selected_idx) {
-    // Display harpoon slots
-    for (int i = app->filtered_harpoon_count - 1; i >= 0; i--) {
+    int total_count = app->filtered_harpoon_count;
+    int max_lines = get_max_display_lines();
+
+    // Calculate which slots to show - show first N items for harpoon
+    int end_idx = total_count;
+    if (total_count > max_lines) {
+        end_idx = max_lines;
+    }
+
+    // Display harpoon slots in normal order
+    for (int i = 0; i < end_idx; i++) {
         HarpoonSlot *slot = &app->filtered_harpoon[i];
-        
+
         gboolean is_selected = (i == selected_idx);
-        
+
         // Selection indicator
         if (is_selected) {
             g_string_append(text, "> ");
         } else {
             g_string_append(text, "  ");
         }
-        
+
         // Format slot name (0-9, a-z)
         char slot_name[4];
         int slot_idx = app->filtered_harpoon_indices[i];
@@ -264,7 +305,7 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
         } else {
             snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
         }
-        
+
         // Format slot display
         if (slot->assigned) {
             char title_col[56], class_col[19], instance_col[21], type_col[9];
@@ -272,13 +313,18 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
             fit_column(slot->class_name, 18, class_col);
             fit_column(slot->instance, 20, instance_col);
             fit_column(slot->type, 8, type_col);
-            
+
             g_string_append_printf(text, "%-4s %s %s %s %s\n",
                 slot_name, title_col, class_col, instance_col, type_col);
         } else {
             g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
                 slot_name, "* EMPTY *", "-", "-", "-");
         }
+    }
+
+    // Add indicator for truncated items
+    if (total_count > max_lines) {
+        g_string_append_printf(text, "  ... %d more slots ...\n", total_count - end_idx);
     }
 }
 
