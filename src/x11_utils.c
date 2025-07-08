@@ -528,3 +528,72 @@ void toggle_maximize_horizontal(Display *display, Window window) {
 void toggle_maximize_vertical(Display *display, Window window) {
     toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
 }
+
+// =============================================================================
+// Cached versions - use pre-interned atoms for better performance
+// =============================================================================
+
+// Get window type using cached atoms
+char* get_window_type_cached(Display *display, Window window, AtomCache *atoms) {
+    if (atoms->net_wm_window_type == None) {
+        return g_strdup("Normal"); // Default
+    }
+    
+    Atom actual_type;
+    int actual_format;
+    unsigned long n_items;
+    unsigned char *prop = NULL;
+    
+    if (get_x11_property(display, window, atoms->net_wm_window_type, XA_ATOM,
+                        64, &actual_type, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
+        
+        if (actual_format == 32 && n_items > 0) {
+            // Check if contains only normal type
+            Atom *window_atoms = (Atom*)prop;
+            gboolean contains_only_normal = TRUE;
+            
+            for (unsigned long i = 0; i < n_items; i++) {
+                if (atoms->net_wm_window_type_normal == None || window_atoms[i] != atoms->net_wm_window_type_normal) {
+                    contains_only_normal = FALSE;
+                    break;
+                }
+            }
+            
+            XFree(prop);
+            return g_strdup(contains_only_normal && n_items > 0 && atoms->net_wm_window_type_normal != None ? WINDOW_TYPE_NORMAL : WINDOW_TYPE_SPECIAL);
+        }
+        XFree(prop);
+    }
+    
+    return g_strdup("Normal"); // Default
+}
+
+// Get window PID using cached atoms
+int get_window_pid_cached(Display *display, Window window, AtomCache *atoms) {
+    if (atoms->net_wm_pid == None) {
+        return 0;
+    }
+    
+    int actual_format;
+    unsigned long n_items;
+    unsigned char *prop = NULL;
+    
+    if (get_x11_property(display, window, atoms->net_wm_pid, XA_CARDINAL,
+                        1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
+        
+        if (actual_format == 32 && n_items >= 1) {
+            int pid = *(int*)prop;
+            XFree(prop);
+            return pid;
+        }
+        XFree(prop);
+    }
+    
+    return 0;
+}
+
+// Get window class using standard atom (no caching needed for XA_WM_CLASS)
+void get_window_class_cached(Display *display, Window window, char *instance, char *class_name) {
+    // XA_WM_CLASS is a standard atom, no need to intern it
+    get_window_class(display, window, instance, class_name);
+}

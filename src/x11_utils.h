@@ -4,6 +4,7 @@
 #include <X11/Xlib.h>
 #include <glib.h>
 #include "constants.h"
+#include "atom_cache.h"
 
 // Generic X11 property getter - centralizes XGetWindowProperty pattern
 CofiResult get_x11_property(Display *display, Window window, Atom property, Atom req_type,
@@ -22,6 +23,11 @@ int get_window_pid(Display *display, Window window);
 
 // Get window class (instance and class) from WM_CLASS
 void get_window_class(Display *display, Window window, char *instance, char *class_name);
+
+// Cached versions - use pre-interned atoms
+char* get_window_type_cached(Display *display, Window window, AtomCache *atoms);
+int get_window_pid_cached(Display *display, Window window, AtomCache *atoms);
+void get_window_class_cached(Display *display, Window window, char *instance, char *class_name);
 
 // Get currently active window ID from _NET_ACTIVE_WINDOW
 int get_active_window_id(Display *display);

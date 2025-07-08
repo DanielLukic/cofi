@@ -8,6 +8,7 @@
 #include "log.h"
 #include "utils.h"
 #include "x11_utils.h"
+#include "atom_cache.h"
 #include "command_mode.h"
 #include "selection.h"
 
@@ -53,6 +54,9 @@ void init_x11_connection(AppData *app) {
     }
     
     log_debug("X11 display opened successfully");
+    
+    // Initialize atom cache
+    atom_cache_init(app->display, &app->atoms);
 }
 
 void init_workspaces(AppData *app) {
