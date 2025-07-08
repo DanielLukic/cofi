@@ -5,36 +5,44 @@
 // Initialize selection state
 void init_selection(AppData *app) {
     if (!app) return;
-    
+
     app->selection.window_index = 0;
     app->selection.workspace_index = 0;
     app->selection.harpoon_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
-    
+
+    // Initialize scroll offsets
+    app->selection.window_scroll_offset = 0;
+    app->selection.workspace_scroll_offset = 0;
+    app->selection.harpoon_scroll_offset = 0;
+
     log_debug("Selection initialized");
 }
 
 // Reset selection to first item
 void reset_selection(AppData *app) {
     if (!app) return;
-    
+
     if (app->current_tab == TAB_WINDOWS) {
         app->selection.window_index = 0;
         app->selection.selected_window_id = 0;
+        app->selection.window_scroll_offset = 0;
         if (app->filtered_count > 0) {
             app->selection.selected_window_id = app->filtered[0].id;
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
         app->selection.workspace_index = 0;
         app->selection.selected_workspace_id = -1;
+        app->selection.workspace_scroll_offset = 0;
         if (app->filtered_workspace_count > 0) {
             app->selection.selected_workspace_id = app->filtered_workspaces[0].id;
         }
     } else if (app->current_tab == TAB_HARPOON) {
         app->selection.harpoon_index = 0;
+        app->selection.harpoon_scroll_offset = 0;
     }
-    
+
     const char *tab_names[] = {"windows", "workspaces", "harpoon"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
@@ -82,17 +90,14 @@ void move_selection_up(AppData *app) {
 
     if (app->current_tab == TAB_WINDOWS) {
         if (app->filtered_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_count > max_lines) ? max_lines : app->filtered_count;
-
-            if (app->selection.window_index < visible_count - 1) {
+            if (app->selection.window_index < app->filtered_count - 1) {
                 app->selection.window_index++;
             } else {
-                // Wrap around to the bottom (index 0 is the best match, shown at bottom)
+                // Wrap around to the bottom (index 0 is the best match)
                 app->selection.window_index = 0;
             }
             app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection UP -> Window[%d] '%s' (ID: 0x%lx)",
                      app->selection.window_index,
@@ -101,17 +106,14 @@ void move_selection_up(AppData *app) {
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->filtered_workspace_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_workspace_count > max_lines) ? max_lines : app->filtered_workspace_count;
-
-            if (app->selection.workspace_index < visible_count - 1) {
+            if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
                 app->selection.workspace_index++;
             } else {
                 // Wrap around to the bottom
                 app->selection.workspace_index = 0;
             }
             app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection UP -> Workspace[%d] '%s' (ID: %d)",
                      app->selection.workspace_index,
@@ -120,16 +122,13 @@ void move_selection_up(AppData *app) {
         }
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->filtered_harpoon_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_harpoon_count > max_lines) ? max_lines : app->filtered_harpoon_count;
-
-            if (app->selection.harpoon_index < visible_count - 1) {
+            if (app->selection.harpoon_index < app->filtered_harpoon_count - 1) {
                 app->selection.harpoon_index++;
             } else {
                 // Wrap around to the bottom
                 app->selection.harpoon_index = 0;
             }
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
         }
@@ -142,17 +141,14 @@ void move_selection_down(AppData *app) {
 
     if (app->current_tab == TAB_WINDOWS) {
         if (app->filtered_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_count > max_lines) ? max_lines : app->filtered_count;
-
             if (app->selection.window_index > 0) {
                 app->selection.window_index--;
             } else {
-                // Wrap around to the top (highest visible index)
-                app->selection.window_index = visible_count - 1;
+                // Wrap around to the top (highest index)
+                app->selection.window_index = app->filtered_count - 1;
             }
             app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection DOWN -> Window[%d] '%s' (ID: 0x%lx)",
                      app->selection.window_index,
@@ -161,17 +157,14 @@ void move_selection_down(AppData *app) {
         }
     } else if (app->current_tab == TAB_WORKSPACES) {
         if (app->filtered_workspace_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_workspace_count > max_lines) ? max_lines : app->filtered_workspace_count;
-
             if (app->selection.workspace_index > 0) {
                 app->selection.workspace_index--;
             } else {
-                // Wrap around to the top (highest visible index)
-                app->selection.workspace_index = visible_count - 1;
+                // Wrap around to the top (highest index)
+                app->selection.workspace_index = app->filtered_workspace_count - 1;
             }
             app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection DOWN -> Workspace[%d] '%s' (ID: %d)",
                      app->selection.workspace_index,
@@ -180,16 +173,13 @@ void move_selection_down(AppData *app) {
         }
     } else if (app->current_tab == TAB_HARPOON) {
         if (app->filtered_harpoon_count > 0) {
-            // Calculate visible count (what's actually displayed)
-            int max_lines = get_max_display_lines();
-            int visible_count = (app->filtered_harpoon_count > max_lines) ? max_lines : app->filtered_harpoon_count;
-
             if (app->selection.harpoon_index > 0) {
                 app->selection.harpoon_index--;
             } else {
-                // Wrap around to the top (highest visible index)
-                app->selection.harpoon_index = visible_count - 1;
+                // Wrap around to the top (highest index)
+                app->selection.harpoon_index = app->filtered_harpoon_count - 1;
             }
+            update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
         }
@@ -276,6 +266,92 @@ void restore_selection(AppData *app) {
             log_debug("No previous workspace selection, defaulting to index 0");
         }
     }
+
+    // Update scroll position to keep selected item visible
+    update_scroll_position(app);
+}
+
+// Get current scroll offset for active tab
+int get_scroll_offset(AppData *app) {
+    if (!app) return 0;
+
+    switch (app->current_tab) {
+        case TAB_WINDOWS:
+            return app->selection.window_scroll_offset;
+        case TAB_WORKSPACES:
+            return app->selection.workspace_scroll_offset;
+        case TAB_HARPOON:
+            return app->selection.harpoon_scroll_offset;
+        default:
+            return 0;
+    }
+}
+
+// Set scroll offset for active tab
+void set_scroll_offset(AppData *app, int offset) {
+    if (!app) return;
+
+    switch (app->current_tab) {
+        case TAB_WINDOWS:
+            app->selection.window_scroll_offset = offset;
+            break;
+        case TAB_WORKSPACES:
+            app->selection.workspace_scroll_offset = offset;
+            break;
+        case TAB_HARPOON:
+            app->selection.harpoon_scroll_offset = offset;
+            break;
+    }
+}
+
+// Update scroll position to keep selected item visible
+void update_scroll_position(AppData *app) {
+    if (!app) return;
+
+    int selected_idx = get_selected_index(app);
+    int max_lines = get_max_display_lines();
+    int total_count = 0;
+
+    // Get total count for current tab
+    switch (app->current_tab) {
+        case TAB_WINDOWS:
+            total_count = app->filtered_count;
+            break;
+        case TAB_WORKSPACES:
+            total_count = app->filtered_workspace_count;
+            break;
+        case TAB_HARPOON:
+            total_count = app->filtered_harpoon_count;
+            break;
+    }
+
+    if (total_count <= max_lines) {
+        // All items fit on screen, no scrolling needed
+        set_scroll_offset(app, 0);
+        return;
+    }
+
+    int current_offset = get_scroll_offset(app);
+    int new_offset = current_offset;
+
+    // Check if selected item is above visible area
+    if (selected_idx < current_offset) {
+        new_offset = selected_idx;
+    }
+    // Check if selected item is below visible area
+    else if (selected_idx >= current_offset + max_lines) {
+        new_offset = selected_idx - max_lines + 1;
+    }
+
+    // Ensure offset is within bounds
+    if (new_offset < 0) {
+        new_offset = 0;
+    }
+    if (new_offset > total_count - max_lines) {
+        new_offset = total_count - max_lines;
+    }
+
+    set_scroll_offset(app, new_offset);
 }
 
 // Validate and fix selection bounds

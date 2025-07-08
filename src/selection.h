@@ -23,4 +23,10 @@ void restore_selection(AppData *app);
 // Validation and bounds checking
 void validate_selection(AppData *app);
 
+// Scroll management
+void update_scroll_position(AppData *app);
+int get_scroll_offset(AppData *app);
+void set_scroll_offset(AppData *app, int offset);
+int get_selected_index(AppData *app);
+
 #endif // SELECTION_H
