@@ -130,6 +130,78 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
             width = work_width;
             height = work_height / 2;
             break;
+        case TILE_LEFT_QUARTER:
+            x = work_x;
+            y = work_y;
+            width = work_width / 4;
+            height = work_height;
+            break;
+        case TILE_RIGHT_QUARTER:
+            x = work_x + (work_width * 3) / 4;
+            y = work_y;
+            width = work_width / 4;
+            height = work_height;
+            break;
+        case TILE_TOP_QUARTER:
+            x = work_x;
+            y = work_y;
+            width = work_width;
+            height = work_height / 4;
+            break;
+        case TILE_BOTTOM_QUARTER:
+            x = work_x;
+            y = work_y + (work_height * 3) / 4;
+            width = work_width;
+            height = work_height / 4;
+            break;
+        case TILE_LEFT_TWO_THIRDS:
+            x = work_x;
+            y = work_y;
+            width = (work_width * 2) / 3;
+            height = work_height;
+            break;
+        case TILE_RIGHT_TWO_THIRDS:
+            x = work_x + work_width / 3;
+            y = work_y;
+            width = (work_width * 2) / 3;
+            height = work_height;
+            break;
+        case TILE_TOP_TWO_THIRDS:
+            x = work_x;
+            y = work_y;
+            width = work_width;
+            height = (work_height * 2) / 3;
+            break;
+        case TILE_BOTTOM_TWO_THIRDS:
+            x = work_x;
+            y = work_y + work_height / 3;
+            width = work_width;
+            height = (work_height * 2) / 3;
+            break;
+        case TILE_LEFT_THREE_QUARTERS:
+            x = work_x;
+            y = work_y;
+            width = (work_width * 3) / 4;
+            height = work_height;
+            break;
+        case TILE_RIGHT_THREE_QUARTERS:
+            x = work_x + work_width / 4;
+            y = work_y;
+            width = (work_width * 3) / 4;
+            height = work_height;
+            break;
+        case TILE_TOP_THREE_QUARTERS:
+            x = work_x;
+            y = work_y;
+            width = work_width;
+            height = (work_height * 3) / 4;
+            break;
+        case TILE_BOTTOM_THREE_QUARTERS:
+            x = work_x;
+            y = work_y + work_height / 4;
+            width = work_width;
+            height = (work_height * 3) / 4;
+            break;
         case TILE_GRID_1:
         case TILE_GRID_2:
         case TILE_GRID_3:
@@ -289,6 +361,12 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     switch (option) {
         case TILE_LEFT_HALF:
         case TILE_RIGHT_HALF:
+        case TILE_LEFT_QUARTER:
+        case TILE_RIGHT_QUARTER:
+        case TILE_LEFT_TWO_THIRDS:
+        case TILE_RIGHT_TWO_THIRDS:
+        case TILE_LEFT_THREE_QUARTERS:
+        case TILE_RIGHT_THREE_QUARTERS:
             // Maximize vertically for left/right tiles (like Marco)
             maximize_event.xclient.data.l[1] = net_wm_state_maximized_vert;
             XSendEvent(display, DefaultRootWindow(display), False,
@@ -298,6 +376,12 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
             
         case TILE_TOP_HALF:
         case TILE_BOTTOM_HALF:
+        case TILE_TOP_QUARTER:
+        case TILE_BOTTOM_QUARTER:
+        case TILE_TOP_TWO_THIRDS:
+        case TILE_BOTTOM_TWO_THIRDS:
+        case TILE_TOP_THREE_QUARTERS:
+        case TILE_BOTTOM_THREE_QUARTERS:
             // Maximize horizontally for top/bottom tiles
             maximize_event.xclient.data.l[1] = net_wm_state_maximized_horz;
             XSendEvent(display, DefaultRootWindow(display), False,
