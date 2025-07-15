@@ -19,8 +19,12 @@ static const char* get_config_path() {
     snprintf(path, sizeof(path), "%s/.config", home);
     mkdir(path, 0755);
     
-    // Return full path to cofi.json
-    snprintf(path, sizeof(path), "%s/.config/cofi.json", home);
+    // Create .config/cofi directory if it doesn't exist
+    snprintf(path, sizeof(path), "%s/.config/cofi", home);
+    mkdir(path, 0755);
+    
+    // Return full path to options.json
+    snprintf(path, sizeof(path), "%s/.config/cofi/options.json", home);
     return path;
 }
 

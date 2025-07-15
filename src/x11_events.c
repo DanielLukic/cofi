@@ -120,8 +120,9 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     filter_windows(app, "");
                 }
                 
-                // Update display only if window exists
-                if (app->window) {
+                // Update display only if window exists and is visible
+                if (app->window && GTK_IS_WIDGET(app->window) && 
+                    gtk_widget_get_visible(app->window)) {
                     update_display(app);
                 }
             }

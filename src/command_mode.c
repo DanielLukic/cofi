@@ -364,6 +364,15 @@ static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *ar
         return TRUE;
     }
     
+    // Check for direct tiling commands like 'tr4' (tile right 75%) or 'tc4' (center 100%)
+    if (len >= 3 && input[0] == 't' && strchr("lrtbcLRTBC", input[1]) && strchr("1234", input[2])) {
+        strncpy(cmd_out, "t", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 1, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
     // No argument found, just copy the command
     strncpy(cmd_out, input, cmd_size - 1);
     cmd_out[cmd_size - 1] = '\0';
@@ -626,6 +635,61 @@ gboolean execute_command(const char *command, AppData *app) {
                         valid_option = FALSE;
                         break;
                 }
+            } else if (strlen(arg) == 2 && strchr("lrtbLRTB", arg[0]) && strchr("1234", arg[1])) {
+                // Handle direct tiling commands like "r4" for right 75%
+                char direction = tolower(arg[0]);
+                char size = arg[1];
+                
+                switch (direction) {
+                    case 'l':
+                        switch (size) {
+                            case '1': option = TILE_LEFT_QUARTER; break;
+                            case '2': option = TILE_LEFT_HALF; break;
+                            case '3': option = TILE_LEFT_TWO_THIRDS; break;
+                            case '4': option = TILE_LEFT_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'r':
+                        switch (size) {
+                            case '1': option = TILE_RIGHT_QUARTER; break;
+                            case '2': option = TILE_RIGHT_HALF; break;
+                            case '3': option = TILE_RIGHT_TWO_THIRDS; break;
+                            case '4': option = TILE_RIGHT_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 't':
+                        switch (size) {
+                            case '1': option = TILE_TOP_QUARTER; break;
+                            case '2': option = TILE_TOP_HALF; break;
+                            case '3': option = TILE_TOP_TWO_THIRDS; break;
+                            case '4': option = TILE_TOP_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'b':
+                        switch (size) {
+                            case '1': option = TILE_BOTTOM_QUARTER; break;
+                            case '2': option = TILE_BOTTOM_HALF; break;
+                            case '3': option = TILE_BOTTOM_TWO_THIRDS; break;
+                            case '4': option = TILE_BOTTOM_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'c':
+                        switch (size) {
+                            case '1': option = TILE_CENTER_THIRD; break;
+                            case '2': option = TILE_CENTER_TWO_THIRDS; break;
+                            case '3': option = TILE_CENTER_THREE_QUARTERS; break;
+                            case '4': option = TILE_FULLSCREEN; break;  // tc4 = fullscreen (100%)
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    default:
+                        valid_option = FALSE;
+                        break;
+                }
             } else {
                 valid_option = FALSE;
             }
@@ -645,7 +709,7 @@ gboolean execute_command(const char *command, AppData *app) {
 
                 return TRUE; // Exit command mode after direct tiling
             } else {
-                log_warn("Invalid tiling option: '%s' (use L/R/T/B, 1-9, F, or C)", arg);
+                log_warn("Invalid tiling option: '%s' (use L/R/T/B, 1-9, F, C, or [lrtb][1-4], c[1-3])", arg);
                 return FALSE; // Stay in command mode
             }
         } else {
@@ -673,7 +737,7 @@ char* generate_command_help_text(HelpFormat format) {
     static const CommandInfo commands[] = {
         {"cw, change-workspace [N]", "Move selected window to different workspace (N = workspace number)"},
         {"jw, jump-workspace, j [N]", "Jump to different workspace (N = workspace number)"},
-        {"tw, tile-window, t [OPT]", "Tile selected window (OPT: L/R/T/B halves, 1-9 grid, F fullscreen, C center)"},
+        {"tw, tile-window, t [OPT]", "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)"},
         {"tm, toggle-monitor", "Move selected window to next monitor"},
         {"sb, skip-taskbar", "Toggle skip taskbar for selected window"},
         {"at, always-on-top, aot", "Toggle always on top for selected window"},
@@ -713,6 +777,7 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "  Press ':' to enter command mode\n");
         strcat(help_text, "  Type command and press Enter\n");
         strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
+        strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
         strcat(help_text, "  Press Escape to cancel\n");
 
     } else {
@@ -732,6 +797,7 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "  Press ':' to enter command mode\n");
         strcat(help_text, "  Type command and press Enter\n");
         strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
+        strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
         strcat(help_text, "  Press Escape to cancel\n\n");
         strcat(help_text, "Press Escape to return to window list");
     }
