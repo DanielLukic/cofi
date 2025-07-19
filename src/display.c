@@ -210,7 +210,7 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
     int scroll_offset = get_scroll_offset(app);
 
     // Generate scrollbar if needed
-    char scrollbar[MAX_DISPLAY_LINES + 1];
+    char scrollbar[max_lines + 1];
     generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
@@ -315,7 +315,7 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
     int scroll_offset = get_scroll_offset(app);
 
     // Generate scrollbar if needed
-    char scrollbar[MAX_DISPLAY_LINES + 1];
+    char scrollbar[max_lines + 1];
     generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
@@ -366,7 +366,7 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
     int scroll_offset = get_scroll_offset(app);
 
     // Generate scrollbar if needed
-    char scrollbar[MAX_DISPLAY_LINES + 1];
+    char scrollbar[max_lines + 1];
     generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
