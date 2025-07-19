@@ -20,6 +20,7 @@ typedef struct {
     WindowAlignment alignment;      // Window alignment setting
     int workspaces_per_row;        // Number of workspaces per row in grid layout (0 = linear)
     int tile_columns;              // Number of columns for tiling grid (2 or 3, default 3)
+    int quick_workspace_slots;     // Alt+1-9 always switches workspaces when true
 } CofiConfig;
 
 // Configuration management functions (options only - harpoon slots handled separately)

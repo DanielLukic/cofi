@@ -67,7 +67,8 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
     fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string(config->alignment));
     fprintf(file, "    \"workspaces_per_row\": %d,\n", config->workspaces_per_row);
-    fprintf(file, "    \"tile_columns\": %d\n", config->tile_columns);
+    fprintf(file, "    \"tile_columns\": %d,\n", config->tile_columns);
+    fprintf(file, "    \"quick_workspace_slots\": %s\n", config->quick_workspace_slots ? "true" : "false");
     fprintf(file, "  }");
 }
 
@@ -81,6 +82,7 @@ void init_config_defaults(CofiConfig *config) {
     config->alignment = ALIGN_CENTER;  // Default to center
     config->workspaces_per_row = 0;   // Default to linear layout
     config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
+    config->quick_workspace_slots = 0; // Default to false
 }
 
 // Save configuration options only (harpoon slots saved separately)
@@ -143,6 +145,12 @@ static void parse_options_line(const char *line, CofiConfig *config) {
                 log_warn("Invalid tile_columns value %d, using default 3", columns);
                 config->tile_columns = 3;
             }
+        }
+    } else if (strstr(line, "\"quick_workspace_slots\":")) {
+        if (strstr(line, "true")) {
+            config->quick_workspace_slots = 1;
+        } else if (strstr(line, "false")) {
+            config->quick_workspace_slots = 0;
         }
     }
 }

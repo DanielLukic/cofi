@@ -169,6 +169,21 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         return FALSE;
     }
     
+    // When quick_workspace_slots is enabled, Alt+number ALWAYS switches workspaces
+    if (app->config.quick_workspace_slots && slot >= 0 && slot <= 9) {
+        // Only handle number keys (0-9) for workspace switching
+        int workspace_num = slot - 1; // Convert to 0-based
+        int workspace_count = get_number_of_desktops(app->display);
+        if (workspace_num < workspace_count) {
+            switch_to_desktop(app->display, workspace_num);
+            destroy_window(app);
+            log_info("Quick workspace switch to %d", slot);
+            return TRUE;
+        }
+        return FALSE;
+    }
+    
+    // Original behavior when option is disabled
     if (app->current_tab == TAB_WINDOWS) {
         // Switch to harpooned window
         Window target_window = get_slot_window(&app->harpoon, slot);
@@ -186,8 +201,8 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
             return TRUE;
         }
     } else {
-        // Switch to workspace by number
-        if (slot < app->workspace_count) {
+        // Switch to workspace by number (only for digit keys 0-9)
+        if (slot >= 0 && slot <= 9 && slot < app->workspace_count) {
             switch_to_desktop(app->display, slot - 1);
             destroy_window(app);
             log_info("Switched to workspace %d", slot);
