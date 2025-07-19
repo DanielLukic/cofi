@@ -76,6 +76,7 @@ COFI saves configuration to `~/.config/cofi/`:
   - `align` - Default window alignment
   - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
   - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
+  - `quick_workspace_slots` - Alt+1-9 always switches workspaces when true (boolean, default false)
 - **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
@@ -110,6 +111,15 @@ You can override the key exclusions by holding Shift:
 - Example: Ctrl+Shift+j assigns to slot 'j', then Alt+j activates it
 
 This gives you 33 available harpoon slots by default (0-9 and a-i, l-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
+
+#### Quick Workspace Slots Mode
+
+When `quick_workspace_slots` is enabled in options.json:
+- **Alt+1-9** - Always switches directly to workspaces 1-9 (regardless of current tab)
+- **Ctrl+1-9** - Still assigns/unassigns harpoon slots as normal
+- **Harpoon window access** - Use the Harpoon tab or other methods to access harpooned windows
+
+This mode is useful if you prefer quick workspace switching over quick window switching, similar to many window managers and browsers.
 
 ### Command Mode
 
