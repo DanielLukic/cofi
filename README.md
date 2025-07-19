@@ -69,14 +69,14 @@ Run cofi:
 
 ### Configuration
 
-COFI saves configuration to `~/.config/cofi.json`:
+COFI saves configuration to `~/.config/cofi/`:
 
-- **options** - Application settings
+- **`~/.config/cofi/options.json`** - Application settings
   - `close_on_focus_loss` - Auto-close on focus loss (boolean)
   - `align` - Default window alignment
   - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
   - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
-- **harpoon_slots** - Window assignments
+- **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
 
@@ -206,7 +206,7 @@ COFI uses multi-stage matching with priority scoring:
 
 Inspired by the VIM Harpoon plugin:
 
-- **Persistent** - Assignments saved to `~/.config/cofi.json`
+- **Persistent** - Assignments saved to `~/.config/cofi/harpoon.json`
 - **Automatic reassignment** - When windows close, intelligently reassign numbers
 - **Visual indicators** - Assigned numbers shown in first column
 - **Fuzzy reassignment** - Uses partial title matching for smart reassignment

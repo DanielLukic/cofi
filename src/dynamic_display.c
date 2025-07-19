@@ -301,7 +301,7 @@ gint calculate_max_display_lines(GtkWidget *window, const DynamicDisplayConfig *
 // Get dynamic max display lines with caching
 gint get_dynamic_max_display_lines(struct AppData *app) {
     if (!app || !app->window) {
-        log_warn("Invalid app data for dynamic line calculation");
+        log_trace("Invalid app data for dynamic line calculation - using default");
         return DEFAULT_FALLBACK_LINES;
     }
 
