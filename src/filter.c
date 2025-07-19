@@ -346,6 +346,34 @@ void filter_windows(AppData *app, const char *filter) {
     
     // Step 4: Finalize results
     finalize_filter_results(app, scored_windows, scored_count);
+    
+    // Step 4.1: Push Special windows to the end
+    if (app->filtered_count > 0) {
+        WindowInfo normal_windows[MAX_WINDOWS];
+        WindowInfo special_windows[MAX_WINDOWS];
+        int normal_count = 0;
+        int special_count = 0;
+        
+        // Separate Normal and Special windows
+        for (int i = 0; i < app->filtered_count; i++) {
+            if (strcmp(app->filtered[i].type, "Normal") == 0) {
+                normal_windows[normal_count++] = app->filtered[i];
+            } else {
+                special_windows[special_count++] = app->filtered[i];
+            }
+        }
+        
+        // Rebuild filtered array with Normal windows first, then Special
+        int idx = 0;
+        for (int i = 0; i < normal_count; i++) {
+            app->filtered[idx++] = normal_windows[i];
+        }
+        for (int i = 0; i < special_count; i++) {
+            app->filtered[idx++] = special_windows[i];
+        }
+        
+        log_trace("Separated windows: %d Normal, %d Special", normal_count, special_count);
+    }
 
     // Step 4.5: Apply Alt-Tab swap if no commanded window AND no active filter
     if (app->last_commanded_window_id == 0 && app->filtered_count >= 2 && strlen(filter) == 0) {
