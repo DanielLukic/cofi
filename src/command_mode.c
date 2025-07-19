@@ -237,20 +237,21 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
 
         case GDK_KEY_j:
             if (event->state & GDK_CONTROL_MASK) {
-                // Ctrl+J: Navigate history forward (same as Down arrow)
-                goto handle_history_forward;
+                // Ctrl+J: Move selection down
+                move_selection_down(app);
+                return TRUE;
             }
             return FALSE;
 
         case GDK_KEY_k:
             if (event->state & GDK_CONTROL_MASK) {
-                // Ctrl+K: Navigate history backward (same as Up arrow)
-                goto handle_history_backward;
+                // Ctrl+K: Move selection up
+                move_selection_up(app);
+                return TRUE;
             }
             return FALSE;
             
         case GDK_KEY_Up:
-        handle_history_backward:
             // Browse command history backwards
             if (app->command_mode.history_count > 0) {
                 if (app->command_mode.history_index == -1) {
@@ -271,7 +272,6 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             return TRUE;
 
         case GDK_KEY_Down:
-        handle_history_forward:
             // Browse command history forwards
             if (app->command_mode.history_index > 0) {
                 app->command_mode.history_index--;
