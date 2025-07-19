@@ -19,8 +19,12 @@ static const char* get_harpoon_config_path() {
     snprintf(path, sizeof(path), "%s/.config", home);
     mkdir(path, 0755);
     
-    // Return full path to cofi_harpoon.json
-    snprintf(path, sizeof(path), "%s/.config/cofi_harpoon.json", home);
+    // Create .config/cofi directory if it doesn't exist
+    snprintf(path, sizeof(path), "%s/.config/cofi", home);
+    mkdir(path, 0755);
+    
+    // Return full path to harpoon.json
+    snprintf(path, sizeof(path), "%s/.config/cofi/harpoon.json", home);
     return path;
 }
 
