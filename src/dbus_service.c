@@ -102,7 +102,7 @@ static gboolean show_window_idle(gpointer data) {
             log_info("Scheduled command mode entry via D-Bus");
         }
 
-        log_info("Window shown by D-Bus call from another instance");
+        log_debug("Window shown by D-Bus call from another instance");
 
         // Log last commanded window if set
         if (g_app_data->last_commanded_window_id != 0) {
@@ -129,7 +129,7 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
         const gchar *mode_str;
         g_variant_get(parameters, "(&s)", &mode_str);
         
-        log_info("D-Bus ShowWindow called with mode: %s", mode_str);
+        log_debug("D-Bus ShowWindow called with mode: %s", mode_str);
         
         if (g_app_data) {
             // Convert mode string to ShowMode and set app state
@@ -159,7 +159,7 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
             // Defer window recreation to the GTK main loop
             g_idle_add(show_window_idle, NULL);
 
-            log_info("Window recreation scheduled via D-Bus call");
+            log_debug("Window recreation scheduled via D-Bus call");
 
             // Return success
             g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", TRUE));

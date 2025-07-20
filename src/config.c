@@ -104,7 +104,7 @@ void save_config(const CofiConfig *config) {
     fprintf(file, "\n}\n");
 
     fclose(file);
-    log_info("Saved config options to %s", path);
+    log_debug("Saved config options to %s", path);
 }
 
 // Helper function to parse options section
