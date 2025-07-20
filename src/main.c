@@ -49,6 +49,8 @@ static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 
 // Forward declaration for destroy_window function
 void destroy_window(AppData *app);
+void hide_window(AppData *app);
+void show_window(AppData *app);
 static gboolean check_focus_loss_delayed(AppData *app);
 
 // Note: Selection management functions moved to selection.c
@@ -175,7 +177,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         int workspace_count = get_number_of_desktops(app->display);
         if (workspace_num < workspace_count) {
             switch_to_desktop(app->display, workspace_num);
-            destroy_window(app);
+            hide_window(app);
             log_info("Quick workspace switch to %d", slot);
             return TRUE;
         }
@@ -195,7 +197,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
                 app->last_commanded_window_id = 0;
             }
             
-            destroy_window(app);
+            hide_window(app);
             log_info("Switched to harpooned window in slot %d", slot);
             return TRUE;
         }
@@ -203,7 +205,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         // Switch to workspace by number
         if (slot < app->workspace_count) {
             switch_to_desktop(app->display, slot - 1);
-            destroy_window(app);
+            hide_window(app);
             log_info("Switched to workspace %d", slot);
             return TRUE;
         }
@@ -345,7 +347,7 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 return TRUE;
             }
             log_info("USER: ESCAPE pressed -> Closing cofi");
-            destroy_window(app);
+            hide_window(app);
             return TRUE;
             
         case GDK_KEY_Return:
@@ -363,14 +365,14 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                         app->last_commanded_window_id = 0;
                     }
                     
-                    destroy_window(app);
+                    hide_window(app);
                 }
             } else {
                 WorkspaceInfo *ws = get_selected_workspace(app);
                 if (ws) {
                     log_info("USER: ENTER pressed -> Switching to workspace %d: %s", ws->id, ws->name);
                     switch_to_desktop(app->display, ws->id);
-                    destroy_window(app);
+                    hide_window(app);
                 }
             }
             return TRUE;
@@ -568,7 +570,7 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app) {
     (void)widget;
     (void)event;
-    destroy_window(app);
+    hide_window(app);
     return TRUE; // Prevent default handler
 }
 
@@ -590,18 +592,19 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
     
     // Use a small delay to properly detect if focus is really lost
     // This helps distinguish between internal widget focus changes and actual window focus loss
-    g_timeout_add(100, (GSourceFunc)check_focus_loss_delayed, app);
+    app->focus_loss_timer = g_timeout_add(100, (GSourceFunc)check_focus_loss_delayed, app);
     
     return FALSE;
 }
 
 // Delayed check for focus loss
 static gboolean check_focus_loss_delayed(AppData *app) {
+    // Clear the timer ID since we're running
+    app->focus_loss_timer = 0;
+    
     if (!app->window) {
         return FALSE; // Window already destroyed
     }
-    
-
     
     // Check if our window still has toplevel focus
     if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
@@ -610,7 +613,7 @@ static gboolean check_focus_loss_delayed(AppData *app) {
     }
     
     log_info("Window lost focus to external application, closing");
-    destroy_window(app);
+    hide_window(app);
     return FALSE; // Don't repeat the timeout
 }
 
@@ -642,6 +645,144 @@ void destroy_window(AppData *app) {
     }
 }
 
+// Cancel all pending timers
+void cancel_pending_timers(AppData *app) {
+    if (app->focus_loss_timer > 0) {
+        g_source_remove(app->focus_loss_timer);
+        app->focus_loss_timer = 0;
+    }
+    if (app->command_mode_timer > 0) {
+        g_source_remove(app->command_mode_timer);
+        app->command_mode_timer = 0;
+    }
+    if (app->focus_grab_timer > 0) {
+        g_source_remove(app->focus_grab_timer);
+        app->focus_grab_timer = 0;
+    }
+}
+
+// Hide window and reset state
+void hide_window(AppData *app) {
+    if (!app->window || !app->window_visible) {
+        return;
+    }
+    
+    log_debug("Hiding window and resetting state");
+    
+    // Clear search entry
+    if (app->entry) {
+        gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+    }
+    
+    // Clear filtered arrays first
+    app->filtered_count = 0;
+    app->filtered_workspace_count = 0;
+    app->filtered_harpoon_count = 0;
+    
+    // Reset selection for all tabs (after clearing arrays)
+    reset_selection(app);
+    app->selection.window_scroll_offset = 0;
+    app->selection.workspace_scroll_offset = 0;
+    app->selection.harpoon_scroll_offset = 0;
+    
+    // Exit command mode if active
+    if (app->command_mode.state == CMD_MODE_COMMAND) {
+        exit_command_mode(app);
+    }
+    
+    // Reset to default tab
+    app->current_tab = TAB_WINDOWS;
+    
+    // Hide any active overlays
+    if (app->overlay_active) {
+        hide_overlay(app);
+    }
+    
+    // Cancel all pending timers
+    cancel_pending_timers(app);
+    
+    // Save config and harpoon state
+    save_config(&app->config);
+    save_harpoon_slots(&app->harpoon);
+    
+    // Hide the window
+    gtk_widget_hide(app->window);
+    app->window_visible = FALSE;
+}
+
+// Delayed focus grab callback
+static gboolean grab_focus_delayed(gpointer data) {
+    AppData *app = (AppData *)data;
+    
+    // Clear timer ID
+    app->focus_grab_timer = 0;
+    
+    if (app->entry && app->window) {
+        GtkWindow *window = GTK_WINDOW(app->window);
+        
+        // Clear urgency hint
+        gtk_window_set_urgency_hint(window, FALSE);
+        
+        // Try to grab keyboard focus at X11 level
+        GdkWindow *gdk_window = gtk_widget_get_window(app->window);
+        if (gdk_window) {
+            Display *display = GDK_WINDOW_XDISPLAY(gdk_window);
+            Window xwindow = GDK_WINDOW_XID(gdk_window);
+            
+            // Force raise and focus at X11 level
+            XRaiseWindow(display, xwindow);
+            XSetInputFocus(display, xwindow, RevertToParent, CurrentTime);
+            XFlush(display);
+        }
+        
+        // Final attempt to grab widget focus
+        gtk_widget_grab_focus(app->entry);
+        
+        log_debug("Delayed focus grab completed");
+    }
+    
+    return FALSE; // Remove timeout
+}
+
+// Show window and refresh data
+void show_window(AppData *app) {
+    if (!app->window || app->window_visible) {
+        return;
+    }
+    
+    log_debug("Showing window and refreshing data");
+    
+    // Refresh window list from X11
+    get_window_list(app);
+    
+    // Check for automatic harpoon reassignments
+    check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
+    
+    // Filter with empty string to get fresh display
+    filter_windows(app, "");
+    update_display(app);
+    
+    // Show and present the window
+    gtk_widget_show_all(app->window);
+    app->window_visible = TRUE;
+    
+    // Force window to be active using multiple methods
+    GtkWindow *window = GTK_WINDOW(app->window);
+    
+    // Method 1: Present the window with timestamp
+    gtk_window_present_with_time(window, GDK_CURRENT_TIME);
+    
+    // Method 2: Set urgency hint to grab attention
+    gtk_window_set_urgency_hint(window, TRUE);
+    
+    // Method 3: Grab focus on the entry
+    gtk_widget_grab_focus(app->entry);
+    
+    // Method 4: Force keyboard grab after a short delay
+    app->focus_grab_timer = g_timeout_add(50, grab_focus_delayed, app);
+    
+    log_debug("Window shown with multi-method focus grab");
+}
 
 // Application setup
 void setup_application(AppData *app, WindowAlignment alignment) {
@@ -945,6 +1086,7 @@ int main(int argc, char *argv[]) {
     // Show window and run
     gtk_widget_show_all(app.window);
     gtk_widget_grab_focus(app.entry);
+    app.window_visible = TRUE;
     
     gint64 window_show_time = g_get_monotonic_time();
     log_info("Total startup time: %.2fms (window visible)", 
