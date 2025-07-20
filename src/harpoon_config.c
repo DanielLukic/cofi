@@ -128,7 +128,7 @@ void save_harpoon_slots(const HarpoonManager *harpoon) {
     fprintf(file, "}\n");
     
     fclose(file);
-    log_info("Saved harpoon slots to %s", path);
+    log_debug("Saved harpoon slots to %s", path);
 }
 
 // Load harpoon slots from separate config file
