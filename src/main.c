@@ -356,7 +356,7 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
             if (app->current_tab == TAB_WINDOWS) {
                 WindowInfo *win = get_selected_window(app);
                 if (win) {
-                    log_info("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
+                    log_debug("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
                              win->title, win->id);
                     activate_window(win->id);
                     
@@ -551,7 +551,7 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
     const char *text = gtk_entry_get_text(entry);
 
     if (strlen(text) > 0) {
-        log_info("USER: Filter text changed -> '%s'", text);
+        log_debug("USER: Filter text changed -> '%s'", text);
     }
 
     if (app->current_tab == TAB_WINDOWS) {
@@ -613,7 +613,7 @@ static gboolean check_focus_loss_delayed(AppData *app) {
         return FALSE;
     }
     
-    log_info("Window lost focus to external application, closing");
+    log_debug("Window lost focus to external application, closing");
     hide_window(app);
     return FALSE; // Don't repeat the timeout
 }

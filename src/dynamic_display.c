@@ -291,7 +291,7 @@ gint calculate_max_display_lines(GtkWidget *window, const DynamicDisplayConfig *
 
     result->calculation_successful = TRUE;
 
-    log_info("Dynamic line calculation: %d lines (target_height=%d, line_height=%d, scale=%d)",
+    log_debug("Dynamic line calculation: %d lines (target_height=%d, line_height=%d, scale=%d)",
              result->effective_lines, target_height, result->font_metrics.line_height,
              result->screen_info.scale_factor);
 
