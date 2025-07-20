@@ -115,6 +115,13 @@ typedef struct AppData {
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown
     OverlayType current_overlay;            // Which overlay is currently active
+    gboolean dialog_active;                 // Whether a dialog prevents focus loss
+    
+    // Window visibility and timer management
+    gboolean window_visible;                // Whether the window is currently visible
+    guint focus_loss_timer;                 // Timer ID for focus loss delay
+    guint command_mode_timer;               // Timer ID for command mode entry
+    guint focus_grab_timer;                 // Timer ID for focus grab delay
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

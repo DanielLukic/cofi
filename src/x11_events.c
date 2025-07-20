@@ -72,6 +72,11 @@ gboolean process_x11_events(GIOChannel *source, GIOCondition condition, gpointer
 }
 
 void handle_x11_event(AppData *app, XEvent *event) {
+    // Skip processing if window is hidden
+    if (!app->window_visible) {
+        return;
+    }
+    
     switch (event->type) {
         case PropertyNotify: {
             XPropertyEvent *prop_event = &event->xproperty;

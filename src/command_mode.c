@@ -12,7 +12,7 @@
 #include <ctype.h>
 
 // External function from main.c
-extern void destroy_window(AppData *app);
+extern void hide_window(AppData *app);
 
 // Global command history that persists across window recreations
 static struct {
@@ -164,7 +164,7 @@ void exit_command_mode(AppData *app) {
     // If we should close, close the window
     if (should_close) {
         log_info("USER: Exited command mode (started with --command, closing window)");
-        destroy_window(app);
+        hide_window(app);
         return;
     }
     
