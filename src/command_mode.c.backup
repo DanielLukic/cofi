@@ -136,14 +136,6 @@ void enter_command_mode(AppData *app) {
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
     
-    // Reset selection to 0 when entering command mode (breaks alt-tab conditions)
-    if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0) {
-        app->selection.window_index = 0;
-        app->selection.selected_window_id = app->filtered[0].id;
-        update_display(app); // Update visual display to show correct selection
-        log_debug("Command mode: reset selection to index 0");
-    }
-    
     // Change mode indicator to ":"
     if (app->mode_indicator) {
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), ":");
@@ -390,143 +382,6 @@ static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *ar
     return TRUE;
 }
 
-// Command handler function type
-typedef gboolean (*CommandHandler)(AppData *app, WindowInfo *window, const char *args);
-
-// Command structure for dispatch table
-typedef struct {
-    const char *primary;     // Primary command name
-    const char *aliases[5];  // Alternative names (NULL terminated)
-    CommandHandler handler;  // Handler function
-    const char *description; // Help description
-} Command;
-
-// Forward declarations of command handlers
-static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_jump_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
-
-// Helper functions
-static const Command* find_command(const char *cmd_name);
-static TileOption parse_tile_option(const char *arg);
-
-// Command dispatch table - single source of truth
-static const Command commands[] = {
-    {"cw", {"change-workspace", NULL}, cmd_change_workspace, 
-     "Move selected window to different workspace (N = workspace number)"},
-    {"tm", {"toggle-monitor", NULL}, cmd_toggle_monitor, 
-     "Move selected window to next monitor"},
-    {"sb", {"skip-taskbar", NULL}, cmd_skip_taskbar, 
-     "Toggle skip taskbar for selected window"},
-    {"aot", {"at", "always-on-top", NULL}, cmd_always_on_top, 
-     "Toggle always on top for selected window"},
-    {"ab", {"always-below", NULL}, cmd_always_below, 
-     "Toggle always below for selected window"},
-    {"ew", {"every-workspace", NULL}, cmd_every_workspace, 
-     "Toggle show on every workspace for selected window"},
-    {"cl", {"c", "close", "close-window", NULL}, cmd_close_window, 
-     "Close selected window"},
-    {"mw", {"m", "maximize-window", NULL}, cmd_maximize_window, 
-     "Maximize selected window"},
-    {"hmw", {"hm", "horizontal-maximize-window", NULL}, cmd_horizontal_maximize, 
-     "Maximize window horizontally"},
-    {"vmw", {"vm", "vertical-maximize-window", NULL}, cmd_vertical_maximize, 
-     "Maximize window vertically"},
-    {"jw", {"jump-workspace", "j", NULL}, cmd_jump_workspace, 
-     "Jump to different workspace (N = workspace number)"},
-    {"tw", {"tile-window", "t", NULL}, cmd_tile_window, 
-     "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)"},
-    {"help", {"h", "?", NULL}, cmd_help, 
-     "Show this help message"},
-    {NULL, {NULL}, NULL, NULL} // Sentinel
-};
-
-// Find command in dispatch table
-static const Command* find_command(const char *cmd_name) {
-    for (int i = 0; commands[i].primary != NULL; i++) {
-        // Check primary name
-        if (strcmp(cmd_name, commands[i].primary) == 0) {
-            return &commands[i];
-        }
-        
-        // Check aliases
-        for (int j = 0; j < 5 && commands[i].aliases[j] != NULL; j++) {
-            if (strcmp(cmd_name, commands[i].aliases[j]) == 0) {
-                return &commands[i];
-            }
-        }
-    }
-    return NULL;
-}
-
-// Parse tiling option from string
-static TileOption parse_tile_option(const char *arg) {
-    if (strlen(arg) == 1) {
-        switch (arg[0]) {
-            case 'l': case 'L': return TILE_LEFT_HALF;
-            case 'r': case 'R': return TILE_RIGHT_HALF;
-            case 't': case 'T': return TILE_TOP_HALF;
-            case 'b': case 'B': return TILE_BOTTOM_HALF;
-            case '1': return TILE_GRID_1;
-            case '2': return TILE_GRID_2;
-            case '3': return TILE_GRID_3;
-            case '4': return TILE_GRID_4;
-            case '5': return TILE_GRID_5;
-            case '6': return TILE_GRID_6;
-            case '7': return TILE_GRID_7;
-            case '8': return TILE_GRID_8;
-            case '9': return TILE_GRID_9;
-            case 'f': case 'F': return TILE_FULLSCREEN;
-            case 'c': case 'C': return TILE_CENTER;
-        }
-    } else if (strlen(arg) == 2 && strchr("lrtbLRTB", arg[0]) && strchr("1234", arg[1])) {
-        char direction = tolower(arg[0]);
-        char size = arg[1];
-        
-        if (direction == 'l') {
-            switch (size) {
-                case '1': return TILE_LEFT_QUARTER;
-                case '2': return TILE_LEFT_HALF;
-                case '3': return TILE_LEFT_TWO_THIRDS;
-                case '4': return TILE_LEFT_THREE_QUARTERS;
-            }
-        } else if (direction == 'r') {
-            switch (size) {
-                case '1': return TILE_RIGHT_QUARTER;
-                case '2': return TILE_RIGHT_HALF;
-                case '3': return TILE_RIGHT_TWO_THIRDS;
-                case '4': return TILE_RIGHT_THREE_QUARTERS;
-            }
-        } else if (direction == 't') {
-            switch (size) {
-                case '1': return TILE_TOP_QUARTER;
-                case '2': return TILE_TOP_HALF;
-                case '3': return TILE_TOP_TWO_THIRDS;
-                case '4': return TILE_TOP_THREE_QUARTERS;
-            }
-        } else if (direction == 'b') {
-            switch (size) {
-                case '1': return TILE_BOTTOM_QUARTER;
-                case '2': return TILE_BOTTOM_HALF;
-                case '3': return TILE_BOTTOM_TWO_THIRDS;
-                case '4': return TILE_BOTTOM_THREE_QUARTERS;
-            }
-        }
-    }
-    return (TileOption)-1; // Invalid option
-}
-
-
 gboolean execute_command(const char *command, AppData *app) {
     if (!command || !app) return FALSE;
     
@@ -544,191 +399,334 @@ gboolean execute_command(const char *command, AppData *app) {
     char arg[32] = {0};
     parse_command_and_arg(command, cmd_name, arg, sizeof(cmd_name), sizeof(arg));
     
-    // Find and execute command using dispatch table
-    const Command *cmd = find_command(cmd_name);
-    if (cmd) {
+    // Command shortcuts
+    if (strcmp(cmd_name, "cw") == 0 || strcmp(cmd_name, "change-workspace") == 0) {
         WindowInfo *selected_window = get_selected_window(app);
-        return cmd->handler(app, selected_window, arg);
+        if (!selected_window) {
+            log_warn("No window selected for workspace change");
+            return FALSE; // Stay in command mode
+        }
+
+        if (strlen(arg) > 0) {
+            // Direct move with workspace number
+            int workspace_num = atoi(arg);
+            if (workspace_num >= 1 && workspace_num <= 36) {
+                // Get workspace count to validate
+                int workspace_count = get_number_of_desktops(app->display);
+                if (workspace_num <= workspace_count) {
+                    int target_workspace = workspace_num - 1; // Convert to 0-based
+
+                    log_info("USER: Command '%s %s' -> Moving window '%s' to workspace %d",
+                             cmd_name, arg, selected_window->title, workspace_num);
+
+                    // Move the window to the target workspace
+                    move_window_to_desktop(app->display, selected_window->id, target_workspace);
+
+                    // Activate the window (this will also switch to the workspace)
+                    activate_commanded_window(app, selected_window);
+
+                    log_info("Moved window '%s' to workspace %d",
+                             selected_window->title, workspace_num);
+
+                    return TRUE; // Exit command mode after direct move
+                } else {
+                    log_warn("Workspace %d does not exist (only %d workspaces available)",
+                             workspace_num, workspace_count);
+                    return FALSE; // Stay in command mode
+                }
+            } else {
+                log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+                return FALSE; // Stay in command mode
+            }
+        } else {
+            // No argument provided, show overlay
+            show_workspace_move_overlay(app);
+            return FALSE; // Stay in command mode while overlay is shown
+        }
+    } else if (strcmp(cmd_name, "tm") == 0 || strcmp(cmd_name, "toggle-monitor") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            move_window_to_next_monitor(app);
+            return FALSE; // Stay in command mode after moving window
+        } else {
+            log_warn("No window selected for monitor move");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "sb") == 0 || strcmp(cmd_name, "skip-taskbar") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            log_info("USER: Command 'sb' -> Toggling skip-taskbar for window '%s' (ID: 0x%lx)",
+                     selected_window->title, selected_window->id);
+            toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_SKIP_TASKBAR");
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling state
+        } else {
+            log_warn("No window selected for skip-taskbar toggle");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "aot") == 0 || strcmp(cmd_name, "at") == 0 || strcmp(cmd_name, "always-on-top") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_ABOVE");
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling state
+        } else {
+            log_warn("No window selected for always-on-top toggle");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "ab") == 0 || strcmp(cmd_name, "always-below") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_BELOW");
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling state
+        } else {
+            log_warn("No window selected for always-below toggle");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "ew") == 0 || strcmp(cmd_name, "every-workspace") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_window_state(app->display, selected_window->id, "_NET_WM_STATE_STICKY");
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling state
+        } else {
+            log_warn("No window selected for every-workspace toggle");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "cl") == 0 || strcmp(cmd_name, "c") == 0 || strcmp(cmd_name, "close") == 0 || strcmp(cmd_name, "close-window") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            close_window(app->display, selected_window->id);
+            return FALSE; // Stay in command mode after closing window
+        } else {
+            log_warn("No window selected for close");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "mw") == 0 || strcmp(cmd_name, "m") == 0 || strcmp(cmd_name, "maximize-window") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_maximize_window(app->display, selected_window->id);
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling maximize
+        } else {
+            log_warn("No window selected for maximize");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "hmw") == 0 || strcmp(cmd_name, "hm") == 0 || strcmp(cmd_name, "horizontal-maximize-window") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_maximize_horizontal(app->display, selected_window->id);
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling horizontal maximize
+        } else {
+            log_warn("No window selected for horizontal maximize");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "vmw") == 0 || strcmp(cmd_name, "vm") == 0 || strcmp(cmd_name, "vertical-maximize-window") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (selected_window) {
+            toggle_maximize_vertical(app->display, selected_window->id);
+            activate_commanded_window(app, selected_window);  // Activate modified window
+            return FALSE; // Stay in command mode after toggling vertical maximize
+        } else {
+            log_warn("No window selected for vertical maximize");
+            return FALSE; // Stay in command mode
+        }
+    } else if (strcmp(cmd_name, "jw") == 0 || strcmp(cmd_name, "jump-workspace") == 0 || strcmp(cmd_name, "j") == 0) {
+        if (strlen(arg) > 0) {
+            // Direct jump with workspace number
+            int workspace_num = atoi(arg);
+            if (workspace_num >= 1 && workspace_num <= 36) {
+                // Get workspace count to validate
+                int workspace_count = get_number_of_desktops(app->display);
+                if (workspace_num <= workspace_count) {
+                    int current_workspace = get_current_desktop(app->display);
+                    int target_workspace = workspace_num - 1; // Convert to 0-based
+
+                    if (target_workspace != current_workspace) {
+                        log_info("USER: Command '%s %s' -> Jumping directly to workspace %d",
+                                 cmd_name, arg, workspace_num);
+                        switch_to_desktop(app->display, target_workspace);
+                        log_info("Jumped from workspace %d to workspace %d",
+                                 current_workspace + 1, workspace_num);
+                    } else {
+                        log_debug("Already on target workspace %d", workspace_num);
+                    }
+                    return TRUE; // Exit command mode after direct jump
+                } else {
+                    log_warn("Workspace %d does not exist (only %d workspaces available)",
+                             workspace_num, workspace_count);
+                    return FALSE; // Stay in command mode
+                }
+            } else {
+                log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+                return FALSE; // Stay in command mode
+            }
+        } else {
+            // No argument provided, show overlay
+            show_workspace_jump_overlay(app);
+            return FALSE; // Stay in command mode while overlay is shown
+        }
+    } else if (strcmp(cmd_name, "tw") == 0 || strcmp(cmd_name, "tile-window") == 0 || strcmp(cmd_name, "t") == 0) {
+        WindowInfo *selected_window = get_selected_window(app);
+        if (!selected_window) {
+            log_warn("No window selected for tiling");
+            return FALSE; // Stay in command mode
+        }
+
+        if (strlen(arg) > 0) {
+            // Direct tiling with option
+            TileOption option;
+            gboolean valid_option = TRUE;
+
+            // Parse tiling option
+            if (strlen(arg) == 1) {
+                switch (arg[0]) {
+                    case 'l':
+                    case 'L':
+                        option = TILE_LEFT_HALF;
+                        break;
+                    case 'r':
+                    case 'R':
+                        option = TILE_RIGHT_HALF;
+                        break;
+                    case 't':
+                    case 'T':
+                        option = TILE_TOP_HALF;
+                        break;
+                    case 'b':
+                    case 'B':
+                        option = TILE_BOTTOM_HALF;
+                        break;
+                    case '1':
+                        option = TILE_GRID_1;
+                        break;
+                    case '2':
+                        option = TILE_GRID_2;
+                        break;
+                    case '3':
+                        option = TILE_GRID_3;
+                        break;
+                    case '4':
+                        option = TILE_GRID_4;
+                        break;
+                    case '5':
+                        option = TILE_GRID_5;
+                        break;
+                    case '6':
+                        option = TILE_GRID_6;
+                        break;
+                    case '7':
+                        option = TILE_GRID_7;
+                        break;
+                    case '8':
+                        option = TILE_GRID_8;
+                        break;
+                    case '9':
+                        option = TILE_GRID_9;
+                        break;
+                    case 'f':
+                    case 'F':
+                        option = TILE_FULLSCREEN;
+                        break;
+                    case 'c':
+                    case 'C':
+                        option = TILE_CENTER;
+                        break;
+                    default:
+                        valid_option = FALSE;
+                        break;
+                }
+            } else if (strlen(arg) == 2 && strchr("lrtbLRTB", arg[0]) && strchr("1234", arg[1])) {
+                // Handle direct tiling commands like "r4" for right 75%
+                char direction = tolower(arg[0]);
+                char size = arg[1];
+                
+                switch (direction) {
+                    case 'l':
+                        switch (size) {
+                            case '1': option = TILE_LEFT_QUARTER; break;
+                            case '2': option = TILE_LEFT_HALF; break;
+                            case '3': option = TILE_LEFT_TWO_THIRDS; break;
+                            case '4': option = TILE_LEFT_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'r':
+                        switch (size) {
+                            case '1': option = TILE_RIGHT_QUARTER; break;
+                            case '2': option = TILE_RIGHT_HALF; break;
+                            case '3': option = TILE_RIGHT_TWO_THIRDS; break;
+                            case '4': option = TILE_RIGHT_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 't':
+                        switch (size) {
+                            case '1': option = TILE_TOP_QUARTER; break;
+                            case '2': option = TILE_TOP_HALF; break;
+                            case '3': option = TILE_TOP_TWO_THIRDS; break;
+                            case '4': option = TILE_TOP_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'b':
+                        switch (size) {
+                            case '1': option = TILE_BOTTOM_QUARTER; break;
+                            case '2': option = TILE_BOTTOM_HALF; break;
+                            case '3': option = TILE_BOTTOM_TWO_THIRDS; break;
+                            case '4': option = TILE_BOTTOM_THREE_QUARTERS; break;
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    case 'c':
+                        switch (size) {
+                            case '1': option = TILE_CENTER_THIRD; break;
+                            case '2': option = TILE_CENTER_TWO_THIRDS; break;
+                            case '3': option = TILE_CENTER_THREE_QUARTERS; break;
+                            case '4': option = TILE_FULLSCREEN; break;  // tc4 = fullscreen (100%)
+                            default: valid_option = FALSE; break;
+                        }
+                        break;
+                    default:
+                        valid_option = FALSE;
+                        break;
+                }
+            } else {
+                valid_option = FALSE;
+            }
+
+            if (valid_option) {
+                log_info("USER: Command '%s %s' -> Tiling window '%s' with option %d",
+                         cmd_name, arg, selected_window->title, option);
+
+                // Apply the tiling directly
+                apply_tiling(app->display, selected_window->id, option, app->config.tile_columns);
+
+                // Activate the tiled window
+                activate_commanded_window(app, selected_window);
+
+                log_info("Applied tiling option %s to window '%s'",
+                         arg, selected_window->title);
+
+                return TRUE; // Exit command mode after direct tiling
+            } else {
+                log_warn("Invalid tiling option: '%s' (use L/R/T/B, 1-9, F, C, or [lrtb][1-4], c[1-3])", arg);
+                return FALSE; // Stay in command mode
+            }
+        } else {
+            // No argument provided, show overlay
+            show_tiling_overlay((struct AppData *)app);
+            return FALSE; // Stay in command mode while overlay is shown
+        }
+    } else if (strcmp(cmd_name, "help") == 0 || strcmp(cmd_name, "h") == 0 || strcmp(cmd_name, "?") == 0) {
+        show_help_commands(app);
+        return FALSE; // Stay in command mode to show help
     } else {
         log_warn("Unknown command: '%s'. Type 'help' for available commands.", cmd_name);
         return FALSE; // Stay in command mode
     }
-}
-
-// Command handler implementations
-static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args) {
-    if (!window) {
-        log_warn("No window selected for workspace change");
-        return FALSE;
-    }
-    
-    if (strlen(args) > 0) {
-        int workspace_num = atoi(args);
-        if (workspace_num >= 1 && workspace_num <= 36) {
-            int workspace_count = get_number_of_desktops(app->display);
-            if (workspace_num <= workspace_count) {
-                int target_workspace = workspace_num - 1;
-                log_info("USER: Moving window '%s' to workspace %d", window->title, workspace_num);
-                move_window_to_desktop(app->display, window->id, target_workspace);
-                activate_commanded_window(app, window);
-                return TRUE;
-            } else {
-                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
-            }
-        } else {
-            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
-        }
-    } else {
-        show_workspace_jump_overlay((struct AppData *)app);
-    }
-    return FALSE;
-}
-
-static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for monitor toggle");
-        return FALSE;
-    }
-    
-    move_window_to_next_monitor(app);
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for skip taskbar toggle");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for always on top toggle");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_ABOVE");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for always below toggle");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_BELOW");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for every workspace toggle");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_STICKY");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for closing");
-        return FALSE;
-    }
-    
-    close_window(app->display, window->id);
-    return TRUE;
-}
-
-static gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for maximizing");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_BOTH");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for horizontal maximizing");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
-    if (!window) {
-        log_warn("No window selected for vertical maximizing");
-        return FALSE;
-    }
-    
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT");
-    activate_commanded_window(app, window);
-    return TRUE;
-}
-
-static gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
-    if (strlen(args) > 0) {
-        int workspace_num = atoi(args);
-        if (workspace_num >= 1 && workspace_num <= 36) {
-            int workspace_count = get_number_of_desktops(app->display);
-            if (workspace_num <= workspace_count) {
-                int target_workspace = workspace_num - 1;
-                log_info("USER: Switching to workspace %d", workspace_num);
-                switch_to_desktop(app->display, target_workspace);
-                return TRUE;
-            } else {
-                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
-            }
-        } else {
-            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
-        }
-    } else {
-        show_workspace_jump_overlay((struct AppData *)app);
-    }
-    return FALSE;
-}
-
-static gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
-    if (!window) {
-        log_warn("No window selected for tiling");
-        return FALSE;
-    }
-    
-    if (strlen(args) > 0) {
-        TileOption option = parse_tile_option(args);
-        if (option != (TileOption)-1) {
-            log_info("USER: Tiling window '%s' with option: %s", window->title, args);
-            apply_tiling(app->display, window->id, option, 3);
-            activate_commanded_window(app, window);
-            return TRUE;
-        } else {
-            log_warn("Invalid tiling option: %s", args);
-        }
-    } else {
-        show_tiling_overlay((struct AppData *)app);
-    }
-    return FALSE;
-}
-
-static gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
-    show_help_commands(app);
-    return FALSE; // Stay in command mode to show help
 }
 
 // Generate command help text in different formats

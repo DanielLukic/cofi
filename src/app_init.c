@@ -41,8 +41,12 @@ void init_app_data(AppData *app) {
     // Initialize command mode
     init_command_mode(&app->command_mode);
     
-    // Initialize last commanded window tracking
-    app->last_commanded_window_id = 0;
+    // Initialize window visibility state
+    app->window_visible = FALSE;
+    
+    // Initialize timers
+    app->focus_loss_timer = 0;
+    app->focus_grab_timer = 0;
 }
 
 void init_x11_connection(AppData *app) {

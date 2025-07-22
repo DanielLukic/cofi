@@ -109,12 +109,18 @@ typedef struct AppData {
     HarpoonManager harpoon;                 // Harpoon number assignments
     CofiConfig config;                      // Unified configuration settings
     CommandMode command_mode;               // Command mode state
-    Window last_commanded_window_id;        // Last window affected by command mode action
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
 
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown
     OverlayType current_overlay;            // Which overlay is currently active
+    
+    // Window visibility state
+    gboolean window_visible;                // Whether the window is currently visible
+    
+    // Timer management for deferred operations
+    guint focus_loss_timer;                 // Timer ID for focus loss delay
+    guint focus_grab_timer;                 // Timer ID for focus grab delay
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

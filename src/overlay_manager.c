@@ -10,7 +10,7 @@
 static gboolean on_overlay_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 
 // External function declarations
-void destroy_window(AppData *app); // From main.c
+void hide_window(AppData *app); // From main.c
 
 // Initialize the overlay system
 void init_overlay_system(AppData *app) {

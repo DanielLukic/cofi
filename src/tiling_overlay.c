@@ -7,7 +7,7 @@
 
 // Forward declarations
 static void create_tiling_grid_overlay(GtkWidget *parent_box, AppData *app);
-extern void destroy_window(AppData *app); // From main.c
+extern void hide_window(AppData *app); // From main.c
 
 // Create tiling overlay content
 void create_tiling_overlay_content(GtkWidget *parent_container, AppData *app) {
@@ -344,7 +344,7 @@ gboolean handle_tiling_overlay_key_press(AppData *app, GdkEventKey *event) {
         apply_tiling(app->display, selected_window->id, option, tile_columns);
 
         // Close the main application (similar to original tiling dialog behavior)
-        destroy_window(app);
+        hide_window(app);
 
         return TRUE;
     }
