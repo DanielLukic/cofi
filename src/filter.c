@@ -375,27 +375,42 @@ void filter_windows(AppData *app, const char *filter) {
         log_trace("Separated windows: %d Normal, %d Special", normal_count, special_count);
     }
 
-    // Step 4.5: Apply Alt-Tab swap if no commanded window AND no active filter
-    if (app->last_commanded_window_id == 0 && app->filtered_count >= 2 && strlen(filter) == 0) {
-        log_trace("Alt-Tab swap: Swapping positions 0 and 1 (no commanded window, no filter)");
-        log_trace("  Before: [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
-                 app->filtered[0].title, app->filtered[0].id,
-                 app->filtered[1].title, app->filtered[1].id);
-        
-        // Swap positions 0 and 1
-        WindowInfo temp = app->filtered[0];
-        app->filtered[0] = app->filtered[1];
-        app->filtered[1] = temp;
-        
-        log_trace("  After:  [0]='%s' (0x%lx), [1]='%s' (0x%lx)", 
-                 app->filtered[0].title, app->filtered[0].id,
-                 app->filtered[1].title, app->filtered[1].id);
-    } else if (app->last_commanded_window_id != 0) {
-        log_trace("Alt-Tab swap: Skipped (commanded window: 0x%lx)", app->last_commanded_window_id);
-    }
-
     // Step 5: Restore and validate selection
     restore_selection(app);
     validate_selection(app);
+    
+    // Step 6: Apply alt-tab selection if conditions are met
+    apply_alt_tab_selection(app);
+}
+
+// Apply alt-tab selection: set selection to index 1 when conditions are met
+void apply_alt_tab_selection(AppData *app) {
+    if (!app || app->current_tab != TAB_WINDOWS) return;
+    
+    // Check alt-tab conditions:
+    // 1. Windows tab active (already checked above)
+    // 2. No filter text (empty search string)
+    // 3. At least 2 windows
+    // 4. Not starting in command mode
+    // 5. User has not typed ":" (not in command mode)
+    
+    const char *filter = "";
+    if (app->entry && GTK_IS_ENTRY(app->entry)) {
+        filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+    }
+    
+    if (app->filtered_count >= 2 && 
+        filter && strlen(filter) == 0 &&
+        !app->start_in_command_mode &&
+        app->command_mode.state != CMD_MODE_COMMAND) {
+        
+        // Set selection to index 1 for alt-tab behavior
+        app->selection.window_index = 1;
+        if (app->filtered_count > 1) {
+            app->selection.selected_window_id = app->filtered[1].id;
+        }
+        
+        log_debug("Alt-tab selection: set selection to index 1 (previous window)");
+    }
 }
 

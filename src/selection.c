@@ -47,7 +47,7 @@ void reset_selection(AppData *app) {
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
-// Get currently selected window (no Alt-Tab swap confusion)
+// Get currently selected window
 WindowInfo* get_selected_window(AppData *app) {
     if (!app || app->current_tab != TAB_WINDOWS) return NULL;
     if (app->filtered_count == 0) return NULL;

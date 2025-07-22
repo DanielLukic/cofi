@@ -8,7 +8,7 @@
 // Forward declarations
 static GtkWidget* create_workspace_widget_overlay(int workspace_num, const char *workspace_name,
                                                   gboolean is_current, gboolean is_user_current);
-extern void destroy_window(AppData *app); // From main.c
+extern void hide_window(AppData *app); // From main.c
 
 // Create workspace jump overlay content
 void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData *app) {
@@ -354,7 +354,7 @@ gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event) {
             }
 
             // Close application
-            destroy_window(app);
+            hide_window(app);
         }
         return TRUE;
     }
@@ -382,7 +382,7 @@ gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event) {
             }
 
             // Close application
-            destroy_window(app);
+            hide_window(app);
         }
         return TRUE;
     }
@@ -422,7 +422,7 @@ gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event) {
                      selected_window->title, target_workspace_idx + 1);
 
             // Close application
-            destroy_window(app);
+            hide_window(app);
         }
         return TRUE;
     }
@@ -443,7 +443,7 @@ gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event) {
                      selected_window->title, target_workspace_idx + 1);
 
             // Close application
-            destroy_window(app);
+            hide_window(app);
         }
         return TRUE;
     }

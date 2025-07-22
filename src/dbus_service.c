@@ -22,20 +22,14 @@ extern void setup_application(AppData *app, int alignment);
 extern void filter_windows(AppData *app, const char *filter);
 extern void update_display(AppData *app);
 extern void reset_selection(AppData *app);
-extern void apply_command_mode_unswap(AppData *app);
+extern void show_window(AppData *app);
 extern void enter_command_mode(AppData *app);
-
-// Forward declaration for map event handler
-static gboolean on_window_map(GtkWidget *widget, GdkEvent *event, gpointer data);
-static gboolean grab_focus_delayed(gpointer data);
 
 // Deferred command mode entry callback (replicated from instance.c)
 static gboolean enter_command_mode_delayed(gpointer data) {
     AppData *app = (AppData*)data;
     if (app) {
         app->command_mode.close_on_exit = TRUE; // Set flag to close window on exit
-        // Apply Alt-Tab unswap before entering command mode
-        apply_command_mode_unswap(app);
         enter_command_mode(app);
     }
     return FALSE; // Remove timeout
@@ -90,55 +84,13 @@ ShowMode string_to_show_mode(const char *mode_str) {
     }
 }
 
-// Window recreation function (replicated from instance.c)
-static gboolean recreate_window_idle(gpointer data) {
+// Show existing window function
+static gboolean show_window_idle(gpointer data) {
     (void)data; // Unused parameter
 
-    if (g_app_data) {
-        // Destroy existing window if it exists
-        if (g_app_data->window) {
-            gtk_widget_destroy(g_app_data->window);
-            g_app_data->window = NULL;
-            g_app_data->entry = NULL;
-            g_app_data->textview = NULL;
-            g_app_data->scrolled = NULL;
-            g_app_data->textbuffer = NULL;
-        }
-
-        // Reset selection to first entry (will be set again by filter_windows)
-        reset_selection(g_app_data);
-        log_debug("Reset selection before recreating window");
-
-        // Create new window with stored alignment
-        setup_application(g_app_data, g_app_data->config.alignment);
-
-        // Connect map event to grab focus after window is mapped
-        g_signal_connect(g_app_data->window, "map-event", G_CALLBACK(on_window_map), NULL);
-
-        // Initialize display with all windows
-        filter_windows(g_app_data, "");
-
-        // ALWAYS reset selection after filtering
-        reset_selection(g_app_data);
-        log_debug("Selection reset after filtering in instance recreation");
-
-        update_display(g_app_data);
-
-        // Make sure focus will be set on map
-        gtk_window_set_focus_on_map(GTK_WINDOW(g_app_data->window), TRUE);
-
-        // Show the new window
-        gtk_widget_show_all(g_app_data->window);
-
-        // Update our own window ID
-        GdkWindow *gdk_window = gtk_widget_get_window(g_app_data->window);
-        if (gdk_window) {
-            g_app_data->own_window_id = GDK_WINDOW_XID(gdk_window);
-            log_debug("Updated own window ID: 0x%lx", g_app_data->own_window_id);
-        }
-
-        // Present the window
-        gtk_window_present(GTK_WINDOW(g_app_data->window));
+    if (g_app_data && g_app_data->window) {
+        // Show the existing window
+        show_window(g_app_data);
 
         // Enter command mode if requested
         if (g_app_data->start_in_command_mode) {
@@ -148,75 +100,12 @@ static gboolean recreate_window_idle(gpointer data) {
             log_info("Scheduled command mode entry via D-Bus");
         }
 
-        log_debug("Window shown by D-Bus call from another instance");
-
-        // Log last commanded window if set
-        if (g_app_data->last_commanded_window_id != 0) {
-            log_info("Last commanded window ID: 0x%lx", g_app_data->last_commanded_window_id);
-        }
+        log_info("Window shown by D-Bus call from another instance");
     }
 
     return FALSE; // Remove from idle queue
 }
 
-// Handle window map event - grab focus after window is actually mapped
-static gboolean on_window_map(GtkWidget *widget, GdkEvent *event, gpointer data) {
-    (void)widget;
-    (void)event;
-    (void)data;
-    
-    if (g_app_data && g_app_data->entry && g_app_data->window) {
-        // Force window to be active using multiple methods
-        GtkWindow *window = GTK_WINDOW(g_app_data->window);
-        
-        // Method 1: Present the window with timestamp
-        gtk_window_present_with_time(window, GDK_CURRENT_TIME);
-        
-        // Method 2: Set urgency hint to grab attention
-        gtk_window_set_urgency_hint(window, TRUE);
-        
-        // Method 3: Grab focus on the entry
-        gtk_widget_grab_focus(g_app_data->entry);
-        
-        // Method 4: Force keyboard grab after a short delay
-        g_timeout_add(50, grab_focus_delayed, NULL);
-        
-        log_debug("Focus grabbed after window map (multi-method approach)");
-    }
-    
-    return FALSE; // Let signal propagate
-}
-
-// Delayed focus grab - sometimes WMs need a moment
-static gboolean grab_focus_delayed(gpointer data) {
-    (void)data;
-    
-    if (g_app_data && g_app_data->entry && g_app_data->window) {
-        GtkWindow *window = GTK_WINDOW(g_app_data->window);
-        
-        // Clear urgency hint
-        gtk_window_set_urgency_hint(window, FALSE);
-        
-        // Try to grab keyboard focus at X11 level
-        GdkWindow *gdk_window = gtk_widget_get_window(g_app_data->window);
-        if (gdk_window) {
-            Display *display = GDK_WINDOW_XDISPLAY(gdk_window);
-            Window xwindow = GDK_WINDOW_XID(gdk_window);
-            
-            // Force raise and focus at X11 level
-            XRaiseWindow(display, xwindow);
-            XSetInputFocus(display, xwindow, RevertToParent, CurrentTime);
-            XFlush(display);
-        }
-        
-        // Final attempt to grab widget focus
-        gtk_widget_grab_focus(g_app_data->entry);
-        
-        log_debug("Delayed focus grab completed");
-    }
-    
-    return FALSE; // Remove timeout
-}
 
 // D-Bus method call handler
 static void handle_method_call(GDBusConnection *connection, const gchar *sender,
@@ -261,10 +150,10 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
                     break;
             }
 
-            // Defer window recreation to the GTK main loop
-            g_idle_add(recreate_window_idle, NULL);
+            // Defer window showing to the GTK main loop
+            g_idle_add(show_window_idle, NULL);
 
-            log_debug("Window recreation scheduled via D-Bus call");
+            log_info("Window show scheduled via D-Bus call");
 
             // Return success
             g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", TRUE));
