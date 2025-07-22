@@ -22,6 +22,8 @@ extern void setup_application(AppData *app, int alignment);
 extern void filter_windows(AppData *app, const char *filter);
 extern void update_display(AppData *app);
 extern void reset_selection(AppData *app);
+extern void apply_command_mode_unswap(AppData *app);
+extern void enter_command_mode(AppData *app);
 
 // Forward declaration for map event handler
 static gboolean on_window_map(GtkWidget *widget, GdkEvent *event, gpointer data);
@@ -32,6 +34,8 @@ static gboolean enter_command_mode_delayed(gpointer data) {
     AppData *app = (AppData*)data;
     if (app) {
         app->command_mode.close_on_exit = TRUE; // Set flag to close window on exit
+        // Apply Alt-Tab unswap before entering command mode
+        apply_command_mode_unswap(app);
         enter_command_mode(app);
     }
     return FALSE; // Remove timeout
