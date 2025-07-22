@@ -4,6 +4,7 @@
 #include "workarea.h"
 #include "size_hints.h"
 #include "monitor_move.h"
+#include "frame_extents.h"
 #include <stdlib.h>
 #include <string.h>
 #include <X11/extensions/Xrandr.h>
@@ -338,6 +339,10 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     }
 
     log_debug("Tiling window to position: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
+    
+    // Account for window frame extents (borders and decorations)
+    adjust_for_frame_extents(display, window_id, &width, &height);
+    log_debug("After frame adjustment: width=%d, height=%d", width, height);
     
     // Enforce size hints
     ensure_size_hints_satisfied(&x, &y, &width, &height, &size_hints);
