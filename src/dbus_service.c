@@ -97,10 +97,10 @@ static gboolean show_window_idle(gpointer data) {
             g_app_data->start_in_command_mode = 0; // Reset flag
             // Defer entering command mode to ensure proper focus handling
             g_timeout_add(100, enter_command_mode_delayed, g_app_data);
-            log_info("Scheduled command mode entry via D-Bus");
+            log_debug("Scheduled command mode entry via D-Bus");
         }
 
-        log_info("Window shown by D-Bus call from another instance");
+        log_debug("Window shown by D-Bus call from another instance");
     }
 
     return FALSE; // Remove from idle queue
@@ -153,7 +153,7 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
             // Defer window showing to the GTK main loop
             g_idle_add(show_window_idle, NULL);
 
-            log_info("Window show scheduled via D-Bus call");
+            log_debug("Window show scheduled via D-Bus call");
 
             // Return success
             g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", TRUE));
