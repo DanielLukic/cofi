@@ -340,7 +340,7 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 update_display(app);
                 return TRUE;
             }
-            log_info("USER: ESCAPE pressed -> Closing cofi");
+            log_debug("USER: ESCAPE pressed -> Closing cofi");
             hide_window(app);
             return TRUE;
             
@@ -406,7 +406,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     
     // Handle ':' key to enter command mode
     if (event->keyval == GDK_KEY_colon) {
-        log_info("USER: ':' pressed -> Entering command mode");
+        log_debug("USER: ':' pressed -> Entering command mode");
         enter_command_mode(app);
         return TRUE;
     }
@@ -1067,7 +1067,7 @@ int main(int argc, char *argv[]) {
     app.window_visible = TRUE;
     
     gint64 window_show_time = g_get_monotonic_time();
-    log_info("Total startup time: %.2fms (window visible)", 
+    log_debug("Total startup time: %.2fms (window visible)", 
              (window_show_time - start_time) / 1000.0);
     
     // Enter command mode if requested via --command
