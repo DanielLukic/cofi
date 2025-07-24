@@ -133,6 +133,7 @@ Press `:` to enter command mode for advanced window management operations. Comma
 - `:cw [N]` or `:change-workspace [N]` - Move selected window to workspace N
   
   ![Change Workspace](doc/cofi-move-workspace.png)
+- `:pw` or `:pull-window` or `:p` - Pull selected window to current workspace
 - `:tm` or `:toggle-monitor` - Move window to next monitor
 - `:tw [OPT]` or `:tile-window [OPT]` or `:t [OPT]` - Tile window
   - Options: L/R/T/B (halves), 1-4 (2x2 grid) or 1-6 (3x2 grid), F (fullscreen), C (center)

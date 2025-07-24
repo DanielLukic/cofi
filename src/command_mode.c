@@ -403,6 +403,7 @@ typedef struct {
 
 // Forward declarations of command handlers
 static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args);
+static gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args);
 static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args);
 static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args);
 static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args);
@@ -424,6 +425,8 @@ static TileOption parse_tile_option(const char *arg);
 static const Command commands[] = {
     {"cw", {"change-workspace", NULL}, cmd_change_workspace, 
      "Move selected window to different workspace (N = workspace number)"},
+    {"pw", {"pull-window", "p", NULL}, cmd_pull_window,
+     "Pull selected window to current workspace"},
     {"tm", {"toggle-monitor", NULL}, cmd_toggle_monitor, 
      "Move selected window to next monitor"},
     {"sb", {"skip-taskbar", NULL}, cmd_skip_taskbar, 
@@ -584,6 +587,26 @@ static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const cha
     return FALSE;
 }
 
+static gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for pull");
+        return FALSE;
+    }
+    
+    // Get current workspace
+    int current_workspace = get_current_desktop(app->display);
+    
+    // Move window to current workspace
+    log_info("USER: Pulling window '%s' to current workspace %d", 
+             window->title, current_workspace + 1);
+    move_window_to_desktop(app->display, window->id, current_workspace);
+    
+    // Activate the window
+    activate_commanded_window(app, window);
+    
+    return TRUE; // Exit command mode
+}
+
 static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for monitor toggle");
@@ -741,6 +764,7 @@ char* generate_command_help_text(HelpFormat format) {
 
     static const CommandInfo commands[] = {
         {"cw, change-workspace [N]", "Move selected window to different workspace (N = workspace number)"},
+        {"pw, pull-window, p", "Pull selected window to current workspace"},
         {"jw, jump-workspace, j [N]", "Jump to different workspace (N = workspace number)"},
         {"tw, tile-window, t [OPT]", "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)"},
         {"tm, toggle-monitor", "Move selected window to next monitor"},
