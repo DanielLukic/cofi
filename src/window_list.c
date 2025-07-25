@@ -99,8 +99,12 @@ void get_window_list(AppData *app) {
             WindowInfo *win = &app->windows[app->window_count];
             win->id = window;
             
-            // Store title
-            safe_string_copy(win->title, title, MAX_TITLE_LEN);
+            // Store title - use "Untitled window" if empty
+            if (title && strlen(title) > 0) {
+                safe_string_copy(win->title, title, MAX_TITLE_LEN);
+            } else {
+                safe_string_copy(win->title, "Untitled window", MAX_TITLE_LEN);
+            }
             
             // Store instance and class
             safe_string_copy(win->instance, instance, MAX_CLASS_LEN);

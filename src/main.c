@@ -641,6 +641,11 @@ void hide_window(AppData *app) {
         exit_command_mode(app);
     }
     
+    // Ensure mode indicator is reset (safety check)
+    if (app->mode_indicator) {
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
+    }
+    
     // Reset to default tab
     app->current_tab = TAB_WINDOWS;
     
@@ -718,6 +723,13 @@ void show_window(AppData *app) {
     }
     
     log_debug("Showing window and refreshing state");
+    
+    // Ensure mode indicator matches actual command mode state
+    if (app->mode_indicator) {
+        // Always sync indicator with actual command mode state
+        const char *indicator = (app->command_mode.state == CMD_MODE_COMMAND) ? ":" : ">";
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), indicator);
+    }
     
     // Refresh window list from X11
     get_window_list(app);
