@@ -380,11 +380,11 @@ void filter_windows(AppData *app, const char *filter) {
     validate_selection(app);
     
     // Step 6: Apply alt-tab selection if conditions are met
-    apply_alt_tab_selection(app);
+    apply_alt_tab_selection(app, filter);
 }
 
 // Apply alt-tab selection: set selection to index 1 when conditions are met
-void apply_alt_tab_selection(AppData *app) {
+void apply_alt_tab_selection(AppData *app, const char *filter) {
     if (!app || app->current_tab != TAB_WINDOWS) return;
     
     // Check alt-tab conditions:
@@ -393,11 +393,6 @@ void apply_alt_tab_selection(AppData *app) {
     // 3. At least 2 windows
     // 4. Not starting in command mode
     // 5. User has not typed ":" (not in command mode)
-    
-    const char *filter = "";
-    if (app->entry && GTK_IS_ENTRY(app->entry)) {
-        filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-    }
     
     if (app->filtered_count >= 2 && 
         filter && strlen(filter) == 0 &&
