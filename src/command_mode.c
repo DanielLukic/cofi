@@ -755,47 +755,29 @@ char* generate_command_help_text(HelpFormat format) {
     char *help_text = malloc(buffer_size);
     if (!help_text) return NULL;
 
+    // Add header for CLI format only
     if (format == HELP_FORMAT_CLI) {
-        // CLI format
         strcpy(help_text, "COFI Command Mode Help\n");
         strcat(help_text, "======================\n\n");
-        strcat(help_text, "Available Commands:\n");
-
-        for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-            char line[256];
-            snprintf(line, sizeof(line), "  %-40s - %s\n",
-                     COMMAND_DEFINITIONS[i].help_format, COMMAND_DEFINITIONS[i].description);
-            strcat(help_text, line);
-        }
-
-        strcat(help_text, "\nUsage:\n");
-        strcat(help_text, "  Press ':' to enter command mode\n");
-        strcat(help_text, "  Type command and press Enter\n");
-        strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
-        strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
-        strcat(help_text, "  Press Escape to cancel\n");
-
     } else {
-        // GUI format
-        strcpy(help_text, "COFI Command Mode Help\n");
-        strcat(help_text, "=====================\n\n");
-        strcat(help_text, "Available Commands:\n");
-
-        for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-            char line[256];
-            snprintf(line, sizeof(line), "  %-40s - %s\n",
-                     COMMAND_DEFINITIONS[i].help_format, COMMAND_DEFINITIONS[i].description);
-            strcat(help_text, line);
-        }
-
-        strcat(help_text, "\nUsage:\n");
-        strcat(help_text, "  Press ':' to enter command mode\n");
-        strcat(help_text, "  Type command and press Enter\n");
-        strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
-        strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
-        strcat(help_text, "  Press Escape to cancel\n\n");
-        strcat(help_text, "Press Escape to return to window list");
+        strcpy(help_text, "");
     }
+
+    // Commands list - same for both formats
+    strcat(help_text, "Available Commands:\n");
+    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
+        char line[256];
+        snprintf(line, sizeof(line), "  %-40s - %s\n",
+                 COMMAND_DEFINITIONS[i].help_format, COMMAND_DEFINITIONS[i].description);
+        strcat(help_text, line);
+    }
+
+    // Usage section - same for both formats
+    strcat(help_text, "\nUsage:\n");
+    strcat(help_text, "  Press ':' to enter command mode. Press Escape to cancel.\n");
+    strcat(help_text, "  Type command and press Enter\n");
+    strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
+    strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
 
     return help_text;
 }

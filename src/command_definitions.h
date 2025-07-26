@@ -38,32 +38,18 @@ gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
     {
-        .primary = "cw",
-        .aliases = {"change-workspace", NULL},
-        .handler = cmd_change_workspace,
-        .description = "Move selected window to different workspace (N = workspace number)",
-        .help_format = "cw, change-workspace [N]"
+        .primary = "ab",
+        .aliases = {"always-below", NULL},
+        .handler = cmd_always_below,
+        .description = "Toggle always below for selected window",
+        .help_format = "ab, always-below"
     },
     {
-        .primary = "pw",
-        .aliases = {"pull-window", "p", NULL},
-        .handler = cmd_pull_window,
-        .description = "Pull selected window to current workspace",
-        .help_format = "pw, pull-window, p"
-    },
-    {
-        .primary = "tm",
-        .aliases = {"toggle-monitor", NULL},
-        .handler = cmd_toggle_monitor,
-        .description = "Move selected window to next monitor",
-        .help_format = "tm, toggle-monitor"
-    },
-    {
-        .primary = "sb",
-        .aliases = {"skip-taskbar", NULL},
-        .handler = cmd_skip_taskbar,
-        .description = "Toggle skip taskbar for selected window",
-        .help_format = "sb, skip-taskbar"
+        .primary = "an",
+        .aliases = {"assign-name", "n", NULL},
+        .handler = cmd_assign_name,
+        .description = "Assign custom name to selected window",
+        .help_format = "an, assign-name, n"
     },
     {
         .primary = "aot",
@@ -73,11 +59,18 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "at, always-on-top, aot"
     },
     {
-        .primary = "ab",
-        .aliases = {"always-below", NULL},
-        .handler = cmd_always_below,
-        .description = "Toggle always below for selected window",
-        .help_format = "ab, always-below"
+        .primary = "cl",
+        .aliases = {"c", "close", "close-window", NULL},
+        .handler = cmd_close_window,
+        .description = "Close selected window",
+        .help_format = "cl, close-window, c"
+    },
+    {
+        .primary = "cw",
+        .aliases = {"change-workspace", NULL},
+        .handler = cmd_change_workspace,
+        .description = "Move selected window to different workspace (N = workspace number)",
+        .help_format = "cw, change-workspace [N]"
     },
     {
         .primary = "ew",
@@ -87,32 +80,11 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "ew, every-workspace"
     },
     {
-        .primary = "cl",
-        .aliases = {"c", "close", "close-window", NULL},
-        .handler = cmd_close_window,
-        .description = "Close selected window",
-        .help_format = "cl, close-window, c"
-    },
-    {
-        .primary = "mw",
-        .aliases = {"m", "maximize-window", NULL},
-        .handler = cmd_maximize_window,
-        .description = "Toggle maximize selected window",
-        .help_format = "mw, maximize-window, m"
-    },
-    {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
         .handler = cmd_horizontal_maximize,
         .description = "Toggle horizontal maximize",
         .help_format = "hm, horizontal-maximize-window, hmw"
-    },
-    {
-        .primary = "vmw",
-        .aliases = {"vm", "vertical-maximize-window", NULL},
-        .handler = cmd_vertical_maximize,
-        .description = "Toggle vertical maximize",
-        .help_format = "vm, vertical-maximize-window, vmw"
     },
     {
         .primary = "jw",
@@ -122,11 +94,39 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "jw, jump-workspace, j [N]"
     },
     {
+        .primary = "mw",
+        .aliases = {"m", "maximize-window", NULL},
+        .handler = cmd_maximize_window,
+        .description = "Toggle maximize selected window",
+        .help_format = "mw, maximize-window, m"
+    },
+    {
+        .primary = "pw",
+        .aliases = {"pull-window", "p", NULL},
+        .handler = cmd_pull_window,
+        .description = "Pull selected window to current workspace",
+        .help_format = "pw, pull-window, p"
+    },
+    {
         .primary = "rw",
         .aliases = {"rename-workspace", NULL},
         .handler = cmd_rename_workspace,
         .description = "Rename a workspace (N = workspace number, or current if omitted)",
         .help_format = "rw, rename-workspace [N]"
+    },
+    {
+        .primary = "sb",
+        .aliases = {"skip-taskbar", NULL},
+        .handler = cmd_skip_taskbar,
+        .description = "Toggle skip taskbar for selected window",
+        .help_format = "sb, skip-taskbar"
+    },
+    {
+        .primary = "tm",
+        .aliases = {"toggle-monitor", NULL},
+        .handler = cmd_toggle_monitor,
+        .description = "Move selected window to next monitor",
+        .help_format = "tm, toggle-monitor"
     },
     {
         .primary = "tw",
@@ -136,11 +136,11 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "tw, tile-window, t [OPT]"
     },
     {
-        .primary = "assign-name",
-        .aliases = {"an", "n", NULL},
-        .handler = cmd_assign_name,
-        .description = "Assign custom name to selected window",
-        .help_format = "assign-name, an, n"
+        .primary = "vmw",
+        .aliases = {"vm", "vertical-maximize-window", NULL},
+        .handler = cmd_vertical_maximize,
+        .description = "Toggle vertical maximize",
+        .help_format = "vm, vertical-maximize-window, vmw"
     },
     {
         .primary = "help",
