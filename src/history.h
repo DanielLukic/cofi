@@ -10,7 +10,8 @@ typedef struct AppData AppData;
 // Update history with current window list
 void update_history(AppData *app);
 
-// Partition windows by type and reorder (Normal first, then Special)
+// Partition windows by type and workspace, maintaining MRU order within each group
+// Order: Active window, Current Normal, Other Normal, Current Special, Other Special, Sticky
 void partition_and_reorder(AppData *app);
 
 #endif // HISTORY_H
