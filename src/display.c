@@ -54,7 +54,7 @@ static void format_desktop_str(int desktop, char *output) {
     if (desktop < 0 || desktop > 99) {
         strcpy(output, DESKTOP_STICKY_INDICATOR);
     } else {
-        snprintf(output, 5, DESKTOP_FORMAT, desktop);
+        snprintf(output, 5, DESKTOP_FORMAT, desktop + 1);  // Display as 1-based
     }
 }
 
