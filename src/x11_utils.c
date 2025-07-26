@@ -276,6 +276,52 @@ char** get_desktop_names(Display *display, int *count) {
     return names;
 }
 
+// Set desktop names via _NET_DESKTOP_NAMES
+int set_desktop_names(Display *display, char **names, int num_desktops) {
+    if (!display || !names || num_desktops <= 0) {
+        return COFI_ERROR;
+    }
+
+    // Calculate total size needed
+    size_t total_size = 0;
+    for (int i = 0; i < num_desktops; i++) {
+        if (names[i]) {
+            total_size += strlen(names[i]) + 1;
+        } else {
+            total_size += 1; // Empty string
+        }
+    }
+
+    // Build property value
+    char *prop_value = malloc(total_size);
+    if (!prop_value) {
+        return COFI_ERROR;
+    }
+
+    char *ptr = prop_value;
+    for (int i = 0; i < num_desktops; i++) {
+        if (names[i]) {
+            strcpy(ptr, names[i]);
+            ptr += strlen(names[i]) + 1;
+        } else {
+            *ptr++ = '\0';
+        }
+    }
+
+    // Set the property
+    Atom net_desktop_names = XInternAtom(display, "_NET_DESKTOP_NAMES", False);
+    Atom utf8_string = XInternAtom(display, "UTF8_STRING", False);
+    
+    XChangeProperty(display, DefaultRootWindow(display), net_desktop_names,
+                   utf8_string, 8, PropModeReplace,
+                   (unsigned char *)prop_value, total_size);
+    
+    XFlush(display);
+    
+    free(prop_value);
+    return COFI_SUCCESS;
+}
+
 // Get current desktop from _NET_CURRENT_DESKTOP
 int get_current_desktop(Display *display) {
     Atom net_current_desktop = XInternAtom(display, "_NET_CURRENT_DESKTOP", False);
