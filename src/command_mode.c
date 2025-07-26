@@ -137,12 +137,13 @@ void enter_command_mode(AppData *app) {
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
     
-    // Reset selection to 0 when entering command mode (breaks alt-tab conditions)
-    if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0) {
+    // Reset selection to 0 only if user hasn't navigated from alt-tab default (index 1)
+    if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0 && 
+        app->selection.window_index == 1) {
         app->selection.window_index = 0;
         app->selection.selected_window_id = app->filtered[0].id;
         update_display(app); // Update visual display to show correct selection
-        log_debug("Command mode: reset selection to index 0");
+        log_debug("Command mode: reset selection from alt-tab default (index 1) to index 0");
     }
     
     // Change mode indicator to ":"
