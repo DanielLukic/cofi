@@ -211,26 +211,41 @@ static void try_match_and_update(const char *filter, const char *text, const cha
 static score_t match_window(const char *filter, const WindowInfo *win) {
     score_t best_score = SCORE_MIN;
     
+    // Create workspace-aware title for filtering (not displayed)
+    char filter_title[MAX_TITLE_LEN + 10];
+    if (win->desktop >= 0) {
+        snprintf(filter_title, sizeof(filter_title), "%s %d", win->title, win->desktop + 1);
+    } else {
+        // Sticky windows (-1) - just use original title
+        strncpy(filter_title, win->title, sizeof(filter_title) - 1);
+        filter_title[sizeof(filter_title) - 1] = '\0';
+    }
+    
+    // Create modified WindowInfo for workspace-aware word boundary and initials matching
+    WindowInfo filter_win = *win;
+    strncpy(filter_win.title, filter_title, sizeof(filter_win.title) - 1);
+    filter_win.title[sizeof(filter_win.title) - 1] = '\0';
+    
     // Priority 1: Word boundary match (highest priority, return immediately)
-    best_score = try_word_boundary_match(filter, win);
+    best_score = try_word_boundary_match(filter, &filter_win);
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
     // Priority 2: Initials match (second highest, return immediately)
-    best_score = try_initials_match(filter, win);
+    best_score = try_initials_match(filter, &filter_win);
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
-    // Priority 3: Subsequence match on title (return immediately)
-    best_score = try_subsequence_match(filter, win->title, "TITLE");
+    // Priority 3: Subsequence match on workspace-aware title (return immediately)
+    best_score = try_subsequence_match(filter, filter_title, "TITLE");
     if (best_score > SCORE_MIN) {
         return best_score;
     }
     
-    // Priority 4: Try fuzzy match on title
-    best_score = try_fuzzy_match(filter, win->title, "TITLE");
+    // Priority 4: Try fuzzy match on workspace-aware title
+    best_score = try_fuzzy_match(filter, filter_title, "TITLE");
     
     // Priority 5: Try class/instance matching (only if no good title match)
     if (best_score < SCORE_SUBSEQUENCE_MATCH) {
