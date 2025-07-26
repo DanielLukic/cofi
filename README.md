@@ -11,7 +11,9 @@ COFI is a fast window switcher for X11 Linux desktops, written in C with GTK3. I
   - Subsequence matching: "th" → "Thunderbird"
 - **Alt-Tab behavior** - pressing Enter switches to the most recent window
 - **Harpoon-style assignments** - assign windows to number keys for instant access
-- **Command mode** - vim-style commands for window management (`:cw2`, `:tL`, `:j5`)
+- **Custom window naming** - assign custom names to windows for better identification
+- **Command mode** - vim-style commands with no-space syntax for window management (`:cw2`, `:tL`, `:j5`)
+- **Configurable tiling grid** - choose between 2x2 or 3x2 grid layouts with direct tiling commands
 - **Event-driven updates** - real-time window list synchronization
 - **Single instance** - subsequent launches activate existing window
 - **Zero external dependencies** - direct X11 window activation
@@ -62,6 +64,8 @@ Run cofi:
 - `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
 - `--no-auto-close` (-C) - Don't close window when focus is lost
 - `--workspaces` (-w) - Start with the Workspaces tab active
+- `--harpoon` (-H) - Start with the Harpoon tab active
+- `--names` (-N) - Start with the Names tab active
 - `--command` - Start directly in command mode with `:` prompt active
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help
@@ -80,16 +84,25 @@ COFI saves configuration to `~/.config/cofi/`:
 - **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
+- **`~/.config/cofi/names.json`** - Custom window names
+  - User-defined names that override window titles
+  - Format: `<custom_name> - <original_title>`
 
 ### Keyboard Shortcuts
 
 #### Window/Workspace Navigation
 - **Up/Down arrows** - Navigate through windows
 - **Ctrl+k/Ctrl+j** - Navigate up/down (Vim-style)
-- **Tab** - Switch between Windows and Workspaces tabs
+- **Tab/Shift+Tab** - Cycle between Windows, Workspaces, Harpoon, and Names tabs
 - **Enter** - Activate selected window/workspace
 - **Escape** - Cancel and close
 - **Type to search** - Filter windows in real-time
+
+#### Custom Window Names (Names Tab)
+- **Tab** to Names tab (or launch with `--names`)
+- **Ctrl+E** - Edit name for selected window
+- **Ctrl+D** - Delete name for selected window
+- **Command mode**: `:assign-name`, `:an`, or `:n` - Assign name to selected window
 
 #### Harpoon-Style Window Assignment
 - **Ctrl+0-9** - Assign current window to number key (0-9)
@@ -123,7 +136,7 @@ This mode is useful if you prefer quick workspace switching over quick window sw
 
 ### Command Mode
 
-Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments.
+Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments. Command mode preserves your current window selection unless you're entering from the default alt-tab position. In that latter case, selection will auto-jump to the previously active window. This will allow quick command application to the currently active window without having to select it first.
 
 ![Command Mode](doc/cofi-commands.png)
 
@@ -158,6 +171,9 @@ Press `:` to enter command mode for advanced window management operations. Comma
   ![Jump to Workspace](doc/cofi-jump-workspace.png)
 - `:help` or `:h` or `:?` - Show command help
 
+**Window Naming:**
+- `:assign-name` or `:an` or `:n` - Assign custom name to selected window
+
 #### No-Space Syntax
 
 Commands with arguments can be typed without spaces for faster entry:
@@ -190,17 +206,6 @@ See how I assigned shortcuts for Thunderbird (m), and my current project (p), th
 
 To achieve this, I have my Linux Mint window switching reconfigured to map <alt-tab> to `cofi`. That's it!
 
-## Recent Updates
-
-### Version 1.x (2025)
-
-- **Overlay Dialogs**: All dialogs (tiling, workspace operations) now use GTK overlays for seamless visual integration
-- **Configurable Tiling Grid**: Choose between 2x2 (4 positions) or 3x2 (6 positions) grid layouts via `tile_columns` in config
-- **Direct Command Mode**: Launch with `--command` to start directly in command mode
-- **Vim-Style Commands**: No-space command syntax (`:cw2`, `:tL`, `:j5`) for faster operation
-- **Direct Tiling Commands**: New syntax `:t[lrtbc][1-4]` for quick window tiling with specific sizes (25%, 50%, 66%, 75%)
-- **Improved Tiling**: Better window tiling using maximize states
-- **Enhanced Configuration**: Refactored configuration system with better validation
 
 ## Advanced Features
 
@@ -221,6 +226,17 @@ Inspired by the VIM Harpoon plugin:
 - **Automatic reassignment** - When windows close, intelligently reassign numbers
 - **Visual indicators** - Assigned numbers shown in first column
 - **Fuzzy reassignment** - Uses partial title matching for smart reassignment
+
+### Custom Window Naming
+
+Give windows meaningful custom names for better identification:
+
+- **Override titles** - Custom names appear as `<custom_name> - <original_title>`
+- **Persistent storage** - Names saved to `~/.config/cofi/names.json`
+- **Smart reassignment** - When windows close, intelligently reassign names using fuzzy matching
+- **Integrated search** - Custom names are included in filtering and search
+- **Tab interface** - Dedicated Names tab for managing all custom names
+- **Command support** - Use `:assign-name` command or Names tab shortcuts
 
 ### Single Instance
 

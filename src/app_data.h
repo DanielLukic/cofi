@@ -8,11 +8,13 @@
 #include "harpoon.h"
 #include "config.h"
 #include "atom_cache.h"
+#include "named_window.h"
 
 typedef enum {
     TAB_WINDOWS,
     TAB_WORKSPACES,
-    TAB_HARPOON
+    TAB_HARPOON,
+    TAB_NAMES
 } TabMode;
 
 // Overlay types for dialog management
@@ -23,7 +25,9 @@ typedef enum {
     OVERLAY_WORKSPACE_JUMP,
     OVERLAY_WORKSPACE_RENAME,
     OVERLAY_HARPOON_DELETE,
-    OVERLAY_HARPOON_EDIT
+    OVERLAY_HARPOON_EDIT,
+    OVERLAY_NAME_ASSIGN,
+    OVERLAY_NAME_EDIT
 } OverlayType;
 
 // Command mode definitions
@@ -48,6 +52,7 @@ typedef struct {
     int window_index;                       // Selected index in filtered windows array
     int workspace_index;                    // Selected index in filtered workspaces array
     int harpoon_index;                      // Selected index in harpoon tab
+    int names_index;                        // Selected index in names tab
     Window selected_window_id;              // ID of currently selected window (for persistence)
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 
@@ -55,6 +60,7 @@ typedef struct {
     int window_scroll_offset;               // First visible item index for windows tab
     int workspace_scroll_offset;            // First visible item index for workspaces tab
     int harpoon_scroll_offset;              // First visible item index for harpoon tab
+    int names_scroll_offset;                // First visible item index for names tab
 } SelectionState;
 
 typedef struct AppData {
@@ -92,6 +98,10 @@ typedef struct AppData {
     int filtered_harpoon_indices[MAX_HARPOON_SLOTS];  // Actual slot indices for filtered items
     int filtered_harpoon_count;
 
+    // Names tab data
+    NamedWindow filtered_names[MAX_WINDOWS];
+    int filtered_names_count;
+
     // Edit state for harpoon
     struct {
         gboolean editing;
@@ -108,6 +118,7 @@ typedef struct AppData {
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms
     HarpoonManager harpoon;                 // Harpoon number assignments
+    NamedWindowManager names;               // Custom window names
     CofiConfig config;                      // Unified configuration settings
     CommandMode command_mode;               // Command mode state
     int start_in_command_mode;              // Whether to start in command mode (--command flag)

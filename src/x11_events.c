@@ -10,6 +10,7 @@
 #include "display.h"
 #include "x11_utils.h"
 #include "harpoon.h"
+#include "named_window.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
@@ -100,6 +101,10 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 // Check for automatic reassignments
                 log_trace("Calling check_and_reassign_windows()");
                 check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
+                
+                // Check for named windows reassignments
+                log_trace("Calling check_and_reassign_names()");
+                check_and_reassign_names(&app->names, app->windows, app->window_count);
                 
                 // Only process if window still exists and is valid
                 if (app->window && GTK_IS_WIDGET(app->window) &&

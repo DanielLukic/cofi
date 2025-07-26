@@ -54,7 +54,7 @@ bool titles_match_fuzzy(const char *title1, const char *title2) {
 // Helper function to match a string against a pattern with wildcards
 // '*' matches any sequence of characters (including empty)
 // '.' matches any single character
-static bool wildcard_match(const char *pattern, const char *str) {
+bool wildcard_match(const char *pattern, const char *str) {
     if (!pattern || !str) return false;
     
     while (*pattern && *str) {

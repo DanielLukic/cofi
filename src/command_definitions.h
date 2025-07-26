@@ -32,6 +32,7 @@ gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *arg
 gboolean cmd_jump_workspace(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_rename_workspace(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
@@ -133,6 +134,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_tile_window,
         .description = "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)",
         .help_format = "tw, tile-window, t [OPT]"
+    },
+    {
+        .primary = "assign-name",
+        .aliases = {"an", "n", NULL},
+        .handler = cmd_assign_name,
+        .description = "Assign custom name to selected window",
+        .help_format = "assign-name, an, n"
     },
     {
         .primary = "help",

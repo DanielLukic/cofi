@@ -24,6 +24,9 @@ SOURCES = src/main.c \
           src/config.c \
           src/harpoon_config.c \
           src/window_matcher.c \
+          src/named_window.c \
+          src/named_window_config.c \
+          src/filter_names.c \
           src/match.c \
           src/utils.c \
           src/cli_args.cpp \
