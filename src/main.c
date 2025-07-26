@@ -18,7 +18,9 @@
 #include "history.h"
 #include "display.h"
 #include "filter.h"
+#include "filter_names.h"
 #include "harpoon_config.h"
+#include "named_window_config.h"
 #include "log.h"
 #include "x11_events.h"
 #include "instance.h"
@@ -46,6 +48,7 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
 static void filter_workspaces(AppData *app, const char *filter);
 static void filter_harpoon(AppData *app, const char *filter);
 static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
+static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
 
 // Forward declaration for window lifecycle functions
 void destroy_window(AppData *app);
@@ -75,11 +78,15 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
         // Initialize harpoon display with no filter
         filter_harpoon(app, "");
+    } else if (target_tab == TAB_NAMES) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter named windows...");
+        // Initialize names display with no filter
+        filter_names(app, "");
     }
     reset_selection(app);
     
     update_display(app);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -219,7 +226,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
             // Shift+Tab - go backwards
             switch (app->current_tab) {
                 case TAB_WINDOWS:
-                    next_tab = TAB_HARPOON;
+                    next_tab = TAB_NAMES;
                     break;
                 case TAB_WORKSPACES:
                     next_tab = TAB_WINDOWS;
@@ -227,11 +234,14 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                 case TAB_HARPOON:
                     next_tab = TAB_WORKSPACES;
                     break;
+                case TAB_NAMES:
+                    next_tab = TAB_HARPOON;
+                    break;
                 default:
                     next_tab = TAB_WINDOWS;
                     break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
             log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         } else {
             // Regular Tab - go forwards
@@ -243,13 +253,16 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                     next_tab = TAB_HARPOON;
                     break;
                 case TAB_HARPOON:
+                    next_tab = TAB_NAMES;
+                    break;
+                case TAB_NAMES:
                     next_tab = TAB_WINDOWS;
                     break;
                 default:
                     next_tab = TAB_WINDOWS;
                     break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
             log_info("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         }
         
@@ -262,7 +275,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
         TabMode next_tab;
         switch (app->current_tab) {
             case TAB_WINDOWS:
-                next_tab = TAB_HARPOON;
+                next_tab = TAB_NAMES;
                 break;
             case TAB_WORKSPACES:
                 next_tab = TAB_WINDOWS;
@@ -270,14 +283,63 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
             case TAB_HARPOON:
                 next_tab = TAB_WORKSPACES;
                 break;
+            case TAB_NAMES:
+                next_tab = TAB_HARPOON;
+                break;
             default:
                 next_tab = TAB_WINDOWS;
                 break;
         }
         
-        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon"};
+        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
         log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
+        return TRUE;
+    }
+    
+    return FALSE;
+}
+
+// Handle names tab specific keys
+static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_NAMES) {
+        return FALSE;
+    }
+    
+    // Handle Ctrl+e for edit name
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.names_index < app->filtered_names_count) {
+            NamedWindow *named = &app->filtered_names[app->selection.names_index];
+            
+            // Only allow edit if window is assigned
+            if (named->assigned) {
+                show_name_edit_overlay(app);
+                return TRUE;
+            }
+        }
+    }
+    
+    // Handle Ctrl+d for delete name
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.names_index < app->filtered_names_count) {
+            NamedWindow *named = &app->filtered_names[app->selection.names_index];
+            
+            if (named->assigned) {
+                // Find the index in the main names manager
+                int manager_index = find_named_window_index(&app->names, named->id);
+                if (manager_index >= 0) {
+                    delete_custom_name(&app->names, manager_index);
+                    save_named_windows(&app->names);
+                    
+                    // Refresh the filtered list
+                    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+                    filter_names(app, current_filter);
+                    update_display(app);
+                    
+                    log_info("USER: Deleted custom name '%s'", named->custom_name);
+                }
+            }
+        }
         return TRUE;
     }
     
@@ -424,6 +486,10 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         return TRUE;
     }
     
+    if (handle_names_tab_keys(event, app)) {
+        return TRUE;
+    }
+    
     if (handle_tab_switching(event, app)) {
         return TRUE;
     }
@@ -506,6 +572,7 @@ static void filter_harpoon(AppData *app, const char *filter) {
     }
 }
 
+
 // Handle entry text changes
 static void on_entry_changed(GtkEntry *entry, AppData *app) {
     // Skip filtering when in command mode
@@ -525,6 +592,8 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_workspaces(app, text);
     } else if (app->current_tab == TAB_HARPOON) {
         filter_harpoon(app, text);
+    } else if (app->current_tab == TAB_NAMES) {
+        filter_names(app, text);
     }
     // Ensure selection is always 0 after filtering
     reset_selection(app);
@@ -1064,6 +1133,8 @@ int main(int argc, char *argv[]) {
         filter_workspaces(&app, "");
     } else if (app.current_tab == TAB_HARPOON) {
         filter_harpoon(&app, "");
+    } else if (app.current_tab == TAB_NAMES) {
+        filter_names(&app, "");
     }
     
     // Update display

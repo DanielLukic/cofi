@@ -7,6 +7,7 @@
 #include "display.h"
 #include "selection.h"
 #include "x11_utils.h"
+#include "app_data.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -717,6 +718,25 @@ gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
         show_tiling_overlay((struct AppData *)app);
     }
     return FALSE;
+}
+
+gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_error("No window selected for name assignment");
+        return TRUE;
+    }
+    
+    // Check if we're in Names tab - only allow from Windows tab
+    if (app->current_tab != TAB_WINDOWS) {
+        log_error("Name assignment only available from Windows tab");
+        return TRUE;
+    }
+    
+    // Open overlay for name assignment
+    show_name_assign_overlay(app);
+    
+    log_info("CMD: Opening name assignment overlay for window 0x%lx", window->id);
+    return FALSE; // Stay in cofi to show overlay
 }
 
 gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {

@@ -15,6 +15,7 @@
 #include "constants.h"
 #include "selection.h"
 #include "x11_utils.h"
+#include "named_window.h"
 
 #define UNUSED __attribute__((unused))
 
@@ -131,6 +132,7 @@ static score_t try_word_boundary_match(const char *filter, const WindowInfo *win
     
     return SCORE_MIN;
 }
+
 
 // Try initials match - returns score if matched, SCORE_MIN otherwise
 static score_t try_initials_match(const char *filter, const WindowInfo *win) {
@@ -258,6 +260,20 @@ static void prepare_windows_for_filtering(AppData *app) {
     // First, update the complete window processing pipeline
     update_history(app);
     partition_and_reorder(app);
+    
+    // Second, update window titles to include custom names for filtering
+    for (int i = 0; i < app->history_count; i++) {
+        const char *custom_name = get_window_custom_name(&app->names, app->history[i].id);
+        if (custom_name) {
+            // Store original title and create modified title for filtering
+            char original_title[MAX_TITLE_LEN];
+            strncpy(original_title, app->history[i].title, sizeof(original_title) - 1);
+            original_title[sizeof(original_title) - 1] = '\0';
+            
+            // Format as "custom_name - original_title" 
+            snprintf(app->history[i].title, sizeof(app->history[i].title), "%s - %s", custom_name, original_title);
+        }
+    }
     
     log_trace("After pipeline - history_count=%d", app->history_count);
 }

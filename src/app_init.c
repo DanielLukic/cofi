@@ -4,6 +4,8 @@
 #include "window_list.h"
 #include "workspace_info.h"
 #include "harpoon.h"
+#include "named_window.h"
+#include "named_window_config.h"
 #include "filter.h"
 #include "log.h"
 #include "utils.h"
@@ -17,10 +19,10 @@ void init_app_data(AppData *app) {
     app->history_count = 0;
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
 
-    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces or --harpoon
+    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces, --harpoon, or --names
     // This ensures reopening always starts in windows tab unless a specific tab is requested
-    // Note: Command line parsing sets current_tab when --workspaces or --harpoon is used
-    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON) {
+    // Note: Command line parsing sets current_tab when --workspaces, --harpoon, or --names is used
+    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON && app->current_tab != TAB_NAMES) {
         app->current_tab = TAB_WINDOWS;
     }
 
@@ -37,6 +39,13 @@ void init_app_data(AppData *app) {
     app->harpoon_edit.edit_buffer[0] = '\0';
     app->harpoon_delete.pending_delete = FALSE;
     app->harpoon_delete.delete_slot = 0;
+    
+    // Initialize named windows manager
+    init_named_window_manager(&app->names);
+    app->filtered_names_count = 0;
+    
+    // Load named windows from configuration
+    load_named_windows(&app->names);
 
     // Initialize command mode
     init_command_mode(&app->command_mode);
@@ -94,6 +103,9 @@ void init_window_list(AppData *app) {
     
     // Check for automatic reassignments after loading config and getting window list
     check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
+    
+    // Check for named windows reassignments
+    check_and_reassign_names(&app->names, app->windows, app->window_count);
 }
 
 void init_history_from_windows(AppData *app) {

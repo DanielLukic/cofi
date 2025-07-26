@@ -41,9 +41,12 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_HARPOON) {
         app->selection.harpoon_index = 0;
         app->selection.harpoon_scroll_offset = 0;
+    } else if (app->current_tab == TAB_NAMES) {
+        app->selection.names_index = 0;
+        app->selection.names_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -79,6 +82,8 @@ int get_selected_index(AppData *app) {
         return app->selection.workspace_index;
     } else if (app->current_tab == TAB_HARPOON) {
         return app->selection.harpoon_index;
+    } else if (app->current_tab == TAB_NAMES) {
+        return app->selection.names_index;
     }
     
     return 0;
@@ -132,6 +137,20 @@ void move_selection_up(AppData *app) {
             update_display(app);
             log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
         }
+    } else if (app->current_tab == TAB_NAMES) {
+        if (app->filtered_names_count > 0) {
+            if (app->selection.names_index < app->filtered_names_count - 1) {
+                app->selection.names_index++;
+            } else {
+                // Wrap around to the bottom
+                app->selection.names_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Named window[%d] '%s'", 
+                     app->selection.names_index,
+                     app->filtered_names[app->selection.names_index].custom_name);
+        }
     }
 }
 
@@ -182,6 +201,20 @@ void move_selection_down(AppData *app) {
             update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
+        }
+    } else if (app->current_tab == TAB_NAMES) {
+        if (app->filtered_names_count > 0) {
+            if (app->selection.names_index > 0) {
+                app->selection.names_index--;
+            } else {
+                // Wrap around to the top (highest index)
+                app->selection.names_index = app->filtered_names_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Named window[%d] '%s'", 
+                     app->selection.names_index,
+                     app->filtered_names[app->selection.names_index].custom_name);
         }
     }
 }
@@ -282,6 +315,8 @@ int get_scroll_offset(AppData *app) {
             return app->selection.workspace_scroll_offset;
         case TAB_HARPOON:
             return app->selection.harpoon_scroll_offset;
+        case TAB_NAMES:
+            return app->selection.names_scroll_offset;
         default:
             return 0;
     }
@@ -300,6 +335,9 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_HARPOON:
             app->selection.harpoon_scroll_offset = offset;
+            break;
+        case TAB_NAMES:
+            app->selection.names_scroll_offset = offset;
             break;
     }
 }
@@ -322,6 +360,9 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_HARPOON:
             total_count = app->filtered_harpoon_count;
+            break;
+        case TAB_NAMES:
+            total_count = app->filtered_names_count;
             break;
     }
 

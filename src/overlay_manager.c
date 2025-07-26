@@ -5,13 +5,44 @@
 #include "harpoon_overlay.h"
 #include "app_data.h"
 #include "log.h"
+#include "named_window.h"
+#include "named_window_config.h"
+#include "filter.h"
+#include "filter_names.h"
+#include "display.h"
 #include <gtk/gtk.h>
+#include <string.h>
 
 // Forward declarations
 static gboolean on_overlay_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
+static void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *app);
+static void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app);
+static gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event);
+static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event);
 
 // External function declarations
 void hide_window(AppData *app); // From main.c
+
+// Helper function to focus name entry with delay
+static gboolean focus_name_entry_timeout(gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+    
+    // Get the name entry widget
+    GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+    if (name_entry && gtk_widget_get_visible(name_entry)) {
+        gtk_widget_grab_focus(name_entry);
+        log_debug("Focused name entry widget");
+    } else {
+        log_debug("Name entry widget not found or not visible");
+    }
+    
+    return FALSE; // Don't repeat
+}
+
+static void focus_name_entry_delayed(AppData *app) {
+    // Set focus after a short delay to ensure widgets are realized
+    g_timeout_add(50, focus_name_entry_timeout, app);
+}
 
 // Initialize the overlay system
 void init_overlay_system(AppData *app) {
@@ -91,6 +122,12 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_HARPOON_EDIT:
             create_harpoon_edit_overlay_content(app->dialog_container, app, app->harpoon_edit.editing_slot);
             break;
+        case OVERLAY_NAME_ASSIGN:
+            create_name_assign_overlay_content(app->dialog_container, app);
+            break;
+        case OVERLAY_NAME_EDIT:
+            create_name_edit_overlay_content(app->dialog_container, app);
+            break;
         case OVERLAY_NONE:
         default:
             log_error("Invalid overlay type: %d", type);
@@ -125,9 +162,11 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
 
     // Handle focus based on overlay type
     if (type == OVERLAY_HARPOON_EDIT || type == OVERLAY_WORKSPACE_RENAME) {
-        // For edit overlays, we'll focus the entry after a short delay
-        // to ensure it's properly realized
+        // For harpoon/workspace edit overlays, use existing focus function
         focus_harpoon_edit_entry_delayed(app);
+    } else if (type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT) {
+        // For name overlays, focus the name entry
+        focus_name_entry_delayed(app);
     } else {
         // Remove focus from entry widget to prevent typing
         if (app->entry && gtk_widget_has_focus(app->entry)) {
@@ -230,6 +269,10 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_harpoon_delete_key_press(app, event);
         case OVERLAY_HARPOON_EDIT:
             return handle_harpoon_edit_key_press(app, event);
+        case OVERLAY_NAME_ASSIGN:
+            return handle_name_assign_key_press(app, event);
+        case OVERLAY_NAME_EDIT:
+            return handle_name_edit_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -278,6 +321,226 @@ void show_harpoon_edit_overlay(AppData *app, int slot_index) {
     app->harpoon_edit.editing = TRUE;
     app->harpoon_edit.editing_slot = slot_index;
     show_overlay(app, OVERLAY_HARPOON_EDIT, NULL);
+}
+
+// Create name assignment overlay content
+static void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *app) {
+    // Get the currently selected window
+    if (app->current_tab != TAB_WINDOWS || app->filtered_count == 0) {
+        GtkWidget *error_label = gtk_label_new("No window selected for name assignment");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+    
+    WindowInfo *selected = &app->filtered[app->selection.window_index];
+    
+    // Create main container
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+    
+    // Title label
+    GtkWidget *title_label = gtk_label_new("Assign Custom Name");
+    PangoAttrList *attrs = pango_attr_list_new();
+    pango_attr_list_insert(attrs, pango_attr_weight_new(PANGO_WEIGHT_BOLD));
+    pango_attr_list_insert(attrs, pango_attr_scale_new(1.2));
+    gtk_label_set_attributes(GTK_LABEL(title_label), attrs);
+    pango_attr_list_unref(attrs);
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+    
+    // Window info label
+    char window_info[512];
+    snprintf(window_info, sizeof(window_info), "Window: %s [%s]", 
+             selected->title, selected->class_name);
+    GtkWidget *info_label = gtk_label_new(window_info);
+    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+    
+    // Entry for custom name
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(name_entry), "Enter custom name...");
+    gtk_widget_set_size_request(name_entry, 300, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+    
+    // Store reference to entry for focus handling
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+    
+    // Instructions label
+    GtkWidget *inst_label = gtk_label_new("Press Enter to assign name, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Name assignment overlay created for window: %s", selected->title);
+}
+
+static void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
+    // For name editing, we reuse the name assignment logic but pre-fill the current name
+    // Get the currently selected named window
+    if (app->current_tab != TAB_NAMES || app->filtered_names_count == 0) {
+        GtkWidget *error_label = gtk_label_new("No named window selected for editing");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+    
+    NamedWindow *selected = &app->filtered_names[app->selection.names_index];
+    
+    // Create vertical box for content
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+    
+    // Title label
+    GtkWidget *title_label = gtk_label_new("Edit Custom Name");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+    
+    // Window info label
+    char window_info[512];
+    snprintf(window_info, sizeof(window_info), "Window: %s [%s]", 
+             selected->original_title, selected->class_name);
+    GtkWidget *info_label = gtk_label_new(window_info);
+    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+    
+    // Entry for custom name (pre-filled with current name)
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(name_entry), selected->custom_name);
+    gtk_editable_select_region(GTK_EDITABLE(name_entry), 0, -1); // Select all text
+    gtk_widget_set_size_request(name_entry, 300, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+    
+    // Store reference to entry for focus handling
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+    
+    // Store the named window index for the handler
+    g_object_set_data(G_OBJECT(parent_container), "named_window_index", GINT_TO_POINTER(app->selection.names_index));
+    
+    // Instructions label
+    GtkWidget *inst_label = gtk_label_new("Press Enter to save changes, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Name edit overlay created for window: %s", selected->original_title);
+}
+
+// Handle key press for name assignment overlay
+static gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+        // Get the entry widget
+        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+        if (!name_entry) {
+            log_error("Name entry widget not found");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        const char *custom_name = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        if (!custom_name || strlen(custom_name) == 0) {
+            log_info("Empty name entered, canceling assignment");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        // Get the selected window
+        if (app->current_tab != TAB_WINDOWS || app->filtered_count == 0) {
+            log_error("No window selected for name assignment");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        WindowInfo *selected = &app->filtered[app->selection.window_index];
+        
+        // Assign the custom name
+        assign_custom_name(&app->names, selected, custom_name);
+        
+        // Save the configuration
+        save_named_windows(&app->names);
+        
+        log_info("Assigned custom name '%s' to window: %s", custom_name, selected->title);
+        
+        // Update display and hide overlay
+        hide_overlay(app);
+        
+        // Refresh the current display
+        if (app->current_tab == TAB_WINDOWS) {
+            const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            filter_windows(app, current_filter);
+            update_display(app);
+        }
+        
+        return TRUE;
+    }
+    
+    return FALSE; // Let overlay manager handle other keys (like ESC)
+}
+
+static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+        // Get the entry widget and named window index
+        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+        int named_index = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(app->dialog_container), "named_window_index"));
+        
+        if (!name_entry) {
+            log_error("Name entry widget not found");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        const char *new_name = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        if (!new_name || strlen(new_name) == 0) {
+            log_info("Empty name entered, canceling edit");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        // Get the actual named window from the filtered list
+        if (named_index < 0 || named_index >= app->filtered_names_count) {
+            log_error("Invalid named window index: %d", named_index);
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        NamedWindow *named_window = &app->filtered_names[named_index];
+        
+        // Find the manager index for this window
+        int manager_index = find_named_window_index(&app->names, named_window->id);
+        if (manager_index < 0) {
+            log_error("Named window not found in manager");
+            hide_overlay(app);
+            return TRUE;
+        }
+        
+        // Update the name in the manager
+        update_custom_name(&app->names, manager_index, new_name);
+        save_named_windows(&app->names);
+        
+        // Refresh the filtered list
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        filter_names(app, current_filter);
+        
+        hide_overlay(app);
+        update_display(app);
+        
+        log_info("USER: Updated custom name to '%s'", new_name);
+        return TRUE;
+    }
+    
+    return FALSE; // Let overlay manager handle ESC
+}
+
+// Public functions to show name overlays
+void show_name_assign_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_NAME_ASSIGN, NULL);
+}
+
+void show_name_edit_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_NAME_EDIT, NULL);
 }
 
 // Center dialog content in the overlay (utility function)

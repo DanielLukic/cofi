@@ -13,6 +13,7 @@
 #include "selection.h"
 #include "harpoon.h"
 #include "dynamic_display.h"
+#include "named_window.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -44,6 +45,14 @@ static void format_tab_header(TabMode current_tab, GString *output) {
         g_string_append(output, "[ HARPOON ]");
     } else {
         g_string_append(output, "  Harpoon  ");
+    }
+    
+    g_string_append(output, "    ");
+    
+    if (current_tab == TAB_NAMES) {
+        g_string_append(output, "[ NAMES ]");
+    } else {
+        g_string_append(output, "  Names  ");
     }
     
     g_string_append(output, "\n");
@@ -276,7 +285,13 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
         
         format_desktop_str(win->desktop, desktop_col);
         fit_column(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col);
-        fit_column(win->title, DISPLAY_TITLE_WIDTH, title_col);
+        
+        // Use the window title directly (custom names are already included by filtering)
+        char display_title[MAX_TITLE_LEN];
+        strncpy(display_title, win->title, sizeof(display_title) - 1);
+        display_title[sizeof(display_title) - 1] = '\0';
+        
+        fit_column(display_title, DISPLAY_TITLE_WIDTH, title_col);
         fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
         snprintf(window_id, sizeof(window_id), "0x%lx", display_id);
         
@@ -423,6 +438,85 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
     }
 }
 
+// Format and display names tab content
+static void format_names_display(AppData *app, GString *text, int selected_idx) {
+    int total_count = app->filtered_names_count;
+    int max_lines = get_max_display_lines_dynamic(app);
+
+    // If no named windows, show message and shortcuts
+    if (app->filtered_names_count == 0) {
+        g_string_append(text, "No named windows found\n");
+        g_string_append(text, "\n");
+        g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
+        return;
+    }
+
+    int scroll_offset = get_scroll_offset(app);
+
+    // Generate scrollbar if needed
+    char scrollbar[max_lines + 1];
+    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
+
+    // Calculate visible range
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
+    }
+
+    // Display named windows in reverse order (entry 0 at bottom like windows)
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
+        NamedWindow *named = &app->filtered_names[i];
+
+        gboolean is_selected = (i == selected_idx);
+
+        // Selection indicator
+        if (is_selected) {
+            g_string_append(text, "> ");
+        } else {
+            g_string_append(text, "  ");
+        }
+
+        // Format columns
+        char custom_name_col[31], original_title_col[56], class_col[19], instance_col[21];
+        char window_id[32];
+        
+        fit_column(named->custom_name, 30, custom_name_col);
+        fit_column(named->original_title, 55, original_title_col);
+        fit_column(named->class_name, 18, class_col);
+        fit_column(named->instance, 20, instance_col);
+        
+        if (named->assigned) {
+            snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
+        } else {
+            strcpy(window_id, "* UNASSIGNED *");
+        }
+
+        // Build the line: custom_name original_title class instance window_id
+        g_string_append(text, custom_name_col);
+        g_string_append(text, " ");
+        g_string_append(text, original_title_col);
+        g_string_append(text, " ");
+        g_string_append(text, class_col);
+        g_string_append(text, " ");
+        g_string_append(text, instance_col);
+        g_string_append(text, " ");
+        g_string_append(text, window_id);
+
+        // Add scrollbar character if needed
+        if (total_count > max_lines) {
+            g_string_append_printf(text, " %c", scrollbar[display_line]);
+        }
+
+        g_string_append(text, "\n");
+    }
+    
+    // Add shortcuts footer
+    g_string_append(text, "\n");
+    g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
+}
+
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
     int selected_idx = get_selected_index(app);
@@ -458,6 +552,9 @@ void update_display(AppData *app) {
             break;
         case TAB_HARPOON:
             format_harpoon_display(app, text, selected_idx);
+            break;
+        case TAB_NAMES:
+            format_names_display(app, text, selected_idx);
             break;
     }
     
