@@ -1,4 +1,5 @@
 #include "command_mode.h"
+#include "command_definitions.h"
 #include "log.h"
 #include "tiling.h"
 #include "overlay_manager.h"
@@ -390,82 +391,22 @@ static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *ar
     return TRUE;
 }
 
-// Command handler function type
-typedef gboolean (*CommandHandler)(AppData *app, WindowInfo *window, const char *args);
-
-// Command structure for dispatch table
-typedef struct {
-    const char *primary;     // Primary command name
-    const char *aliases[5];  // Alternative names (NULL terminated)
-    CommandHandler handler;  // Handler function
-    const char *description; // Help description
-} Command;
-
-// Forward declarations of command handlers
-static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_jump_workspace(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
-static gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
-
 // Helper functions
-static const Command* find_command(const char *cmd_name);
+static const CommandDef* find_command(const char *cmd_name);
 static TileOption parse_tile_option(const char *arg);
 
-// Command dispatch table - single source of truth
-static const Command commands[] = {
-    {"cw", {"change-workspace", NULL}, cmd_change_workspace, 
-     "Move selected window to different workspace (N = workspace number)"},
-    {"pw", {"pull-window", "p", NULL}, cmd_pull_window,
-     "Pull selected window to current workspace"},
-    {"tm", {"toggle-monitor", NULL}, cmd_toggle_monitor, 
-     "Move selected window to next monitor"},
-    {"sb", {"skip-taskbar", NULL}, cmd_skip_taskbar, 
-     "Toggle skip taskbar for selected window"},
-    {"aot", {"at", "always-on-top", NULL}, cmd_always_on_top, 
-     "Toggle always on top for selected window"},
-    {"ab", {"always-below", NULL}, cmd_always_below, 
-     "Toggle always below for selected window"},
-    {"ew", {"every-workspace", NULL}, cmd_every_workspace, 
-     "Toggle show on every workspace for selected window"},
-    {"cl", {"c", "close", "close-window", NULL}, cmd_close_window, 
-     "Close selected window"},
-    {"mw", {"m", "maximize-window", NULL}, cmd_maximize_window, 
-     "Maximize selected window"},
-    {"hmw", {"hm", "horizontal-maximize-window", NULL}, cmd_horizontal_maximize, 
-     "Maximize window horizontally"},
-    {"vmw", {"vm", "vertical-maximize-window", NULL}, cmd_vertical_maximize, 
-     "Maximize window vertically"},
-    {"jw", {"jump-workspace", "j", NULL}, cmd_jump_workspace, 
-     "Jump to different workspace (N = workspace number)"},
-    {"tw", {"tile-window", "t", NULL}, cmd_tile_window, 
-     "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)"},
-    {"help", {"h", "?", NULL}, cmd_help, 
-     "Show this help message"},
-    {NULL, {NULL}, NULL, NULL} // Sentinel
-};
-
 // Find command in dispatch table
-static const Command* find_command(const char *cmd_name) {
-    for (int i = 0; commands[i].primary != NULL; i++) {
+static const CommandDef* find_command(const char *cmd_name) {
+    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
         // Check primary name
-        if (strcmp(cmd_name, commands[i].primary) == 0) {
-            return &commands[i];
+        if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].primary) == 0) {
+            return &COMMAND_DEFINITIONS[i];
         }
         
         // Check aliases
-        for (int j = 0; j < 5 && commands[i].aliases[j] != NULL; j++) {
-            if (strcmp(cmd_name, commands[i].aliases[j]) == 0) {
-                return &commands[i];
+        for (int j = 0; j < 5 && COMMAND_DEFINITIONS[i].aliases[j] != NULL; j++) {
+            if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].aliases[j]) == 0) {
+                return &COMMAND_DEFINITIONS[i];
             }
         }
     }
@@ -548,7 +489,7 @@ gboolean execute_command(const char *command, AppData *app) {
     parse_command_and_arg(command, cmd_name, arg, sizeof(cmd_name), sizeof(arg));
     
     // Find and execute command using dispatch table
-    const Command *cmd = find_command(cmd_name);
+    const CommandDef *cmd = find_command(cmd_name);
     if (cmd) {
         WindowInfo *selected_window = get_selected_window(app);
         return cmd->handler(app, selected_window, arg);
@@ -559,7 +500,7 @@ gboolean execute_command(const char *command, AppData *app) {
 }
 
 // Command handler implementations
-static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args) {
+gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for workspace change");
         return FALSE;
@@ -587,7 +528,7 @@ static gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const cha
     return FALSE;
 }
 
-static gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for pull");
         return FALSE;
@@ -607,7 +548,7 @@ static gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *ar
     return TRUE; // Exit command mode
 }
 
-static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for monitor toggle");
         return FALSE;
@@ -618,7 +559,7 @@ static gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char 
     return TRUE;
 }
 
-static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for skip taskbar toggle");
         return FALSE;
@@ -629,7 +570,7 @@ static gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *a
     return TRUE;
 }
 
-static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for always on top toggle");
         return FALSE;
@@ -640,7 +581,7 @@ static gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *
     return TRUE;
 }
 
-static gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for always below toggle");
         return FALSE;
@@ -651,7 +592,7 @@ static gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *a
     return TRUE;
 }
 
-static gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for every workspace toggle");
         return FALSE;
@@ -662,7 +603,7 @@ static gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char
     return TRUE;
 }
 
-static gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for closing");
         return FALSE;
@@ -672,7 +613,7 @@ static gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *a
     return TRUE;
 }
 
-static gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for maximizing");
         return FALSE;
@@ -683,7 +624,7 @@ static gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char
     return TRUE;
 }
 
-static gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for horizontal maximizing");
         return FALSE;
@@ -694,7 +635,7 @@ static gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const 
     return TRUE;
 }
 
-static gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for vertical maximizing");
         return FALSE;
@@ -705,7 +646,7 @@ static gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const ch
     return TRUE;
 }
 
-static gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     if (strlen(args) > 0) {
         int workspace_num = atoi(args);
         if (workspace_num >= 1 && workspace_num <= 36) {
@@ -727,7 +668,35 @@ static gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute_
     return FALSE;
 }
 
-static gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
+gboolean cmd_rename_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    int workspace_index;
+    
+    if (strlen(args) > 0) {
+        int workspace_num = atoi(args);
+        if (workspace_num >= 1 && workspace_num <= 36) {
+            int workspace_count = get_number_of_desktops(app->display);
+            if (workspace_num <= workspace_count) {
+                workspace_index = workspace_num - 1;
+                log_info("USER: Renaming workspace %d", workspace_num);
+                show_workspace_rename_overlay(app, workspace_index);
+                return TRUE;
+            } else {
+                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
+            }
+        } else {
+            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+        }
+    } else {
+        // No argument - rename current workspace
+        workspace_index = get_current_desktop(app->display);
+        log_info("USER: Renaming current workspace (index %d)", workspace_index);
+        show_workspace_rename_overlay(app, workspace_index);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for tiling");
         return FALSE;
@@ -749,41 +718,17 @@ static gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *ar
     return FALSE;
 }
 
-static gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
+gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
     show_help_commands(app);
     return FALSE; // Stay in command mode to show help
 }
 
 // Generate command help text in different formats
 char* generate_command_help_text(HelpFormat format) {
-    // Command data structure - single source of truth
-    typedef struct {
-        const char *shortcuts;
-        const char *description;
-    } CommandInfo;
-
-    static const CommandInfo commands[] = {
-        {"cw, change-workspace [N]", "Move selected window to different workspace (N = workspace number)"},
-        {"pw, pull-window, p", "Pull selected window to current workspace"},
-        {"jw, jump-workspace, j [N]", "Jump to different workspace (N = workspace number)"},
-        {"tw, tile-window, t [OPT]", "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)"},
-        {"tm, toggle-monitor", "Move selected window to next monitor"},
-        {"sb, skip-taskbar", "Toggle skip taskbar for selected window"},
-        {"at, always-on-top, aot", "Toggle always on top for selected window"},
-        {"ab, always-below", "Toggle always below for selected window"},
-        {"ew, every-workspace", "Toggle show on every workspace for selected window"},
-        {"cl, close-window, c", "Close selected window"},
-        {"mw, maximize-window, m", "Toggle maximize selected window"},
-        {"hm, horizontal-maximize-window, hmw", "Toggle horizontal maximize"},
-        {"vm, vertical-maximize-window, vmw", "Toggle vertical maximize"},
-        {"help, h, ?", "Show this help"},
-        {NULL, NULL}  // Sentinel
-    };
-
     // Calculate required buffer size
     size_t buffer_size = 1024;  // Base size for headers and footers
-    for (int i = 0; commands[i].shortcuts != NULL; i++) {
-        buffer_size += strlen(commands[i].shortcuts) + strlen(commands[i].description) + 100;
+    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
+        buffer_size += strlen(COMMAND_DEFINITIONS[i].help_format) + strlen(COMMAND_DEFINITIONS[i].description) + 100;
     }
 
     char *help_text = malloc(buffer_size);
@@ -795,10 +740,10 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "======================\n\n");
         strcat(help_text, "Available Commands:\n");
 
-        for (int i = 0; commands[i].shortcuts != NULL; i++) {
+        for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
             char line[256];
             snprintf(line, sizeof(line), "  %-40s - %s\n",
-                     commands[i].shortcuts, commands[i].description);
+                     COMMAND_DEFINITIONS[i].help_format, COMMAND_DEFINITIONS[i].description);
             strcat(help_text, line);
         }
 
@@ -815,10 +760,10 @@ char* generate_command_help_text(HelpFormat format) {
         strcat(help_text, "=====================\n\n");
         strcat(help_text, "Available Commands:\n");
 
-        for (int i = 0; commands[i].shortcuts != NULL; i++) {
+        for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
             char line[256];
             snprintf(line, sizeof(line), "  %-40s - %s\n",
-                     commands[i].shortcuts, commands[i].description);
+                     COMMAND_DEFINITIONS[i].help_format, COMMAND_DEFINITIONS[i].description);
             strcat(help_text, line);
         }
 

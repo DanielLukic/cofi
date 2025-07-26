@@ -38,6 +38,9 @@ int get_number_of_desktops(Display *display);
 // Get desktop names from _NET_DESKTOP_NAMES
 char** get_desktop_names(Display *display, int *count);
 
+// Set desktop names via _NET_DESKTOP_NAMES
+int set_desktop_names(Display *display, char **names, int num_desktops);
+
 // Get current desktop from _NET_CURRENT_DESKTOP
 int get_current_desktop(Display *display);
 

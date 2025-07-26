@@ -1,6 +1,7 @@
 #include "overlay_manager.h"
 #include "tiling_overlay.h"
 #include "workspace_overlay.h"
+#include "workspace_rename_overlay.h"
 #include "harpoon_overlay.h"
 #include "app_data.h"
 #include "log.h"
@@ -78,6 +79,12 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_WORKSPACE_JUMP:
             create_workspace_jump_overlay_content(app->dialog_container, app);
             break;
+        case OVERLAY_WORKSPACE_RENAME:
+            {
+                int workspace_index = GPOINTER_TO_INT(data);
+                create_workspace_rename_overlay_content(app->dialog_container, app, workspace_index);
+            }
+            break;
         case OVERLAY_HARPOON_DELETE:
             create_harpoon_delete_overlay_content(app->dialog_container, app, app->harpoon_delete.delete_slot);
             break;
@@ -117,8 +124,8 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
     }
 
     // Handle focus based on overlay type
-    if (type == OVERLAY_HARPOON_EDIT) {
-        // For edit overlay, we'll focus the entry after a short delay
+    if (type == OVERLAY_HARPOON_EDIT || type == OVERLAY_WORKSPACE_RENAME) {
+        // For edit overlays, we'll focus the entry after a short delay
         // to ensure it's properly realized
         focus_harpoon_edit_entry_delayed(app);
     } else {
@@ -213,6 +220,12 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_move_key_press(app, event);
         case OVERLAY_WORKSPACE_JUMP:
             return handle_workspace_jump_key_press(app, event);
+        case OVERLAY_WORKSPACE_RENAME:
+            if (handle_workspace_rename_key_press(app, event->keyval)) {
+                hide_overlay(app);
+                return TRUE;
+            }
+            return FALSE;
         case OVERLAY_HARPOON_DELETE:
             return handle_harpoon_delete_key_press(app, event);
         case OVERLAY_HARPOON_EDIT:
@@ -247,6 +260,10 @@ void show_workspace_move_overlay(AppData *app) {
 
 void show_workspace_jump_overlay(AppData *app) {
     show_overlay(app, OVERLAY_WORKSPACE_JUMP, NULL);
+}
+
+void show_workspace_rename_overlay(AppData *app, int workspace_index) {
+    show_overlay(app, OVERLAY_WORKSPACE_RENAME, GINT_TO_POINTER(workspace_index));
 }
 
 // Public function to show harpoon delete overlay
