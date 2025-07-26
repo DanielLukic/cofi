@@ -14,6 +14,7 @@
 #include "match.h"
 #include "constants.h"
 #include "selection.h"
+#include "x11_utils.h"
 
 #define UNUSED __attribute__((unused))
 
@@ -262,10 +263,11 @@ static void prepare_windows_for_filtering(AppData *app) {
 }
 
 // Score and filter windows based on search text
-static int score_and_filter_windows(AppData *app UNUSED, const char *filter, 
+static int score_and_filter_windows(AppData *app, const char *filter, 
                                    const WindowInfo *windows, int window_count,
                                    ScoredWindow *scored_windows) {
     int scored_count = 0;
+    int current_desktop = get_current_desktop(app->display);
     
     // Filter and score windows
     for (int i = 0; i < window_count; i++) {
@@ -281,6 +283,16 @@ static int score_and_filter_windows(AppData *app UNUSED, const char *filter,
         } else {
             // Use the match_window function for all matching logic
             score_t best_score = match_window(filter, win);
+            
+            // Add workspace bonus if window is on current workspace
+            if (best_score > SCORE_MIN && win->desktop == current_desktop && win->desktop != -1) {
+                // Add significant bonus for current workspace windows
+                // This should be enough to prioritize them but not override better matches
+                score_t workspace_bonus = 500;
+                best_score += workspace_bonus;
+                log_debug("Window '%s' on current workspace %d - added bonus %.0f (new score: %.0f)", 
+                         win->title, current_desktop, workspace_bonus, best_score);
+            }
             
             // Add to scored list if we have a match
             if (best_score > SCORE_MIN) {
