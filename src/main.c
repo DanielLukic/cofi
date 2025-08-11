@@ -805,6 +805,7 @@ void show_window(AppData *app) {
     
     // Check for automatic harpoon reassignments
     check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
+    // No need to save here - this is when showing the window
     
     // For windows tab, always reset selection
     if (app->current_tab == TAB_WINDOWS) {

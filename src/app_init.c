@@ -102,6 +102,7 @@ void init_window_list(AppData *app) {
     get_window_list(app);
     
     // Check for automatic reassignments after loading config and getting window list
+    // Note: we don't save here because this is during initial startup
     check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
     
     // Check for named windows reassignments

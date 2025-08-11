@@ -2,6 +2,7 @@
 #define NAMED_WINDOW_H
 
 #include <X11/Xlib.h>
+#include <stdbool.h>
 #include "window_info.h"
 #include "constants.h"
 
@@ -35,7 +36,8 @@ const char* get_window_custom_name(const NamedWindowManager *manager, Window id)
 int is_window_already_named(const NamedWindowManager *manager, Window id);
 
 // Check and reassign orphaned names to matching windows
-void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, int window_count);
+// Returns true if any names were reassigned
+bool check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, int window_count);
 
 // Delete a custom name by index
 void delete_custom_name(NamedWindowManager *manager, int index);

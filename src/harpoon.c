@@ -93,8 +93,8 @@ int is_slot_assigned(const HarpoonManager *manager, int slot) {
 
 
 
-void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count) {
-    if (!manager || !windows) return;
+bool check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count) {
+    if (!manager || !windows) return false;
     
     log_trace("check_and_reassign_windows: checking %d windows against %d slots",
              window_count, MAX_HARPOON_SLOTS);
@@ -160,4 +160,5 @@ void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, in
     if (config_changed) {
         log_debug("Harpoon slots were automatically reassigned");
     }
+    return config_changed;
 }

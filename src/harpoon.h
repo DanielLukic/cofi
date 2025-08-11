@@ -2,6 +2,7 @@
 #define HARPOON_H
 
 #include <X11/Xlib.h>
+#include <stdbool.h>
 #include "types.h"
 
 // Forward declare WindowAlignment
@@ -33,6 +34,7 @@ int is_slot_assigned(const HarpoonManager *manager, int slot);
 
 
 // Automatic reassignment functions
-void check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);
+// Returns true if any slots were reassigned
+bool check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);
 
 #endif // HARPOON_H

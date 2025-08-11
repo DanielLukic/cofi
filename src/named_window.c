@@ -97,10 +97,10 @@ static int window_matches_named_entry(const WindowInfo *window, const NamedWindo
     return wildcard_match(entry->original_title, window->title);
 }
 
-void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, int window_count) {
-    if (!manager || !windows) return;
+bool check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, int window_count) {
+    if (!manager || !windows) return false;
     
-    log_info("check_and_reassign_names: checking %d windows against %d named entries",
+    log_trace("check_and_reassign_names: checking %d windows against %d named entries",
              window_count, manager->count);
     
     int config_changed = 0;
@@ -112,7 +112,7 @@ void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
         // Skip if not previously assigned (deleted entries)
         if (!entry->assigned) continue;
         
-        log_info("Checking named entry %d: has window 0x%lx (%s)", 
+        log_trace("Checking named entry %d: has window 0x%lx (%s)", 
                  i, entry->id, entry->custom_name);
         
         // Check if the window ID still exists
@@ -120,16 +120,16 @@ void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
         for (int j = 0; j < window_count; j++) {
             if (windows[j].id == entry->id) {
                 window_still_exists = 1;
-                log_info("Named window 0x%lx still exists", entry->id);
+                log_trace("Named window 0x%lx still exists", entry->id);
                 break;
             }
         }
         
         // If window doesn't exist anymore, try to find a matching window
         if (!window_still_exists) {
-            log_info("Window 0x%lx with name '%s' no longer exists, looking for replacement",
+            log_trace("Window 0x%lx with name '%s' no longer exists, looking for replacement",
                      entry->id, entry->custom_name);
-            log_info("Looking for: class='%s', instance='%s', type='%s', title='%s'",
+            log_trace("Looking for: class='%s', instance='%s', type='%s', title='%s'",
                      entry->class_name, entry->instance, entry->type, entry->original_title);
             
             // Mark as orphaned first
@@ -140,11 +140,11 @@ void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
             for (int j = 0; j < window_count; j++) {
                 // CRITICAL: Skip if this window already has a custom name
                 if (is_window_already_named(manager, windows[j].id)) {
-                    log_info("Window 0x%lx already has a custom name, skipping", windows[j].id);
+                    log_trace("Window 0x%lx already has a custom name, skipping", windows[j].id);
                     continue;
                 }
                 
-                log_info("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
+                log_trace("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
                          j, windows[j].class_name, windows[j].instance, windows[j].type, windows[j].title);
                 
                 // Use wildcard matching
@@ -160,7 +160,7 @@ void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
             }
             
             if (!entry->assigned) {
-                log_info("Could not find matching window for name '%s', marked as orphaned",
+                log_trace("Could not find matching window for name '%s', marked as orphaned",
                         entry->custom_name);
             }
         }
@@ -169,6 +169,7 @@ void check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
     if (config_changed) {
         log_debug("Named windows were automatically reassigned");
     }
+    return config_changed;
 }
 
 void delete_custom_name(NamedWindowManager *manager, int index) {
