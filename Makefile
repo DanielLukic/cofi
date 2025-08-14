@@ -4,7 +4,7 @@ CC = gcc
 CXX = g++
 CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11 gio-2.0)
 CXXFLAGS = $(CFLAGS) -std=c++11 -Iinclude
-LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr -lstdc++
+LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr -lXfixes -lstdc++
 
 # Build number from environment (GitHub Actions) or default to 0
 BUILD_NUMBER ?= 0

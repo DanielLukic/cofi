@@ -8,6 +8,7 @@
 #include "selection.h"
 #include "x11_utils.h"
 #include "app_data.h"
+#include <X11/extensions/Xfixes.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -378,6 +379,15 @@ static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *ar
         return TRUE;
     }
     
+    // Check for 'm' followed by mouse action (ma, ms, mh)
+    if (len == 2 && input[0] == 'm' && strchr("ash", input[1])) {
+        strncpy(cmd_out, "m", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 1, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
     // Check for direct tiling commands like 'tr4' (tile right 75%) or 'tc4' (center 100%)
     if (len >= 3 && input[0] == 't' && strchr("lrtbcLRTBC", input[1]) && strchr("1234", input[2])) {
         strncpy(cmd_out, "t", cmd_size - 1);
@@ -742,6 +752,53 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args __at
 gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
     show_help_commands(app);
     return FALSE; // Stay in command mode to show help
+}
+
+gboolean cmd_mouse(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    if (!app || !app->display) {
+        log_warn("Cannot control mouse: display not available");
+        return FALSE;
+    }
+    
+    Window root = DefaultRootWindow(app->display);
+    
+    // Parse the action from args
+    if (!args || strlen(args) == 0) {
+        log_warn("Mouse command requires an action: away, show, or hide");
+        return FALSE;
+    }
+    
+    // Skip any leading spaces
+    while (*args == ' ') args++;
+    
+    // Check for the action - support both full words and single letters
+    if (strncmp(args, "away", 4) == 0 || strncmp(args, "a", 1) == 0) {
+        // Move mouse to top-left corner (0,0)
+        XWarpPointer(app->display, None, root, 0, 0, 0, 0, 0, 0);
+        XFlush(app->display);
+        log_info("USER: Mouse moved to corner");
+    }
+    else if (strncmp(args, "show", 4) == 0 || strncmp(args, "s", 1) == 0) {
+        // Show the cursor on the root window
+        XFixesShowCursor(app->display, root);
+        XFlush(app->display);
+        log_info("USER: Mouse cursor shown");
+    }
+    else if (strncmp(args, "hide", 4) == 0 || strncmp(args, "h", 1) == 0) {
+        // Hide the cursor on the root window
+        XFixesHideCursor(app->display, root);
+        XFlush(app->display);
+        log_info("USER: Mouse cursor hidden");
+    }
+    else {
+        log_warn("Unknown mouse action: %s (use away/a, show/s, or hide/h)", args);
+        return FALSE;
+    }
+    
+    // Always hide the window after this command
+    hide_window(app);
+    
+    return TRUE; // This return value doesn't matter since we called hide_window
 }
 
 // Generate command help text in different formats
