@@ -34,6 +34,7 @@ gboolean cmd_rename_workspace(AppData *app, WindowInfo *window, const char *args
 gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
@@ -94,11 +95,18 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "jw, jump-workspace, j [N]"
     },
     {
+        .primary = "mouse",
+        .aliases = {"m", "ma", "ms", "mh", NULL},
+        .handler = cmd_mouse,
+        .description = "Mouse control: away/show/hide",
+        .help_format = "m, mouse [away|show|hide]"
+    },
+    {
         .primary = "mw",
-        .aliases = {"m", "maximize-window", NULL},
+        .aliases = {"max", "maximize-window", NULL},
         .handler = cmd_maximize_window,
         .description = "Toggle maximize selected window",
-        .help_format = "mw, maximize-window, m"
+        .help_format = "mw, max, maximize-window"
     },
     {
         .primary = "pw",
