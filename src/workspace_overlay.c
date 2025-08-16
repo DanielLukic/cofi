@@ -4,6 +4,7 @@
 #include "selection.h"
 #include "x11_utils.h"
 #include "workspace_utils.h"
+#include "gtk_utils.h"
 #include <gtk/gtk.h>
 
 // Forward declarations
@@ -14,9 +15,7 @@ extern void hide_window(AppData *app); // From main.c
 // Create workspace jump overlay content
 void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData *app) {
     // Header
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
-    gtk_label_set_markup(GTK_LABEL(header_label), "<b>Jump to Workspace</b>");
+    GtkWidget *header_label = create_markup_label("<b>Jump to Workspace</b>", TRUE);
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 0);
 
     // Separator
@@ -102,9 +101,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     // Get selected window using centralized selection management
     WindowInfo *selected_window = get_selected_window(app);
     if (!selected_window) {
-        log_error("No window selected for workspace move overlay");
-        GtkWidget *error_label = gtk_label_new("No window selected for workspace move");
-        gtk_container_add(GTK_CONTAINER(parent_container), error_label);
+        show_no_window_error(parent_container, "workspace move");
         return;
     }
 
@@ -114,10 +111,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     snprintf(header_text, sizeof(header_text),
              "<b>Move Window to Workspace:</b> %s", escaped_title);
 
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
-    gtk_label_set_markup(GTK_LABEL(header_label), header_text);
-    gtk_label_set_line_wrap(GTK_LABEL(header_label), TRUE);
+    GtkWidget *header_label = create_markup_label(header_text, TRUE);
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 0);
 
     g_free(escaped_title);
