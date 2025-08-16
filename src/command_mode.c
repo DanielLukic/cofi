@@ -727,7 +727,7 @@ gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
         TileOption option = parse_tile_option(args);
         if (option != (TileOption)-1) {
             log_info("USER: Tiling window '%s' with option: %s", window->title, args);
-            apply_tiling(app->display, window->id, option, 3);
+            apply_tiling(app->display, window->id, option, app->config.tile_columns);
             activate_commanded_window(app, window);
             return TRUE;
         } else {
