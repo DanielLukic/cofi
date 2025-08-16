@@ -3,6 +3,7 @@
 #include "log.h"
 #include "selection.h"
 #include "x11_utils.h"
+#include "workspace_utils.h"
 #include <gtk/gtk.h>
 
 // Forward declarations
@@ -19,18 +20,13 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 0);
 
     // Separator
-    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator, FALSE, FALSE, 0);
+    add_horizontal_separator(parent_container);
 
     // Get workspace information
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
-    }
+    int workspace_count = get_limited_workspace_count(app->display);
 
     // Get workspace names
-    int name_count;
-    char **names = get_desktop_names(app->display, &name_count);
+    WorkspaceNames *names = get_workspace_names(app->display);
 
     // Get current desktop (where the user currently is)
     int user_current_desktop = get_current_desktop(app->display);
@@ -52,12 +48,7 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
             int col = i % per_row;
 
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             GtkWidget *ws_widget = create_workspace_widget_overlay(
                 i + 1,  // 1-based number for display
@@ -85,12 +76,7 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
 
         for (int i = 0; i < workspace_count; i++) {
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             // Format workspace entry
             if (i == user_current_desktop) {
@@ -105,18 +91,10 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
     }
 
     // Free workspace names
-    if (names) {
-        for (int i = 0; i < name_count; i++) {
-            free(names[i]);
-        }
-        free(names);
-    }
+    free_workspace_names(names);
 
     // Instructions
-    GtkWidget *instructions = gtk_label_new("[Press 1-9, 0 for workspace 10, Esc to cancel]");
-    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
-    gtk_label_set_line_wrap(GTK_LABEL(instructions), TRUE);
-    gtk_box_pack_end(GTK_BOX(parent_container), instructions, FALSE, FALSE, 0);
+    create_workspace_instructions(parent_container);
 }
 
 // Create workspace move overlay content
@@ -145,18 +123,13 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     g_free(escaped_title);
 
     // Separator
-    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator, FALSE, FALSE, 0);
+    add_horizontal_separator(parent_container);
 
     // Get workspace information
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
-    }
+    int workspace_count = get_limited_workspace_count(app->display);
 
     // Get workspace names
-    int name_count;
-    char **names = get_desktop_names(app->display, &name_count);
+    WorkspaceNames *names = get_workspace_names(app->display);
 
     // Get current desktop (where the user currently is)
     int user_current_desktop = get_current_desktop(app->display);
@@ -181,12 +154,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
             int col = i % per_row;
 
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             GtkWidget *ws_widget = create_workspace_widget_overlay(
                 i + 1,  // 1-based number for display
@@ -214,12 +182,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
 
         for (int i = 0; i < workspace_count; i++) {
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             // Format workspace entry with indicators
             if (i == window_current_desktop && i == user_current_desktop) {
@@ -238,18 +201,10 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     }
 
     // Free workspace names
-    if (names) {
-        for (int i = 0; i < name_count; i++) {
-            free(names[i]);
-        }
-        free(names);
-    }
+    free_workspace_names(names);
 
     // Instructions
-    GtkWidget *instructions = gtk_label_new("[Press 1-9, 0 for workspace 10, Esc to cancel]");
-    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
-    gtk_label_set_line_wrap(GTK_LABEL(instructions), TRUE);
-    gtk_box_pack_end(GTK_BOX(parent_container), instructions, FALSE, FALSE, 0);
+    create_workspace_instructions(parent_container);
 }
 
 // Create a single workspace widget for overlay grid layout
@@ -466,18 +421,13 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 0);
 
     // Separator
-    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator, FALSE, FALSE, 0);
+    add_horizontal_separator(parent_container);
 
     // Get workspace information
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
-    }
+    int workspace_count = get_limited_workspace_count(app->display);
 
     // Get workspace names
-    int name_count;
-    char **names = get_desktop_names(app->display, &name_count);
+    WorkspaceNames *names = get_workspace_names(app->display);
 
     // Get current desktop (where the user currently is)
     int user_current_desktop = get_current_desktop(app->display);
@@ -499,12 +449,7 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
             int col = i % per_row;
 
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             GtkWidget *ws_widget = create_workspace_widget_overlay(
                 i + 1,  // 1-based number for display
@@ -532,12 +477,7 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
 
         for (int i = 0; i < workspace_count; i++) {
             // Get workspace name
-            char workspace_name[64];
-            if (names && i < name_count && names[i]) {
-                snprintf(workspace_name, sizeof(workspace_name), "%s", names[i]);
-            } else {
-                snprintf(workspace_name, sizeof(workspace_name), "Workspace %d", i + 1);
-            }
+            const char *workspace_name = get_workspace_name_or_default(names, i);
 
             // Format workspace entry
             if (i == user_current_desktop) {
@@ -552,18 +492,10 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
     }
 
     // Free workspace names
-    if (names) {
-        for (int i = 0; i < name_count; i++) {
-            free(names[i]);
-        }
-        free(names);
-    }
+    free_workspace_names(names);
 
     // Instructions
-    GtkWidget *instructions = gtk_label_new("[Press 1-9, 0 for workspace 10, Esc to cancel]");
-    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
-    gtk_label_set_line_wrap(GTK_LABEL(instructions), TRUE);
-    gtk_box_pack_end(GTK_BOX(parent_container), instructions, FALSE, FALSE, 0);
+    create_workspace_instructions(parent_container);
 }
 
 // Handle key press events for workspace move all overlay

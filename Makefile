@@ -46,7 +46,8 @@ SOURCES = src/main.c \
           src/dbus_service.c \
           src/atom_cache.c \
           src/dynamic_display.c \
-          src/frame_extents.c
+          src/frame_extents.c \
+          src/workspace_utils.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
