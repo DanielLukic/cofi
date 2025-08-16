@@ -2,6 +2,7 @@
 #include "app_data.h"
 #include "log.h"
 #include "x11_utils.h"
+#include "gtk_utils.h"
 #include <gtk/gtk.h>
 #include <string.h>
 
@@ -26,16 +27,13 @@ static gboolean focus_workspace_rename_entry(gpointer user_data) {
 void create_workspace_rename_overlay_content(GtkWidget *parent_container, AppData *app, int workspace_index) {
     // Header
     char *header_text = g_strdup_printf("<b>Rename Workspace %d</b>", workspace_index);
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(header_label), header_text);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
+    GtkWidget *header_label = create_markup_label(header_text, TRUE);
     g_free(header_text);
     
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
     
     // Separator
-    GtkWidget *separator1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator1, FALSE, FALSE, 10);
+    add_horizontal_separator(parent_container);
     
     // Current name info
     int desktop_count = 0;
@@ -47,9 +45,7 @@ void create_workspace_rename_overlay_content(GtkWidget *parent_container, AppDat
     }
     
     char *info_text = g_strdup_printf("<b>Current name:</b> %s", current_name);
-    GtkWidget *info_label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(info_label), info_text);
-    gtk_widget_set_halign(info_label, GTK_ALIGN_CENTER);
+    GtkWidget *info_label = create_markup_label(info_text, TRUE);
     g_free(info_text);
     
     gtk_box_pack_start(GTK_BOX(parent_container), info_label, FALSE, FALSE, 10);
@@ -67,12 +63,10 @@ void create_workspace_rename_overlay_content(GtkWidget *parent_container, AppDat
     gtk_box_pack_start(GTK_BOX(parent_container), entry, FALSE, FALSE, 20);
     
     // Separator
-    GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator2, FALSE, FALSE, 10);
+    add_horizontal_separator(parent_container);
     
     // Instructions
-    GtkWidget *instructions = gtk_label_new("[Enter to save, Escape to cancel]");
-    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
+    GtkWidget *instructions = create_centered_label("[Enter to save, Escape to cancel]");
     gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
     
     // Free desktop names if allocated

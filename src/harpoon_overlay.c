@@ -3,6 +3,7 @@
 #include "log.h"
 #include "utils.h"
 #include "harpoon_config.h"
+#include "gtk_utils.h"
 #include <gtk/gtk.h>
 
 // Forward declarations
@@ -31,18 +32,14 @@ void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData 
     HarpoonSlot *slot = &app->harpoon.slots[slot_index];
     
     // Header
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
-    
     char *header_markup = g_strdup_printf("<b>Delete Harpoon Assignment?</b>");
-    gtk_label_set_markup(GTK_LABEL(header_label), header_markup);
+    GtkWidget *header_label = create_markup_label(header_markup, TRUE);
     g_free(header_markup);
     
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
     
     // Separator
-    GtkWidget *separator1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator1, FALSE, FALSE, 10);
+    add_horizontal_separator(parent_container);
     
     // Slot info
     char slot_name[4];
@@ -59,10 +56,7 @@ void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData 
         "<b>Class:</b> %s",
         slot_name, escaped_title, slot->class_name);
     
-    GtkWidget *info_label = gtk_label_new(NULL);
-    gtk_widget_set_halign(info_label, GTK_ALIGN_CENTER);
-    gtk_label_set_markup(GTK_LABEL(info_label), slot_info);
-    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    GtkWidget *info_label = create_markup_label(slot_info, TRUE);
     
     g_free(escaped_title);
     g_free(slot_info);
@@ -70,12 +64,10 @@ void create_harpoon_delete_overlay_content(GtkWidget *parent_container, AppData 
     gtk_box_pack_start(GTK_BOX(parent_container), info_label, FALSE, FALSE, 10);
     
     // Separator
-    GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator2, FALSE, FALSE, 10);
+    add_horizontal_separator(parent_container);
     
     // Instructions
-    GtkWidget *instructions = gtk_label_new("[Press Y or Ctrl+D to confirm, N or Esc to cancel]");
-    gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
+    GtkWidget *instructions = create_centered_label("[Press Y or Ctrl+D to confirm, N or Esc to cancel]");
     gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
 }
 
@@ -92,9 +84,7 @@ void create_harpoon_edit_overlay_content(GtkWidget *parent_container, AppData *a
     }
     
     char *header = g_strdup_printf("<b>Edit Harpoon Slot: %s</b>", slot_name);
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(header_label), header);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
+    GtkWidget *header_label = create_markup_label(header, TRUE);
     g_free(header);
     
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);

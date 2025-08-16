@@ -60,12 +60,6 @@ GtkWidget* create_workspace_instructions(GtkWidget *parent_container) {
     return instructions;
 }
 
-// Add horizontal separator to a box
-GtkWidget* add_horizontal_separator(GtkWidget *parent_box) {
-    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_box), separator, FALSE, FALSE, 0);
-    return separator;
-}
 
 // Parse workspace number from keyboard event
 int parse_workspace_number_key(GdkEventKey *event) {

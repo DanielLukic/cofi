@@ -3,6 +3,7 @@
 #include "log.h"
 #include "selection.h"
 #include "tiling.h"
+#include "gtk_utils.h"
 #include <gtk/gtk.h>
 
 // Forward declarations
@@ -14,9 +15,7 @@ void create_tiling_overlay_content(GtkWidget *parent_container, AppData *app) {
     // Get selected window using centralized selection management
     WindowInfo *selected_window = get_selected_window(app);
     if (!selected_window) {
-        log_error("No window selected for tiling overlay");
-        GtkWidget *error_label = gtk_label_new("No window selected for tiling");
-        gtk_container_add(GTK_CONTAINER(parent_container), error_label);
+        show_no_window_error(parent_container, "tiling");
         return;
     }
 
@@ -26,17 +25,13 @@ void create_tiling_overlay_content(GtkWidget *parent_container, AppData *app) {
     snprintf(header_text, sizeof(header_text),
              "<b>Tile Window:</b> %s", escaped_title);
 
-    GtkWidget *header_label = gtk_label_new(NULL);
-    gtk_widget_set_halign(header_label, GTK_ALIGN_CENTER);
-    gtk_label_set_markup(GTK_LABEL(header_label), header_text);
-    gtk_label_set_line_wrap(GTK_LABEL(header_label), TRUE);
+    GtkWidget *header_label = create_markup_label(header_text, TRUE);
     gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 0);
 
     g_free(escaped_title);
 
     // Separator
-    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(parent_container), separator, FALSE, FALSE, 0);
+    add_horizontal_separator(parent_container);
 
     // Create tiling options display
     create_tiling_grid_overlay(parent_container, app);

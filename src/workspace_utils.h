@@ -24,7 +24,6 @@ const char* get_workspace_name_or_default(WorkspaceNames *names, int index);
 
 // Common GTK widget creation helpers
 GtkWidget* create_workspace_instructions(GtkWidget *parent_container);
-GtkWidget* add_horizontal_separator(GtkWidget *parent_box);
 
 // Workspace number key handling
 typedef enum {
