@@ -350,6 +350,15 @@ static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *ar
         return TRUE;
     }
     
+    // Check for 'maw' followed by number (move-all-to-workspace)
+    if (len >= 4 && strncmp(input, "maw", 3) == 0 && isdigit(input[3])) {
+        strncpy(cmd_out, "maw", cmd_size - 1);
+        cmd_out[cmd_size - 1] = '\0';
+        strncpy(arg_out, input + 3, arg_size - 1);
+        arg_out[arg_size - 1] = '\0';
+        return TRUE;
+    }
+    
     // Check for 'j' followed by number (jump shortcut)
     if (len >= 2 && input[0] == 'j' && isdigit(input[1])) {
         strncpy(cmd_out, "j", cmd_size - 1);
@@ -799,6 +808,94 @@ gboolean cmd_mouse(AppData *app, WindowInfo *window __attribute__((unused)), con
     hide_window(app);
     
     return TRUE; // This return value doesn't matter since we called hide_window
+}
+
+gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    if (!app || !app->display) {
+        log_warn("Cannot move windows: display not available");
+        return FALSE;
+    }
+    
+    // Get current workspace
+    int current_workspace = get_current_desktop(app->display);
+    
+    // Clear the windows to move list
+    app->windows_to_move_count = 0;
+    
+    // Collect all windows on current workspace that are:
+    // - Not special windows (type != "Special")
+    // - Not sticky (not on all desktops)
+    // - On the current workspace
+    int normal_window_count = 0;
+    for (int i = 0; i < app->window_count; i++) {
+        WindowInfo *win = &app->windows[i];
+        
+        // Skip special windows
+        if (strcmp(win->type, "Special") == 0) {
+            log_debug("Skipping special window: %s", win->title);
+            continue;
+        }
+        
+        // Skip windows not on current workspace (-1 means sticky/all desktops)
+        if (win->desktop != current_workspace) {
+            if (win->desktop == -1 || win->desktop == 0xFFFFFFFF) {
+                log_debug("Skipping sticky window: %s", win->title);
+            }
+            continue;
+        }
+        
+        // Check if window is sticky via _NET_WM_STATE_STICKY
+        if (get_window_state(app->display, win->id, "_NET_WM_STATE_STICKY")) {
+            log_debug("Skipping sticky window (state check): %s", win->title);
+            continue;
+        }
+        
+        // Add to list of windows to move
+        if (app->windows_to_move_count < MAX_WINDOWS) {
+            app->windows_to_move[app->windows_to_move_count++] = win->id;
+            normal_window_count++;
+            log_debug("Will move window: %s (ID: 0x%lx)", win->title, win->id);
+        }
+    }
+    
+    if (normal_window_count == 0) {
+        log_warn("No movable windows found on current workspace %d", current_workspace + 1);
+        return FALSE;
+    }
+    
+    log_info("USER: Found %d windows to move from workspace %d", normal_window_count, current_workspace + 1);
+    
+    // If args provided, move directly. Otherwise show overlay
+    if (strlen(args) > 0) {
+        int workspace_num = atoi(args);
+        if (workspace_num >= 1 && workspace_num <= 36) {
+            int workspace_count = get_number_of_desktops(app->display);
+            if (workspace_num <= workspace_count) {
+                int target_workspace = workspace_num - 1;
+                
+                // Move all collected windows
+                for (int i = 0; i < app->windows_to_move_count; i++) {
+                    move_window_to_desktop(app->display, app->windows_to_move[i], target_workspace);
+                }
+                
+                // Switch to the target workspace
+                switch_to_desktop(app->display, target_workspace);
+                
+                log_info("USER: Moved %d windows from workspace %d to workspace %d and switched to it", 
+                         app->windows_to_move_count, current_workspace + 1, workspace_num);
+                return TRUE;
+            } else {
+                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
+            }
+        } else {
+            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+        }
+        return FALSE;
+    } else {
+        // Show workspace selection overlay
+        show_workspace_move_all_overlay((struct AppData *)app);
+        return FALSE; // Don't exit command mode, overlay is shown
+    }
 }
 
 // Generate command help text in different formats

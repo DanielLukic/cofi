@@ -110,6 +110,9 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_WORKSPACE_JUMP:
             create_workspace_jump_overlay_content(app->dialog_container, app);
             break;
+        case OVERLAY_WORKSPACE_MOVE_ALL:
+            create_workspace_move_all_overlay_content(app->dialog_container, app);
+            break;
         case OVERLAY_WORKSPACE_RENAME:
             {
                 int workspace_index = GPOINTER_TO_INT(data);
@@ -259,6 +262,8 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_move_key_press(app, event);
         case OVERLAY_WORKSPACE_JUMP:
             return handle_workspace_jump_key_press(app, event);
+        case OVERLAY_WORKSPACE_MOVE_ALL:
+            return handle_workspace_move_all_key_press(app, event);
         case OVERLAY_WORKSPACE_RENAME:
             if (handle_workspace_rename_key_press(app, event->keyval)) {
                 hide_overlay(app);
@@ -303,6 +308,10 @@ void show_workspace_move_overlay(AppData *app) {
 
 void show_workspace_jump_overlay(AppData *app) {
     show_overlay(app, OVERLAY_WORKSPACE_JUMP, NULL);
+}
+
+void show_workspace_move_all_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_WORKSPACE_MOVE_ALL, NULL);
 }
 
 void show_workspace_rename_overlay(AppData *app, int workspace_index) {

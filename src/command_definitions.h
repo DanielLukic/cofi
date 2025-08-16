@@ -35,6 +35,7 @@ gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
@@ -93,6 +94,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_jump_workspace,
         .description = "Jump to different workspace (N = workspace number)",
         .help_format = "jw, jump-workspace, j [N]"
+    },
+    {
+        .primary = "maw",
+        .aliases = {"move-all-to-workspace", NULL},
+        .handler = cmd_move_all_to_workspace,
+        .description = "Move all windows from current workspace to target workspace",
+        .help_format = "maw, move-all-to-workspace [N]"
     },
     {
         .primary = "mouse",

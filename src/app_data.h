@@ -24,6 +24,7 @@ typedef enum {
     OVERLAY_WORKSPACE_MOVE,
     OVERLAY_WORKSPACE_JUMP,
     OVERLAY_WORKSPACE_RENAME,
+    OVERLAY_WORKSPACE_MOVE_ALL,
     OVERLAY_HARPOON_DELETE,
     OVERLAY_HARPOON_EDIT,
     OVERLAY_NAME_ASSIGN,
@@ -133,6 +134,10 @@ typedef struct AppData {
     // Timer management for deferred operations
     guint focus_loss_timer;                 // Timer ID for focus loss delay
     guint focus_grab_timer;                 // Timer ID for focus grab delay
+    
+    // Move-all-to-workspace state
+    Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command
+    int windows_to_move_count;              // Number of windows to move
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED
