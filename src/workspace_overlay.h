@@ -8,9 +8,11 @@
 // Workspace overlay content creation
 void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData *app);
 void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData *app);
+void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppData *app);
 
 // Workspace overlay key press handling
 gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event);
 gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event);
+gboolean handle_workspace_move_all_key_press(AppData *app, GdkEventKey *event);
 
 #endif // WORKSPACE_OVERLAY_H
