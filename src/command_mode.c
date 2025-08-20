@@ -8,7 +8,9 @@
 #include "selection.h"
 #include "x11_utils.h"
 #include "app_data.h"
+#include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -896,6 +898,171 @@ gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute_
         show_workspace_move_all_overlay((struct AppData *)app);
         return FALSE; // Don't exit command mode, overlay is shown
     }
+}
+
+// Swap window positions and sizes
+gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for swap");
+        return FALSE;
+    }
+    
+    // We need at least 2 windows to swap
+    if (app->filtered_count < 2) {
+        log_warn("Need at least 2 windows to swap (have %d)", app->filtered_count);
+        return FALSE;
+    }
+    
+    // Get the two windows to swap (selected and the first in list)
+    WindowInfo *window1 = window;  // Currently selected window
+    WindowInfo *window2 = NULL;
+    
+    // Find the other window to swap with (first non-selected window)
+    for (int i = 0; i < app->filtered_count; i++) {
+        if (app->filtered[i].id != window1->id) {
+            window2 = &app->filtered[i];
+            break;
+        }
+    }
+    
+    if (!window2) {
+        log_warn("Could not find second window to swap with");
+        return FALSE;
+    }
+    
+    log_info("Swapping windows: '%s' <-> '%s'", window1->title, window2->title);
+    
+    // Get current geometries (these will be the actual maximized sizes if maximized)
+    int x1, y1, w1, h1;
+    int x2, y2, w2, h2;
+    
+    if (!get_window_geometry(app->display, window1->id, &x1, &y1, &w1, &h1)) {
+        log_error("Failed to get geometry for window 1");
+        return FALSE;
+    }
+    
+    if (!get_window_geometry(app->display, window2->id, &x2, &y2, &w2, &h2)) {
+        log_error("Failed to get geometry for window 2");
+        return FALSE;
+    }
+    
+    log_debug("Window 1 geometry: %dx%d at (%d,%d)", w1, h1, x1, y1);
+    log_debug("Window 2 geometry: %dx%d at (%d,%d)", w2, h2, x2, y2);
+    
+    // Get maximization states
+    gboolean win1_max_vert = get_window_state(app->display, window1->id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    gboolean win1_max_horz = get_window_state(app->display, window1->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    gboolean win2_max_vert = get_window_state(app->display, window2->id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    gboolean win2_max_horz = get_window_state(app->display, window2->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    
+    log_debug("Window 1 max state: vert=%d, horz=%d", win1_max_vert, win1_max_horz);
+    log_debug("Window 2 max state: vert=%d, horz=%d", win2_max_vert, win2_max_horz);
+    
+    // Prepare atoms for state changes
+    Atom net_wm_state = XInternAtom(app->display, "_NET_WM_STATE", False);
+    Atom net_wm_state_maximized_vert = XInternAtom(app->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    Atom net_wm_state_maximized_horz = XInternAtom(app->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    
+    // Step 1: Force unmaximize both windows completely
+    if (win1_max_vert || win1_max_horz) {
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.window = window1->id;
+        event.xclient.message_type = net_wm_state;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+        event.xclient.data.l[1] = net_wm_state_maximized_vert;
+        event.xclient.data.l[2] = net_wm_state_maximized_horz;
+        
+        XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    }
+    
+    if (win2_max_vert || win2_max_horz) {
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.window = window2->id;
+        event.xclient.message_type = net_wm_state;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+        event.xclient.data.l[1] = net_wm_state_maximized_vert;
+        event.xclient.data.l[2] = net_wm_state_maximized_horz;
+        
+        XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    }
+    
+    XFlush(app->display);
+    usleep(100000); // Give WM more time to process unmaximize
+    
+    // Step 2: Apply the swapped geometries
+    XMoveResizeWindow(app->display, window1->id, x2, y2, w2, h2);
+    XMoveResizeWindow(app->display, window2->id, x1, y1, w1, h1);
+    XFlush(app->display);
+    usleep(50000); // Small delay
+    
+    // Step 3: Apply maximization states (swapped)
+    if (win2_max_vert || win2_max_horz) {
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.window = window1->id;
+        event.xclient.message_type = net_wm_state;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+        
+        // Add states one at a time for better compatibility
+        if (win2_max_vert) {
+            event.xclient.data.l[1] = net_wm_state_maximized_vert;
+            event.xclient.data.l[2] = 0;
+            XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        }
+        if (win2_max_horz) {
+            event.xclient.data.l[1] = net_wm_state_maximized_horz;
+            event.xclient.data.l[2] = 0;
+            XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        }
+    }
+    
+    if (win1_max_vert || win1_max_horz) {
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.window = window2->id;
+        event.xclient.message_type = net_wm_state;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+        
+        // Add states one at a time for better compatibility
+        if (win1_max_vert) {
+            event.xclient.data.l[1] = net_wm_state_maximized_vert;
+            event.xclient.data.l[2] = 0;
+            XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        }
+        if (win1_max_horz) {
+            event.xclient.data.l[1] = net_wm_state_maximized_horz;
+            event.xclient.data.l[2] = 0;
+            XSendEvent(app->display, DefaultRootWindow(app->display), False,
+                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        }
+    }
+    
+    XFlush(app->display);
+    usleep(50000); // Let WM process maximization
+    
+    // Step 4: Re-apply the exact sizes to override WM's default maximize behavior
+    // This ensures we get the exact swapped sizes, not the WM's idea of maximized
+    XMoveResizeWindow(app->display, window1->id, x2, y2, w2, h2);
+    XMoveResizeWindow(app->display, window2->id, x1, y1, w1, h1);
+    XFlush(app->display);
+    
+    log_info("Window swap completed");
+    return TRUE;
 }
 
 // Generate command help text in different formats
