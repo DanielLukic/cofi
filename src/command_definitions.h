@@ -36,6 +36,7 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
@@ -136,6 +137,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_skip_taskbar,
         .description = "Toggle skip taskbar for selected window",
         .help_format = "sb, skip-taskbar"
+    },
+    {
+        .primary = "sw",
+        .aliases = {"swap-windows", NULL},
+        .handler = cmd_swap_windows,
+        .description = "Swap position and size of selected window with first in list",
+        .help_format = "sw, swap-windows"
     },
     {
         .primary = "tm",
