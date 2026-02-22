@@ -33,6 +33,7 @@ SOURCES = src/main.c \
           src/gtk_window.c \
           src/app_init.c \
           src/command_mode.c \
+          src/command_parser.c \
           src/monitor_move.c \
           src/selection.c \
           src/workarea.c \
@@ -104,8 +105,8 @@ test: test_window_matcher test_command_parsing
 	cd test && ./run_tests.sh
 
 # Build command parsing test
-test_command_parsing: test/test_command_parsing.c
-	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c
+test_command_parsing: test/test_command_parsing.c src/command_parser.o
+	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c src/command_parser.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

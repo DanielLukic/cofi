@@ -1,80 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <ctype.h>
-
-// Mock the parse_command_and_arg function from command_mode.c
-// This is a copy for testing purposes
-static int parse_command_and_arg(const char *input, char *cmd_out, char *arg_out, size_t cmd_size, size_t arg_size) {
-    if (!input || !cmd_out || !arg_out) return 0;
-    
-    // Clear output buffers
-    cmd_out[0] = '\0';
-    arg_out[0] = '\0';
-    
-    // Skip leading whitespace
-    while (*input == ' ' || *input == '\t') input++;
-    
-    // Try to parse with space first (backward compatibility)
-    if (sscanf(input, "%31s %31s", cmd_out, arg_out) == 2) {
-        return 1;
-    }
-    
-    // If no space found, try to parse known commands without spaces
-    size_t len = strlen(input);
-    
-    // Check for 'cw' followed by number (change-workspace)
-    if (len >= 3 && strncmp(input, "cw", 2) == 0 && isdigit(input[2])) {
-        strncpy(cmd_out, "cw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return 1;
-    }
-    
-    // Check for 'jw' followed by number (jump-workspace)
-    if (len >= 3 && strncmp(input, "jw", 2) == 0 && isdigit(input[2])) {
-        strncpy(cmd_out, "jw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return 1;
-    }
-    
-    // Check for 'j' followed by number (jump shortcut)
-    if (len >= 2 && input[0] == 'j' && isdigit(input[1])) {
-        strncpy(cmd_out, "j", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return 1;
-    }
-    
-    // Check for 'tw' followed by tiling option
-    if (len >= 3 && strncmp(input, "tw", 2) == 0 && 
-        (isdigit(input[2]) || strchr("LRTBFClrtbfc", input[2]))) {
-        strncpy(cmd_out, "tw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return 1;
-    }
-    
-    // Check for 't' followed by tiling option
-    if (len >= 2 && input[0] == 't' && 
-        (isdigit(input[1]) || strchr("LRTBFClrtbfc", input[1]))) {
-        strncpy(cmd_out, "t", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return 1;
-    }
-    
-    // No argument found, just copy the command
-    strncpy(cmd_out, input, cmd_size - 1);
-    cmd_out[cmd_size - 1] = '\0';
-    return 1;
-}
+#include "../src/command_parser.h"
 
 // Test structure
 typedef struct {
@@ -112,8 +39,8 @@ void run_test(const TestCase *test) {
 }
 
 int main() {
-    printf("Testing Command Parsing Without Spaces\n");
-    printf("=====================================\n\n");
+    printf("Testing Command Parsing\n");
+    printf("=======================\n\n");
     
     TestCase tests[] = {
         // Backward compatibility - commands with spaces
@@ -146,12 +73,18 @@ int main() {
         // Long form tiling
         {"twL", "tw", "L", "Tile left long form"},
         {"tw7", "tw", "7", "Tile grid long form"},
+        {"tr4", "t", "r4", "Direct tile right three quarters"},
+        {"tl2", "t", "l2", "Direct tile left half"},
+        {"tc1", "t", "c1", "Direct tile center narrow"},
+        {"  tr4  ", "t", "r4", "Direct tiling with surrounding spaces"},
         
         // Commands without arguments
         {"tm", "tm", "", "Toggle monitor (no arg)"},
         {"sb", "sb", "", "Skip taskbar (no arg)"},
         {"help", "help", "", "Help command (no arg)"},
         {"c", "c", "", "Close window (no arg)"},
+        {"mouse away", "mouse", "away", "Multi-word command with spaced arg"},
+        {"m show", "m", "show", "Alias command with spaced arg"},
         
         // Edge cases
         {"  cw 3  ", "cw", "3", "Command with leading/trailing spaces"},

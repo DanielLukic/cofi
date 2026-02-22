@@ -6,6 +6,7 @@
 #include "monitor_move.h"
 #include "display.h"
 #include "selection.h"
+#include "command_parser.h"
 #include "x11_utils.h"
 #include "app_data.h"
 #include <X11/Xlib.h>
@@ -15,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
 // External function from main.c
 extern void hide_window(AppData *app);
@@ -99,6 +101,247 @@ static void clear_command_line(AppData *app) {
     app->command_mode.history_index = -1; // Reset history browsing
 }
 
+static int clamp_int(int value, int min, int max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+static int count_lines_in_text(const char *text) {
+    if (!text || text[0] == '\0') {
+        return 1;
+    }
+
+    int lines = 1;
+    for (const char *p = text; *p; p++) {
+        if (*p == '\n') {
+            lines++;
+        }
+    }
+    return lines;
+}
+
+static int split_lines_in_place(char *text, char **lines, int max_lines) {
+    if (!text || !lines || max_lines <= 0) {
+        return 0;
+    }
+
+    int count = 0;
+    lines[count++] = text;
+    for (char *p = text; *p && count < max_lines; p++) {
+        if (*p == '\n') {
+            *p = '\0';
+            lines[count++] = p + 1;
+        }
+    }
+
+    return count;
+}
+
+static int get_help_text_columns(AppData *app) {
+    if (!app || !app->textview) {
+        return 100;
+    }
+
+    int width_px = gtk_widget_get_allocated_width(app->textview);
+    width_px -= gtk_text_view_get_left_margin(GTK_TEXT_VIEW(app->textview));
+    width_px -= gtk_text_view_get_right_margin(GTK_TEXT_VIEW(app->textview));
+    if (width_px <= 0) {
+        return 100;
+    }
+
+    PangoLayout *layout = gtk_widget_create_pango_layout(app->textview, "M");
+    int char_width = 0;
+    int char_height = 0;
+    if (layout) {
+        pango_layout_get_pixel_size(layout, &char_width, &char_height);
+        g_object_unref(layout);
+    }
+
+    if (char_width <= 0) {
+        char_width = 8;
+    }
+
+    int columns = width_px / char_width;
+    if (columns < 10) {
+        columns = 10;
+    }
+
+    (void)char_height;
+    return columns;
+}
+
+static void generate_help_scrollbar(int total_lines, int visible_lines, int scroll_offset,
+                                    char *scrollbar, int height) {
+    if (!scrollbar || height <= 0) {
+        return;
+    }
+
+    if (total_lines <= visible_lines) {
+        for (int i = 0; i < height; i++) {
+            scrollbar[i] = ' ';
+        }
+        scrollbar[height] = '\0';
+        return;
+    }
+
+    double visible_ratio = (double)visible_lines / (double)total_lines;
+    double position_ratio = (double)scroll_offset / (double)(total_lines - visible_lines);
+
+    int thumb_size = (int)(visible_ratio * height);
+    if (thumb_size < 1) thumb_size = 1;
+    if (thumb_size > height) thumb_size = height;
+    if (height > 1 && thumb_size == height) {
+        thumb_size = height - 1;
+    }
+
+    int thumb_start = (int)(position_ratio * (height - thumb_size));
+    if (thumb_start < 0) thumb_start = 0;
+    if (thumb_start + thumb_size > height) {
+        thumb_start = height - thumb_size;
+    }
+
+    for (int i = 0; i < height; i++) {
+        scrollbar[i] = (i >= thumb_start && i < thumb_start + thumb_size) ? '#' : '.';
+    }
+    scrollbar[height] = '\0';
+}
+
+static void append_help_line_with_scrollbar(GString *output, const char *line,
+                                            int row_columns, char scrollbar_char) {
+    if (!output || !line) {
+        return;
+    }
+
+    if (row_columns <= 1) {
+        g_string_append(output, line);
+        g_string_append_c(output, '\n');
+        return;
+    }
+
+    char *row = malloc((size_t)row_columns + 2);
+    if (!row) {
+        g_string_append(output, line);
+        g_string_append_c(output, '\n');
+        return;
+    }
+
+    memset(row, ' ', (size_t)row_columns);
+    size_t line_len = strlen(line);
+    size_t copy_len = line_len < (size_t)row_columns ? line_len : (size_t)row_columns;
+    memcpy(row, line, copy_len);
+
+    row[row_columns - 1] = scrollbar_char;
+    row[row_columns] = '\n';
+    row[row_columns + 1] = '\0';
+
+    g_string_append(output, row);
+    free(row);
+}
+
+static char *build_help_page_text(AppData *app, char **lines, int total_lines, int visible_lines, int scroll_offset) {
+    if (!lines || total_lines <= 0 || visible_lines <= 0) {
+        return NULL;
+    }
+
+    int max_offset = (total_lines > visible_lines) ? (total_lines - visible_lines) : 0;
+    int start = clamp_int(scroll_offset, 0, max_offset);
+    int end = start + visible_lines;
+    if (end > total_lines) {
+        end = total_lines;
+    }
+
+    GString *rendered = g_string_new(NULL);
+    char scrollbar[visible_lines + 1];
+    generate_help_scrollbar(total_lines, visible_lines, start, scrollbar, visible_lines);
+    gboolean has_scrollbar = (total_lines > visible_lines);
+    int row_columns = has_scrollbar ? get_help_text_columns(app) : 0;
+
+    for (int i = start; i < end; i++) {
+        int line_idx = i - start;
+        if (has_scrollbar) {
+            append_help_line_with_scrollbar(rendered, lines[i], row_columns, scrollbar[line_idx]);
+        } else {
+            g_string_append(rendered, lines[i]);
+            g_string_append_c(rendered, '\n');
+        }
+    }
+
+    return g_string_free(rendered, FALSE);
+}
+
+static void render_help_page(AppData *app, int requested_offset) {
+    if (!app || !app->textbuffer) {
+        return;
+    }
+
+    char *help_text = generate_command_help_text(HELP_FORMAT_GUI);
+    if (!help_text) {
+        return;
+    }
+
+    int total_lines = count_lines_in_text(help_text);
+    int visible_lines = get_max_display_lines_dynamic(app);
+    if (visible_lines < 1) {
+        visible_lines = 1;
+    }
+
+    int max_offset = (total_lines > visible_lines) ? (total_lines - visible_lines) : 0;
+    int clamped_offset = clamp_int(requested_offset, 0, max_offset);
+    app->command_mode.help_scroll_offset = clamped_offset;
+
+    char **lines = malloc(sizeof(char *) * total_lines);
+    if (!lines) {
+        gtk_text_buffer_set_text(app->textbuffer, help_text, -1);
+        free(help_text);
+        return;
+    }
+
+    int split_count = split_lines_in_place(help_text, lines, total_lines);
+    char *rendered = build_help_page_text(app, lines, split_count, visible_lines, clamped_offset);
+
+    if (rendered) {
+        gtk_text_buffer_set_text(app->textbuffer, rendered, -1);
+        free(rendered);
+    } else {
+        gtk_text_buffer_set_text(app->textbuffer, help_text, -1);
+    }
+
+    free(lines);
+    free(help_text);
+}
+
+static gboolean handle_help_navigation_key(GdkEventKey *event, AppData *app) {
+    int offset = app->command_mode.help_scroll_offset;
+    int page = get_max_display_lines_dynamic(app);
+    if (page < 1) {
+        page = 1;
+    }
+
+    switch (event->keyval) {
+        case GDK_KEY_Up:
+            render_help_page(app, offset - 1);
+            return TRUE;
+        case GDK_KEY_Down:
+            render_help_page(app, offset + 1);
+            return TRUE;
+        case GDK_KEY_Page_Up:
+            render_help_page(app, offset - page);
+            return TRUE;
+        case GDK_KEY_Page_Down:
+            render_help_page(app, offset + page);
+            return TRUE;
+        case GDK_KEY_Home:
+            render_help_page(app, 0);
+            return TRUE;
+        case GDK_KEY_End:
+            render_help_page(app, INT_MAX);
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
 void init_command_mode(CommandMode *cmd) {
     if (!cmd) return;
 
@@ -106,6 +349,7 @@ void init_command_mode(CommandMode *cmd) {
     cmd->command_buffer[0] = '\0';
     cmd->cursor_pos = 0;
     cmd->showing_help = FALSE;
+    cmd->help_scroll_offset = 0;
     cmd->history_index = -1;
     cmd->close_on_exit = FALSE;
 
@@ -140,6 +384,7 @@ void enter_command_mode(AppData *app) {
     app->command_mode.state = CMD_MODE_COMMAND;
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
+    app->command_mode.help_scroll_offset = 0;
     
     // Reset selection to 0 only if user hasn't navigated from alt-tab default (index 1)
     if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0 && 
@@ -171,6 +416,7 @@ void exit_command_mode(AppData *app) {
     app->command_mode.command_buffer[0] = '\0';
     app->command_mode.cursor_pos = 0;
     app->command_mode.showing_help = FALSE;
+    app->command_mode.help_scroll_offset = 0;
     app->command_mode.history_index = -1;
     app->command_mode.close_on_exit = FALSE; // Reset flag
     
@@ -199,6 +445,10 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
     
     // If help is being shown, any key press should dismiss it first
     if (app->command_mode.showing_help) {
+        if (handle_help_navigation_key(event, app)) {
+            return TRUE;
+        }
+
         app->command_mode.showing_help = FALSE;
         
         // If they pressed Escape, exit command mode entirely
@@ -314,106 +564,6 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
     }
 }
 
-// Helper function to parse commands that might not have spaces between command and argument
-// Returns TRUE if successfully parsed, FALSE otherwise
-static gboolean parse_command_and_arg(const char *input, char *cmd_out, char *arg_out, size_t cmd_size, size_t arg_size) {
-    if (!input || !cmd_out || !arg_out) return FALSE;
-    
-    // Clear output buffers
-    cmd_out[0] = '\0';
-    arg_out[0] = '\0';
-    
-    // Skip leading whitespace
-    while (*input == ' ' || *input == '\t') input++;
-    
-    // Try to parse with space first (backward compatibility)
-    if (sscanf(input, "%31s %31s", cmd_out, arg_out) == 2) {
-        return TRUE;
-    }
-    
-    // If no space found, try to parse known commands without spaces
-    size_t len = strlen(input);
-    
-    // Check for 'cw' followed by number (change-workspace)
-    if (len >= 3 && strncmp(input, "cw", 2) == 0 && isdigit(input[2])) {
-        strncpy(cmd_out, "cw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 'jw' followed by number (jump-workspace)
-    if (len >= 3 && strncmp(input, "jw", 2) == 0 && isdigit(input[2])) {
-        strncpy(cmd_out, "jw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 'maw' followed by number (move-all-to-workspace)
-    if (len >= 4 && strncmp(input, "maw", 3) == 0 && isdigit(input[3])) {
-        strncpy(cmd_out, "maw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 3, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 'j' followed by number (jump shortcut)
-    if (len >= 2 && input[0] == 'j' && isdigit(input[1])) {
-        strncpy(cmd_out, "j", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 'tw' followed by tiling option
-    if (len >= 3 && strncmp(input, "tw", 2) == 0 && 
-        (isdigit(input[2]) || strchr("LRTBFClrtbfc", input[2]))) {
-        strncpy(cmd_out, "tw", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 2, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 't' followed by tiling option
-    if (len >= 2 && input[0] == 't' && 
-        (isdigit(input[1]) || strchr("LRTBFClrtbfc", input[1]))) {
-        strncpy(cmd_out, "t", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for 'm' followed by mouse action (ma, ms, mh)
-    if (len == 2 && input[0] == 'm' && strchr("ash", input[1])) {
-        strncpy(cmd_out, "m", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // Check for direct tiling commands like 'tr4' (tile right 75%) or 'tc4' (center 100%)
-    if (len >= 3 && input[0] == 't' && strchr("lrtbcLRTBC", input[1]) && strchr("1234", input[2])) {
-        strncpy(cmd_out, "t", cmd_size - 1);
-        cmd_out[cmd_size - 1] = '\0';
-        strncpy(arg_out, input + 1, arg_size - 1);
-        arg_out[arg_size - 1] = '\0';
-        return TRUE;
-    }
-    
-    // No argument found, just copy the command
-    strncpy(cmd_out, input, cmd_size - 1);
-    cmd_out[cmd_size - 1] = '\0';
-    return TRUE;
-}
-
 // Helper functions
 static const CommandDef* find_command(const char *cmd_name);
 static TileOption parse_tile_option(const char *arg);
@@ -494,32 +644,54 @@ static TileOption parse_tile_option(const char *arg) {
 }
 
 
+static gboolean execute_single_command(const char *command, AppData *app) {
+    char cmd_name[128] = {0};
+    char arg[256] = {0};
+
+    if (!parse_command_and_arg(command, cmd_name, arg, sizeof(cmd_name), sizeof(arg))) {
+        return FALSE;
+    }
+
+    if (cmd_name[0] == '\0') {
+        return TRUE;
+    }
+
+    const CommandDef *cmd = find_command(cmd_name);
+    if (!cmd) {
+        log_warn("Unknown command: '%s'. Type 'help' for available commands.", cmd_name);
+        return FALSE;
+    }
+
+    WindowInfo *selected_window = get_selected_window(app);
+    return cmd->handler(app, selected_window, arg);
+}
+
 gboolean execute_command(const char *command, AppData *app) {
     if (!command || !app) return FALSE;
-    
+
     log_info("USER: Executing command: '%s'", command);
-    
-    // Trim leading/trailing whitespace
-    while (*command == ' ' || *command == '\t') command++;
-    
-    if (strlen(command) == 0) {
-        return TRUE; // Empty command, just exit
+
+    char local[512] = {0};
+    strncpy(local, command, sizeof(local) - 1);
+    trim_whitespace_in_place(local);
+
+    if (local[0] == '\0') {
+        return TRUE;
     }
-    
-    // Parse command and optional argument
-    char cmd_name[32] = {0};
-    char arg[32] = {0};
-    parse_command_and_arg(command, cmd_name, arg, sizeof(cmd_name), sizeof(arg));
-    
-    // Find and execute command using dispatch table
-    const CommandDef *cmd = find_command(cmd_name);
-    if (cmd) {
-        WindowInfo *selected_window = get_selected_window(app);
-        return cmd->handler(app, selected_window, arg);
-    } else {
-        log_warn("Unknown command: '%s'. Type 'help' for available commands.", cmd_name);
-        return FALSE; // Stay in command mode
+
+    char *saveptr = NULL;
+    char *token = strtok_r(local, ",", &saveptr);
+    while (token) {
+        trim_whitespace_in_place(token);
+        if (token[0] != '\0') {
+            if (!execute_single_command(token, app)) {
+                return FALSE;
+            }
+        }
+        token = strtok_r(NULL, ",", &saveptr);
     }
+
+    return TRUE;
 }
 
 // Command handler implementations
@@ -1085,7 +1257,8 @@ char* generate_command_help_text(HelpFormat format) {
     }
 
     // Commands list - same for both formats
-    strcat(help_text, "Available Commands:\n");
+    strcat(help_text, "Available commands:\n");
+    strcat(help_text, "\n");
     for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
         char line[256];
         snprintf(line, sizeof(line), "  %-40s - %s\n",
@@ -1098,7 +1271,8 @@ char* generate_command_help_text(HelpFormat format) {
     strcat(help_text, "  Press ':' to enter command mode. Press Escape to cancel.\n");
     strcat(help_text, "  Type command and press Enter\n");
     strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
-    strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)\n");
+    strcat(help_text, "  Chain multiple commands with commas (e.g., 'tc,vm' or 'cw2,tc')\n");
+    strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)");
 
     return help_text;
 }
@@ -1106,11 +1280,8 @@ char* generate_command_help_text(HelpFormat format) {
 void show_help_commands(AppData *app) {
     if (!app || !app->textbuffer) return;
 
-    char *help_text = generate_command_help_text(HELP_FORMAT_GUI);
-    if (help_text) {
-        app->command_mode.showing_help = TRUE;
-        gtk_text_buffer_set_text(app->textbuffer, help_text, -1);
-        free(help_text);
-        log_debug("Showing command help");
-    }
+    app->command_mode.showing_help = TRUE;
+    app->command_mode.help_scroll_offset = 0;
+    render_help_page(app, 0);
+    log_debug("Showing command help");
 }
