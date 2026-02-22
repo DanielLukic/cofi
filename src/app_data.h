@@ -42,6 +42,7 @@ typedef struct {
     char command_buffer[256];
     int cursor_pos;
     gboolean showing_help;          // True when help is being displayed
+    int help_scroll_offset;         // First visible help line when help is paged
     char history[10][256];          // Command history (last 10 commands)
     int history_count;              // Number of commands in history
     int history_index;              // Current position in history (-1 = not browsing)
