@@ -12,6 +12,7 @@
 #include <strings.h>
 
 #include "match.h"
+#include "fzf_algo.h"
 #include "constants.h"
 #include "selection.h"
 #include "x11_utils.h"
@@ -255,11 +256,11 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
     char display[1024];
     compose_display_string(win, display, sizeof(display));
 
-    // Primary: fzy match on full display string
+    // Primary: fzf match on full display string
     score_t best_score = SCORE_MIN;
-    if (has_match(filter, display)) {
-        best_score = match(filter, display);
-        log_debug("FZY: '%s' -> '%s' (score: %.0f)", filter, display, best_score);
+    if (fzf_has_match(filter, display)) {
+        best_score = fzf_fuzzy_match(filter, display);
+        log_debug("FZF: '%s' -> '%s' (score: %.0f)", filter, display, best_score);
     }
 
     // Bonus: initials match (e.g., "ddl" -> "Daniel Dario Lukic")
@@ -324,7 +325,7 @@ static int score_and_filter_windows(AppData *app, const char *filter,
             if (best_score > SCORE_MIN && win->desktop == current_desktop && win->desktop != -1) {
                 // Add significant bonus for current workspace windows
                 // This should be enough to prioritize them but not override better matches
-                score_t workspace_bonus = 500;
+                score_t workspace_bonus = 25;
                 best_score += workspace_bonus;
                 log_debug("Window '%s' on current workspace %d - added bonus %.0f (new score: %.0f)", 
                          win->title, current_desktop, workspace_bonus, best_score);
