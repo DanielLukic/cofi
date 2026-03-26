@@ -207,63 +207,68 @@ static void try_match_and_update(const char *filter, const char *text, const cha
     }
 }
 
-// Match a window against filter and return best score
-static score_t match_window(const char *filter, const WindowInfo *win) {
-    score_t best_score = SCORE_MIN;
-    
-    // Create workspace-aware title for filtering (not displayed)
-    char filter_title[MAX_TITLE_LEN + 10];
-    if (win->desktop >= 0) {
-        snprintf(filter_title, sizeof(filter_title), "%s %d", win->title, win->desktop + 1);
+// Compose the full display string for a window (same content the user sees)
+static void compose_display_string(const WindowInfo *win, char *out, size_t out_size) {
+    char desktop_str[8];
+    if (win->desktop < 0 || win->desktop > 99) {
+        strcpy(desktop_str, "[S]");
     } else {
-        // Sticky windows (-1) - just use original title
-        strncpy(filter_title, win->title, sizeof(filter_title) - 1);
-        filter_title[sizeof(filter_title) - 1] = '\0';
+        snprintf(desktop_str, sizeof(desktop_str), "[%d]", win->desktop + 1);
     }
-    
-    // Create modified WindowInfo for workspace-aware word boundary and initials matching
-    WindowInfo filter_win = *win;
-    strncpy(filter_win.title, filter_title, sizeof(filter_win.title) - 1);
-    filter_win.title[sizeof(filter_win.title) - 1] = '\0';
-    
-    // Priority 1: Word boundary match (highest priority, return immediately)
-    best_score = try_word_boundary_match(filter, &filter_win);
-    if (best_score > SCORE_MIN) {
-        return best_score;
+
+    // Apply same instance/class swap as display.c
+    const char *display_instance = win->instance;
+    const char *display_class = win->class_name;
+    if (win->instance[0] >= 'A' && win->instance[0] <= 'Z') {
+        display_instance = win->class_name;
+        display_class = win->instance;
     }
-    
-    // Priority 2: Initials match (second highest, return immediately)
-    best_score = try_initials_match(filter, &filter_win);
-    if (best_score > SCORE_MIN) {
-        return best_score;
+
+    snprintf(out, out_size, "%s %s %s %s",
+             desktop_str, display_instance, win->title, display_class);
+}
+
+// Try initials match on the display string
+static score_t try_initials_on_display(const char *filter, const char *display) {
+    int filter_len = strlen(filter);
+    int filter_idx = 0;
+
+    for (int i = 0; display[i] && filter_idx < filter_len; i++) {
+        int at_word_start = (i == 0 || display[i-1] == ' ' || display[i-1] == '-' ||
+                            display[i-1] == '_' || display[i-1] == '.' ||
+                            display[i-1] == '(' || display[i-1] == '|');
+        if (at_word_start && tolower(display[i]) == tolower(filter[filter_idx])) {
+            filter_idx++;
+        }
     }
-    
-    // Priority 3: Subsequence match on workspace-aware title (return immediately)
-    best_score = try_subsequence_match(filter, filter_title, "TITLE");
-    if (best_score > SCORE_MIN) {
-        return best_score;
+
+    if (filter_idx == filter_len) {
+        return SCORE_INITIALS_MATCH;
     }
-    
-    // Priority 4: Try fuzzy match on workspace-aware title
-    best_score = try_fuzzy_match(filter, filter_title, "TITLE");
-    
-    // Priority 5: Try class/instance matching (only if no good title match)
-    if (best_score < SCORE_SUBSEQUENCE_MATCH) {
-        // Try subsequence on class and instance
-        try_match_and_update(filter, win->class_name, "CLASS", 
-                            try_subsequence_match, &best_score);
-        try_match_and_update(filter, win->instance, "INSTANCE", 
-                            try_subsequence_match, &best_score);
+    return SCORE_MIN;
+}
+
+// Match a window against filter and return best score
+// Uses fzy on the full display string (what the user sees), plus initials bonus
+static score_t match_window(const char *filter, const WindowInfo *win) {
+    // Compose the same string the user sees
+    char display[1024];
+    compose_display_string(win, display, sizeof(display));
+
+    // Primary: fzy match on full display string
+    score_t best_score = SCORE_MIN;
+    if (has_match(filter, display)) {
+        best_score = match(filter, display);
+        log_debug("FZY: '%s' -> '%s' (score: %.0f)", filter, display, best_score);
     }
-    
-    // Priority 6: Fuzzy fallback on class/instance (only if no matches yet)
-    if (best_score <= SCORE_MIN) {
-        try_match_and_update(filter, win->class_name, "CLASS", 
-                            try_fuzzy_match, &best_score);
-        try_match_and_update(filter, win->instance, "INSTANCE", 
-                            try_fuzzy_match, &best_score);
+
+    // Bonus: initials match (e.g., "ddl" -> "Daniel Dario Lukic")
+    score_t initials = try_initials_on_display(filter, display);
+    if (initials > best_score) {
+        best_score = initials;
+        log_debug("INITIALS: '%s' -> '%s' (score: %.0f)", filter, display, initials);
     }
-    
+
     return best_score;
 }
 
@@ -390,8 +395,9 @@ void filter_windows(AppData *app, const char *filter) {
     // Step 4: Finalize results
     finalize_filter_results(app, scored_windows, scored_count);
     
-    // Step 4.1: Push Special windows to the end
-    if (app->filtered_count > 0) {
+    // Step 4.1: Push Special windows to the end (only when not filtering)
+    // When filtering, score-based ordering should be respected
+    if (app->filtered_count > 0 && strlen(filter) == 0) {
         WindowInfo normal_windows[MAX_WINDOWS];
         WindowInfo special_windows[MAX_WINDOWS];
         int normal_count = 0;
