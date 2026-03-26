@@ -9,6 +9,8 @@
 #include "config.h"
 #include "atom_cache.h"
 #include "named_window.h"
+#include "workspace_slots.h"
+#include "slot_overlay.h"
 
 typedef enum {
     TAB_WINDOWS,
@@ -122,8 +124,11 @@ typedef struct AppData {
     HarpoonManager harpoon;                 // Harpoon number assignments
     NamedWindowManager names;               // Custom window names
     CofiConfig config;                      // Unified configuration settings
+    WorkspaceSlotManager workspace_slots;   // Per-workspace window slot assignments
+    SlotOverlayState slot_overlays;         // Active slot number overlays
     CommandMode command_mode;               // Command mode state
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
+    int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
 
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown

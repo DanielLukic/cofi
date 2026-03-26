@@ -27,6 +27,7 @@ void print_usage(const char *prog_name) {
     printf("  --harpoon            Start with the Harpoon tab active\n");
     printf("  --names              Start with the Names tab active\n");
     printf("  --command            Start in command mode (with ':' prompt)\n");
+    printf("  --assign-slots       Assign workspace window slots and exit\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
     printf("  --help-commands, -H  Show command mode help\n");
@@ -79,6 +80,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto harpoon_opt = op.add<Switch>("", "harpoon", "Start with the Harpoon tab active");
     auto names_opt = op.add<Switch>("", "names", "Start with the Names tab active");
     auto command_opt = op.add<Switch>("c", "command", "Start in command mode (with ':' prompt)");
+    auto assign_slots_opt = op.add<Switch>("", "assign-slots", "Assign workspace window slots and exit");
     auto version_opt = op.add<Switch>("v", "version", "Show version information");
     auto help_opt = op.add<Switch>("h", "help", "Show this help message");
     auto help_commands_opt = op.add<Switch>("H", "help-commands", "Show command mode help");
@@ -163,7 +165,11 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     if (command_opt->is_set()) {
         app->start_in_command_mode = 1;
     }
-    
+
+    if (assign_slots_opt->is_set()) {
+        app->assign_slots_and_exit = 1;
+    }
+
     return 0; // Success
 }
 

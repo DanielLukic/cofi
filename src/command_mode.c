@@ -1,5 +1,6 @@
 #include "command_mode.h"
 #include "command_definitions.h"
+#include "workspace_slots.h"
 #include "log.h"
 #include "tiling.h"
 #include "overlay_manager.h"
@@ -1234,6 +1235,13 @@ gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __a
     XFlush(app->display);
     
     log_info("Window swap completed");
+    return TRUE;
+}
+
+gboolean cmd_assign_slots(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
+    assign_workspace_slots(app);
+    hide_window(app);
+    log_info("Assigned workspace slots via command mode");
     return TRUE;
 }
 

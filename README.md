@@ -80,7 +80,8 @@ COFI saves configuration to `~/.config/cofi/`:
   - `align` - Default window alignment
   - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
   - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
-  - `quick_workspace_slots` - Alt+1-9 always switches workspaces when true (boolean, default false)
+  - `digit_slot_mode` - What Alt+digit does: `"default"` (harpoon), `"per-workspace"` (window slots by position), `"workspaces"` (switch workspace)
+  - `slot_overlay_duration_ms` - Duration of slot number overlays in ms (default 750, 0 = disabled)
 - **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
@@ -125,14 +126,23 @@ You can override the key exclusions by holding Shift:
 
 This gives you 33 available harpoon slots by default (0-9 and a-i, l-t, v-z), or all 36 slots (0-9 and a-z) when using the Shift override.
 
-#### Quick Workspace Slots Mode
+#### Workspace Window Slots (Per-Workspace Mode)
 
-When `quick_workspace_slots` is enabled in options.json:
+When `digit_slot_mode` is `"per-workspace"` in options.json:
+- **Alt+1-9** - Jump to the Nth window on the current workspace, ordered by screen position (left-to-right, top-to-bottom)
+- Slots auto-assign on every press — no manual step needed
+- Only visible windows are numbered (minimized, shaded, and occluded windows are excluded)
+- Numbered overlays flash briefly on each window after assignment
+- **Alt+a-z** - Still activates global harpoon letter slots as normal
+- **`:as`** - Manually reassign slots and auto-enable per-workspace mode
+
+Typical workflow: Alt+Tab to open cofi, then Alt+1/2/3 to jump directly to a window.
+
+#### Workspace Switching Mode
+
+When `digit_slot_mode` is `"workspaces"` in options.json:
 - **Alt+1-9** - Always switches directly to workspaces 1-9 (regardless of current tab)
 - **Ctrl+1-9** - Still assigns/unassigns harpoon slots as normal
-- **Harpoon window access** - Use the Harpoon tab or other methods to access harpooned windows
-
-This mode is useful if you prefer quick workspace switching over quick window switching, similar to many window managers and browsers.
 
 ### Command Mode
 

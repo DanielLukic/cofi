@@ -31,6 +31,10 @@ void init_app_data(AppData *app) {
     
     // Initialize harpoon manager
     init_harpoon_manager(&app->harpoon);
+
+    // Initialize workspace slots and overlay state
+    init_workspace_slots(&app->workspace_slots);
+    init_slot_overlay_state(&app->slot_overlays);
     
     // Initialize harpoon tab data
     app->filtered_harpoon_count = 0;
