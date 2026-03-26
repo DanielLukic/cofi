@@ -61,6 +61,22 @@ static WindowAlignment string_to_alignment(const char *str) {
     return ALIGN_CENTER;  // Default fallback
 }
 
+// Digit slot mode string conversion
+const char* digit_slot_mode_to_string(DigitSlotMode mode) {
+    switch (mode) {
+        case DIGIT_MODE_PER_WORKSPACE: return "per-workspace";
+        case DIGIT_MODE_WORKSPACES: return "workspaces";
+        default: return "default";
+    }
+}
+
+DigitSlotMode string_to_digit_slot_mode(const char *str) {
+    if (!str) return DIGIT_MODE_DEFAULT;
+    if (strcmp(str, "per-workspace") == 0) return DIGIT_MODE_PER_WORKSPACE;
+    if (strcmp(str, "workspaces") == 0) return DIGIT_MODE_WORKSPACES;
+    return DIGIT_MODE_DEFAULT;
+}
+
 // Helper function to save options section
 static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  \"options\": {\n");
@@ -68,7 +84,8 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string(config->alignment));
     fprintf(file, "    \"workspaces_per_row\": %d,\n", config->workspaces_per_row);
     fprintf(file, "    \"tile_columns\": %d,\n", config->tile_columns);
-    fprintf(file, "    \"quick_workspace_slots\": %s\n", config->quick_workspace_slots ? "true" : "false");
+    fprintf(file, "    \"digit_slot_mode\": \"%s\",\n", digit_slot_mode_to_string(config->digit_slot_mode));
+    fprintf(file, "    \"slot_overlay_duration_ms\": %d\n", config->slot_overlay_duration_ms);
     fprintf(file, "  }");
 }
 
@@ -77,12 +94,13 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
 // Initialize config with default values
 void init_config_defaults(CofiConfig *config) {
     if (!config) return;
-    
+
     config->close_on_focus_loss = 1;  // Default to true
     config->alignment = ALIGN_CENTER;  // Default to center
     config->workspaces_per_row = 0;   // Default to linear layout
     config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
-    config->quick_workspace_slots = 0; // Default to false
+    config->digit_slot_mode = DIGIT_MODE_DEFAULT;
+    config->slot_overlay_duration_ms = 750;
 }
 
 // Save configuration options only (harpoon slots saved separately)
@@ -146,11 +164,30 @@ static void parse_options_line(const char *line, CofiConfig *config) {
                 config->tile_columns = 3;
             }
         }
+    } else if (strstr(line, "\"digit_slot_mode\":")) {
+        char *colon = strchr(line, ':');
+        if (colon) {
+            char *start = strchr(colon + 1, '"');
+            if (start) {
+                start++;
+                char *end = strchr(start, '"');
+                if (end) {
+                    char mode_str[16] = {0};
+                    int len = end - start;
+                    if (len >= 16) len = 15;
+                    strncpy(mode_str, start, len);
+                    config->digit_slot_mode = string_to_digit_slot_mode(mode_str);
+                }
+            }
+        }
+    } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
+        sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
+    } else if (strstr(line, "\"quick_assign_hotkey\":")) {
+        // Ignored — hotkey removed, kept for backwards compat with old config files
     } else if (strstr(line, "\"quick_workspace_slots\":")) {
+        // Migration: old boolean -> new digit_slot_mode
         if (strstr(line, "true")) {
-            config->quick_workspace_slots = 1;
-        } else if (strstr(line, "false")) {
-            config->quick_workspace_slots = 0;
+            config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
         }
     }
 }

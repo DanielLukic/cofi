@@ -24,6 +24,7 @@ extern void update_display(AppData *app);
 extern void reset_selection(AppData *app);
 extern void show_window(AppData *app);
 extern void enter_command_mode(AppData *app);
+extern void assign_workspace_slots(AppData *app);
 
 // Deferred command mode entry callback (replicated from instance.c)
 static gboolean enter_command_mode_delayed(gpointer data) {
@@ -64,6 +65,8 @@ const char* show_mode_to_string(ShowMode mode) {
             return "harpoon";
         case SHOW_MODE_COMMAND:
             return "command";
+        case SHOW_MODE_ASSIGN_SLOTS:
+            return "assign-slots";
         default:
             return "windows"; // fallback
     }
@@ -79,6 +82,8 @@ ShowMode string_to_show_mode(const char *mode_str) {
         return SHOW_MODE_HARPOON;
     } else if (strcmp(mode_str, "command") == 0) {
         return SHOW_MODE_COMMAND;
+    } else if (strcmp(mode_str, "assign-slots") == 0) {
+        return SHOW_MODE_ASSIGN_SLOTS;
     } else {
         return SHOW_MODE_WINDOWS; // default/fallback
     }
@@ -143,6 +148,12 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
                     g_app_data->current_tab = TAB_WINDOWS;
                     g_app_data->start_in_command_mode = 1;
                     break;
+                case SHOW_MODE_ASSIGN_SLOTS:
+                    // Assign workspace slots without showing window
+                    assign_workspace_slots(g_app_data);
+                    log_info("Workspace slots assigned via D-Bus");
+                    g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", TRUE));
+                    return;  // Don't show window
                 case SHOW_MODE_WINDOWS:
                 default:
                     g_app_data->current_tab = TAB_WINDOWS;

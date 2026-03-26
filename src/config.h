@@ -14,14 +14,26 @@ typedef enum {
     ALIGN_BOTTOM_RIGHT
 } WindowAlignment;
 
+// Digit slot modes for Alt+digit behavior
+typedef enum {
+    DIGIT_MODE_DEFAULT,       // Global harpoon slots (existing behavior)
+    DIGIT_MODE_PER_WORKSPACE, // Workspace-scoped window slots by position
+    DIGIT_MODE_WORKSPACES     // Switch to workspace N
+} DigitSlotMode;
+
 // Unified configuration structure
 typedef struct {
     int close_on_focus_loss;        // Whether to close window when focus is lost
     WindowAlignment alignment;      // Window alignment setting
     int workspaces_per_row;        // Number of workspaces per row in grid layout (0 = linear)
     int tile_columns;              // Number of columns for tiling grid (2 or 3, default 3)
-    int quick_workspace_slots;     // Alt+1-9 always switches workspaces when true
+    DigitSlotMode digit_slot_mode; // What Alt+digit does
+    int slot_overlay_duration_ms;  // Duration of slot number overlays (0 = disabled)
 } CofiConfig;
+
+// Digit slot mode string conversion
+const char* digit_slot_mode_to_string(DigitSlotMode mode);
+DigitSlotMode string_to_digit_slot_mode(const char *str);
 
 // Configuration management functions (options only - harpoon slots handled separately)
 void save_config(const CofiConfig *config);

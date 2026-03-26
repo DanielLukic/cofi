@@ -178,23 +178,39 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         return FALSE;
     }
     
-    // When quick_workspace_slots is enabled, Alt+number ALWAYS switches workspaces
-    if (app->config.quick_workspace_slots && slot >= 0 && slot <= 9) {
-        // Only handle number keys (0-9) for workspace switching
-        int workspace_num = slot - 1; // Convert to 0-based
-        int workspace_count = get_number_of_desktops(app->display);
-        if (workspace_num < workspace_count) {
-            switch_to_desktop(app->display, workspace_num);
-            hide_window(app);
-            log_info("Quick workspace switch to %d", slot);
-            return TRUE;
+    // Handle digit keys (1-9) based on digit_slot_mode
+    // Slot 0 (the '0' key) has no mapping in per-workspace or workspaces mode,
+    // so let it fall through to harpoon
+    if (slot >= 1 && slot <= 9) {
+        if (app->config.digit_slot_mode == DIGIT_MODE_WORKSPACES) {
+            // Workspaces mode: Alt+digit switches workspaces
+            int workspace_num = slot - 1;
+            int workspace_count = get_number_of_desktops(app->display);
+            if (workspace_num >= 0 && workspace_num < workspace_count) {
+                switch_to_desktop(app->display, workspace_num);
+                hide_window(app);
+                log_info("Quick workspace switch to %d", slot);
+                return TRUE;
+            }
+            return FALSE;
+        } else if (app->config.digit_slot_mode == DIGIT_MODE_PER_WORKSPACE
+                   && app->current_tab == TAB_WINDOWS) {
+            // Per-workspace mode (Windows tab only): auto-assign and activate
+            assign_workspace_slots(app);
+            Window target = get_workspace_slot_window(&app->workspace_slots, slot);
+            if (target != 0) {
+                activate_window(target);
+                hide_window(app);
+                log_info("Workspace slot %d -> window 0x%lx", slot, target);
+                return TRUE;
+            }
+            return FALSE;
         }
-        return FALSE;
+        // Default mode: fall through to harpoon below
     }
-    
-    // Original behavior when option is disabled
+
+    // Harpoon activation (default for digits, always for letters)
     if (app->current_tab == TAB_WINDOWS) {
-        // Switch to harpooned window
         Window target_window = get_slot_window(&app->harpoon, slot);
         if (target_window != 0) {
             activate_window(target_window);
@@ -203,7 +219,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
             return TRUE;
         }
     } else {
-        // Switch to workspace by number (only for digit keys 0-9)
+        // On non-Windows tabs, digit keys switch workspaces
         if (slot >= 0 && slot <= 9 && slot < app->workspace_count) {
             switch_to_desktop(app->display, slot - 1);
             hide_window(app);
@@ -477,7 +493,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     if (handle_harpoon_assignment(event, app)) {
         return TRUE;
     }
-    
+
     if (handle_harpoon_workspace_switching(event, app)) {
         return TRUE;
     }
@@ -1046,7 +1062,9 @@ int main(int argc, char *argv[]) {
     
     // Determine show mode based on command line arguments
     ShowMode show_mode;
-    if (app.start_in_command_mode) {
+    if (app.assign_slots_and_exit) {
+        show_mode = SHOW_MODE_ASSIGN_SLOTS;
+    } else if (app.start_in_command_mode) {
         show_mode = SHOW_MODE_COMMAND;
     } else if (app.current_tab == TAB_WORKSPACES) {
         show_mode = SHOW_MODE_WORKSPACES;
@@ -1108,6 +1126,15 @@ int main(int argc, char *argv[]) {
     gint64 window_enum_end = g_get_monotonic_time();
     log_info("Window enumeration completed in %.2fms (%d windows)", 
              (window_enum_end - window_enum_start) / 1000.0, app.window_count);
+
+    // Handle --assign-slots when this is the first instance
+    if (app.assign_slots_and_exit) {
+        assign_workspace_slots(&app);
+        log_info("Assigned workspace slots and exiting");
+        instance_manager_cleanup(instance_manager);
+        if (log_file) fclose(log_file);
+        return 0;
+    }
 
     // Initialize history from windows
     init_history_from_windows(&app);

@@ -37,6 +37,7 @@ gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_assign_slots(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
@@ -53,6 +54,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_assign_name,
         .description = "Assign custom name to selected window",
         .help_format = "an, assign-name, n"
+    },
+    {
+        .primary = "as",
+        .aliases = {"assign-slots", NULL},
+        .handler = cmd_assign_slots,
+        .description = "Assign workspace window slots by screen position (1-9)",
+        .help_format = "as, assign-slots"
     },
     {
         .primary = "aot",
