@@ -1,5 +1,6 @@
 #include "harpoon_overlay.h"
 #include "app_data.h"
+#include "overlay_manager.h"
 #include "log.h"
 #include "utils.h"
 #include "harpoon_config.h"
@@ -177,20 +178,23 @@ gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {
         // Save the edited title
         const char *new_title = gtk_entry_get_text(GTK_ENTRY(entry));
         int slot_index = app->harpoon_edit.editing_slot;
-        
+
         // Update slot title directly (no wildcard conversion needed here)
         safe_string_copy(app->harpoon.slots[slot_index].title, new_title, MAX_TITLE_LEN);
         save_harpoon_slots(&app->harpoon);
-        
+
         log_info("USER: Edited harpoon slot %d title to: %s", slot_index, new_title);
-        
-        // Update display
+
+        // Close overlay, then refresh display
+        hide_overlay(app);
+
         if (app->current_tab == TAB_HARPOON) {
             const char *filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
             gtk_entry_set_text(GTK_ENTRY(app->entry), filter);
         }
-        
+        update_display(app);
+
         return TRUE;
     }
     
