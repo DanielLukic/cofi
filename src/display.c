@@ -436,6 +436,10 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
 
         g_string_append(text, "\n");
     }
+
+    // Shortcuts footer
+    g_string_append(text, "\n");
+    g_string_append(text, "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
 }
 
 // Format and display names tab content
