@@ -648,7 +648,7 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
     if (!app->config.close_on_focus_loss) {
         return FALSE;
     }
-    
+
     // Use a small delay to properly detect if focus is really lost
     // This helps distinguish between internal widget focus changes and actual window focus loss
     if (app->focus_loss_timer > 0) {
@@ -670,10 +670,9 @@ static gboolean check_focus_loss_delayed(AppData *app) {
     
     // Check if our window still has toplevel focus
     if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
-        log_debug("Window still has toplevel focus after delay, not closing");
         return FALSE;
     }
-    
+
     log_info("Window lost focus to external application, closing");
     hide_window(app);
     return FALSE; // Don't repeat the timeout
@@ -910,7 +909,14 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
         return;
     }
 
-    // Window already visible — switch mode inline
+    // Window already visible — cancel any focus-loss timer (hotkey grab causes
+    // synthetic FocusOut which would otherwise close the window)
+    if (app->focus_loss_timer > 0) {
+        g_source_remove(app->focus_loss_timer);
+        app->focus_loss_timer = 0;
+    }
+
+    // Switch mode inline
     if (app->command_mode.state == CMD_MODE_COMMAND)
         exit_command_mode(app);
 
