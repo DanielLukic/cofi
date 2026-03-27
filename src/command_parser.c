@@ -27,25 +27,29 @@ static void split_compact_command(const char *token, char *cmd_out, char *arg_ou
                                   size_t cmd_size, size_t arg_size) {
     size_t len = strlen(token);
 
-    if (len >= 3 && strncmp(token, "cw", 2) == 0 && isdigit((unsigned char)token[2])) {
+    if (len >= 3 && strncmp(token, "cw", 2) == 0 &&
+        (isdigit((unsigned char)token[2]) || strchr("hjkl", token[2]))) {
         strncpy(cmd_out, "cw", cmd_size - 1);
         strncpy(arg_out, token + 2, arg_size - 1);
         return;
     }
 
-    if (len >= 3 && strncmp(token, "jw", 2) == 0 && isdigit((unsigned char)token[2])) {
+    if (len >= 3 && strncmp(token, "jw", 2) == 0 &&
+        (isdigit((unsigned char)token[2]) || strchr("hjkl", token[2]))) {
         strncpy(cmd_out, "jw", cmd_size - 1);
         strncpy(arg_out, token + 2, arg_size - 1);
         return;
     }
 
-    if (len >= 4 && strncmp(token, "maw", 3) == 0 && isdigit((unsigned char)token[3])) {
+    if (len >= 4 && strncmp(token, "maw", 3) == 0 &&
+        (isdigit((unsigned char)token[3]) || strchr("hjkl", token[3]))) {
         strncpy(cmd_out, "maw", cmd_size - 1);
         strncpy(arg_out, token + 3, arg_size - 1);
         return;
     }
 
-    if (len >= 2 && token[0] == 'j' && isdigit((unsigned char)token[1])) {
+    if (len >= 2 && token[0] == 'j' &&
+        (isdigit((unsigned char)token[1]) || strchr("hjkl", token[1]))) {
         strncpy(cmd_out, "j", cmd_size - 1);
         strncpy(arg_out, token + 1, arg_size - 1);
         return;

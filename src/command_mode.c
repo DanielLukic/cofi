@@ -9,6 +9,7 @@
 #include "selection.h"
 #include "command_parser.h"
 #include "x11_utils.h"
+#include "workspace_utils.h"
 #include "app_data.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
@@ -701,22 +702,16 @@ gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args
         log_warn("No window selected for workspace change");
         return FALSE;
     }
-    
+
     if (strlen(args) > 0) {
-        int workspace_num = atoi(args);
-        if (workspace_num >= 1 && workspace_num <= 36) {
-            int workspace_count = get_number_of_desktops(app->display);
-            if (workspace_num <= workspace_count) {
-                int target_workspace = workspace_num - 1;
-                log_info("USER: Moving window '%s' to workspace %d", window->title, workspace_num);
-                move_window_to_desktop(app->display, window->id, target_workspace);
-                activate_commanded_window(app, window);
-                return TRUE;
-            } else {
-                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
-            }
+        int target = resolve_workspace_from_arg(app->display, args, app->config.workspaces_per_row);
+        if (target >= 0) {
+            log_info("USER: Moving window '%s' to workspace %d", window->title, target + 1);
+            move_window_to_desktop(app->display, window->id, target);
+            activate_commanded_window(app, window);
+            return TRUE;
         } else {
-            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+            log_warn("Invalid workspace target: %s", args);
         }
     } else {
         show_workspace_jump_overlay((struct AppData *)app);
@@ -844,19 +839,13 @@ gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *arg
 
 gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     if (strlen(args) > 0) {
-        int workspace_num = atoi(args);
-        if (workspace_num >= 1 && workspace_num <= 36) {
-            int workspace_count = get_number_of_desktops(app->display);
-            if (workspace_num <= workspace_count) {
-                int target_workspace = workspace_num - 1;
-                log_info("USER: Switching to workspace %d", workspace_num);
-                switch_to_desktop(app->display, target_workspace);
-                return TRUE;
-            } else {
-                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
-            }
+        int target = resolve_workspace_from_arg(app->display, args, app->config.workspaces_per_row);
+        if (target >= 0) {
+            log_info("USER: Switching to workspace %d", target + 1);
+            switch_to_desktop(app->display, target);
+            return TRUE;
         } else {
-            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+            log_warn("Invalid workspace target: %s", args);
         }
     } else {
         show_workspace_jump_overlay((struct AppData *)app);
@@ -1042,28 +1031,16 @@ gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute_
     
     // If args provided, move directly. Otherwise show overlay
     if (strlen(args) > 0) {
-        int workspace_num = atoi(args);
-        if (workspace_num >= 1 && workspace_num <= 36) {
-            int workspace_count = get_number_of_desktops(app->display);
-            if (workspace_num <= workspace_count) {
-                int target_workspace = workspace_num - 1;
-                
-                // Move all collected windows
-                for (int i = 0; i < app->windows_to_move_count; i++) {
-                    move_window_to_desktop(app->display, app->windows_to_move[i], target_workspace);
-                }
-                
-                // Switch to the target workspace
-                switch_to_desktop(app->display, target_workspace);
-                
-                log_info("USER: Moved %d windows from workspace %d to workspace %d and switched to it", 
-                         app->windows_to_move_count, current_workspace + 1, workspace_num);
-                return TRUE;
-            } else {
-                log_warn("Workspace %d does not exist (only %d workspaces available)", workspace_num, workspace_count);
-            }
+        int target = resolve_workspace_from_arg(app->display, args, app->config.workspaces_per_row);
+        if (target >= 0) {
+            for (int i = 0; i < app->windows_to_move_count; i++)
+                move_window_to_desktop(app->display, app->windows_to_move[i], target);
+            switch_to_desktop(app->display, target);
+            log_info("USER: Moved %d windows from workspace %d to %d",
+                     app->windows_to_move_count, current_workspace + 1, target + 1);
+            return TRUE;
         } else {
-            log_warn("Invalid workspace number: %d (must be 1-36)", workspace_num);
+            log_warn("Invalid workspace target: %s", args);
         }
         return FALSE;
     } else {
