@@ -53,7 +53,8 @@ SOURCES = src/main.c \
           src/workspace_slots.c \
           src/slot_overlay.c \
           src/fzf_algo.c \
-          src/window_highlight.c
+          src/window_highlight.c \
+          src/hotkeys.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))

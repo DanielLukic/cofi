@@ -142,6 +142,8 @@ typedef struct AppData {
     // Timer management for deferred operations
     guint focus_loss_timer;                 // Timer ID for focus loss delay
     guint focus_grab_timer;                 // Timer ID for focus grab delay
+    guint32 focus_timestamp;               // X11 event time for focus requests (0 = CurrentTime)
+    int pending_hotkey_mode;               // ShowMode to dispatch on next idle (-1 = none)
     
     // Move-all-to-workspace state
     Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command

@@ -14,6 +14,7 @@
 #include "named_window.h"
 #include "named_window_config.h"
 #include "window_highlight.h"
+#include "hotkeys.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
@@ -231,6 +232,10 @@ void handle_x11_event(AppData *app, XEvent *event) {
             break;
         }
         
+        case KeyPress:
+            handle_hotkey_event(app, &event->xkey);
+            break;
+
         default:
             // Ignore other events
             break;

@@ -37,6 +37,7 @@
 #include "overlay_manager.h"
 #include "version.h"
 #include "dbus_service.h"
+#include "hotkeys.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
 // WindowInfo and AppData types are defined in src/app_data.h
@@ -785,17 +786,26 @@ static gboolean grab_focus_delayed(gpointer data) {
         if (gdk_window) {
             Display *display = GDK_WINDOW_XDISPLAY(gdk_window);
             Window xwindow = GDK_WINDOW_XID(gdk_window);
-            
-            // Force raise and focus at X11 level
+            guint32 ts = app->focus_timestamp ? app->focus_timestamp : CurrentTime;
+
             XRaiseWindow(display, xwindow);
-            XSetInputFocus(display, xwindow, RevertToParent, CurrentTime);
+
+            // Send _NET_ACTIVE_WINDOW now that window is definitely mapped
+            gdk_window_focus(gdk_window, ts);
             XFlush(display);
+
+            gdk_error_trap_push();
+            XSetInputFocus(display, xwindow, RevertToParent, ts);
+            XSync(display, False);
+            int err = gdk_error_trap_pop();
+            if (err != 0) {
+                log_debug("grab_focus_delayed: XSetInputFocus failed (err=%d), retrying", err);
+                app->focus_grab_timer = g_timeout_add(20, grab_focus_delayed, app);
+                return FALSE;
+            }
         }
-        
-        // Final attempt to grab widget focus
+
         gtk_widget_grab_focus(app->entry);
-        
-        log_debug("Delayed focus grab completed");
     }
     
     return FALSE; // Remove timeout
@@ -848,8 +858,9 @@ void show_window(AppData *app) {
     // Force window to be active using multiple methods
     GtkWindow *window = GTK_WINDOW(app->window);
     
-    // Method 1: Present the window with timestamp
-    gtk_window_present_with_time(window, GDK_CURRENT_TIME);
+    // Method 1: Present the window with timestamp (use real event time if available)
+    guint32 ts = app->focus_timestamp ? app->focus_timestamp : GDK_CURRENT_TIME;
+    gtk_window_present_with_time(window, ts);
     
     // Method 2: Set urgency hint to grab attention
     gtk_window_set_urgency_hint(window, TRUE);
@@ -861,11 +872,75 @@ void show_window(AppData *app) {
     if (app->focus_grab_timer > 0) {
         g_source_remove(app->focus_grab_timer);
     }
-    app->focus_grab_timer = g_timeout_add(0, grab_focus_delayed, app);
+    app->focus_grab_timer = g_timeout_add(50, grab_focus_delayed, app);
     
     log_debug("Window shown with multi-method focus grab");
 }
 
+static gboolean delayed_command_mode(gpointer data) {
+    AppData *app = (AppData *)data;
+    if (app->window_visible)
+        enter_command_mode(app);
+    return FALSE;
+}
+
+// Called from hotkeys.c — has access to all static helpers in this file
+void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
+    if (mode == SHOW_MODE_ASSIGN_SLOTS) {
+        assign_workspace_slots(app);
+        return;
+    }
+
+    if (!app->window_visible) {
+        switch (mode) {
+            case SHOW_MODE_COMMAND:
+                app->current_tab = TAB_WINDOWS;
+                show_window(app);
+                g_timeout_add(50, delayed_command_mode, app);
+                break;
+            case SHOW_MODE_WORKSPACES:
+                app->current_tab = TAB_WORKSPACES;
+                show_window(app);
+                break;
+            default:
+                app->current_tab = TAB_WINDOWS;
+                show_window(app);
+                break;
+        }
+        return;
+    }
+
+    // Window already visible — switch mode inline
+    if (app->command_mode.state == CMD_MODE_COMMAND)
+        exit_command_mode(app);
+
+    switch (mode) {
+        case SHOW_MODE_WINDOWS:
+            if (app->current_tab == TAB_WINDOWS) return;
+            app->current_tab = TAB_WINDOWS;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            reset_selection(app);
+            filter_windows(app, "");
+            update_display(app);
+            gtk_widget_grab_focus(app->entry);
+            break;
+        case SHOW_MODE_WORKSPACES:
+            if (app->current_tab == TAB_WORKSPACES) return;
+            app->current_tab = TAB_WORKSPACES;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            filter_workspaces(app, "");
+            update_display(app);
+            gtk_widget_grab_focus(app->entry);
+            break;
+        case SHOW_MODE_COMMAND:
+            if (app->command_mode.state == CMD_MODE_COMMAND) return;
+            app->current_tab = TAB_WINDOWS;
+            enter_command_mode(app);
+            break;
+        default:
+            break;
+    }
+}
 
 // Application setup
 void setup_application(AppData *app, WindowAlignment alignment) {
@@ -1160,6 +1235,9 @@ int main(int argc, char *argv[]) {
     
     // Setup X11 event monitoring for dynamic window list updates
     setup_x11_event_monitoring(&app);
+
+    // Register system hotkeys via XGrabKey
+    setup_hotkeys(&app);
     
     // Initialize the correct tab data based on start tab
     if (app.current_tab == TAB_WINDOWS) {
@@ -1208,6 +1286,7 @@ int main(int argc, char *argv[]) {
     gtk_main();
     
     // Cleanup
+    cleanup_hotkeys(&app);
     cleanup_x11_event_monitoring();
     instance_manager_cleanup(instance_manager);
     XCloseDisplay(app.display);

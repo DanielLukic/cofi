@@ -1,0 +1,14 @@
+[Unit]
+Description=cofi window switcher
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/local/bin/cofi
+Restart=on-failure
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Install]
+WantedBy=graphical-session.target
