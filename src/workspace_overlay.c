@@ -30,6 +30,9 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
     // Get current desktop (where the user currently is)
     int user_current_desktop = get_current_desktop(app->display);
 
+    // Layout: arrow diamond on left | separator | workspace grid on right
+    GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
+
     // Create workspace display based on configuration
     if (app->config.workspaces_per_row > 0) {
         // Grid layout
@@ -38,7 +41,7 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
         gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
         gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(parent_container), grid, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
         int per_row = app->config.workspaces_per_row;
 
@@ -46,14 +49,11 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
             int row = i / per_row;
             int col = i % per_row;
 
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
 
             GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1,  // 1-based number for display
-                workspace_name,
-                FALSE,  // No window to track for jump dialog
-                (i == user_current_desktop)  // Is user current
+                i + 1, workspace_name,
+                FALSE, (i == user_current_desktop)
             );
             gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
         }
@@ -63,7 +63,7 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
         gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(parent_container), scrolled, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
 
         GtkWidget *text_view = gtk_text_view_new();
         gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
@@ -74,10 +74,7 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
         GString *display_text = g_string_new("");
 
         for (int i = 0; i < workspace_count; i++) {
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
-
-            // Format workspace entry
             if (i == user_current_desktop) {
                 g_string_append_printf(display_text, "◆%d◆ %s (current)\n", i + 1, workspace_name);
             } else {
@@ -89,7 +86,6 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
         g_string_free(display_text, TRUE);
     }
 
-    // Free workspace names
     free_workspace_names(names);
 
     // Instructions
@@ -131,15 +127,17 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     // Get window's current desktop
     int window_current_desktop = selected_window->desktop;
 
+    // Layout: arrow diamond on left | separator | workspace grid on right
+    GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
+
     // Create workspace display based on configuration
     if (app->config.workspaces_per_row > 0) {
-        // Grid layout
         GtkWidget *grid = gtk_grid_new();
         gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
         gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
         gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(parent_container), grid, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
         int per_row = app->config.workspaces_per_row;
 
@@ -147,24 +145,19 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
             int row = i / per_row;
             int col = i % per_row;
 
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
-
             GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1,  // 1-based number for display
-                workspace_name,
-                (i == window_current_desktop),  // Is window current
-                (i == user_current_desktop)     // Is user current
+                i + 1, workspace_name,
+                (i == window_current_desktop), (i == user_current_desktop)
             );
             gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
         }
     } else {
-        // Linear list layout
         GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
         gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(parent_container), scrolled, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
 
         GtkWidget *text_view = gtk_text_view_new();
         gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
@@ -175,10 +168,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
         GString *display_text = g_string_new("");
 
         for (int i = 0; i < workspace_count; i++) {
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
-
-            // Format workspace entry with indicators
             if (i == window_current_desktop && i == user_current_desktop) {
                 g_string_append_printf(display_text, "★%d★ %s (window & user here)\n", i + 1, workspace_name);
             } else if (i == window_current_desktop) {
@@ -194,10 +184,7 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
         g_string_free(display_text, TRUE);
     }
 
-    // Free workspace names
     free_workspace_names(names);
-
-    // Instructions
     create_workspace_instructions(parent_container);
 }
 
@@ -273,131 +260,33 @@ static GtkWidget* create_workspace_widget_overlay(int workspace_num, const char 
 
 // Handle key press events for workspace jump overlay
 gboolean handle_workspace_jump_key_press(AppData *app, GdkEventKey *event) {
-    // Get workspace count
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
+    int target = resolve_workspace_from_key(app->display, event, app->config.workspaces_per_row);
+    if (target < 0) return FALSE;
+
+    int current = get_current_desktop(app->display);
+    if (target != current) {
+        switch_to_desktop(app->display, target);
+        log_info("USER: Jumped from workspace %d to workspace %d", current + 1, target + 1);
     }
-
-    // Handle number keys 1-9
-    if (event->keyval >= GDK_KEY_1 && event->keyval <= GDK_KEY_9) {
-        int workspace_num = event->keyval - GDK_KEY_1 + 1;  // 1-based
-        if (workspace_num <= workspace_count) {
-            int target_workspace_idx = workspace_num - 1;  // Convert to 0-based index
-
-            // Get current workspace
-            int current_workspace = get_current_desktop(app->display);
-
-            // Jump to the workspace if needed
-            if (target_workspace_idx != current_workspace) {
-                log_debug("=== EXECUTING WORKSPACE JUMP ===");
-                log_debug("Jumping from workspace %d to workspace %d",
-                          current_workspace + 1, target_workspace_idx + 1);
-
-                switch_to_desktop(app->display, target_workspace_idx);
-
-                log_info("USER: Jumped from workspace %d to workspace %d",
-                         current_workspace + 1, target_workspace_idx + 1);
-            } else {
-                log_debug("Already on target workspace %d", target_workspace_idx + 1);
-            }
-
-            // Close application
-            hide_window(app);
-        }
-        return TRUE;
-    }
-
-    // Handle 0 for workspace 10
-    if (event->keyval == GDK_KEY_0) {
-        if (workspace_count >= 10) {
-            int target_workspace_idx = 9;  // Workspace 10 is index 9
-
-            // Get current workspace
-            int current_workspace = get_current_desktop(app->display);
-
-            // Jump to the workspace if needed
-            if (target_workspace_idx != current_workspace) {
-                log_debug("=== EXECUTING WORKSPACE JUMP ===");
-                log_debug("Jumping from workspace %d to workspace %d",
-                          current_workspace + 1, target_workspace_idx + 1);
-
-                switch_to_desktop(app->display, target_workspace_idx);
-
-                log_info("USER: Jumped from workspace %d to workspace %d",
-                         current_workspace + 1, target_workspace_idx + 1);
-            } else {
-                log_debug("Already on target workspace %d", target_workspace_idx + 1);
-            }
-
-            // Close application
-            hide_window(app);
-        }
-        return TRUE;
-    }
-
-    return FALSE; // Invalid key, don't handle
+    hide_window(app);
+    return TRUE;
 }
 
 // Handle key press events for workspace move overlay
 gboolean handle_workspace_move_key_press(AppData *app, GdkEventKey *event) {
-    // Get selected window
     WindowInfo *selected_window = get_selected_window(app);
     if (!selected_window) {
         log_error("No window selected for workspace move");
         return TRUE;
     }
 
-    // Get workspace count
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
-    }
+    int target = resolve_workspace_from_key(app->display, event, app->config.workspaces_per_row);
+    if (target < 0) return FALSE;
 
-    // Handle number keys 1-9
-    if (event->keyval >= GDK_KEY_1 && event->keyval <= GDK_KEY_9) {
-        int workspace_num = event->keyval - GDK_KEY_1 + 1;  // 1-based
-        if (workspace_num <= workspace_count) {
-            int target_workspace_idx = workspace_num - 1;  // Convert to 0-based index
-
-            log_debug("=== EXECUTING WORKSPACE MOVE ===");
-            log_debug("Moving window '%s' (ID: 0x%lx) to workspace %d",
-                      selected_window->title, selected_window->id, target_workspace_idx + 1);
-
-            // Move the window to the target workspace
-            move_window_to_desktop(app->display, selected_window->id, target_workspace_idx);
-
-            log_info("USER: Moved window '%s' to workspace %d",
-                     selected_window->title, target_workspace_idx + 1);
-
-            // Close application
-            hide_window(app);
-        }
-        return TRUE;
-    }
-
-    // Handle 0 for workspace 10
-    if (event->keyval == GDK_KEY_0) {
-        if (workspace_count >= 10) {
-            int target_workspace_idx = 9;  // Workspace 10 is index 9
-
-            log_debug("=== EXECUTING WORKSPACE MOVE ===");
-            log_debug("Moving window '%s' (ID: 0x%lx) to workspace %d",
-                      selected_window->title, selected_window->id, target_workspace_idx + 1);
-
-            // Move the window to the target workspace
-            move_window_to_desktop(app->display, selected_window->id, target_workspace_idx);
-
-            log_info("USER: Moved window '%s' to workspace %d",
-                     selected_window->title, target_workspace_idx + 1);
-
-            // Close application
-            hide_window(app);
-        }
-        return TRUE;
-    }
-
-    return FALSE; // Invalid key, don't handle
+    move_window_to_desktop(app->display, selected_window->id, target);
+    log_info("USER: Moved window '%s' to workspace %d", selected_window->title, target + 1);
+    hide_window(app);
+    return TRUE;
 }
 
 // Create workspace move all overlay content
@@ -426,15 +315,16 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
     // Get current desktop (where the user currently is)
     int user_current_desktop = get_current_desktop(app->display);
 
-    // Create workspace display based on configuration
+    // Layout: arrow diamond on left | separator | workspace grid on right
+    GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
+
     if (app->config.workspaces_per_row > 0) {
-        // Grid layout
         GtkWidget *grid = gtk_grid_new();
         gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
         gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
         gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(parent_container), grid, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
         int per_row = app->config.workspaces_per_row;
 
@@ -442,24 +332,19 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
             int row = i / per_row;
             int col = i % per_row;
 
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
-
             GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1,  // 1-based number for display
-                workspace_name,
-                FALSE,  // Not tracking individual window
-                (i == user_current_desktop)  // Is user current (source workspace)
+                i + 1, workspace_name,
+                FALSE, (i == user_current_desktop)
             );
             gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
         }
     } else {
-        // Linear list layout
         GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
         gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(parent_container), scrolled, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
 
         GtkWidget *text_view = gtk_text_view_new();
         gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
@@ -470,10 +355,7 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
         GString *display_text = g_string_new("");
 
         for (int i = 0; i < workspace_count; i++) {
-            // Get workspace name
             const char *workspace_name = get_workspace_name_or_default(names, i);
-
-            // Format workspace entry
             if (i == user_current_desktop) {
                 g_string_append_printf(display_text, "◆%d◆ %s (source)\n", i + 1, workspace_name);
             } else {
@@ -485,7 +367,6 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
         g_string_free(display_text, TRUE);
     }
 
-    // Free workspace names
     free_workspace_names(names);
 
     // Instructions
@@ -494,81 +375,21 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
 
 // Handle key press events for workspace move all overlay
 gboolean handle_workspace_move_all_key_press(AppData *app, GdkEventKey *event) {
-    // Get workspace count
-    int workspace_count = get_number_of_desktops(app->display);
-    if (workspace_count > 36) {
-        workspace_count = 36;  // Limit to supported maximum
-    }
+    int target = resolve_workspace_from_key(app->display, event, app->config.workspaces_per_row);
+    if (target < 0) return FALSE;
 
-    // Get current workspace
-    int current_workspace = get_current_desktop(app->display);
-
-    // Handle number keys 1-9
-    if (event->keyval >= GDK_KEY_1 && event->keyval <= GDK_KEY_9) {
-        int workspace_num = event->keyval - GDK_KEY_1 + 1;  // 1-based
-        if (workspace_num <= workspace_count) {
-            int target_workspace_idx = workspace_num - 1;  // Convert to 0-based index
-
-            // Don't move to the same workspace
-            if (target_workspace_idx == current_workspace) {
-                log_info("Cannot move windows to the same workspace");
-                hide_window(app);
-                return TRUE;
-            }
-
-            log_debug("=== EXECUTING WORKSPACE MOVE ALL ===");
-            log_debug("Moving %d windows from workspace %d to workspace %d",
-                      app->windows_to_move_count, current_workspace + 1, target_workspace_idx + 1);
-
-            // Move all collected windows
-            for (int i = 0; i < app->windows_to_move_count; i++) {
-                move_window_to_desktop(app->display, app->windows_to_move[i], target_workspace_idx);
-            }
-            
-            // Switch to the target workspace
-            switch_to_desktop(app->display, target_workspace_idx);
-
-            log_info("USER: Moved %d windows from workspace %d to workspace %d and switched to it",
-                     app->windows_to_move_count, current_workspace + 1, target_workspace_idx + 1);
-
-            // Close application
-            hide_window(app);
-        }
+    int current = get_current_desktop(app->display);
+    if (target == current) {
+        hide_window(app);
         return TRUE;
     }
 
-    // Handle 0 for workspace 10
-    if (event->keyval == GDK_KEY_0) {
-        if (workspace_count >= 10) {
-            int target_workspace_idx = 9;  // Workspace 10 is index 9
+    for (int i = 0; i < app->windows_to_move_count; i++)
+        move_window_to_desktop(app->display, app->windows_to_move[i], target);
+    switch_to_desktop(app->display, target);
 
-            // Don't move to the same workspace
-            if (target_workspace_idx == current_workspace) {
-                log_info("Cannot move windows to the same workspace");
-                hide_window(app);
-                return TRUE;
-            }
-
-            log_debug("=== EXECUTING WORKSPACE MOVE ALL ===");
-            log_debug("Moving %d windows from workspace %d to workspace %d",
-                      app->windows_to_move_count, current_workspace + 1, target_workspace_idx + 1);
-
-            // Move all collected windows
-            for (int i = 0; i < app->windows_to_move_count; i++) {
-                move_window_to_desktop(app->display, app->windows_to_move[i], target_workspace_idx);
-            }
-            
-            // Switch to the target workspace
-            switch_to_desktop(app->display, target_workspace_idx);
-
-            log_info("USER: Moved %d windows from workspace %d to workspace %d and switched to it",
-                     app->windows_to_move_count, current_workspace + 1, target_workspace_idx + 1);
-
-            // Close application
-            hide_window(app);
-        }
-        return TRUE;
-    }
-
-    return FALSE; // Invalid key, don't handle
+    log_info("USER: Moved %d windows from workspace %d to %d",
+             app->windows_to_move_count, current + 1, target + 1);
+    hide_window(app);
+    return TRUE;
 }
