@@ -140,108 +140,8 @@ static int split_lines_in_place(char *text, char **lines, int max_lines) {
     return count;
 }
 
-static int get_help_text_columns(AppData *app) {
-    if (!app || !app->textview) {
-        return 100;
-    }
-
-    int width_px = gtk_widget_get_allocated_width(app->textview);
-    width_px -= gtk_text_view_get_left_margin(GTK_TEXT_VIEW(app->textview));
-    width_px -= gtk_text_view_get_right_margin(GTK_TEXT_VIEW(app->textview));
-    if (width_px <= 0) {
-        return 100;
-    }
-
-    PangoLayout *layout = gtk_widget_create_pango_layout(app->textview, "M");
-    int char_width = 0;
-    int char_height = 0;
-    if (layout) {
-        pango_layout_get_pixel_size(layout, &char_width, &char_height);
-        g_object_unref(layout);
-    }
-
-    if (char_width <= 0) {
-        char_width = 8;
-    }
-
-    int columns = width_px / char_width;
-    if (columns < 10) {
-        columns = 10;
-    }
-
-    (void)char_height;
-    return columns;
-}
-
-static void generate_help_scrollbar(int total_lines, int visible_lines, int scroll_offset,
-                                    char *scrollbar, int height) {
-    if (!scrollbar || height <= 0) {
-        return;
-    }
-
-    if (total_lines <= visible_lines) {
-        for (int i = 0; i < height; i++) {
-            scrollbar[i] = ' ';
-        }
-        scrollbar[height] = '\0';
-        return;
-    }
-
-    double visible_ratio = (double)visible_lines / (double)total_lines;
-    double position_ratio = (double)scroll_offset / (double)(total_lines - visible_lines);
-
-    int thumb_size = (int)(visible_ratio * height);
-    if (thumb_size < 1) thumb_size = 1;
-    if (thumb_size > height) thumb_size = height;
-    if (height > 1 && thumb_size == height) {
-        thumb_size = height - 1;
-    }
-
-    int thumb_start = (int)(position_ratio * (height - thumb_size));
-    if (thumb_start < 0) thumb_start = 0;
-    if (thumb_start + thumb_size > height) {
-        thumb_start = height - thumb_size;
-    }
-
-    for (int i = 0; i < height; i++) {
-        scrollbar[i] = (i >= thumb_start && i < thumb_start + thumb_size) ? '#' : '.';
-    }
-    scrollbar[height] = '\0';
-}
-
-static void append_help_line_with_scrollbar(GString *output, const char *line,
-                                            int row_columns, char scrollbar_char) {
-    if (!output || !line) {
-        return;
-    }
-
-    if (row_columns <= 1) {
-        g_string_append(output, line);
-        g_string_append_c(output, '\n');
-        return;
-    }
-
-    char *row = malloc((size_t)row_columns + 2);
-    if (!row) {
-        g_string_append(output, line);
-        g_string_append_c(output, '\n');
-        return;
-    }
-
-    memset(row, ' ', (size_t)row_columns);
-    size_t line_len = strlen(line);
-    size_t copy_len = line_len < (size_t)row_columns ? line_len : (size_t)row_columns;
-    memcpy(row, line, copy_len);
-
-    row[row_columns - 1] = scrollbar_char;
-    row[row_columns] = '\n';
-    row[row_columns + 1] = '\0';
-
-    g_string_append(output, row);
-    free(row);
-}
-
 static char *build_help_page_text(AppData *app, char **lines, int total_lines, int visible_lines, int scroll_offset) {
+    (void)app;
     if (!lines || total_lines <= 0 || visible_lines <= 0) {
         return NULL;
     }
@@ -249,25 +149,16 @@ static char *build_help_page_text(AppData *app, char **lines, int total_lines, i
     int max_offset = (total_lines > visible_lines) ? (total_lines - visible_lines) : 0;
     int start = clamp_int(scroll_offset, 0, max_offset);
     int end = start + visible_lines;
-    if (end > total_lines) {
-        end = total_lines;
-    }
+    if (end > total_lines) end = total_lines;
 
     GString *rendered = g_string_new(NULL);
-    char scrollbar[visible_lines + 1];
-    generate_help_scrollbar(total_lines, visible_lines, start, scrollbar, visible_lines);
-    gboolean has_scrollbar = (total_lines > visible_lines);
-    int row_columns = has_scrollbar ? get_help_text_columns(app) : 0;
-
     for (int i = start; i < end; i++) {
-        int line_idx = i - start;
-        if (has_scrollbar) {
-            append_help_line_with_scrollbar(rendered, lines[i], row_columns, scrollbar[line_idx]);
-        } else {
-            g_string_append(rendered, lines[i]);
-            g_string_append_c(rendered, '\n');
-        }
+        g_string_append(rendered, lines[i]);
+        g_string_append_c(rendered, '\n');
     }
+
+    // Help scrollbar: top-down, no inversion needed
+    overlay_scrollbar(rendered, total_lines, visible_lines, start);
 
     return g_string_free(rendered, FALSE);
 }

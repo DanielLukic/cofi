@@ -170,39 +170,46 @@ int get_max_display_lines_dynamic(AppData *app) {
 void generate_scrollbar(int total_items, int visible_items, int scroll_offset, char *scrollbar, int scrollbar_height) {
     if (!scrollbar || scrollbar_height <= 0) return;
 
-    // If all items fit on screen, no scrollbar needed
     if (total_items <= visible_items) {
-        for (int i = 0; i < scrollbar_height; i++) {
+        for (int i = 0; i < scrollbar_height; i++)
             scrollbar[i] = ' ';
-        }
         scrollbar[scrollbar_height] = '\0';
         return;
     }
 
-    // Calculate scrollbar thumb position and size
     double visible_ratio = (double)visible_items / total_items;
     double position_ratio = (double)scroll_offset / (total_items - visible_items);
 
     int thumb_size = (int)(visible_ratio * scrollbar_height);
     if (thumb_size < 1) thumb_size = 1;
     if (thumb_size > scrollbar_height) thumb_size = scrollbar_height;
+    if (scrollbar_height > 1 && thumb_size == scrollbar_height) thumb_size = scrollbar_height - 1;
 
-    // Invert the scrollbar since entry 0 (best match) is displayed at bottom
-    int thumb_start = scrollbar_height - thumb_size - (int)(position_ratio * (scrollbar_height - thumb_size));
+    int thumb_start = (int)(position_ratio * (scrollbar_height - thumb_size));
     if (thumb_start < 0) thumb_start = 0;
-    if (thumb_start + thumb_size > scrollbar_height) {
-        thumb_start = scrollbar_height - thumb_size;
-    }
+    if (thumb_start + thumb_size > scrollbar_height) thumb_start = scrollbar_height - thumb_size;
 
-    // Fill scrollbar characters
-    for (int i = 0; i < scrollbar_height; i++) {
-        if (i >= thumb_start && i < thumb_start + thumb_size) {
-            scrollbar[i] = '#';  // Solid block for thumb
-        } else {
-            scrollbar[i] = '.';  // Light shade for track
+    for (int i = 0; i < scrollbar_height; i++)
+        scrollbar[i] = (i >= thumb_start && i < thumb_start + thumb_size) ? '#' : '.';
+    scrollbar[scrollbar_height] = '\0';
+}
+
+// Overlay scrollbar indicators on the last character of each line in text.
+// Modifies text in place. For bottom-up (fzf-style) display, caller should
+// pass flipped offset: (total_items - visible_items) - scroll_offset.
+void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset) {
+    if (total_items <= visible_items) return;
+
+    char sb[visible_items + 1];
+    generate_scrollbar(total_items, visible_items, scroll_offset, sb, visible_items);
+
+    int line = 0;
+    for (size_t i = 0; i < text->len && line < visible_items; i++) {
+        if (text->str[i] == '\n' && i > 0) {
+            text->str[i - 1] = sb[line];
+            line++;
         }
     }
-    scrollbar[scrollbar_height] = '\0';
 }
 
 // Format and display windows tab content
@@ -217,10 +224,6 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
     }
 
     int scroll_offset = get_scroll_offset(app);
-
-    // Generate scrollbar if needed
-    char scrollbar[max_lines + 1];
-    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
     int start_idx = scroll_offset;
@@ -307,13 +310,12 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
         g_string_append(text, " ");
         g_string_append(text, window_id);
 
-        // Add scrollbar character if needed
-        if (total_count > max_lines) {
-            g_string_append_printf(text, " %c", scrollbar[display_line]);
-        }
-
         g_string_append(text, "\n");
     }
+
+    // Overlay scrollbar on last column (flipped offset for bottom-up display)
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
 }
 
 // Format and display workspaces tab content
@@ -328,10 +330,6 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
     }
 
     int scroll_offset = get_scroll_offset(app);
-
-    // Generate scrollbar if needed
-    char scrollbar[max_lines + 1];
-    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
     int start_idx = scroll_offset;
@@ -364,13 +362,11 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
         // Format: [ID] Name
         g_string_append_printf(text, "[%d] %s", ws->id + 1, ws->name);
 
-        // Add scrollbar character if needed
-        if (total_count > max_lines) {
-            g_string_append_printf(text, " %c", scrollbar[display_line]);
-        }
-
         g_string_append(text, "\n");
     }
+
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
 }
 
 // Format and display harpoon tab content
@@ -379,10 +375,6 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
     int max_lines = get_max_display_lines_dynamic(app);
 
     int scroll_offset = get_scroll_offset(app);
-
-    // Generate scrollbar if needed
-    char scrollbar[max_lines + 1];
-    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
     int start_idx = scroll_offset;
@@ -429,13 +421,11 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
                 slot_name, "* EMPTY *", "-", "-", "-");
         }
 
-        // Add scrollbar character if needed
-        if (total_count > max_lines) {
-            g_string_append_printf(text, " %c", scrollbar[display_line]);
-        }
-
         g_string_append(text, "\n");
     }
+
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
 
     // Shortcuts footer
     g_string_append(text, "\n");
@@ -456,10 +446,6 @@ static void format_names_display(AppData *app, GString *text, int selected_idx) 
     }
 
     int scroll_offset = get_scroll_offset(app);
-
-    // Generate scrollbar if needed
-    char scrollbar[max_lines + 1];
-    generate_scrollbar(total_count, max_lines, scroll_offset, scrollbar, max_lines);
 
     // Calculate visible range
     int start_idx = scroll_offset;
@@ -482,40 +468,35 @@ static void format_names_display(AppData *app, GString *text, int selected_idx) 
             g_string_append(text, "  ");
         }
 
-        // Format columns
-        char custom_name_col[31], original_title_col[56], class_col[19], instance_col[21];
-        char window_id[32];
-        
-        fit_column(named->custom_name, 30, custom_name_col);
-        fit_column(named->original_title, 55, original_title_col);
+        // Format columns — sized to fit within ~115 char budget (matching windows tab)
+        char custom_name_col[21], original_title_col[46], class_col[19];
+        char window_id[12];
+
+        fit_column(named->custom_name, 20, custom_name_col);
+        fit_column(named->original_title, 45, original_title_col);
         fit_column(named->class_name, 18, class_col);
-        fit_column(named->instance, 20, instance_col);
-        
+
         if (named->assigned) {
             snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
         } else {
-            strcpy(window_id, "* UNASSIGNED *");
+            strcpy(window_id, "* NONE *");
         }
 
-        // Build the line: custom_name original_title class instance window_id
+        // Build the line: custom_name original_title class window_id
         g_string_append(text, custom_name_col);
         g_string_append(text, " ");
         g_string_append(text, original_title_col);
         g_string_append(text, " ");
         g_string_append(text, class_col);
         g_string_append(text, " ");
-        g_string_append(text, instance_col);
-        g_string_append(text, " ");
         g_string_append(text, window_id);
-
-        // Add scrollbar character if needed
-        if (total_count > max_lines) {
-            g_string_append_printf(text, " %c", scrollbar[display_line]);
-        }
 
         g_string_append(text, "\n");
     }
-    
+
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
+
     // Add shortcuts footer
     g_string_append(text, "\n");
     g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
@@ -568,6 +549,7 @@ void update_display(AppData *app) {
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);
     g_string_free(text, TRUE);
+
 }
 
 // Send X11 client message (based on wmctrl implementation)
