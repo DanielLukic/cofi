@@ -3,6 +3,24 @@
 #include <ctype.h>
 #include <string.h>
 
+// Compact form table: {primary, aliases[], suffix_chars}
+// Kept in sync with command_definitions.h but without handler/function pointers
+// so that command_parser.o can link independently (e.g. in tests).
+typedef struct {
+    const char *primary;
+    const char *aliases[5];
+    const char *suffix;
+} CompactForm;
+
+static const CompactForm COMPACT_FORMS[] = {
+    { "cw",    {"change-workspace", NULL},          "0123456789hjkl" },
+    { "jw",    {"jump-workspace", "j", NULL},       "0123456789hjkl" },
+    { "maw",   {"move-all-to-workspace", NULL},     "0123456789hjkl" },
+    { "mouse", {"m", "ma", "ms", "mh", NULL},       "ash" },
+    { "tw",    {"tile-window", "t", NULL},           "0123456789LRTBFClrtbfc" },
+    { NULL,    {NULL},                               NULL }
+};
+
 void trim_whitespace_in_place(char *text) {
     if (!text || text[0] == '\0') {
         return;
@@ -23,61 +41,39 @@ void trim_whitespace_in_place(char *text) {
     }
 }
 
+// Data-driven compact command splitting.
+// Iterates COMPACT_FORMS, tries primary + aliases, picks longest match.
 static void split_compact_command(const char *token, char *cmd_out, char *arg_out,
                                   size_t cmd_size, size_t arg_size) {
-    size_t len = strlen(token);
+    size_t token_len = strlen(token);
+    const char *best_primary = NULL;
+    size_t best_name_len = 0;
 
-    if (len >= 3 && strncmp(token, "cw", 2) == 0 &&
-        (isdigit((unsigned char)token[2]) || strchr("hjkl", token[2]))) {
-        strncpy(cmd_out, "cw", cmd_size - 1);
-        strncpy(arg_out, token + 2, arg_size - 1);
-        return;
+    for (int i = 0; COMPACT_FORMS[i].primary; i++) {
+        const char *suffix = COMPACT_FORMS[i].suffix;
+
+        // Collect primary + aliases to check
+        const char *names[7];
+        int n = 0;
+        names[n++] = COMPACT_FORMS[i].primary;
+        for (int a = 0; a < 5 && COMPACT_FORMS[i].aliases[a]; a++)
+            names[n++] = COMPACT_FORMS[i].aliases[a];
+
+        for (int j = 0; j < n; j++) {
+            size_t name_len = strlen(names[j]);
+            if (token_len > name_len &&
+                strncmp(token, names[j], name_len) == 0 &&
+                strchr(suffix, token[name_len]) &&
+                name_len > best_name_len) {
+                best_primary = COMPACT_FORMS[i].primary;
+                best_name_len = name_len;
+            }
+        }
     }
 
-    if (len >= 3 && strncmp(token, "jw", 2) == 0 &&
-        (isdigit((unsigned char)token[2]) || strchr("hjkl", token[2]))) {
-        strncpy(cmd_out, "jw", cmd_size - 1);
-        strncpy(arg_out, token + 2, arg_size - 1);
-        return;
-    }
-
-    if (len >= 4 && strncmp(token, "maw", 3) == 0 &&
-        (isdigit((unsigned char)token[3]) || strchr("hjkl", token[3]))) {
-        strncpy(cmd_out, "maw", cmd_size - 1);
-        strncpy(arg_out, token + 3, arg_size - 1);
-        return;
-    }
-
-    if (len >= 2 && token[0] == 'j' &&
-        (isdigit((unsigned char)token[1]) || strchr("hjkl", token[1]))) {
-        strncpy(cmd_out, "j", cmd_size - 1);
-        strncpy(arg_out, token + 1, arg_size - 1);
-        return;
-    }
-
-    if (len >= 3 && strncmp(token, "tw", 2) == 0 &&
-        (isdigit((unsigned char)token[2]) || strchr("LRTBFClrtbfc", token[2]))) {
-        strncpy(cmd_out, "tw", cmd_size - 1);
-        strncpy(arg_out, token + 2, arg_size - 1);
-        return;
-    }
-
-    if (len >= 3 && token[0] == 't' && strchr("lrtbcLRTBC", token[1]) && strchr("1234", token[2])) {
-        strncpy(cmd_out, "t", cmd_size - 1);
-        strncpy(arg_out, token + 1, arg_size - 1);
-        return;
-    }
-
-    if (len >= 2 && token[0] == 't' &&
-        (isdigit((unsigned char)token[1]) || strchr("LRTBFClrtbfc", token[1]))) {
-        strncpy(cmd_out, "t", cmd_size - 1);
-        strncpy(arg_out, token + 1, arg_size - 1);
-        return;
-    }
-
-    if (len == 2 && token[0] == 'm' && strchr("ash", token[1])) {
-        strncpy(cmd_out, "m", cmd_size - 1);
-        strncpy(arg_out, token + 1, arg_size - 1);
+    if (best_primary) {
+        strncpy(cmd_out, best_primary, cmd_size - 1);
+        strncpy(arg_out, token + best_name_len, arg_size - 1);
     }
 }
 

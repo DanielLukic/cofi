@@ -52,31 +52,31 @@ int main() {
         // New format - commands without spaces
         {"cw2", "cw", "2", "Change workspace without space"},
         {"cw12", "cw", "12", "Change workspace multi-digit"},
-        {"j3", "j", "3", "Jump workspace without space"},
-        {"j15", "j", "15", "Jump workspace multi-digit"},
+        {"j3", "jw", "3", "Jump workspace without space"},
+        {"j15", "jw", "15", "Jump workspace multi-digit"},
         {"jw4", "jw", "4", "Jump workspace long form"},
         
         // Tiling commands without spaces
-        {"tL", "t", "L", "Tile left without space"},
-        {"tR", "t", "R", "Tile right without space"},
-        {"tT", "t", "T", "Tile top without space"},
-        {"tB", "t", "B", "Tile bottom without space"},
-        {"tF", "t", "F", "Tile fullscreen without space"},
-        {"tC", "t", "C", "Tile center without space"},
-        {"t5", "t", "5", "Tile grid position 5"},
-        {"t9", "t", "9", "Tile grid position 9"},
+        {"tL", "tw", "L", "Tile left without space"},
+        {"tR", "tw", "R", "Tile right without space"},
+        {"tT", "tw", "T", "Tile top without space"},
+        {"tB", "tw", "B", "Tile bottom without space"},
+        {"tF", "tw", "F", "Tile fullscreen without space"},
+        {"tC", "tw", "C", "Tile center without space"},
+        {"t5", "tw", "5", "Tile grid position 5"},
+        {"t9", "tw", "9", "Tile grid position 9"},
         
         // Lowercase tiling options
-        {"tl", "t", "l", "Tile left lowercase"},
-        {"tr", "t", "r", "Tile right lowercase"},
+        {"tl", "tw", "l", "Tile left lowercase"},
+        {"tr", "tw", "r", "Tile right lowercase"},
         
         // Long form tiling
         {"twL", "tw", "L", "Tile left long form"},
         {"tw7", "tw", "7", "Tile grid long form"},
-        {"tr4", "t", "r4", "Direct tile right three quarters"},
-        {"tl2", "t", "l2", "Direct tile left half"},
-        {"tc1", "t", "c1", "Direct tile center narrow"},
-        {"  tr4  ", "t", "r4", "Direct tiling with surrounding spaces"},
+        {"tr4", "tw", "r4", "Direct tile right three quarters"},
+        {"tl2", "tw", "l2", "Direct tile left half"},
+        {"tc1", "tw", "c1", "Direct tile center narrow"},
+        {"  tr4  ", "tw", "r4", "Direct tiling with surrounding spaces"},
         
         // Commands without arguments
         {"tm", "tm", "", "Toggle monitor (no arg)"},
