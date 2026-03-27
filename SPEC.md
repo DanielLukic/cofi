@@ -89,12 +89,33 @@ When the user selects a window and presses Enter:
 - Raise and focus the selected window
 - Close cofi
 
+## System Hotkeys
+
+Cofi runs as a daemon and registers global hotkeys via XGrabKey on the X11 root window.
+
+- Default hotkeys (configurable in options.json):
+  - `Mod1+Tab` — show windows tab
+  - `Mod1+grave` — show command mode
+  - `Mod1+BackSpace` — show workspaces tab
+- Hotkey format: `Modifier+KeyName` using X11 names (`XStringToKeysym`)
+  - Modifiers: `Mod1`, `Mod2`, `Mod3`, `Mod4`, `Control`, `Shift`
+  - Set to `""` to disable a hotkey
+- CapsLock/NumLock variants grabbed automatically
+- Retry/Exit dialog on grab failure (e.g. another app owns the key)
+- When cofi is already visible, hotkeys switch mode inline (no reopen)
+- Pressing a hotkey while visible cancels any pending focus-loss close timer
+
 ## Single Instance
 
 Only one cofi instance runs at a time.
 
-- Launching cofi while it's already open brings the existing window to focus
-- Inter-process communication via D-Bus
+- XGrabKey registration is the natural duplicate-instance guard: a second instance fails to grab hotkeys (BadAccess) and shows a retry/exit dialog
+- No D-Bus or lock files needed
+
+## Daemon vs No-Daemon Mode
+
+- **Daemon (default)** — starts hidden, registers hotkeys, waits. Window shown only on hotkey press.
+- **`--no-daemon`** — shows window immediately, no hotkey registration, quits on close. Useful for WM-shortcut driven workflows.
 
 ## Live Window List
 
@@ -276,6 +297,7 @@ Stored in `~/.config/cofi/`:
   - Text alignment
   - Digit slot mode (`default` / `per-workspace` / `workspaces`)
   - Slot overlay duration in ms (default 750, 0 = disabled)
+  - System hotkeys: `hotkey_windows`, `hotkey_command`, `hotkey_workspaces` (`""` = disabled)
 - `harpoon.json` — harpoon slot assignments with match patterns
 - `names.json` — custom window names
 
@@ -287,9 +309,18 @@ Stored in `~/.config/cofi/`:
 - `--harpoon` — start on the Harpoon tab
 - `--names` — start on the Names tab
 - `--command` — start in command mode
+- `--no-daemon` — show window immediately, quit on close, no hotkey registration
+- `--assign-slots` — assign workspace window slots and exit
 - `--log-level LEVEL` — set log verbosity (trace, debug, info, warn, error, fatal)
 - `--log-file FILE` — write logs to file
 - `--no-log` — disable logging
 - `--version` — show version
 - `--help` — show usage
 - `--help-commands` / `-H` — show command mode help
+
+## Autostart
+
+Scripts provided for automatic startup:
+
+- **XDG autostart** — `scripts/install-xdg.sh` (installs `.desktop` file to `~/.config/autostart/`)
+- **systemd user service** — `scripts/install-systemd.sh` (enables and starts `cofi.service`)
