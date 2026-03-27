@@ -714,7 +714,12 @@ void hide_window(AppData *app) {
     if (!app->window || !app->window_visible) {
         return;
     }
-    
+
+    if (app->no_daemon) {
+        gtk_main_quit();
+        return;
+    }
+
     log_debug("Hiding window without destroying");
     
     // Clear search entry
@@ -1237,57 +1242,39 @@ int main(int argc, char *argv[]) {
     // Setup X11 event monitoring for dynamic window list updates
     setup_x11_event_monitoring(&app);
 
-    // Register system hotkeys via XGrabKey
-    setup_hotkeys(&app);
-    
-    // Initialize the correct tab data based on start tab
-    if (app.current_tab == TAB_WINDOWS) {
-        filter_windows(&app, "");
-    } else if (app.current_tab == TAB_WORKSPACES) {
-        filter_workspaces(&app, "");
-    } else if (app.current_tab == TAB_HARPOON) {
-        filter_harpoon(&app, "");
-    } else if (app.current_tab == TAB_NAMES) {
-        filter_names(&app, "");
-    }
-    
-    // Update display
-    update_display(&app);
-    
-    // ALWAYS reset selection to 0 before showing window
-    reset_selection(&app);
-    log_debug("Selection reset to 0 before showing window");
-    
-    // Show window and run
-    gtk_widget_show_all(app.window);
-    gtk_widget_grab_focus(app.entry);
-    app.window_visible = TRUE;
-    
-    gint64 window_show_time = g_get_monotonic_time();
-    log_debug("Total startup time: %.2fms (window visible)", 
-             (window_show_time - start_time) / 1000.0);
-    
-    // Enter command mode if requested via --command
-    if (app.start_in_command_mode) {
-        app.command_mode.close_on_exit = TRUE; // Set flag to close window on exit
-        enter_command_mode(&app);
-        log_info("Started in command mode via --command flag");
-    }
-    
-    // Get our own window ID for filtering
+    // Realize window to get XID without making it visible
+    gtk_widget_realize(app.window);
     GdkWindow *gdk_window = gtk_widget_get_window(app.window);
     if (gdk_window) {
         app.own_window_id = GDK_WINDOW_XID(gdk_window);
-        log_debug("Stored own window ID: 0x%lx", app.own_window_id);
+        log_debug("Own window ID: 0x%lx", app.own_window_id);
     } else {
         app.own_window_id = 0;
         log_warn("Could not get own window ID");
     }
+
+    if (app.no_daemon) {
+        // No-daemon: show window immediately, quit on close
+        show_window(&app);
+        if (app.start_in_command_mode) {
+            app.command_mode.close_on_exit = TRUE;
+            enter_command_mode(&app);
+        }
+        log_info("Started in no-daemon mode");
+    } else {
+        // Daemon: register hotkeys, stay hidden until hotkey fires
+        setup_hotkeys(&app);
+        log_info("Daemon started, waiting for hotkeys");
+    }
+
+    gint64 window_show_time = g_get_monotonic_time();
+    log_debug("Total startup time: %.2fms", (window_show_time - start_time) / 1000.0);
     
     gtk_main();
     
     // Cleanup
-    cleanup_hotkeys(&app);
+    if (!app.no_daemon)
+        cleanup_hotkeys(&app);
     cleanup_x11_event_monitoring();
     instance_manager_cleanup(instance_manager);
     XCloseDisplay(app.display);

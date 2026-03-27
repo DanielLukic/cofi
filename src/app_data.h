@@ -131,6 +131,7 @@ typedef struct AppData {
     CommandMode command_mode;               // Command mode state
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
+    int no_daemon;                          // Whether to run in no-daemon mode (--no-daemon flag)
 
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown
