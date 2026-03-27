@@ -19,7 +19,6 @@ SOURCES = src/main.c \
           src/filter.c \
           src/log.c \
           src/x11_events.c \
-          src/instance.c \
           src/harpoon.c \
           src/config.c \
           src/harpoon_config.c \
@@ -44,7 +43,6 @@ SOURCES = src/main.c \
           src/workspace_rename_overlay.c \
           src/harpoon_overlay.c \
           src/tiling.c \
-          src/dbus_service.c \
           src/atom_cache.c \
           src/dynamic_display.c \
           src/frame_extents.c \

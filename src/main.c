@@ -24,7 +24,6 @@
 #include "log.h"
 #include "x11_events.h"
 #include "window_highlight.h"
-#include "instance.h"
 #include "harpoon.h"
 #include "match.h"
 #include "command_mode.h"
@@ -36,7 +35,6 @@
 #include "app_init.h"
 #include "overlay_manager.h"
 #include "version.h"
-#include "dbus_service.h"
 #include "hotkeys.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
@@ -1140,41 +1138,6 @@ int main(int argc, char *argv[]) {
     // Timing measurement
     gint64 start_time = g_get_monotonic_time();
     
-    // Check for existing instance
-    InstanceManager *instance_manager = instance_manager_new();
-    if (!instance_manager) {
-        log_error("Failed to create instance manager");
-        if (log_file) fclose(log_file);
-        return 1;
-    }
-    
-    // Determine show mode based on command line arguments
-    ShowMode show_mode;
-    if (app.assign_slots_and_exit) {
-        show_mode = SHOW_MODE_ASSIGN_SLOTS;
-    } else if (app.start_in_command_mode) {
-        show_mode = SHOW_MODE_COMMAND;
-    } else if (app.current_tab == TAB_WORKSPACES) {
-        show_mode = SHOW_MODE_WORKSPACES;
-    } else if (app.current_tab == TAB_HARPOON) {
-        show_mode = SHOW_MODE_HARPOON;
-    } else {
-        show_mode = SHOW_MODE_WINDOWS;
-    }
-    
-    gint64 instance_check_start = g_get_monotonic_time();
-    if (instance_manager_check_existing_with_mode(instance_manager, show_mode)) {
-        gint64 instance_check_end = g_get_monotonic_time();
-        log_info("Another instance is already running, exiting (check took %.2fms)", 
-                 (instance_check_end - instance_check_start) / 1000.0);
-        instance_manager_cleanup(instance_manager);
-        if (log_file) fclose(log_file);
-        return 0;
-    }
-    gint64 instance_check_end = g_get_monotonic_time();
-    log_info("Instance check completed in %.2fms", 
-             (instance_check_end - instance_check_start) / 1000.0);
-    
     // Set program name for WM_CLASS property
     g_set_prgname("cofi");
     
@@ -1215,11 +1178,10 @@ int main(int argc, char *argv[]) {
     log_info("Window enumeration completed in %.2fms (%d windows)", 
              (window_enum_end - window_enum_start) / 1000.0, app.window_count);
 
-    // Handle --assign-slots when this is the first instance
+    // Handle --assign-slots
     if (app.assign_slots_and_exit) {
         assign_workspace_slots(&app);
         log_info("Assigned workspace slots and exiting");
-        instance_manager_cleanup(instance_manager);
         if (log_file) fclose(log_file);
         return 0;
     }
@@ -1232,12 +1194,6 @@ int main(int argc, char *argv[]) {
     
     // Setup GUI
     setup_application(&app, app.config.alignment);
-    
-    // Set app data for instance manager and setup D-Bus service
-    // Do this after GUI setup so the window exists
-    instance_manager_set_app_data(&app);
-    dbus_service_set_app_data(&app);
-    instance_manager_setup_dbus_service(instance_manager);
     
     // Setup X11 event monitoring for dynamic window list updates
     setup_x11_event_monitoring(&app);
@@ -1276,7 +1232,6 @@ int main(int argc, char *argv[]) {
     if (!app.no_daemon)
         cleanup_hotkeys(&app);
     cleanup_x11_event_monitoring();
-    instance_manager_cleanup(instance_manager);
     XCloseDisplay(app.display);
     
     if (log_file) {
