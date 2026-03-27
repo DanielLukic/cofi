@@ -861,7 +861,7 @@ void show_window(AppData *app) {
     if (app->focus_grab_timer > 0) {
         g_source_remove(app->focus_grab_timer);
     }
-    app->focus_grab_timer = g_timeout_add(50, grab_focus_delayed, app);
+    app->focus_grab_timer = g_timeout_add(0, grab_focus_delayed, app);
     
     log_debug("Window shown with multi-method focus grab");
 }

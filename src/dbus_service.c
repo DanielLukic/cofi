@@ -161,13 +161,13 @@ static void handle_method_call(GDBusConnection *connection, const gchar *sender,
                     break;
             }
 
-            // Defer window showing to the GTK main loop
-            g_idle_add(show_window_idle, NULL);
-
-            log_debug("Window show scheduled via D-Bus call");
-
-            // Return success
+            // Return success before showing window
             g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", TRUE));
+
+            // Show window directly — GLib D-Bus handlers run in the main loop
+            show_window_idle(NULL);
+
+            log_debug("Window shown via D-Bus call");
         } else {
             log_error("D-Bus service has no global app_data");
             g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", FALSE));
