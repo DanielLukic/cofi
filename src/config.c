@@ -85,7 +85,10 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"workspaces_per_row\": %d,\n", config->workspaces_per_row);
     fprintf(file, "    \"tile_columns\": %d,\n", config->tile_columns);
     fprintf(file, "    \"digit_slot_mode\": \"%s\",\n", digit_slot_mode_to_string(config->digit_slot_mode));
-    fprintf(file, "    \"slot_overlay_duration_ms\": %d\n", config->slot_overlay_duration_ms);
+    fprintf(file, "    \"slot_overlay_duration_ms\": %d,\n", config->slot_overlay_duration_ms);
+    fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
+    fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
+    fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
     fprintf(file, "  }");
 }
 
@@ -101,6 +104,9 @@ void init_config_defaults(CofiConfig *config) {
     config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
     config->digit_slot_mode = DIGIT_MODE_DEFAULT;
     config->slot_overlay_duration_ms = 750;
+    strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
+    strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
+    strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
 }
 
 // Save configuration options only (harpoon slots saved separately)
@@ -182,6 +188,28 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         }
     } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
         sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
+    } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
+               strstr(line, "\"hotkey_workspaces\":")) {
+        char *colon = strchr(line, ':');
+        if (colon) {
+            char *start = strchr(colon + 1, '"');
+            char val[64] = {0};
+            if (start) {
+                start++;
+                char *end = strchr(start, '"');
+                if (end) {
+                    int len = (int)(end - start);
+                    if (len >= 64) len = 63;
+                    strncpy(val, start, len);
+                }
+            }
+            if (strstr(line, "\"hotkey_windows\":"))
+                strncpy(config->hotkey_windows, val, sizeof(config->hotkey_windows) - 1);
+            else if (strstr(line, "\"hotkey_command\":"))
+                strncpy(config->hotkey_command, val, sizeof(config->hotkey_command) - 1);
+            else
+                strncpy(config->hotkey_workspaces, val, sizeof(config->hotkey_workspaces) - 1);
+        }
     } else if (strstr(line, "\"quick_assign_hotkey\":")) {
         // Ignored — hotkey removed, kept for backwards compat with old config files
     } else if (strstr(line, "\"quick_workspace_slots\":")) {

@@ -885,11 +885,6 @@ static gboolean delayed_command_mode(gpointer data) {
 
 // Called from hotkeys.c — has access to all static helpers in this file
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
-    if (mode == SHOW_MODE_ASSIGN_SLOTS) {
-        assign_workspace_slots(app);
-        return;
-    }
-
     if (!app->window_visible) {
         switch (mode) {
             case SHOW_MODE_COMMAND:
