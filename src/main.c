@@ -23,6 +23,7 @@
 #include "named_window_config.h"
 #include "log.h"
 #include "x11_events.h"
+#include "window_highlight.h"
 #include "instance.h"
 #include "harpoon.h"
 #include "match.h"
@@ -199,7 +200,9 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
             assign_workspace_slots(app);
             Window target = get_workspace_slot_window(&app->workspace_slots, slot);
             if (target != 0) {
+                set_workspace_switch_state(1);
                 activate_window(target);
+                highlight_window(app, target);
                 hide_window(app);
                 log_info("Workspace slot %d -> window 0x%lx", slot, target);
                 return TRUE;
@@ -213,7 +216,9 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
     if (app->current_tab == TAB_WINDOWS) {
         Window target_window = get_slot_window(&app->harpoon, slot);
         if (target_window != 0) {
+            set_workspace_switch_state(1);
             activate_window(target_window);
+            highlight_window(app, target_window);
             hide_window(app);
             log_info("Switched to harpooned window in slot %d", slot);
             return TRUE;
@@ -429,7 +434,9 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 if (win) {
                     log_debug("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
                              win->title, win->id);
+                    set_workspace_switch_state(1);
                     activate_window(win->id);
+                    highlight_window(app, win->id);
                     hide_window(app);
                 }
             } else {
