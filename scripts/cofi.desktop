@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=cofi
+Comment=Window switcher
+Exec=/usr/local/bin/cofi
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
