@@ -70,15 +70,16 @@ static double compute_overlap_fraction(const WindowPosition *a, const WindowPosi
 static int is_occluded(const WindowPosition *win, int win_stack_pos,
                        const WindowPosition *all, int count,
                        Window *stack, unsigned long stack_count) {
+    double total_overlap = 0.0;
     for (int i = 0; i < count; i++) {
         if (all[i].id == win->id) continue;
         int other_pos = get_stack_position(all[i].id, stack, stack_count);
         if (other_pos <= win_stack_pos) continue;  // Below us in stack
 
-        double overlap = compute_overlap_fraction(win, &all[i]);
-        if (overlap >= OCCLUSION_THRESHOLD) {
-            log_debug("Window 0x%lx is %.0f%% occluded by 0x%lx, excluding",
-                      win->id, overlap * 100, all[i].id);
+        total_overlap += compute_overlap_fraction(win, &all[i]);
+        if (total_overlap >= OCCLUSION_THRESHOLD) {
+            log_debug("Window 0x%lx is %.0f%% cumulatively occluded, excluding",
+                      win->id, total_overlap * 100);
             return 1;
         }
     }
@@ -118,7 +119,8 @@ void assign_workspace_slots(AppData *app) {
     for (int i = 0; i < app->window_count && cand_count < MAX_WORKSPACE_SLOTS; i++) {
         WindowInfo *win = &app->windows[i];
 
-        if (win->desktop != current_desktop) continue;
+        if (win->desktop == -1 && strcmp(win->type, "Normal") != 0) continue;
+        if (win->desktop != current_desktop && win->desktop != -1) continue;
         if (win->id == app->own_window_id) continue;
         if (get_window_state(app->display, win->id, "_NET_WM_STATE_HIDDEN")) continue;
         if (get_window_state(app->display, win->id, "_NET_WM_STATE_SHADED")) continue;
