@@ -25,4 +25,7 @@ gboolean process_x11_events(GIOChannel *source, GIOCondition condition, gpointer
 // Handle individual X11 events
 void handle_x11_event(AppData *app, XEvent *event);
 
+// Tell the workspace-switch handler that cofi will handle the ripple itself
+void set_workspace_switch_state(int suppress);
+
 #endif // X11_EVENTS_H

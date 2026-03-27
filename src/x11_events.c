@@ -13,9 +13,40 @@
 #include "harpoon_config.h"
 #include "named_window.h"
 #include "named_window_config.h"
+#include "window_highlight.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
+static guint workspace_switch_timer = 0;
+
+typedef enum {
+    WS_SWITCH_NONE,
+    WS_SWITCH_HIGHLIGHT,  // external switch — ripple on next active window
+    WS_SWITCH_SUPPRESS,   // cofi initiated — cofi handles the ripple
+} WorkspaceSwitchState;
+
+static WorkspaceSwitchState ws_switch_state = WS_SWITCH_NONE;
+
+void set_workspace_switch_state(int suppress) {
+    ws_switch_state = suppress ? WS_SWITCH_SUPPRESS : WS_SWITCH_HIGHLIGHT;
+}
+
+// Timeout fallback: if _NET_ACTIVE_WINDOW doesn't fire within 200ms of
+// workspace switch, highlight whatever is active now
+static gboolean workspace_switch_timeout(gpointer data) {
+    AppData *app = (AppData *)data;
+    workspace_switch_timer = 0;
+    if (ws_switch_state == WS_SWITCH_HIGHLIGHT) {
+        ws_switch_state = WS_SWITCH_NONE;
+        Window active = get_active_window_id(app->display);
+        if (active && active != (Window)app->own_window_id) {
+            highlight_window(app, active);
+        }
+    } else {
+        ws_switch_state = WS_SWITCH_NONE;
+    }
+    return FALSE;
+}
 
 // Function to update the current workspace
 void update_current_workspace(AppData *app) {
@@ -143,17 +174,42 @@ void handle_x11_event(AppData *app, XEvent *event) {
             }
             else if (prop_event->atom == app->atoms.net_active_window) {
                 log_trace("_NET_ACTIVE_WINDOW changed - updating active window");
-                
+
                 // Update active window ID
                 Window new_active_id = get_active_window_id(app->display);
                 app->active_window_id = (int)new_active_id;
-                
+
+                // Highlight active window after workspace switch
+                if (ws_switch_state != WS_SWITCH_NONE && new_active_id &&
+                    new_active_id != (Window)app->own_window_id) {
+                    WorkspaceSwitchState state = ws_switch_state;
+                    ws_switch_state = WS_SWITCH_NONE;
+                    if (workspace_switch_timer > 0) {
+                        g_source_remove(workspace_switch_timer);
+                        workspace_switch_timer = 0;
+                    }
+                    if (state == WS_SWITCH_HIGHLIGHT) {
+                        highlight_window(app, new_active_id);
+                    }
+                    // WS_SWITCH_SUPPRESS: cofi already called highlight_window
+                }
+
                 // We don't need to refresh the whole list, just update history
                 // This will be handled by the next filter operation
             }
             else if (prop_event->atom == app->atoms.net_current_desktop) {
                 log_debug("_NET_CURRENT_DESKTOP changed - updating current workspace");
                 update_current_workspace(app);
+
+                // Set flag for highlight on next active window change
+                if (ws_switch_state != WS_SWITCH_SUPPRESS) {
+                    ws_switch_state = WS_SWITCH_HIGHLIGHT;
+                }
+                if (workspace_switch_timer > 0) {
+                    g_source_remove(workspace_switch_timer);
+                }
+                workspace_switch_timer = g_timeout_add(200, workspace_switch_timeout, app);
+
                 if (app->window) {
                     update_display(app);
                 }
