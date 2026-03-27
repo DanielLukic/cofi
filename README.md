@@ -15,7 +15,7 @@ COFI is a fast window switcher for X11 Linux desktops, written in C with GTK3. I
 - **Command mode** - vim-style commands with no-space syntax for window management (`:cw2`, `:tL`, `:j5`)
 - **Configurable tiling grid** - choose between 2x2 or 3x2 grid layouts with direct tiling commands
 - **Event-driven updates** - real-time window list synchronization
-- **Single instance** - subsequent launches activate existing window
+- **System hotkeys** - daemon mode with configurable XGrabKey hotkeys (Alt+Tab, Alt+`, Alt+Backspace)
 - **Zero external dependencies** - direct X11 window activation
 - **Lightweight** - minimal memory footprint, fast startup
 
@@ -48,25 +48,45 @@ make debug
 
 ## Usage
 
-Run cofi:
+Run cofi (daemon mode — starts hidden, shows on hotkey):
 
 ```bash
 ./cofi
+```
+
+Or run in no-daemon mode (shows immediately, quits on close):
+
+```bash
+./cofi --no-daemon
+```
+
+### Autostart
+
+Install for automatic startup at login:
+
+```bash
+# XDG autostart (desktop entry)
+./scripts/install-xdg.sh
+
+# Or systemd user service
+./scripts/install-systemd.sh
 ```
 
 ### Command-line Options
 
 ![Command Line Options](doc/cofi-options.png)
 
+- `--no-daemon` - Show window immediately, quit on close, no hotkey registration
 - `--log-level LEVEL` (-l) - Set log level: trace, debug, info (default), warn, error, fatal
 - `--log-file FILE` (-f) - Write logs to file
 - `--no-log` (-n) - Disable logging
 - `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
 - `--no-auto-close` (-C) - Don't close window when focus is lost
 - `--workspaces` (-w) - Start with the Workspaces tab active
-- `--harpoon` (-H) - Start with the Harpoon tab active
-- `--names` (-N) - Start with the Names tab active
-- `--command` - Start directly in command mode with `:` prompt active
+- `--harpoon` - Start with the Harpoon tab active
+- `--names` - Start with the Names tab active
+- `--command` (-c) - Start directly in command mode with `:` prompt active
+- `--assign-slots` - Assign workspace window slots and exit
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help
 - `--help-commands` (-H) - Show command mode help
@@ -82,6 +102,9 @@ COFI saves configuration to `~/.config/cofi/`:
   - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
   - `digit_slot_mode` - What Alt+digit does: `"default"` (harpoon), `"per-workspace"` (window slots by position), `"workspaces"` (switch workspace)
   - `slot_overlay_duration_ms` - Duration of slot number overlays in ms (default 750, 0 = disabled)
+  - `hotkey_windows` - System hotkey for windows mode (default `"Mod1+Tab"`, `""` = disabled)
+  - `hotkey_command` - System hotkey for command mode (default `"Mod1+grave"`)
+  - `hotkey_workspaces` - System hotkey for workspaces mode (default `"Mod1+BackSpace"`)
 - **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)
@@ -214,7 +237,7 @@ The display is bottom-aligned (fzf-style) with the most recent window at the bot
 
 See how I assigned shortcuts for Thunderbird (m), and my current project (p), the terminal to that project (t), the volume control (v). Cofi makes it easy to jump to these windows directly. For example `<alt-tab><alt-m>` jumps to my mail. Without releasing the `<alt>` key.
 
-To achieve this, I have my Linux Mint window switching reconfigured to map <alt-tab> to `cofi`. That's it!
+Cofi runs as a daemon and registers Alt+Tab as a system hotkey. No WM configuration needed — just start cofi and it takes over Alt+Tab.
 
 
 ## Advanced Features
@@ -248,11 +271,13 @@ Give windows meaningful custom names for better identification:
 - **Tab interface** - Dedicated Names tab for managing all custom names
 - **Command support** - Use `:assign-name` command or Names tab shortcuts
 
-### Single Instance
+### System Hotkeys
 
-- Only one COFI window runs at a time
-- Subsequent launches activate the existing window
-- Clean process management with lock files
+- Daemon mode registers global hotkeys via XGrabKey on the X11 root window
+- Configurable in `options.json` using `Modifier+KeyName` format (X11 keysym names)
+- Set any hotkey to `""` to disable it
+- CapsLock/NumLock insensitive
+- Retry/Exit dialog if another application holds a key binding
 
 ### Event-Driven Updates
 
@@ -293,7 +318,7 @@ COFI uses a modular architecture with specialized components for:
 - Multi-stage search with intelligent scoring
 - Display formatting and user interface
 - Event-driven updates for real-time synchronization
-- Single instance management with IPC
+- System hotkey registration via XGrabKey
 - Harpoon-style window assignments
 - Workspace switching and management
 
