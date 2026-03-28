@@ -51,4 +51,7 @@ NamedWindow* get_named_window_by_index(NamedWindowManager *manager, int index);
 // Find named window index by window ID
 int find_named_window_index(const NamedWindowManager *manager, Window id);
 
+// Find named window index by custom name
+int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name);
+
 #endif // NAMED_WINDOW_H
