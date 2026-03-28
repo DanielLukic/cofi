@@ -16,6 +16,7 @@ COFI is a fast window switcher for X11 Linux desktops, written in C with GTK3. I
 - **Configurable tiling grid** - choose between 2x2 or 3x2 grid layouts with direct tiling commands
 - **Event-driven updates** - real-time window list synchronization
 - **System hotkeys** - daemon mode with configurable XGrabKey hotkeys (Alt+Tab, Alt+`, Alt+Backspace)
+- **Visual ripple feedback** - smooth 60fps circle ripple highlights the target window on switch
 - **Zero external dependencies** - direct X11 window activation
 - **Lightweight** - minimal memory footprint, fast startup
 
@@ -98,10 +99,11 @@ COFI saves configuration to `~/.config/cofi/`:
 - **`~/.config/cofi/options.json`** - Application settings
   - `close_on_focus_loss` - Auto-close on focus loss (boolean)
   - `align` - Default window alignment
-  - `workspaces_per_row` - Grid layout for workspace view (0 = linear)
+  - `workspaces_per_row` - Grid columns for workspace view (0 = single row)
   - `tile_columns` - Tiling grid columns: 2 (2x2 grid) or 3 (3x2 grid), default 2
   - `digit_slot_mode` - What Alt+digit does: `"default"` (harpoon), `"per-workspace"` (window slots by position), `"workspaces"` (switch workspace)
   - `slot_overlay_duration_ms` - Duration of slot number overlays in ms (default 750, 0 = disabled)
+  - `ripple_enabled` - Show circle ripple on window activation (boolean, default true)
   - `hotkey_windows` - System hotkey for windows mode (default `"Mod1+Tab"`, `""` = disabled)
   - `hotkey_command` - System hotkey for command mode (default `"Mod1+grave"`)
   - `hotkey_workspaces` - System hotkey for workspaces mode (default `"Mod1+BackSpace"`)
@@ -176,7 +178,7 @@ Press `:` to enter command mode for advanced window management operations. Comma
 #### Available Commands
 
 **Window Management:**
-- `:cw [N]` or `:change-workspace [N]` - Move selected window to workspace N
+- `:cw [N|dir]` or `:change-workspace [N|dir]` - Move selected window to workspace N or direction (h/j/k/l)
   
   ![Change Workspace](doc/cofi-move-workspace.png)
 - `:pw` or `:pull-window` or `:p` - Pull selected window to current workspace
@@ -188,6 +190,8 @@ Press `:` to enter command mode for advanced window management operations. Comma
     - Examples: `:tr4` (right 75%), `:tl2` (left 50%), `:tc1` (center 33%), `:tc4` (fullscreen)
   
   ![Tiling Options](doc/cofi-tiling.png)
+- `:maw [N|dir]` or `:move-all-to-workspace [N|dir]` - Move all windows from current workspace to target
+- `:sw` or `:swap-windows` - Swap two windows (positions and sizes)
 - `:cl` or `:close-window` or `:c` - Close selected window
 - `:mw` or `:maximize-window` or `:m` - Toggle maximize
 - `:hm` or `:horizontal-maximize-window` - Toggle horizontal maximize
@@ -199,7 +203,7 @@ Press `:` to enter command mode for advanced window management operations. Comma
 - `:ew` or `:every-workspace` - Toggle sticky (show on all workspaces)
 
 **Navigation:**
-- `:jw [N]` or `:jump-workspace [N]` or `:j [N]` - Jump to workspace N
+- `:jw [N|dir]` or `:jump-workspace [N|dir]` or `:j [N|dir]` - Jump to workspace N or direction (h/j/k/l)
   
   ![Jump to Workspace](doc/cofi-jump-workspace.png)
 - `:help` or `:h` or `:?` - Show command help
@@ -217,6 +221,8 @@ Commands with arguments can be typed without spaces for faster entry:
 - `:tr4` - Tile window right 75%
 - `:tl1` - Tile window left 25%
 - `:tc3` - Center window at 75% size
+- `:jwk` - Jump to workspace above (vim direction)
+- `:mawl` - Move all windows to workspace right
 
 This vim-style syntax works alongside traditional space-separated commands.
 
