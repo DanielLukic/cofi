@@ -18,18 +18,7 @@
 #define MAX_DISPLAY_LINES 20
 
 // Filter scoring constants
-#define SCORE_WORD_BOUNDARY 2000
 #define SCORE_INITIALS_MATCH 1900
-#define SCORE_SUBSEQUENCE_MATCH 1500
-#define SCORE_CLASS_INSTANCE_MATCH 1400
-#define SCORE_FUZZY_BASE 1000
-#define SCORE_FUZZY_CONSECUTIVE_BONUS 10
-#define SCORE_FUZZY_CASE_BONUS 10
-#define SCORE_FUZZY_POSITION_PENALTY 1
-
-// Window type constants
-#define WINDOW_TYPE_NORMAL "Normal"
-#define WINDOW_TYPE_SPECIAL "Special"
 
 // Desktop indicator
 #define DESKTOP_STICKY_INDICATOR "[S] "
@@ -41,24 +30,6 @@
 
 // Font settings
 #define DEFAULT_FONT "DejaVu Sans Mono 15"
-
-// Log file settings
-#define LOG_FILE_NAME "cofi.log"
-#define LOG_FILE_MAX_SIZE 10485760  // 10MB
-
-// Instance lock file
-#define INSTANCE_LOCK_FILE "/tmp/cofi.lock"
-
-// Config directory and file
-#define CONFIG_DIR_NAME ".config"
-#define CONFIG_FILE_NAME "cofi.json"
-
-// Window list update delay (milliseconds)
-#define WINDOW_LIST_UPDATE_DELAY_MS 100
-
-// Keyboard repeat settings
-#define KEY_REPEAT_INITIAL_DELAY 1
-#define KEY_REPEAT_INTERVAL 100
 
 // Error codes for standardized error handling
 typedef enum {
