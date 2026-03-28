@@ -516,9 +516,12 @@ static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
         }
         
         NamedWindow *named_window = &app->filtered_names[named_index];
-        
-        // Find the manager index for this window
+
+        // Find the manager index (by ID for assigned, by name for orphaned)
         int manager_index = find_named_window_index(&app->names, named_window->id);
+        if (manager_index < 0) {
+            manager_index = find_named_window_by_name(&app->names, named_window->custom_name);
+        }
         if (manager_index < 0) {
             log_error("Named window not found in manager");
             hide_overlay(app);

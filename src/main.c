@@ -332,35 +332,25 @@ static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
     // Handle Ctrl+e for edit name
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
         if (app->selection.names_index < app->filtered_names_count) {
-            NamedWindow *named = &app->filtered_names[app->selection.names_index];
-            
-            // Only allow edit if window is assigned
-            if (named->assigned) {
-                show_name_edit_overlay(app);
-                return TRUE;
-            }
+            show_name_edit_overlay(app);
+            return TRUE;
         }
     }
-    
+
     // Handle Ctrl+d for delete name
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
         if (app->selection.names_index < app->filtered_names_count) {
             NamedWindow *named = &app->filtered_names[app->selection.names_index];
-            
-            if (named->assigned) {
-                // Find the index in the main names manager
-                int manager_index = find_named_window_index(&app->names, named->id);
-                if (manager_index >= 0) {
-                    delete_custom_name(&app->names, manager_index);
-                    save_named_windows(&app->names);
-                    
-                    // Refresh the filtered list
-                    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-                    filter_names(app, current_filter);
-                    update_display(app);
-                    
-                    log_info("USER: Deleted custom name '%s'", named->custom_name);
-                }
+            int manager_index = find_named_window_by_name(&app->names, named->custom_name);
+            if (manager_index >= 0) {
+                delete_custom_name(&app->names, manager_index);
+                save_named_windows(&app->names);
+
+                const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+                filter_names(app, current_filter);
+                update_display(app);
+
+                log_info("USER: Deleted custom name '%s'", named->custom_name);
             }
         }
         return TRUE;

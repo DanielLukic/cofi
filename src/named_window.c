@@ -206,9 +206,20 @@ NamedWindow* get_named_window_by_index(NamedWindowManager *manager, int index) {
 
 int find_named_window_index(const NamedWindowManager *manager, Window id) {
     if (!manager || id == 0) return -1;
-    
+
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) {
+    if (!manager || !custom_name) return -1;
+
+    for (int i = 0; i < manager->count; i++) {
+        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) {
             return i;
         }
     }
