@@ -104,12 +104,16 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing
+test: test_window_matcher test_command_parsing test_config_roundtrip
 	cd test && ./run_tests.sh
 
 # Build command parsing test
 test_command_parsing: test/test_command_parsing.c src/command_parser.o
 	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c src/command_parser.o $(LDFLAGS)
+
+# Build config round-trip test
+test_config_roundtrip: test/test_config_roundtrip.c src/config.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_config_roundtrip test/test_config_roundtrip.c src/config.o src/log.o src/utils.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

@@ -29,4 +29,14 @@ if [ -f test_command_parsing ]; then
     fi
 fi
 
+# Run config round-trip tests if they exist
+if [ -f test_config_roundtrip ]; then
+    echo ""
+    echo "Running config round-trip tests..."
+    ./test_config_roundtrip
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
