@@ -78,6 +78,18 @@ int main() {
         {"tc1", "tw", "c1", "Direct tile center narrow"},
         {"  tr4  ", "tw", "r4", "Direct tiling with surrounding spaces"},
         
+        // Move-all-to-workspace (maw) — must not collide with mouse aliases
+        {"maw", "maw", "", "Move-all bare (no arg, shows overlay)"},
+        {"maw3", "maw", "3", "Move-all to workspace 3"},
+        {"mawh", "maw", "h", "Move-all direction left"},
+        {"mawk", "maw", "k", "Move-all direction up"},
+        {"mawj", "maw", "j", "Move-all direction down"},
+        {"mawl", "maw", "l", "Move-all direction right"},
+        {"ma", "ma", "", "Mouse alias bare (no arg)"},
+        {"mah", "mouse", "h", "Mouse alias hide compact"},
+        {"ms", "ms", "", "Mouse alias show bare"},
+        {"msa", "mouse", "a", "Mouse alias show+away compact"},
+
         // Commands without arguments
         {"tm", "tm", "", "Toggle monitor (no arg)"},
         {"sb", "sb", "", "Skip taskbar (no arg)"},
