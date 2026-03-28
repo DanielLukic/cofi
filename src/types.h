@@ -20,8 +20,7 @@ typedef enum {
     SHOW_MODE_WINDOWS,      // Show windows tab
     SHOW_MODE_WORKSPACES,   // Show workspaces tab
     SHOW_MODE_HARPOON,      // Show harpoon tab
-    SHOW_MODE_COMMAND,      // Show in command mode
-    SHOW_MODE_ASSIGN_SLOTS  // Assign workspace slots (no window shown)
+    SHOW_MODE_COMMAND       // Show in command mode
 } ShowMode;
 
 // Forward declarations for main structures
@@ -29,6 +28,5 @@ typedef struct WindowInfo WindowInfo;
 typedef struct WorkspaceInfo WorkspaceInfo;
 typedef struct HarpoonSlot HarpoonSlot;
 typedef struct HarpoonManager HarpoonManager;
-typedef struct DBusService DBusService;
 
 #endif // TYPES_H
