@@ -226,8 +226,8 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
             return TRUE;
         }
     } else {
-        // On non-Windows tabs, digit keys switch workspaces
-        if (slot >= 0 && slot <= 9 && slot < app->workspace_count) {
+        // On non-Windows tabs, digit keys switch workspaces (slot is 1-based)
+        if (slot >= 1 && slot <= 9 && slot <= app->workspace_count) {
             switch_to_desktop(app->display, slot - 1);
             hide_window(app);
             log_info("Switched to workspace %d", slot);
