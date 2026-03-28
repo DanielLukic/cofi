@@ -25,7 +25,7 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 // For bottom-up display, pass flipped offset: (total - visible) - offset.
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset);
 
-// Activate window using wmctrl
-void activate_window(Window window_id);
+// Activate window using direct X11 calls
+void activate_window(Display *display, Window window_id);
 
 #endif // DISPLAY_H

@@ -581,14 +581,8 @@ static int client_msg(Display *disp, Window win, const char *msg,
     }
 }
 
-// Activate window using direct X11 calls (replacing wmctrl)
-void activate_window(Window window_id) {
-    Display *disp = XOpenDisplay(NULL);
-    if (!disp) {
-        log_error("Cannot open display for window activation");
-        return;
-    }
-    
+// Activate window using direct X11 calls
+void activate_window(Display *disp, Window window_id) {
     // Get the window's desktop
     int actual_format;
     unsigned long n_items;
@@ -614,6 +608,4 @@ void activate_window(Window window_id) {
     
     // Flush X11 commands
     XFlush(disp);
-    
-    XCloseDisplay(disp);
 }

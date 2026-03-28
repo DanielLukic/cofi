@@ -433,6 +433,6 @@ void move_window_to_next_monitor(AppData *app) {
     
     // Activate the moved window and close cofi
     log_info("Activating moved window and closing cofi");
-    activate_window(window_to_activate);
+    activate_window(app->display, window_to_activate);
     gtk_main_quit();
 }

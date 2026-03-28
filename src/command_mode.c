@@ -47,7 +47,7 @@ static void log_commanded_window(AppData *app, WindowInfo *win) {
 static void activate_commanded_window(AppData *app, WindowInfo *win) {
     if (!app || !win) return;
     
-    activate_window(win->id);
+    activate_window(app->display, win->id);
     log_commanded_window(app, win);
 }
 

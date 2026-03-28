@@ -40,6 +40,9 @@
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
 // WindowInfo and AppData types are defined in src/app_data.h
 
+// Module-level timer IDs
+static guint command_mode_timer = 0;
+
 // Forward declarations
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app);
 static void on_entry_changed(GtkEntry *entry, AppData *app);
@@ -200,7 +203,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
             Window target = get_workspace_slot_window(&app->workspace_slots, slot);
             if (target != 0) {
                 set_workspace_switch_state(1);
-                activate_window(target);
+                activate_window(app->display, target);
                 highlight_window(app, target);
                 hide_window(app);
                 log_info("Workspace slot %d -> window 0x%lx", slot, target);
@@ -216,7 +219,7 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         Window target_window = get_slot_window(&app->harpoon, slot);
         if (target_window != 0) {
             set_workspace_switch_state(1);
-            activate_window(target_window);
+            activate_window(app->display, target_window);
             highlight_window(app, target_window);
             hide_window(app);
             log_info("Switched to harpooned window in slot %d", slot);
@@ -262,7 +265,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                     break;
             }
             const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
-            log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+            log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         } else {
             // Regular Tab - go forwards
             switch (app->current_tab) {
@@ -283,7 +286,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                     break;
             }
             const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
-            log_info("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+            log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         }
         
         switch_to_tab(app, next_tab);
@@ -312,7 +315,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
         }
         
         const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
-        log_info("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
         return TRUE;
     }
@@ -434,7 +437,7 @@ static gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     log_debug("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
                              win->title, win->id);
                     set_workspace_switch_state(1);
-                    activate_window(win->id);
+                    activate_window(app->display, win->id);
                     highlight_window(app, win->id);
                     hide_window(app);
                 }
@@ -754,6 +757,10 @@ void hide_window(AppData *app) {
         g_source_remove(app->focus_loss_timer);
         app->focus_loss_timer = 0;
     }
+    if (command_mode_timer > 0) {
+        g_source_remove(command_mode_timer);
+        command_mode_timer = 0;
+    }
     if (app->focus_grab_timer > 0) {
         g_source_remove(app->focus_grab_timer);
         app->focus_grab_timer = 0;
@@ -880,6 +887,7 @@ void show_window(AppData *app) {
 }
 
 static gboolean delayed_command_mode(gpointer data) {
+    command_mode_timer = 0;
     AppData *app = (AppData *)data;
     if (app->window_visible)
         enter_command_mode(app);
@@ -893,7 +901,8 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             case SHOW_MODE_COMMAND:
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                g_timeout_add(50, delayed_command_mode, app);
+                if (command_mode_timer > 0) g_source_remove(command_mode_timer);
+                command_mode_timer = g_timeout_add(50, delayed_command_mode, app);
                 break;
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WORKSPACES;
