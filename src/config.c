@@ -19,7 +19,7 @@ static const char* get_config_path(void) {
     return path;
 }
 
-static const char* alignment_to_string(WindowAlignment align) {
+const char* alignment_to_string(WindowAlignment align) {
     switch (align) {
         case ALIGN_CENTER: return "center";
         case ALIGN_TOP: return "top";

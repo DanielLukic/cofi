@@ -37,6 +37,9 @@ typedef struct {
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
 } CofiConfig;
 
+// Alignment string conversion
+const char* alignment_to_string(WindowAlignment align);
+
 // Digit slot mode string conversion
 const char* digit_slot_mode_to_string(DigitSlotMode mode);
 DigitSlotMode string_to_digit_slot_mode(const char *str);

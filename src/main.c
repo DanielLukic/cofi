@@ -50,8 +50,12 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 static void filter_workspaces(AppData *app, const char *filter);
 static void filter_harpoon(AppData *app, const char *filter);
+static void filter_config(AppData *app, const char *filter);
+static void filter_hotkeys(AppData *app, const char *filter);
 static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
+static gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app);
+static gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app);
 
 // Forward declaration for window lifecycle functions
 void destroy_window(AppData *app);
@@ -83,13 +87,18 @@ static void switch_to_tab(AppData *app, TabMode target_tab) {
         filter_harpoon(app, "");
     } else if (target_tab == TAB_NAMES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter named windows...");
-        // Initialize names display with no filter
         filter_names(app, "");
+    } else if (target_tab == TAB_CONFIG) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter config options...");
+        filter_config(app, "");
+    } else if (target_tab == TAB_HOTKEYS) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter hotkey bindings...");
+        filter_hotkeys(app, "");
     }
     reset_selection(app);
-    
+
     update_display(app);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -249,7 +258,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
             // Shift+Tab - go backwards
             switch (app->current_tab) {
                 case TAB_WINDOWS:
-                    next_tab = TAB_NAMES;
+                    next_tab = TAB_HOTKEYS;
                     break;
                 case TAB_WORKSPACES:
                     next_tab = TAB_WINDOWS;
@@ -260,11 +269,17 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                 case TAB_NAMES:
                     next_tab = TAB_HARPOON;
                     break;
+                case TAB_CONFIG:
+                    next_tab = TAB_NAMES;
+                    break;
+                case TAB_HOTKEYS:
+                    next_tab = TAB_CONFIG;
+                    break;
                 default:
                     next_tab = TAB_WINDOWS;
                     break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
             log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         } else {
             // Regular Tab - go forwards
@@ -279,13 +294,19 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                     next_tab = TAB_NAMES;
                     break;
                 case TAB_NAMES:
+                    next_tab = TAB_CONFIG;
+                    break;
+                case TAB_CONFIG:
+                    next_tab = TAB_HOTKEYS;
+                    break;
+                case TAB_HOTKEYS:
                     next_tab = TAB_WINDOWS;
                     break;
                 default:
                     next_tab = TAB_WINDOWS;
                     break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
             log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         }
         
@@ -298,7 +319,7 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
         TabMode next_tab;
         switch (app->current_tab) {
             case TAB_WINDOWS:
-                next_tab = TAB_NAMES;
+                next_tab = TAB_HOTKEYS;
                 break;
             case TAB_WORKSPACES:
                 next_tab = TAB_WINDOWS;
@@ -309,12 +330,18 @@ static gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
             case TAB_NAMES:
                 next_tab = TAB_HARPOON;
                 break;
+            case TAB_CONFIG:
+                next_tab = TAB_NAMES;
+                break;
+            case TAB_HOTKEYS:
+                next_tab = TAB_CONFIG;
+                break;
             default:
                 next_tab = TAB_WINDOWS;
                 break;
         }
-        
-        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names"};
+
+        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
         return TRUE;
@@ -401,6 +428,83 @@ static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
         }
     }
     
+    return FALSE;
+}
+
+// Handle config tab specific keys
+static gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_CONFIG) {
+        return FALSE;
+    }
+
+    // Handle Ctrl+t for toggling boolean fields
+    if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.config_index < app->filtered_config_count) {
+            ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+            if (entry->type == CONFIG_TYPE_BOOL) {
+                // Toggle the boolean value
+                const char *new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
+                char err_buf[128];
+                if (apply_config_setting(&app->config, entry->key, new_value, err_buf, sizeof(err_buf))) {
+                    save_config(&app->config);
+                    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+                    filter_config(app, current_filter);
+                    update_display(app);
+                    log_info("USER: Toggled config '%s' to %s", entry->key, new_value);
+                } else {
+                    log_error("Failed to toggle config '%s': %s", entry->key, err_buf);
+                }
+                return TRUE;
+            }
+        }
+    }
+
+    // Handle Ctrl+e for editing config value
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.config_index < app->filtered_config_count) {
+            show_overlay(app, OVERLAY_CONFIG_EDIT, NULL);
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+// Handle hotkeys tab specific keys
+static gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_HOTKEYS) {
+        return FALSE;
+    }
+
+    // Handle Ctrl+d for delete hotkey binding
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.hotkeys_index < app->filtered_hotkeys_count) {
+            HotkeyBinding *binding = &app->filtered_hotkeys[app->selection.hotkeys_index];
+            remove_hotkey_binding(&app->hotkey_config, binding->key);
+            save_hotkey_config(&app->hotkey_config);
+
+            const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            filter_hotkeys(app, current_filter);
+
+            // Fix selection if it's now out of bounds
+            if (app->selection.hotkeys_index >= app->filtered_hotkeys_count && app->filtered_hotkeys_count > 0) {
+                app->selection.hotkeys_index = app->filtered_hotkeys_count - 1;
+            }
+
+            update_display(app);
+            log_info("USER: Deleted hotkey binding '%s'", binding->key);
+        }
+        return TRUE;
+    }
+
+    // Handle Ctrl+e for edit hotkey command
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.hotkeys_index < app->filtered_hotkeys_count) {
+            show_overlay(app, OVERLAY_HOTKEY_EDIT, NULL);
+            return TRUE;
+        }
+    }
+
     return FALSE;
 }
 
@@ -504,7 +608,15 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
     if (handle_names_tab_keys(event, app)) {
         return TRUE;
     }
-    
+
+    if (handle_config_tab_keys(event, app)) {
+        return TRUE;
+    }
+
+    if (handle_hotkeys_tab_keys(event, app)) {
+        return TRUE;
+    }
+
     if (handle_tab_switching(event, app)) {
         return TRUE;
     }
@@ -588,6 +700,105 @@ static void filter_harpoon(AppData *app, const char *filter) {
 }
 
 
+// Build config entries from current CofiConfig
+static void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
+    *count = 0;
+
+    #define ADD_BOOL(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, (val) ? "true" : "false", CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_BOOL; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_INT(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        snprintf(entries[*count].value, CONFIG_VALUE_LEN, "%d", val); \
+        entries[*count].type = CONFIG_TYPE_INT; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_STR(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_STRING; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_ENUM(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_ENUM; \
+        (*count)++; \
+    } while(0)
+
+    ADD_BOOL("close_on_focus_loss", config->close_on_focus_loss);
+    ADD_ENUM("align", alignment_to_string(config->alignment));
+    ADD_INT("workspaces_per_row", config->workspaces_per_row);
+    ADD_INT("tile_columns", config->tile_columns);
+    ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
+    ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
+    ADD_BOOL("ripple_enabled", config->ripple_enabled);
+    ADD_STR("hotkey_windows", config->hotkey_windows);
+    ADD_STR("hotkey_command", config->hotkey_command);
+    ADD_STR("hotkey_workspaces", config->hotkey_workspaces);
+
+    #undef ADD_BOOL
+    #undef ADD_INT
+    #undef ADD_STR
+    #undef ADD_ENUM
+}
+
+// Config filtering
+static void filter_config(AppData *app, const char *filter) {
+    ConfigEntry all_entries[MAX_CONFIG_ENTRIES];
+    int all_count = 0;
+    build_config_entries(&app->config, all_entries, &all_count);
+
+    app->filtered_config_count = 0;
+
+    if (!filter || !*filter) {
+        for (int i = 0; i < all_count; i++) {
+            app->filtered_config[app->filtered_config_count++] = all_entries[i];
+        }
+        return;
+    }
+
+    for (int i = 0; i < all_count; i++) {
+        char searchable[256];
+        snprintf(searchable, sizeof(searchable), "%s %s", all_entries[i].key, all_entries[i].value);
+        if (has_match(filter, searchable)) {
+            app->filtered_config[app->filtered_config_count++] = all_entries[i];
+        }
+    }
+}
+
+// Hotkeys filtering
+static void filter_hotkeys(AppData *app, const char *filter) {
+    app->filtered_hotkeys_count = 0;
+
+    if (!filter || !*filter) {
+        for (int i = 0; i < app->hotkey_config.count; i++) {
+            app->filtered_hotkeys[app->filtered_hotkeys_count] = app->hotkey_config.bindings[i];
+            app->filtered_hotkeys_indices[app->filtered_hotkeys_count] = i;
+            app->filtered_hotkeys_count++;
+        }
+        return;
+    }
+
+    for (int i = 0; i < app->hotkey_config.count; i++) {
+        char searchable[512];
+        snprintf(searchable, sizeof(searchable), "%s %s",
+                 app->hotkey_config.bindings[i].key,
+                 app->hotkey_config.bindings[i].command);
+        if (has_match(filter, searchable)) {
+            app->filtered_hotkeys[app->filtered_hotkeys_count] = app->hotkey_config.bindings[i];
+            app->filtered_hotkeys_indices[app->filtered_hotkeys_count] = i;
+            app->filtered_hotkeys_count++;
+        }
+    }
+}
+
 // Handle entry text changes
 static void on_entry_changed(GtkEntry *entry, AppData *app) {
     // Skip filtering when in command mode
@@ -609,6 +820,10 @@ static void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_harpoon(app, text);
     } else if (app->current_tab == TAB_NAMES) {
         filter_names(app, text);
+    } else if (app->current_tab == TAB_CONFIG) {
+        filter_config(app, text);
+    } else if (app->current_tab == TAB_HOTKEYS) {
+        filter_hotkeys(app, text);
     }
     // Ensure selection is always 0 after filtering
     reset_selection(app);
