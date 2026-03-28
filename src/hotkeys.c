@@ -11,7 +11,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-// External functions from main.c
 extern void show_window(AppData *app);
 extern void enter_command_mode(AppData *app);
 
@@ -25,7 +24,6 @@ typedef struct {
 static GrabbedHotkey grabbed_hotkeys[MAX_HOTKEY_BINDINGS];
 static int grabbed_count = 0;
 
-// Grab with CapsLock/NumLock variants
 static const unsigned int mod_variants[] = { 0, LockMask, Mod2Mask, LockMask | Mod2Mask };
 #define NUM_MOD_VARIANTS ((int)(sizeof(mod_variants) / sizeof(mod_variants[0])))
 
@@ -127,6 +125,12 @@ static void build_hotkey_list(AppData *app) {
     }
 }
 
+static void append_failed_key(char *failed_keys, size_t size, const char *key_name) {
+    if (failed_keys[0])
+        strncat(failed_keys, "\n", size - strlen(failed_keys) - 1);
+    strncat(failed_keys, key_name, size - strlen(failed_keys) - 1);
+}
+
 void setup_hotkeys(AppData *app) {
     build_hotkey_list(app);
 
@@ -141,8 +145,7 @@ void setup_hotkeys(AppData *app) {
             KeyCode kc = XKeysymToKeycode(display, grabbed_hotkeys[i].sym);
             if (kc == 0) {
                 log_warn("No keycode for hotkey %s", grabbed_hotkeys[i].key_name);
-                if (failed_keys[0]) strncat(failed_keys, "\n", sizeof(failed_keys) - strlen(failed_keys) - 1);
-                strncat(failed_keys, grabbed_hotkeys[i].key_name, sizeof(failed_keys) - strlen(failed_keys) - 1);
+                append_failed_key(failed_keys, sizeof(failed_keys), grabbed_hotkeys[i].key_name);
                 continue;
             }
 
@@ -154,8 +157,7 @@ void setup_hotkeys(AppData *app) {
 
             if (grab_error_occurred) {
                 log_warn("Failed to grab hotkey %s (BadAccess)", grabbed_hotkeys[i].key_name);
-                if (failed_keys[0]) strncat(failed_keys, "\n", sizeof(failed_keys) - strlen(failed_keys) - 1);
-                strncat(failed_keys, grabbed_hotkeys[i].key_name, sizeof(failed_keys) - strlen(failed_keys) - 1);
+                append_failed_key(failed_keys, sizeof(failed_keys), grabbed_hotkeys[i].key_name);
             }
         }
 
@@ -177,7 +179,6 @@ void cleanup_hotkeys(AppData *app) {
     log_debug("Hotkeys unregistered");
 }
 
-// Deferred hotkey command execution (runs on GTK main loop idle)
 typedef struct {
     AppData *app;
     char command[256];
@@ -186,13 +187,11 @@ typedef struct {
 
 static void prefill_command_mode(AppData *app, const char *command) {
     show_window(app);
-    // Enter command mode if not already in it
     if (app->command_mode.state != CMD_MODE_COMMAND)
         enter_command_mode(app);
     strncpy(app->command_mode.command_buffer, command,
             sizeof(app->command_mode.command_buffer) - 1);
     app->command_mode.cursor_pos = (int)strlen(app->command_mode.command_buffer);
-    // Update the entry widget (no ":" prefix — mode indicator label shows it)
     gtk_entry_set_text(GTK_ENTRY(app->entry), command);
     gtk_editable_set_position(GTK_EDITABLE(app->entry), -1);
 }
@@ -210,15 +209,13 @@ static gboolean hotkey_dispatch_idle(gpointer data) {
     char *command = hd->command;
 
     app->focus_timestamp = hd->timestamp;
-    app->pending_hotkey_mode = -1;  // Clear pending flag
+    app->pending_hotkey_mode = -1;
 
-    // Check for "!" auto-execute marker
     size_t len = strlen(command);
     int auto_execute = (len > 0 && command[len - 1] == '!');
     if (auto_execute) command[len - 1] = '\0';
 
     if (auto_execute) {
-        // Get active X11 window as target
         Window active = get_active_window_id(app->display);
         WindowInfo *target = (active && active != app->own_window_id)
                            ? find_window_by_id(app, active) : NULL;
@@ -239,16 +236,19 @@ void handle_hotkey_event(AppData *app, XKeyEvent *event) {
         if (event->keycode == kc && clean_state == grabbed_hotkeys[i].mod) {
             log_debug("Hotkey fired: %s → %s", grabbed_hotkeys[i].key_name, grabbed_hotkeys[i].command);
 
-            // Cancel focus-loss timer if cofi is visible (grab causes synthetic FocusOut)
             if (app->window_visible && app->focus_loss_timer > 0) {
                 g_source_remove(app->focus_loss_timer);
                 app->focus_loss_timer = 0;
             }
 
-            // Signal pending dispatch (suppresses FocusOut command mode reset)
             app->pending_hotkey_mode = 1;
 
             HotkeyDispatch *hd = malloc(sizeof(HotkeyDispatch));
+            if (!hd) {
+                log_error("Failed to allocate HotkeyDispatch");
+                app->pending_hotkey_mode = -1;
+                return;
+            }
             hd->app = app;
             hd->timestamp = event->time;
             strncpy(hd->command, grabbed_hotkeys[i].command, sizeof(hd->command) - 1);
