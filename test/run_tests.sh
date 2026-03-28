@@ -39,4 +39,24 @@ if [ -f test_config_roundtrip ]; then
     fi
 fi
 
+# Run config set/display tests if they exist
+if [ -f test_config_set ]; then
+    echo ""
+    echo "Running config set/display tests..."
+    ./test_config_set
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run hotkey config tests if they exist
+if [ -f test_hotkey_config ]; then
+    echo ""
+    echo "Running hotkey config tests..."
+    ./test_hotkey_config
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

@@ -629,8 +629,9 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
     (void)widget;
     (void)event;
     
-    // Always reset command mode when losing focus
-    if (app->command_mode.state == CMD_MODE_COMMAND) {
+    // Reset command mode on focus loss, unless a hotkey dispatch is pending
+    // (XGrabKey causes synthetic FocusOut that would kill the prefill)
+    if (app->command_mode.state == CMD_MODE_COMMAND && app->pending_hotkey_mode < 0) {
         log_debug("Resetting command mode due to focus loss");
         exit_command_mode(app);
     }

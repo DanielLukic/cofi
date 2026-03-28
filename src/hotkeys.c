@@ -1,5 +1,8 @@
 #include "hotkeys.h"
 #include "app_data.h"
+#include "hotkey_config.h"
+#include "command_mode.h"
+#include "x11_utils.h"
 #include "types.h"
 #include "log.h"
 #include <X11/Xlib.h>
@@ -8,32 +11,24 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Defined in main.c — owns all the tab/mode switching logic
-extern void dispatch_hotkey_mode(AppData *app, ShowMode mode);
-
-static gboolean dispatch_hotkey_idle(gpointer data) {
-    AppData *app = (AppData *)data;
-    dispatch_hotkey_mode(app, (ShowMode)app->pending_hotkey_mode);
-    app->pending_hotkey_mode = -1;
-    return FALSE;
-}
+// External functions from main.c
+extern void show_window(AppData *app);
+extern void enter_command_mode(AppData *app);
 
 typedef struct {
     KeySym sym;
     unsigned int mod;
-    ShowMode mode;
-    char name[64];
-} HotkeyDef;
+    char key_name[64];
+    char command[256];
+} GrabbedHotkey;
 
-// Active grabbed hotkeys (built from config at setup time)
-static HotkeyDef active_hotkeys[3];
-static int active_hotkey_count = 0;
+static GrabbedHotkey grabbed_hotkeys[MAX_HOTKEY_BINDINGS];
+static int grabbed_count = 0;
 
-// Grab with CapsLock/NumLock variants so hotkeys work regardless of lock state
+// Grab with CapsLock/NumLock variants
 static const unsigned int mod_variants[] = { 0, LockMask, Mod2Mask, LockMask | Mod2Mask };
 #define NUM_MOD_VARIANTS ((int)(sizeof(mod_variants) / sizeof(mod_variants[0])))
 
-// Parse "Mod1+Tab" → modifiers mask + KeySym. Returns 1 on success, 0 if disabled/invalid.
 static int parse_hotkey(const char *spec, KeySym *sym_out, unsigned int *mod_out) {
     if (!spec || spec[0] == '\0') return 0;
 
@@ -60,7 +55,6 @@ static int parse_hotkey(const char *spec, KeySym *sym_out, unsigned int *mod_out
         next = strtok(NULL, "+");
     }
 
-    // tok is now the key name
     KeySym sym = XStringToKeysym(tok);
     if (sym == NoSymbol) {
         log_warn("Unknown key name '%s' in hotkey '%s'", tok, spec);
@@ -83,11 +77,11 @@ static int grab_error_handler(Display *display, XErrorEvent *error) {
 
 static void ungrab_all(Display *display) {
     Window root = DefaultRootWindow(display);
-    for (int i = 0; i < active_hotkey_count; i++) {
-        KeyCode kc = XKeysymToKeycode(display, active_hotkeys[i].sym);
+    for (int i = 0; i < grabbed_count; i++) {
+        KeyCode kc = XKeysymToKeycode(display, grabbed_hotkeys[i].sym);
         if (kc == 0) continue;
         for (int v = 0; v < NUM_MOD_VARIANTS; v++)
-            XUngrabKey(display, kc, active_hotkeys[i].mod | mod_variants[v], root);
+            XUngrabKey(display, kc, grabbed_hotkeys[i].mod | mod_variants[v], root);
     }
     XFlush(display);
 }
@@ -95,52 +89,41 @@ static void ungrab_all(Display *display) {
 static void show_grab_failure_dialog(AppData *app, const char *failed_keys) {
     GtkWidget *dialog = gtk_message_dialog_new(
         app->window ? GTK_WINDOW(app->window) : NULL,
-        GTK_DIALOG_MODAL,
-        GTK_MESSAGE_ERROR,
-        GTK_BUTTONS_NONE,
+        GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_NONE,
         "Could not register hotkey(s):\n%s\n\n"
         "Another application may be using these shortcuts.\n"
         "Remove conflicting shortcuts in System Settings → Keyboard Shortcuts,\n"
         "then click Retry.",
         failed_keys);
-
     gtk_dialog_add_button(GTK_DIALOG(dialog), "Retry", GTK_RESPONSE_ACCEPT);
     gtk_dialog_add_button(GTK_DIALOG(dialog), "Exit",  GTK_RESPONSE_CANCEL);
     gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-
     gint response = gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
-
     if (response != GTK_RESPONSE_ACCEPT) {
         log_info("User chose Exit on hotkey grab failure");
         exit(1);
     }
 }
 
-// Build the active hotkey list from config
 static void build_hotkey_list(AppData *app) {
-    active_hotkey_count = 0;
+    grabbed_count = 0;
+    HotkeyConfig *hc = &app->hotkey_config;
 
-    struct { const char *spec; ShowMode mode; } sources[] = {
-        { app->config.hotkey_windows,    SHOW_MODE_WINDOWS    },
-        { app->config.hotkey_command,    SHOW_MODE_COMMAND    },
-        { app->config.hotkey_workspaces, SHOW_MODE_WORKSPACES },
-    };
-
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < hc->count && grabbed_count < MAX_HOTKEY_BINDINGS; i++) {
         KeySym sym;
         unsigned int mod;
-        if (!parse_hotkey(sources[i].spec, &sym, &mod)) {
-            log_info("Hotkey for mode %d disabled or invalid: '%s'", sources[i].mode, sources[i].spec);
+        if (!parse_hotkey(hc->bindings[i].key, &sym, &mod)) {
+            log_info("Hotkey disabled or invalid: '%s'", hc->bindings[i].key);
             continue;
         }
-        active_hotkeys[active_hotkey_count].sym  = sym;
-        active_hotkeys[active_hotkey_count].mod  = mod;
-        active_hotkeys[active_hotkey_count].mode = sources[i].mode;
-        snprintf(active_hotkeys[active_hotkey_count].name,
-                 sizeof(active_hotkeys[active_hotkey_count].name),
-                 "%s", sources[i].spec);
-        active_hotkey_count++;
+        grabbed_hotkeys[grabbed_count].sym = sym;
+        grabbed_hotkeys[grabbed_count].mod = mod;
+        strncpy(grabbed_hotkeys[grabbed_count].key_name, hc->bindings[i].key,
+                sizeof(grabbed_hotkeys[grabbed_count].key_name) - 1);
+        strncpy(grabbed_hotkeys[grabbed_count].command, hc->bindings[i].command,
+                sizeof(grabbed_hotkeys[grabbed_count].command) - 1);
+        grabbed_count++;
     }
 }
 
@@ -154,32 +137,32 @@ void setup_hotkeys(AppData *app) {
         char failed_keys[256] = "";
         XErrorHandler old_handler = XSetErrorHandler(grab_error_handler);
 
-        for (int i = 0; i < active_hotkey_count; i++) {
-            KeyCode kc = XKeysymToKeycode(display, active_hotkeys[i].sym);
+        for (int i = 0; i < grabbed_count; i++) {
+            KeyCode kc = XKeysymToKeycode(display, grabbed_hotkeys[i].sym);
             if (kc == 0) {
-                log_warn("No keycode found for hotkey %s", active_hotkeys[i].name);
+                log_warn("No keycode for hotkey %s", grabbed_hotkeys[i].key_name);
                 if (failed_keys[0]) strncat(failed_keys, "\n", sizeof(failed_keys) - strlen(failed_keys) - 1);
-                strncat(failed_keys, active_hotkeys[i].name, sizeof(failed_keys) - strlen(failed_keys) - 1);
+                strncat(failed_keys, grabbed_hotkeys[i].key_name, sizeof(failed_keys) - strlen(failed_keys) - 1);
                 continue;
             }
 
             grab_error_occurred = 0;
             for (int v = 0; v < NUM_MOD_VARIANTS; v++)
-                XGrabKey(display, kc, active_hotkeys[i].mod | mod_variants[v],
+                XGrabKey(display, kc, grabbed_hotkeys[i].mod | mod_variants[v],
                          root, False, GrabModeAsync, GrabModeAsync);
             XSync(display, False);
 
             if (grab_error_occurred) {
-                log_warn("Failed to grab hotkey %s (BadAccess)", active_hotkeys[i].name);
+                log_warn("Failed to grab hotkey %s (BadAccess)", grabbed_hotkeys[i].key_name);
                 if (failed_keys[0]) strncat(failed_keys, "\n", sizeof(failed_keys) - strlen(failed_keys) - 1);
-                strncat(failed_keys, active_hotkeys[i].name, sizeof(failed_keys) - strlen(failed_keys) - 1);
+                strncat(failed_keys, grabbed_hotkeys[i].key_name, sizeof(failed_keys) - strlen(failed_keys) - 1);
             }
         }
 
         XSetErrorHandler(old_handler);
 
         if (failed_keys[0] == '\0') {
-            log_info("All hotkeys registered (%d active)", active_hotkey_count);
+            log_info("All hotkeys registered (%d active)", grabbed_count);
             break;
         }
 
@@ -194,16 +177,83 @@ void cleanup_hotkeys(AppData *app) {
     log_debug("Hotkeys unregistered");
 }
 
+// Deferred hotkey command execution (runs on GTK main loop idle)
+typedef struct {
+    AppData *app;
+    char command[256];
+    guint32 timestamp;
+} HotkeyDispatch;
+
+static void prefill_command_mode(AppData *app, const char *command) {
+    show_window(app);
+    // Enter command mode if not already in it
+    if (app->command_mode.state != CMD_MODE_COMMAND)
+        enter_command_mode(app);
+    strncpy(app->command_mode.command_buffer, command,
+            sizeof(app->command_mode.command_buffer) - 1);
+    app->command_mode.cursor_pos = (int)strlen(app->command_mode.command_buffer);
+    // Update the entry widget (no ":" prefix — mode indicator label shows it)
+    gtk_entry_set_text(GTK_ENTRY(app->entry), command);
+    gtk_editable_set_position(GTK_EDITABLE(app->entry), -1);
+}
+
+static WindowInfo* find_window_by_id(AppData *app, Window id) {
+    for (int i = 0; i < app->window_count; i++) {
+        if (app->windows[i].id == id) return &app->windows[i];
+    }
+    return NULL;
+}
+
+static gboolean hotkey_dispatch_idle(gpointer data) {
+    HotkeyDispatch *hd = (HotkeyDispatch *)data;
+    AppData *app = hd->app;
+    char *command = hd->command;
+
+    app->focus_timestamp = hd->timestamp;
+    app->pending_hotkey_mode = -1;  // Clear pending flag
+
+    // Check for "!" auto-execute marker
+    size_t len = strlen(command);
+    int auto_execute = (len > 0 && command[len - 1] == '!');
+    if (auto_execute) command[len - 1] = '\0';
+
+    if (auto_execute) {
+        // Get active X11 window as target
+        Window active = get_active_window_id(app->display);
+        WindowInfo *target = (active && active != app->own_window_id)
+                           ? find_window_by_id(app, active) : NULL;
+        execute_command_with_window(command, app, target);
+    } else {
+        prefill_command_mode(app, command);
+    }
+
+    free(hd);
+    return FALSE;
+}
+
 void handle_hotkey_event(AppData *app, XKeyEvent *event) {
     unsigned int clean_state = event->state & ~(LockMask | Mod2Mask);
 
-    for (int i = 0; i < active_hotkey_count; i++) {
-        KeyCode kc = XKeysymToKeycode(app->display, active_hotkeys[i].sym);
-        if (event->keycode == kc && clean_state == active_hotkeys[i].mod) {
-            log_debug("Hotkey fired: %s", active_hotkeys[i].name);
-            app->focus_timestamp = event->time;
-            app->pending_hotkey_mode = (int)active_hotkeys[i].mode;
-            g_idle_add(dispatch_hotkey_idle, app);
+    for (int i = 0; i < grabbed_count; i++) {
+        KeyCode kc = XKeysymToKeycode(app->display, grabbed_hotkeys[i].sym);
+        if (event->keycode == kc && clean_state == grabbed_hotkeys[i].mod) {
+            log_debug("Hotkey fired: %s → %s", grabbed_hotkeys[i].key_name, grabbed_hotkeys[i].command);
+
+            // Cancel focus-loss timer if cofi is visible (grab causes synthetic FocusOut)
+            if (app->window_visible && app->focus_loss_timer > 0) {
+                g_source_remove(app->focus_loss_timer);
+                app->focus_loss_timer = 0;
+            }
+
+            // Signal pending dispatch (suppresses FocusOut command mode reset)
+            app->pending_hotkey_mode = 1;
+
+            HotkeyDispatch *hd = malloc(sizeof(HotkeyDispatch));
+            hd->app = app;
+            hd->timestamp = event->time;
+            strncpy(hd->command, grabbed_hotkeys[i].command, sizeof(hd->command) - 1);
+            hd->command[sizeof(hd->command) - 1] = '\0';
+            g_idle_add(hotkey_dispatch_idle, hd);
             return;
         }
     }

@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <stddef.h>
+
 // Forward declaration for WindowAlignment (defined in app_data.h)
 typedef enum {
     ALIGN_CENTER,
@@ -45,6 +47,13 @@ void load_config(CofiConfig *config);
 
 // Initialize config with default values
 void init_config_defaults(CofiConfig *config);
+
+// Apply a single config setting by key/value. Returns 1 on success, 0 on error.
+int apply_config_setting(CofiConfig *config, const char *key, const char *value,
+                         char *err_buf, size_t err_size);
+
+// Format all config settings as display text. Returns bytes written.
+int format_config_display(const CofiConfig *config, char *buf, size_t buf_size);
 
 /* Scoring constants from fzy (moved to bottom to maintain compatibility) */
 #define SCORE_MATCH_CONSECUTIVE 16
