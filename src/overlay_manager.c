@@ -17,8 +17,12 @@
 static gboolean on_overlay_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 static void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *app);
 static void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app);
+static void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *app);
+static void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppData *app);
 static gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event);
+static gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event);
+static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event);
 
 // External function declarations
 void hide_window(AppData *app); // From main.c
@@ -122,6 +126,12 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_NAME_EDIT:
             create_name_edit_overlay_content(app->dialog_container, app);
             break;
+        case OVERLAY_CONFIG_EDIT:
+            create_config_edit_overlay_content(app->dialog_container, app);
+            break;
+        case OVERLAY_HOTKEY_EDIT:
+            create_hotkey_edit_overlay_content(app->dialog_container, app);
+            break;
         case OVERLAY_NONE:
         default:
             log_error("Invalid overlay type: %d", type);
@@ -145,7 +155,8 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
 
     if (type == OVERLAY_HARPOON_EDIT || type == OVERLAY_WORKSPACE_RENAME) {
         focus_harpoon_edit_entry_delayed(app);
-    } else if (type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT) {
+    } else if (type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
+               type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_EDIT) {
         focus_name_entry_delayed(app);
     } else {
         gtk_widget_grab_focus(app->modal_background);
@@ -222,6 +233,10 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_assign_key_press(app, event);
         case OVERLAY_NAME_EDIT:
             return handle_name_edit_key_press(app, event);
+        case OVERLAY_CONFIG_EDIT:
+            return handle_config_edit_key_press(app, event);
+        case OVERLAY_HOTKEY_EDIT:
+            return handle_hotkey_edit_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -466,6 +481,175 @@ void show_name_assign_overlay(AppData *app) {
 
 void show_name_edit_overlay(AppData *app) {
     show_overlay(app, OVERLAY_NAME_EDIT, NULL);
+}
+
+// Forward declarations for filter functions defined in main.c
+// (these are static in main.c, so we re-declare the ones we need via extern)
+// Instead we'll just call update_display and let the caller handle re-filtering.
+
+static void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
+    if (app->current_tab != TAB_CONFIG || app->filtered_config_count == 0) {
+        GtkWidget *error_label = gtk_label_new("No config option selected");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+
+    ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Edit Config Value");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    char info_text[256];
+    snprintf(info_text, sizeof(info_text), "Key: %s", entry->key);
+    GtkWidget *info_label = gtk_label_new(info_text);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(name_entry), entry->value);
+    gtk_editable_select_region(GTK_EDITABLE(name_entry), 0, -1);
+    gtk_widget_set_size_request(name_entry, 300, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+    g_object_set_data_full(G_OBJECT(parent_container), "config_key",
+                           g_strdup(entry->key), g_free);
+
+    GtkWidget *inst_label = gtk_label_new("Press Enter to apply, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Config edit overlay created for key: %s", entry->key);
+}
+
+static gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+        const char *config_key = g_object_get_data(G_OBJECT(app->dialog_container), "config_key");
+
+        if (!name_entry || !config_key) {
+            log_error("Config edit widgets not found");
+            hide_overlay(app);
+            return TRUE;
+        }
+
+        const char *new_value = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        if (!new_value) {
+            hide_overlay(app);
+            return TRUE;
+        }
+
+        char err_buf[128];
+        if (apply_config_setting(&app->config, config_key, new_value, err_buf, sizeof(err_buf))) {
+            save_config(&app->config);
+            log_info("USER: Set config '%s' = '%s'", config_key, new_value);
+        } else {
+            log_error("Failed to set config '%s': %s", config_key, err_buf);
+        }
+
+        hide_overlay(app);
+
+        // Re-filter and update display - we need to rebuild config entries
+        // The filter_config is static in main.c, so we trigger via entry change
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        // Trigger re-filter by setting entry text (which fires on_entry_changed)
+        gtk_entry_set_text(GTK_ENTRY(app->entry), current_filter);
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
+    if (app->current_tab != TAB_HOTKEYS || app->filtered_hotkeys_count == 0) {
+        GtkWidget *error_label = gtk_label_new("No hotkey binding selected");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+
+    HotkeyBinding *binding = &app->filtered_hotkeys[app->selection.hotkeys_index];
+
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Edit Hotkey Command");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    char info_text[128];
+    snprintf(info_text, sizeof(info_text), "Key: %s", binding->key);
+    GtkWidget *info_label = gtk_label_new(info_text);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(name_entry), binding->command);
+    gtk_editable_select_region(GTK_EDITABLE(name_entry), 0, -1);
+    gtk_widget_set_size_request(name_entry, 400, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+    g_object_set_data_full(G_OBJECT(parent_container), "hotkey_key",
+                           g_strdup(binding->key), g_free);
+
+    GtkWidget *inst_label = gtk_label_new("Press Enter to save, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Hotkey edit overlay created for key: %s", binding->key);
+}
+
+static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+        const char *hotkey_key = g_object_get_data(G_OBJECT(app->dialog_container), "hotkey_key");
+
+        if (!name_entry || !hotkey_key) {
+            log_error("Hotkey edit widgets not found");
+            hide_overlay(app);
+            return TRUE;
+        }
+
+        const char *new_command = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        if (!new_command || strlen(new_command) == 0) {
+            log_info("Empty command entered, canceling edit");
+            hide_overlay(app);
+            return TRUE;
+        }
+
+        // Find the binding and update its command
+        int idx = find_hotkey_binding(&app->hotkey_config, hotkey_key);
+        if (idx >= 0) {
+            strncpy(app->hotkey_config.bindings[idx].command, new_command,
+                    sizeof(app->hotkey_config.bindings[idx].command) - 1);
+            app->hotkey_config.bindings[idx].command[sizeof(app->hotkey_config.bindings[idx].command) - 1] = '\0';
+            save_hotkey_config(&app->hotkey_config);
+            log_info("USER: Updated hotkey '%s' command to '%s'", hotkey_key, new_command);
+        } else {
+            log_error("Hotkey '%s' not found for editing", hotkey_key);
+        }
+
+        hide_overlay(app);
+
+        // Trigger re-filter via entry change
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        gtk_entry_set_text(GTK_ENTRY(app->entry), current_filter);
+
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 void center_dialog_in_overlay(GtkWidget *dialog_content, AppData *app) {

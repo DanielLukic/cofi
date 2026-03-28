@@ -54,7 +54,23 @@ static void format_tab_header(TabMode current_tab, GString *output) {
     } else {
         g_string_append(output, "  Names  ");
     }
-    
+
+    g_string_append(output, "    ");
+
+    if (current_tab == TAB_CONFIG) {
+        g_string_append(output, "[ CONFIG ]");
+    } else {
+        g_string_append(output, "  Config  ");
+    }
+
+    g_string_append(output, "    ");
+
+    if (current_tab == TAB_HOTKEYS) {
+        g_string_append(output, "[ HOTKEYS ]");
+    } else {
+        g_string_append(output, "  Hotkeys  ");
+    }
+
     g_string_append(output, "\n");
 }
 
@@ -502,6 +518,106 @@ static void format_names_display(AppData *app, GString *text, int selected_idx) 
     g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
 }
 
+// Format and display config tab content
+static void format_config_display_tab(AppData *app, GString *text, int selected_idx) {
+    int total_count = app->filtered_config_count;
+    int max_lines = get_max_display_lines_dynamic(app);
+
+    if (total_count == 0) {
+        g_string_append(text, "No matching config options found\n");
+        g_string_append(text, "\n");
+        g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
+        return;
+    }
+
+    int scroll_offset = get_scroll_offset(app);
+
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
+    }
+
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
+        ConfigEntry *entry = &app->filtered_config[i];
+
+        gboolean is_selected = (i == selected_idx);
+
+        if (is_selected) {
+            g_string_append(text, "> ");
+        } else {
+            g_string_append(text, "  ");
+        }
+
+        char key_col[33], value_col[61];
+        fit_column(entry->key, 32, key_col);
+        fit_column(entry->value, 60, value_col);
+
+        g_string_append(text, key_col);
+        g_string_append(text, " ");
+        g_string_append(text, value_col);
+
+        g_string_append(text, "\n");
+    }
+
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
+
+    g_string_append(text, "\n");
+    g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
+}
+
+// Format and display hotkeys tab content
+static void format_hotkeys_display(AppData *app, GString *text, int selected_idx) {
+    int total_count = app->filtered_hotkeys_count;
+    int max_lines = get_max_display_lines_dynamic(app);
+
+    if (total_count == 0) {
+        g_string_append(text, "No hotkey bindings found\n");
+        g_string_append(text, "\n");
+        g_string_append(text, "Shortcuts: Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
+        return;
+    }
+
+    int scroll_offset = get_scroll_offset(app);
+
+    int start_idx = scroll_offset;
+    int end_idx = start_idx + max_lines;
+    if (end_idx > total_count) {
+        end_idx = total_count;
+    }
+
+    int display_line = 0;
+    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
+        HotkeyBinding *binding = &app->filtered_hotkeys[i];
+
+        gboolean is_selected = (i == selected_idx);
+
+        if (is_selected) {
+            g_string_append(text, "> ");
+        } else {
+            g_string_append(text, "  ");
+        }
+
+        char key_col[25], cmd_col[71];
+        fit_column(binding->key, 24, key_col);
+        fit_column(binding->command, 70, cmd_col);
+
+        g_string_append(text, key_col);
+        g_string_append(text, " ");
+        g_string_append(text, cmd_col);
+
+        g_string_append(text, "\n");
+    }
+
+    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
+    overlay_scrollbar(text, total_count, max_lines, flipped);
+
+    g_string_append(text, "\n");
+    g_string_append(text, "Shortcuts: Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
+}
+
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
     int selected_idx = get_selected_index(app);
@@ -540,6 +656,12 @@ void update_display(AppData *app) {
             break;
         case TAB_NAMES:
             format_names_display(app, text, selected_idx);
+            break;
+        case TAB_CONFIG:
+            format_config_display_tab(app, text, selected_idx);
+            break;
+        case TAB_HOTKEYS:
+            format_hotkeys_display(app, text, selected_idx);
             break;
     }
     

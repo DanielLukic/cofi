@@ -9,6 +9,9 @@ void init_selection(AppData *app) {
     app->selection.window_index = 0;
     app->selection.workspace_index = 0;
     app->selection.harpoon_index = 0;
+    app->selection.names_index = 0;
+    app->selection.config_index = 0;
+    app->selection.hotkeys_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
 
@@ -16,6 +19,9 @@ void init_selection(AppData *app) {
     app->selection.window_scroll_offset = 0;
     app->selection.workspace_scroll_offset = 0;
     app->selection.harpoon_scroll_offset = 0;
+    app->selection.names_scroll_offset = 0;
+    app->selection.config_scroll_offset = 0;
+    app->selection.hotkeys_scroll_offset = 0;
 
     log_debug("Selection initialized");
 }
@@ -44,9 +50,15 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_NAMES) {
         app->selection.names_index = 0;
         app->selection.names_scroll_offset = 0;
+    } else if (app->current_tab == TAB_CONFIG) {
+        app->selection.config_index = 0;
+        app->selection.config_scroll_offset = 0;
+    } else if (app->current_tab == TAB_HOTKEYS) {
+        app->selection.hotkeys_index = 0;
+        app->selection.hotkeys_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -84,8 +96,12 @@ int get_selected_index(AppData *app) {
         return app->selection.harpoon_index;
     } else if (app->current_tab == TAB_NAMES) {
         return app->selection.names_index;
+    } else if (app->current_tab == TAB_CONFIG) {
+        return app->selection.config_index;
+    } else if (app->current_tab == TAB_HOTKEYS) {
+        return app->selection.hotkeys_index;
     }
-    
+
     return 0;
 }
 
@@ -142,14 +158,39 @@ void move_selection_up(AppData *app) {
             if (app->selection.names_index < app->filtered_names_count - 1) {
                 app->selection.names_index++;
             } else {
-                // Wrap around to the bottom
                 app->selection.names_index = 0;
             }
             update_scroll_position(app);
             update_display(app);
-            log_info("USER: Selection UP -> Named window[%d] '%s'", 
+            log_info("USER: Selection UP -> Named window[%d] '%s'",
                      app->selection.names_index,
                      app->filtered_names[app->selection.names_index].custom_name);
+        }
+    } else if (app->current_tab == TAB_CONFIG) {
+        if (app->filtered_config_count > 0) {
+            if (app->selection.config_index < app->filtered_config_count - 1) {
+                app->selection.config_index++;
+            } else {
+                app->selection.config_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Config[%d] '%s'",
+                     app->selection.config_index,
+                     app->filtered_config[app->selection.config_index].key);
+        }
+    } else if (app->current_tab == TAB_HOTKEYS) {
+        if (app->filtered_hotkeys_count > 0) {
+            if (app->selection.hotkeys_index < app->filtered_hotkeys_count - 1) {
+                app->selection.hotkeys_index++;
+            } else {
+                app->selection.hotkeys_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Hotkey[%d] '%s'",
+                     app->selection.hotkeys_index,
+                     app->filtered_hotkeys[app->selection.hotkeys_index].key);
         }
     }
 }
@@ -207,14 +248,39 @@ void move_selection_down(AppData *app) {
             if (app->selection.names_index > 0) {
                 app->selection.names_index--;
             } else {
-                // Wrap around to the top (highest index)
                 app->selection.names_index = app->filtered_names_count - 1;
             }
             update_scroll_position(app);
             update_display(app);
-            log_info("USER: Selection DOWN -> Named window[%d] '%s'", 
+            log_info("USER: Selection DOWN -> Named window[%d] '%s'",
                      app->selection.names_index,
                      app->filtered_names[app->selection.names_index].custom_name);
+        }
+    } else if (app->current_tab == TAB_CONFIG) {
+        if (app->filtered_config_count > 0) {
+            if (app->selection.config_index > 0) {
+                app->selection.config_index--;
+            } else {
+                app->selection.config_index = app->filtered_config_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Config[%d] '%s'",
+                     app->selection.config_index,
+                     app->filtered_config[app->selection.config_index].key);
+        }
+    } else if (app->current_tab == TAB_HOTKEYS) {
+        if (app->filtered_hotkeys_count > 0) {
+            if (app->selection.hotkeys_index > 0) {
+                app->selection.hotkeys_index--;
+            } else {
+                app->selection.hotkeys_index = app->filtered_hotkeys_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Hotkey[%d] '%s'",
+                     app->selection.hotkeys_index,
+                     app->filtered_hotkeys[app->selection.hotkeys_index].key);
         }
     }
 }
@@ -317,6 +383,10 @@ int get_scroll_offset(AppData *app) {
             return app->selection.harpoon_scroll_offset;
         case TAB_NAMES:
             return app->selection.names_scroll_offset;
+        case TAB_CONFIG:
+            return app->selection.config_scroll_offset;
+        case TAB_HOTKEYS:
+            return app->selection.hotkeys_scroll_offset;
         default:
             return 0;
     }
@@ -338,6 +408,12 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_NAMES:
             app->selection.names_scroll_offset = offset;
+            break;
+        case TAB_CONFIG:
+            app->selection.config_scroll_offset = offset;
+            break;
+        case TAB_HOTKEYS:
+            app->selection.hotkeys_scroll_offset = offset;
             break;
     }
 }
@@ -363,6 +439,12 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_NAMES:
             total_count = app->filtered_names_count;
+            break;
+        case TAB_CONFIG:
+            total_count = app->filtered_config_count;
+            break;
+        case TAB_HOTKEYS:
+            total_count = app->filtered_hotkeys_count;
             break;
     }
 

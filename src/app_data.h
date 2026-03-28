@@ -14,11 +14,31 @@
 #include "window_highlight.h"
 #include "hotkey_config.h"
 
+// Config tab entry for display
+#define MAX_CONFIG_ENTRIES 32
+#define CONFIG_KEY_LEN 64
+#define CONFIG_VALUE_LEN 128
+
+typedef enum {
+    CONFIG_TYPE_BOOL,
+    CONFIG_TYPE_INT,
+    CONFIG_TYPE_STRING,
+    CONFIG_TYPE_ENUM
+} ConfigFieldType;
+
+typedef struct {
+    char key[CONFIG_KEY_LEN];
+    char value[CONFIG_VALUE_LEN];
+    ConfigFieldType type;
+} ConfigEntry;
+
 typedef enum {
     TAB_WINDOWS,
     TAB_WORKSPACES,
     TAB_HARPOON,
-    TAB_NAMES
+    TAB_NAMES,
+    TAB_CONFIG,
+    TAB_HOTKEYS
 } TabMode;
 
 // Overlay types for dialog management
@@ -32,7 +52,9 @@ typedef enum {
     OVERLAY_HARPOON_DELETE,
     OVERLAY_HARPOON_EDIT,
     OVERLAY_NAME_ASSIGN,
-    OVERLAY_NAME_EDIT
+    OVERLAY_NAME_EDIT,
+    OVERLAY_CONFIG_EDIT,
+    OVERLAY_HOTKEY_EDIT
 } OverlayType;
 
 // Command mode definitions
@@ -62,11 +84,16 @@ typedef struct {
     Window selected_window_id;              // ID of currently selected window (for persistence)
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 
+    int config_index;                       // Selected index in config tab
+    int hotkeys_index;                      // Selected index in hotkeys tab
+
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
     int workspace_scroll_offset;            // First visible item index for workspaces tab
     int harpoon_scroll_offset;              // First visible item index for harpoon tab
     int names_scroll_offset;                // First visible item index for names tab
+    int config_scroll_offset;               // First visible item index for config tab
+    int hotkeys_scroll_offset;              // First visible item index for hotkeys tab
 } SelectionState;
 
 typedef struct AppData {
@@ -107,6 +134,15 @@ typedef struct AppData {
     // Names tab data
     NamedWindow filtered_names[MAX_WINDOWS];
     int filtered_names_count;
+
+    // Config tab data
+    ConfigEntry filtered_config[MAX_CONFIG_ENTRIES];
+    int filtered_config_count;
+
+    // Hotkeys tab data
+    HotkeyBinding filtered_hotkeys[MAX_HOTKEY_BINDINGS];
+    int filtered_hotkeys_indices[MAX_HOTKEY_BINDINGS];  // Actual indices in hotkey_config.bindings
+    int filtered_hotkeys_count;
 
     // Edit state for harpoon
     struct {
