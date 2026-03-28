@@ -43,8 +43,21 @@ void trim_whitespace_in_place(char *text) {
 
 // Data-driven compact command splitting.
 // Iterates COMPACT_FORMS, tries primary + aliases, picks longest match.
+static int is_exact_command(const char *token) {
+    for (int i = 0; COMPACT_FORMS[i].primary; i++) {
+        if (strcmp(token, COMPACT_FORMS[i].primary) == 0) return 1;
+        for (int a = 0; a < 5 && COMPACT_FORMS[i].aliases[a]; a++) {
+            if (strcmp(token, COMPACT_FORMS[i].aliases[a]) == 0) return 1;
+        }
+    }
+    return 0;
+}
+
 static void split_compact_command(const char *token, char *cmd_out, char *arg_out,
                                   size_t cmd_size, size_t arg_size) {
+    // Don't split if token is already an exact command name
+    if (is_exact_command(token)) return;
+
     size_t token_len = strlen(token);
     const char *best_primary = NULL;
     size_t best_name_len = 0;
@@ -52,7 +65,6 @@ static void split_compact_command(const char *token, char *cmd_out, char *arg_ou
     for (int i = 0; COMPACT_FORMS[i].primary; i++) {
         const char *suffix = COMPACT_FORMS[i].suffix;
 
-        // Collect primary + aliases to check
         const char *names[7];
         int n = 0;
         names[n++] = COMPACT_FORMS[i].primary;
