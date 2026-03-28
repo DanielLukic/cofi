@@ -200,6 +200,11 @@ void handle_x11_event(AppData *app, XEvent *event) {
             }
             else if (prop_event->atom == app->atoms.net_current_desktop) {
                 log_debug("_NET_CURRENT_DESKTOP changed - updating current workspace");
+                // Only cancel ripple on external workspace switches — cofi-initiated
+                // switches (WS_SWITCH_SUPPRESS) already have a fresh ripple in flight
+                if (ws_switch_state != WS_SWITCH_SUPPRESS) {
+                    destroy_highlight(app);
+                }
                 update_current_workspace(app);
 
                 // Set flag for highlight on next active window change
