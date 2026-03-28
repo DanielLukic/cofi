@@ -86,6 +86,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"tile_columns\": %d,\n", config->tile_columns);
     fprintf(file, "    \"digit_slot_mode\": \"%s\",\n", digit_slot_mode_to_string(config->digit_slot_mode));
     fprintf(file, "    \"slot_overlay_duration_ms\": %d,\n", config->slot_overlay_duration_ms);
+    fprintf(file, "    \"ripple_enabled\": %s,\n", config->ripple_enabled ? "true" : "false");
     fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
     fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
     fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
@@ -104,6 +105,7 @@ void init_config_defaults(CofiConfig *config) {
     config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
     config->digit_slot_mode = DIGIT_MODE_DEFAULT;
     config->slot_overlay_duration_ms = 750;
+    config->ripple_enabled = 1;  // Default: ripple on
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
     strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
     strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
@@ -188,6 +190,8 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         }
     } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
         sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
+    } else if (strstr(line, "\"ripple_enabled\":")) {
+        config->ripple_enabled = strstr(line, "true") ? 1 : 0;
     } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
                strstr(line, "\"hotkey_workspaces\":")) {
         char *colon = strchr(line, ':');

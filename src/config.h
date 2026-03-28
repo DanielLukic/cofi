@@ -29,6 +29,7 @@ typedef struct {
     int tile_columns;              // Number of columns for tiling grid (2 or 3, default 3)
     DigitSlotMode digit_slot_mode; // What Alt+digit does
     int slot_overlay_duration_ms;  // Duration of slot number overlays (0 = disabled)
+    int ripple_enabled;            // Whether to show ripple effect on window activation (1=on, 0=off)
     char hotkey_windows[64];       // Hotkey for windows mode, e.g. "Mod1+Tab" ("" = disabled)
     char hotkey_command[64];       // Hotkey for command mode, e.g. "Mod1+grave"
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"

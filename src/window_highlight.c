@@ -149,6 +149,7 @@ static gboolean ripple_step_cb(gpointer data) {
 }
 
 void highlight_window(AppData *app, Window target) {
+    if (!app->config.ripple_enabled) return;
     destroy_highlight(app);
 
     WindowHighlight *hl = &app->highlight;
