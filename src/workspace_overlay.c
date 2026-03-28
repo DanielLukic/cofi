@@ -33,57 +33,28 @@ void create_workspace_jump_overlay_content(GtkWidget *parent_container, AppData 
     // Layout: arrow diamond on left | separator | workspace grid on right
     GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
 
-    // Create workspace display based on configuration
-    if (app->config.workspaces_per_row > 0) {
-        // Grid layout
-        GtkWidget *grid = gtk_grid_new();
-        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
-        gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
-        gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
-        gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
+    // Grid layout (per_row=0 means single row with all workspaces)
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
-        int per_row = app->config.workspaces_per_row;
+    int per_row = app->config.workspaces_per_row > 0
+                ? app->config.workspaces_per_row : workspace_count;
 
-        for (int i = 0; i < workspace_count; i++) {
-            int row = i / per_row;
-            int col = i % per_row;
+    for (int i = 0; i < workspace_count; i++) {
+        int row = i / per_row;
+        int col = i % per_row;
 
-            const char *workspace_name = get_workspace_name_or_default(names, i);
+        const char *workspace_name = get_workspace_name_or_default(names, i);
 
-            GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1, workspace_name,
-                FALSE, (i == user_current_desktop)
-            );
-            gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
-        }
-    } else {
-        // Linear list layout
-        GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
-                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-        gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
-
-        GtkWidget *text_view = gtk_text_view_new();
-        gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_container_add(GTK_CONTAINER(scrolled), text_view);
-
-        GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
-        GString *display_text = g_string_new("");
-
-        for (int i = 0; i < workspace_count; i++) {
-            const char *workspace_name = get_workspace_name_or_default(names, i);
-            if (i == user_current_desktop) {
-                g_string_append_printf(display_text, "◆%d◆ %s (current)\n", i + 1, workspace_name);
-            } else {
-                g_string_append_printf(display_text, "[%d] %s\n", i + 1, workspace_name);
-            }
-        }
-
-        gtk_text_buffer_set_text(buffer, display_text->str, -1);
-        g_string_free(display_text, TRUE);
+        GtkWidget *ws_widget = create_workspace_widget_overlay(
+            i + 1, workspace_name,
+            FALSE, (i == user_current_desktop)
+        );
+        gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
     }
 
     free_workspace_names(names);
@@ -130,58 +101,27 @@ void create_workspace_move_overlay_content(GtkWidget *parent_container, AppData 
     // Layout: arrow diamond on left | separator | workspace grid on right
     GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
 
-    // Create workspace display based on configuration
-    if (app->config.workspaces_per_row > 0) {
-        GtkWidget *grid = gtk_grid_new();
-        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
-        gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
-        gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
-        gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
+    // Grid layout (per_row=0 means single row with all workspaces)
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
-        int per_row = app->config.workspaces_per_row;
+    int per_row = app->config.workspaces_per_row > 0
+                ? app->config.workspaces_per_row : workspace_count;
 
-        for (int i = 0; i < workspace_count; i++) {
-            int row = i / per_row;
-            int col = i % per_row;
+    for (int i = 0; i < workspace_count; i++) {
+        int row = i / per_row;
+        int col = i % per_row;
 
-            const char *workspace_name = get_workspace_name_or_default(names, i);
-            GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1, workspace_name,
-                (i == window_current_desktop), (i == user_current_desktop)
-            );
-            gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
-        }
-    } else {
-        GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
-                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-        gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
-
-        GtkWidget *text_view = gtk_text_view_new();
-        gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_container_add(GTK_CONTAINER(scrolled), text_view);
-
-        GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
-        GString *display_text = g_string_new("");
-
-        for (int i = 0; i < workspace_count; i++) {
-            const char *workspace_name = get_workspace_name_or_default(names, i);
-            if (i == window_current_desktop && i == user_current_desktop) {
-                g_string_append_printf(display_text, "★%d★ %s (window & user here)\n", i + 1, workspace_name);
-            } else if (i == window_current_desktop) {
-                g_string_append_printf(display_text, "●%d● %s (window here)\n", i + 1, workspace_name);
-            } else if (i == user_current_desktop) {
-                g_string_append_printf(display_text, "◆%d◆ %s (user here)\n", i + 1, workspace_name);
-            } else {
-                g_string_append_printf(display_text, "[%d] %s\n", i + 1, workspace_name);
-            }
-        }
-
-        gtk_text_buffer_set_text(buffer, display_text->str, -1);
-        g_string_free(display_text, TRUE);
+        const char *workspace_name = get_workspace_name_or_default(names, i);
+        GtkWidget *ws_widget = create_workspace_widget_overlay(
+            i + 1, workspace_name,
+            (i == window_current_desktop), (i == user_current_desktop)
+        );
+        gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
     }
 
     free_workspace_names(names);
@@ -318,53 +258,27 @@ void create_workspace_move_all_overlay_content(GtkWidget *parent_container, AppD
     // Layout: arrow diamond on left | separator | workspace grid on right
     GtkWidget *ws_container = create_workspace_layout_with_arrows(parent_container);
 
-    if (app->config.workspaces_per_row > 0) {
-        GtkWidget *grid = gtk_grid_new();
-        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
-        gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
-        gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
-        gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
-        gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
+    // Grid layout (per_row=0 means single row with all workspaces)
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(grid, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(ws_container), grid, TRUE, TRUE, 0);
 
-        int per_row = app->config.workspaces_per_row;
+    int per_row = app->config.workspaces_per_row > 0
+                ? app->config.workspaces_per_row : workspace_count;
 
-        for (int i = 0; i < workspace_count; i++) {
-            int row = i / per_row;
-            int col = i % per_row;
+    for (int i = 0; i < workspace_count; i++) {
+        int row = i / per_row;
+        int col = i % per_row;
 
-            const char *workspace_name = get_workspace_name_or_default(names, i);
-            GtkWidget *ws_widget = create_workspace_widget_overlay(
-                i + 1, workspace_name,
-                FALSE, (i == user_current_desktop)
-            );
-            gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
-        }
-    } else {
-        GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
-                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-        gtk_widget_set_size_request(scrolled, 400, 200);
-        gtk_box_pack_start(GTK_BOX(ws_container), scrolled, TRUE, TRUE, 0);
-
-        GtkWidget *text_view = gtk_text_view_new();
-        gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text_view), FALSE);
-        gtk_container_add(GTK_CONTAINER(scrolled), text_view);
-
-        GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
-        GString *display_text = g_string_new("");
-
-        for (int i = 0; i < workspace_count; i++) {
-            const char *workspace_name = get_workspace_name_or_default(names, i);
-            if (i == user_current_desktop) {
-                g_string_append_printf(display_text, "◆%d◆ %s (source)\n", i + 1, workspace_name);
-            } else {
-                g_string_append_printf(display_text, "[%d] %s\n", i + 1, workspace_name);
-            }
-        }
-
-        gtk_text_buffer_set_text(buffer, display_text->str, -1);
-        g_string_free(display_text, TRUE);
+        const char *workspace_name = get_workspace_name_or_default(names, i);
+        GtkWidget *ws_widget = create_workspace_widget_overlay(
+            i + 1, workspace_name,
+            FALSE, (i == user_current_desktop)
+        );
+        gtk_grid_attach(GTK_GRID(grid), ws_widget, col, row, 1, 1);
     }
 
     free_workspace_names(names);
