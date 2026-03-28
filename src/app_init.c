@@ -36,6 +36,14 @@ void init_app_data(AppData *app) {
     init_workspace_slots(&app->workspace_slots);
     init_slot_overlay_state(&app->slot_overlays);
     init_window_highlight(&app->highlight);
+    init_hotkey_config(&app->hotkey_config);
+    if (!load_hotkey_config(&app->hotkey_config)) {
+        // No hotkeys.json yet — create defaults from legacy config
+        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_windows, "show windows!");
+        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_command, "show command!");
+        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_workspaces, "show workspaces!");
+        save_hotkey_config(&app->hotkey_config);
+    }
     
     // Initialize harpoon tab data
     app->filtered_harpoon_count = 0;

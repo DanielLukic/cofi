@@ -14,4 +14,5 @@ void cleanup_hotkeys(AppData *app);
 // Call from handle_x11_event when a KeyPress event is received.
 void handle_hotkey_event(AppData *app, XKeyEvent *event);
 
+
 #endif // HOTKEYS_H

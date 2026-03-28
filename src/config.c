@@ -270,3 +270,127 @@ void load_config(CofiConfig *config) {
     fclose(file);
     log_info("Loaded config options from %s", path);
 }
+
+// Parse a boolean value string. Returns 1/0 on success, -1 on invalid.
+static int parse_bool_value(const char *value) {
+    if (!value) return -1;
+    if (strcmp(value, "true") == 0 || strcmp(value, "on") == 0 || strcmp(value, "1") == 0) return 1;
+    if (strcmp(value, "false") == 0 || strcmp(value, "off") == 0 || strcmp(value, "0") == 0) return 0;
+    return -1;
+}
+
+int apply_config_setting(CofiConfig *config, const char *key, const char *value,
+                         char *err_buf, size_t err_size) {
+    if (!config || !key || !value) {
+        if (err_buf) snprintf(err_buf, err_size, "NULL argument");
+        return 0;
+    }
+
+    // Boolean fields
+    if (strcmp(key, "close_on_focus_loss") == 0) {
+        int v = parse_bool_value(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
+        config->close_on_focus_loss = v;
+        return 1;
+    }
+    if (strcmp(key, "ripple_enabled") == 0) {
+        int v = parse_bool_value(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
+        config->ripple_enabled = v;
+        return 1;
+    }
+
+    // Enum: alignment
+    if (strcmp(key, "align") == 0) {
+        WindowAlignment a = string_to_alignment(value);
+        // string_to_alignment returns ALIGN_CENTER for unknown — detect by checking round-trip
+        if (a == ALIGN_CENTER && strcmp(value, "center") != 0) {
+            snprintf(err_buf, err_size, "Unknown alignment: %s", value);
+            return 0;
+        }
+        config->alignment = a;
+        return 1;
+    }
+
+    // Enum: digit_slot_mode
+    if (strcmp(key, "digit_slot_mode") == 0) {
+        DigitSlotMode m = string_to_digit_slot_mode(value);
+        if (m == DIGIT_MODE_DEFAULT && strcmp(value, "default") != 0) {
+            snprintf(err_buf, err_size, "Unknown mode: %s (use default/per-workspace/workspaces)", value);
+            return 0;
+        }
+        config->digit_slot_mode = m;
+        return 1;
+    }
+
+    // Integer: workspaces_per_row (>= 0)
+    if (strcmp(key, "workspaces_per_row") == 0) {
+        int v = atoi(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Must be >= 0"); return 0; }
+        config->workspaces_per_row = v;
+        return 1;
+    }
+
+    // Integer: tile_columns (2 or 3)
+    if (strcmp(key, "tile_columns") == 0) {
+        int v = atoi(value);
+        if (v != 2 && v != 3) { snprintf(err_buf, err_size, "Must be 2 or 3"); return 0; }
+        config->tile_columns = v;
+        return 1;
+    }
+
+    // Integer: slot_overlay_duration_ms (>= 0)
+    if (strcmp(key, "slot_overlay_duration_ms") == 0) {
+        int v = atoi(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Must be >= 0"); return 0; }
+        config->slot_overlay_duration_ms = v;
+        return 1;
+    }
+
+    // String: hotkeys
+    if (strcmp(key, "hotkey_windows") == 0) {
+        strncpy(config->hotkey_windows, value, sizeof(config->hotkey_windows) - 1);
+        config->hotkey_windows[sizeof(config->hotkey_windows) - 1] = '\0';
+        return 1;
+    }
+    if (strcmp(key, "hotkey_command") == 0) {
+        strncpy(config->hotkey_command, value, sizeof(config->hotkey_command) - 1);
+        config->hotkey_command[sizeof(config->hotkey_command) - 1] = '\0';
+        return 1;
+    }
+    if (strcmp(key, "hotkey_workspaces") == 0) {
+        strncpy(config->hotkey_workspaces, value, sizeof(config->hotkey_workspaces) - 1);
+        config->hotkey_workspaces[sizeof(config->hotkey_workspaces) - 1] = '\0';
+        return 1;
+    }
+
+    snprintf(err_buf, err_size, "Unknown config key: %s", key);
+    return 0;
+}
+
+int format_config_display(const CofiConfig *config, char *buf, size_t buf_size) {
+    if (!config || !buf || buf_size == 0) return 0;
+
+    return snprintf(buf, buf_size,
+        "close_on_focus_loss    %s\n"
+        "align                  %s\n"
+        "workspaces_per_row     %d\n"
+        "tile_columns           %d\n"
+        "digit_slot_mode        %s\n"
+        "slot_overlay_duration_ms %d\n"
+        "ripple_enabled         %s\n"
+        "hotkey_windows         %s\n"
+        "hotkey_command         %s\n"
+        "hotkey_workspaces      %s\n",
+        config->close_on_focus_loss ? "true" : "false",
+        alignment_to_string(config->alignment),
+        config->workspaces_per_row,
+        config->tile_columns,
+        digit_slot_mode_to_string(config->digit_slot_mode),
+        config->slot_overlay_duration_ms,
+        config->ripple_enabled ? "true" : "false",
+        config->hotkey_windows,
+        config->hotkey_command,
+        config->hotkey_workspaces
+    );
+}

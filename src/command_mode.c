@@ -11,6 +11,8 @@
 #include "x11_utils.h"
 #include "workspace_utils.h"
 #include "app_data.h"
+#include "hotkey_config.h"
+#include "types.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 #include <unistd.h>
@@ -20,8 +22,9 @@
 #include <ctype.h>
 #include <limits.h>
 
-// External function from main.c
+// External functions from main.c
 extern void hide_window(AppData *app);
+extern void dispatch_hotkey_mode(AppData *app, ShowMode mode);
 
 // Global command history that persists across window recreations
 static struct {
@@ -336,23 +339,13 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
     
-    // If help is being shown, any key press should dismiss it first
+    // If help/config is being shown, handle navigation keys and Esc
     if (app->command_mode.showing_help) {
         if (handle_help_navigation_key(event, app)) {
             return TRUE;
         }
-
-        app->command_mode.showing_help = FALSE;
-        
-        // If they pressed Escape, exit command mode entirely
-        if (event->keyval == GDK_KEY_Escape) {
-            exit_command_mode(app);
-            return TRUE;
-        }
-        
-        // For any other key, just dismiss help and return to command mode
-        update_display(app);
-        // Let the key be processed normally below
+        // All other keys fall through to normal command mode handling
+        // Display stays visible until Esc (exit_command_mode clears it)
     }
     
     switch (event->keyval) {
@@ -537,7 +530,7 @@ static TileOption parse_tile_option(const char *arg) {
 }
 
 
-static gboolean execute_single_command(const char *command, AppData *app) {
+static gboolean execute_single_command_with_window(const char *command, AppData *app, WindowInfo *window) {
     char cmd_name[128] = {0};
     char arg[256] = {0};
 
@@ -555,36 +548,40 @@ static gboolean execute_single_command(const char *command, AppData *app) {
         return FALSE;
     }
 
-    WindowInfo *selected_window = get_selected_window(app);
-    return cmd->handler(app, selected_window, arg);
+    return cmd->handler(app, window, arg);
 }
 
-gboolean execute_command(const char *command, AppData *app) {
-    if (!command || !app) return FALSE;
-
-    log_info("USER: Executing command: '%s'", command);
-
+static gboolean execute_command_impl(const char *command, AppData *app, WindowInfo *window) {
     char local[512] = {0};
     strncpy(local, command, sizeof(local) - 1);
     trim_whitespace_in_place(local);
 
-    if (local[0] == '\0') {
-        return TRUE;
-    }
+    if (local[0] == '\0') return TRUE;
 
     char *saveptr = NULL;
     char *token = strtok_r(local, ",", &saveptr);
     while (token) {
         trim_whitespace_in_place(token);
         if (token[0] != '\0') {
-            if (!execute_single_command(token, app)) {
+            if (!execute_single_command_with_window(token, app, window)) {
                 return FALSE;
             }
         }
         token = strtok_r(NULL, ",", &saveptr);
     }
-
     return TRUE;
+}
+
+gboolean execute_command(const char *command, AppData *app) {
+    if (!command || !app) return FALSE;
+    log_info("USER: Executing command: '%s'", command);
+    return execute_command_impl(command, app, get_selected_window(app));
+}
+
+gboolean execute_command_with_window(const char *command, AppData *app, WindowInfo *window) {
+    if (!command || !app) return FALSE;
+    log_info("HOTKEY: Executing command: '%s'", command);
+    return execute_command_impl(command, app, window);
 }
 
 // Command handler implementations
@@ -1104,6 +1101,141 @@ gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __a
     
     log_info("Window swap completed");
     return TRUE;
+}
+
+static void show_error_in_display(AppData *app, const char *msg) {
+    if (app->textbuffer) {
+        gtk_text_buffer_set_text(app->textbuffer, msg, -1);
+    }
+    app->command_mode.showing_help = TRUE;
+}
+
+gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    if (!args || args[0] == '\0') {
+        show_error_in_display(app, "Usage: set <key> <value>\n\nType :config to see available keys.");
+        return FALSE;
+    }
+
+    // Split args into key and value at first [ =]+ separator
+    char key[64] = {0};
+    const char *value = "";
+    const char *sep = args;
+    while (*sep && *sep != ' ' && *sep != '=') sep++;
+    size_t key_len = (size_t)(sep - args);
+    if (key_len >= sizeof(key)) key_len = sizeof(key) - 1;
+    memcpy(key, args, key_len);
+    while (*sep == ' ' || *sep == '=') sep++;
+    value = sep;
+
+    if (value[0] == '\0') {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Missing value for '%s'.\n\nType :config to see current values.", key);
+        show_error_in_display(app, msg);
+        return FALSE;
+    }
+
+    char err[256] = {0};
+    if (apply_config_setting(&app->config, key, value, err, sizeof(err))) {
+        save_config(&app->config);
+        log_info("Config: %s = %s", key, value);
+        // Refresh config display so user sees the change
+        char buf[2048] = {0};
+        format_config_display(&app->config, buf, sizeof(buf));
+        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
+        app->command_mode.showing_help = TRUE;
+    } else {
+        char msg[512];
+        snprintf(msg, sizeof(msg), "Error: %s\n\nType :config to see available keys.", err);
+        show_error_in_display(app, msg);
+    }
+    return FALSE;
+}
+
+gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
+    char buf[2048] = {0};
+    format_config_display(&app->config, buf, sizeof(buf));
+    log_info("Current config:\n%s", buf);
+
+    // Show in command mode help display
+    app->command_mode.showing_help = TRUE;
+    app->command_mode.help_scroll_offset = 0;
+
+    // Build help-style display with config values
+    GtkTextBuffer *buffer = app->textbuffer;
+    gtk_text_buffer_set_text(buffer, buf, -1);
+
+    return FALSE;
+}
+
+gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    ShowMode mode = SHOW_MODE_WINDOWS;
+
+    if (args && args[0] != '\0') {
+        if (strcmp(args, "windows") == 0)         mode = SHOW_MODE_WINDOWS;
+        else if (strcmp(args, "command") == 0)     mode = SHOW_MODE_COMMAND;
+        else if (strcmp(args, "workspaces") == 0)  mode = SHOW_MODE_WORKSPACES;
+        else if (strcmp(args, "harpoon") == 0)     mode = SHOW_MODE_HARPOON;
+        else if (strcmp(args, "names") == 0) {
+            app->current_tab = TAB_NAMES;
+            update_display(app);
+            return FALSE;
+        } else {
+            show_error_in_display(app, "Usage: show [windows|command|workspaces|harpoon|names]");
+            return FALSE;
+        }
+    }
+
+    // Exit command mode first, then dispatch
+    exit_command_mode(app);
+    dispatch_hotkey_mode(app, mode);
+    return FALSE;
+}
+
+gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    char key[64] = {0};
+    char cmd[256] = {0};
+    int action = parse_hotkey_command(args, key, sizeof(key), cmd, sizeof(cmd));
+
+    if (action == 0) {
+        // Show bindings
+        char buf[4096] = {0};
+        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
+        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
+        app->command_mode.showing_help = TRUE;
+        return FALSE;
+    }
+
+    if (action == 1) {
+        // Bind
+        add_hotkey_binding(&app->hotkey_config, key, cmd);
+        save_hotkey_config(&app->hotkey_config);
+        log_info("Hotkey bound: %s → %s", key, cmd);
+
+        // Show updated bindings
+        char buf[4096] = {0};
+        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
+        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
+        app->command_mode.showing_help = TRUE;
+        return FALSE;
+    }
+
+    if (action == 2) {
+        // Unbind
+        if (remove_hotkey_binding(&app->hotkey_config, key)) {
+            save_hotkey_config(&app->hotkey_config);
+            log_info("Hotkey unbound: %s", key);
+        } else {
+            log_warn("No hotkey binding for: %s", key);
+        }
+
+        char buf[4096] = {0};
+        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
+        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
+        app->command_mode.showing_help = TRUE;
+        return FALSE;
+    }
+
+    return FALSE;
 }
 
 gboolean cmd_assign_slots(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {

@@ -38,6 +38,10 @@ gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_assign_slots(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_set_config(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_show_config(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_show(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_hotkeys(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
@@ -77,6 +81,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "cl, close-window, c"
     },
     {
+        .primary = "config",
+        .aliases = {"conf", "cfg", NULL},
+        .handler = cmd_show_config,
+        .description = "Show current configuration",
+        .help_format = "config, conf"
+    },
+    {
         .primary = "cw",
         .aliases = {"change-workspace", NULL},
         .handler = cmd_change_workspace,
@@ -96,6 +107,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_horizontal_maximize,
         .description = "Toggle horizontal maximize",
         .help_format = "hm, horizontal-maximize-window, hmw"
+    },
+    {
+        .primary = "hotkeys",
+        .aliases = {"hotkey", "hk", NULL},
+        .handler = cmd_hotkeys,
+        .description = "Manage system hotkey bindings",
+        .help_format = "hotkeys [key] [command]"
     },
     {
         .primary = "jw",
@@ -138,6 +156,20 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_rename_workspace,
         .description = "Rename a workspace (N = workspace number, or current if omitted)",
         .help_format = "rw, rename-workspace [N]"
+    },
+    {
+        .primary = "show",
+        .aliases = {"s", NULL},
+        .handler = cmd_show,
+        .description = "Show cofi in a specific mode (windows/command/workspaces/harpoon/names)",
+        .help_format = "show [windows|command|workspaces|harpoon|names]"
+    },
+    {
+        .primary = "set",
+        .aliases = {NULL},
+        .handler = cmd_set_config,
+        .description = "Set config option: set <key> <value>",
+        .help_format = "set <key> <value>"
     },
     {
         .primary = "sb",

@@ -86,8 +86,17 @@ void init_overlay_system(AppData *app) {
 }
 
 // Show an overlay of the specified type
+// Defined in main.c
+extern void show_window(AppData *app);
+
 void show_overlay(AppData *app, OverlayType type, gpointer data) {
     (void)data; // Currently unused
+
+    // Auto-open cofi if hidden (needed for hotkey-triggered overlays)
+    if (!app->window_visible) {
+        show_window(app);
+    }
+
     if (app->overlay_active) {
         log_debug("Overlay already active, hiding current overlay first");
         hide_overlay(app);
