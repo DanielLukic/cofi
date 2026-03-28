@@ -60,7 +60,6 @@ int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
     int idx = find_hotkey_binding(config, key);
     if (idx < 0) return 0;
 
-    // Shift remaining entries down
     for (int i = idx; i < config->count - 1; i++) {
         config->bindings[i] = config->bindings[i + 1];
     }
@@ -103,18 +102,17 @@ int load_hotkey_config(HotkeyConfig *config) {
         return 0;
     }
 
-    // Simple line-by-line JSON parser (matches our save format)
     char line[512];
     while (fgets(line, sizeof(line), f)) {
         char *key_start = strstr(line, "\"key\": \"");
         char *cmd_start = strstr(line, "\"command\": \"");
         if (!key_start || !cmd_start) continue;
 
-        key_start += 8; // skip "key": "
+        key_start += 8;
         char *key_end = strchr(key_start, '"');
         if (!key_end) continue;
 
-        cmd_start += 12; // skip "command": "
+        cmd_start += 12;
         char *cmd_end = strchr(cmd_start, '"');
         if (!cmd_end) continue;
 
@@ -162,13 +160,11 @@ int parse_hotkey_command(const char *args, char *key_out, size_t key_size,
 
     if (!args || args[0] == '\0') return 0;
 
-    // Copy and trim
     char buf[512] = {0};
     strncpy(buf, args, sizeof(buf) - 1);
     char *p = buf;
     while (*p && isspace((unsigned char)*p)) p++;
 
-    // Strip known keyword if present
     const char *keywords[] = {"list", "set", "add", "del", "rm", "remove", NULL};
     for (int i = 0; keywords[i]; i++) {
         size_t len = strlen(keywords[i]);
@@ -183,7 +179,6 @@ int parse_hotkey_command(const char *args, char *key_out, size_t key_size,
 
     if (*p == '\0') return 0;
 
-    // Extract first token (key spec)
     char *space = p;
     while (*space && !isspace((unsigned char)*space)) space++;
 
@@ -192,13 +187,11 @@ int parse_hotkey_command(const char *args, char *key_out, size_t key_size,
     memcpy(key_out, p, key_len);
     key_out[key_len] = '\0';
 
-    // Skip whitespace after key
     while (*space && isspace((unsigned char)*space)) space++;
 
-    if (*space == '\0') return 2; // key only → unbind
+    if (*space == '\0') return 2;
 
-    // Rest is the command
     strncpy(cmd_out, space, cmd_size - 1);
     cmd_out[cmd_size - 1] = '\0';
-    return 1; // key + command → bind
+    return 1;
 }

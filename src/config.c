@@ -7,28 +7,18 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-// Helper function to get config file path
-static const char* get_config_path() {
+static const char* get_config_path(void) {
     static char path[512];
     const char *home = getenv("HOME");
-    if (!home) {
-        home = ".";
-    }
-    
-    // Create .config directory if it doesn't exist
+    if (!home) home = ".";
     snprintf(path, sizeof(path), "%s/.config", home);
     mkdir(path, 0755);
-    
-    // Create .config/cofi directory if it doesn't exist
     snprintf(path, sizeof(path), "%s/.config/cofi", home);
     mkdir(path, 0755);
-    
-    // Return full path to options.json
     snprintf(path, sizeof(path), "%s/.config/cofi/options.json", home);
     return path;
 }
 
-// Helper function to convert WindowAlignment to string
 static const char* alignment_to_string(WindowAlignment align) {
     switch (align) {
         case ALIGN_CENTER: return "center";
@@ -44,10 +34,8 @@ static const char* alignment_to_string(WindowAlignment align) {
     }
 }
 
-// Helper function to convert string to WindowAlignment
 static WindowAlignment string_to_alignment(const char *str) {
     if (!str) return ALIGN_CENTER;
-    
     if (strcmp(str, "center") == 0) return ALIGN_CENTER;
     if (strcmp(str, "top") == 0) return ALIGN_TOP;
     if (strcmp(str, "top_left") == 0) return ALIGN_TOP_LEFT;
@@ -58,10 +46,9 @@ static WindowAlignment string_to_alignment(const char *str) {
     if (strcmp(str, "bottom_left") == 0) return ALIGN_BOTTOM_LEFT;
     if (strcmp(str, "bottom_right") == 0) return ALIGN_BOTTOM_RIGHT;
     
-    return ALIGN_CENTER;  // Default fallback
+    return ALIGN_CENTER;
 }
 
-// Digit slot mode string conversion
 const char* digit_slot_mode_to_string(DigitSlotMode mode) {
     switch (mode) {
         case DIGIT_MODE_PER_WORKSPACE: return "per-workspace";
@@ -77,7 +64,6 @@ DigitSlotMode string_to_digit_slot_mode(const char *str) {
     return DIGIT_MODE_DEFAULT;
 }
 
-// Helper function to save options section
 static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
@@ -93,25 +79,21 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  }");
 }
 
-
-
-// Initialize config with default values
 void init_config_defaults(CofiConfig *config) {
     if (!config) return;
 
-    config->close_on_focus_loss = 1;  // Default to true
-    config->alignment = ALIGN_CENTER;  // Default to center
-    config->workspaces_per_row = 0;   // Default to linear layout
-    config->tile_columns = 2;         // Default to 2 columns (2x2 grid)
+    config->close_on_focus_loss = 1;
+    config->alignment = ALIGN_CENTER;
+    config->workspaces_per_row = 0;
+    config->tile_columns = 2;
     config->digit_slot_mode = DIGIT_MODE_DEFAULT;
     config->slot_overlay_duration_ms = 750;
-    config->ripple_enabled = 1;  // Default: ripple on
+    config->ripple_enabled = 1;
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
     strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
     strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
 }
 
-// Save configuration options only (harpoon slots saved separately)
 void save_config(const CofiConfig *config) {
     if (!config) return;
 
@@ -133,80 +115,55 @@ void save_config(const CofiConfig *config) {
     log_debug("Saved config options to %s", path);
 }
 
-// Helper function to parse options section
-static void parse_options_line(const char *line, CofiConfig *config) {
-    char align_str[32] = {0};
+// Extract a quoted JSON string value after the colon on a line.
+// Returns 1 on success, 0 on failure.
+static int extract_json_string(const char *line, char *out, size_t out_size) {
+    char *colon = strchr(line, ':');
+    if (!colon) return 0;
+    char *start = strchr(colon + 1, '"');
+    if (!start) return 0;
+    start++;
+    char *end = strchr(start, '"');
+    if (!end) return 0;
+    size_t len = (size_t)(end - start);
+    if (len >= out_size) len = out_size - 1;
+    memcpy(out, start, len);
+    out[len] = '\0';
+    return 1;
+}
 
+static void parse_options_line(const char *line, CofiConfig *config) {
     if (strstr(line, "\"close_on_focus_loss\":")) {
-        if (strstr(line, "true")) {
-            config->close_on_focus_loss = 1;
-        } else if (strstr(line, "false")) {
-            config->close_on_focus_loss = 0;
-        }
+        if (strstr(line, "true")) config->close_on_focus_loss = 1;
+        else if (strstr(line, "false")) config->close_on_focus_loss = 0;
     } else if (strstr(line, "\"align\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= 32) len = 31;
-                    strncpy(align_str, start, len);
-                    align_str[len] = '\0';
-                    config->alignment = string_to_alignment(align_str);
-                }
-            }
-        }
+        char val[32] = {0};
+        if (extract_json_string(line, val, sizeof(val)))
+            config->alignment = string_to_alignment(val);
     } else if (strstr(line, "\"workspaces_per_row\":")) {
         sscanf(line, " \"workspaces_per_row\": %d", &config->workspaces_per_row);
     } else if (strstr(line, "\"tile_columns\":")) {
         int columns;
         if (sscanf(line, " \"tile_columns\": %d", &columns) == 1) {
-            // Validate: only allow 2 or 3 columns
-            if (columns == 2 || columns == 3) {
+            if (columns == 2 || columns == 3)
                 config->tile_columns = columns;
-            } else {
+            else {
                 log_warn("Invalid tile_columns value %d, using default 3", columns);
                 config->tile_columns = 3;
             }
         }
     } else if (strstr(line, "\"digit_slot_mode\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;
-                char *end = strchr(start, '"');
-                if (end) {
-                    char mode_str[16] = {0};
-                    int len = end - start;
-                    if (len >= 16) len = 15;
-                    strncpy(mode_str, start, len);
-                    config->digit_slot_mode = string_to_digit_slot_mode(mode_str);
-                }
-            }
-        }
+        char val[16] = {0};
+        if (extract_json_string(line, val, sizeof(val)))
+            config->digit_slot_mode = string_to_digit_slot_mode(val);
     } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
         sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
     } else if (strstr(line, "\"ripple_enabled\":")) {
         config->ripple_enabled = strstr(line, "true") ? 1 : 0;
     } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
                strstr(line, "\"hotkey_workspaces\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            char val[64] = {0};
-            if (start) {
-                start++;
-                char *end = strchr(start, '"');
-                if (end) {
-                    int len = (int)(end - start);
-                    if (len >= 64) len = 63;
-                    strncpy(val, start, len);
-                }
-            }
+        char val[64] = {0};
+        if (extract_json_string(line, val, sizeof(val))) {
             if (strstr(line, "\"hotkey_windows\":"))
                 strncpy(config->hotkey_windows, val, sizeof(config->hotkey_windows) - 1);
             else if (strstr(line, "\"hotkey_command\":"))
@@ -214,64 +171,45 @@ static void parse_options_line(const char *line, CofiConfig *config) {
             else
                 strncpy(config->hotkey_workspaces, val, sizeof(config->hotkey_workspaces) - 1);
         }
-    } else if (strstr(line, "\"quick_assign_hotkey\":")) {
-        // Ignored — hotkey removed, kept for backwards compat with old config files
     } else if (strstr(line, "\"quick_workspace_slots\":")) {
-        // Migration: old boolean -> new digit_slot_mode
-        if (strstr(line, "true")) {
+        if (strstr(line, "true"))
             config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
-        }
     }
 }
 
-
-
-// Load configuration options only (harpoon slots loaded separately)
 void load_config(CofiConfig *config) {
     if (!config) return;
 
-    // Initialize with defaults first
     init_config_defaults(config);
 
     const char *path = get_config_path();
     FILE *file = fopen(path, "r");
     if (!file) {
-        if (errno != ENOENT) {
+        if (errno != ENOENT)
             log_error("Failed to open config file for reading: %s", path);
-        }
         return;
     }
 
-    // Parse the JSON file line by line (simple parser)
     char line[1024];
     int in_options = 0;
 
     while (fgets(line, sizeof(line), file)) {
-        // Trim whitespace
         char *p = line;
         while (*p == ' ' || *p == '\t') p++;
 
-        // Check for section markers
-        if (strstr(p, "\"options\":")) {
+        if (strstr(p, "\"options\":"))
             in_options = 1;
-        } else if (strstr(p, "}")) {
-            // Check if this closes the options section
-            if (strstr(p, "},") || (strstr(p, "}") && !strstr(p, "},"))) {
-                in_options = 0;
-            }
-        }
+        else if (strstr(p, "}"))
+            in_options = 0;
 
-        // Parse content if in options section
-        if (in_options) {
+        if (in_options)
             parse_options_line(p, config);
-        }
     }
 
     fclose(file);
     log_info("Loaded config options from %s", path);
 }
 
-// Parse a boolean value string. Returns 1/0 on success, -1 on invalid.
 static int parse_bool_value(const char *value) {
     if (!value) return -1;
     if (strcmp(value, "true") == 0 || strcmp(value, "on") == 0 || strcmp(value, "1") == 0) return 1;

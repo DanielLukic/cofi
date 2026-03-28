@@ -22,22 +22,18 @@
 #include <ctype.h>
 #include <limits.h>
 
-// External functions from main.c
 extern void hide_window(AppData *app);
 extern void dispatch_hotkey_mode(AppData *app, ShowMode mode);
 
-// Global command history that persists across window recreations
 static struct {
     char history[10][256];
     int history_count;
     gboolean initialized;
 } g_command_history = { .initialized = FALSE };
 
-// Helper function to log commanded window
 static void log_commanded_window(AppData *app, WindowInfo *win) {
     if (!app || !win) return;
     
-    // Truncate title to 15 chars max
     char truncated_title[16];
     strncpy(truncated_title, win->title, 15);
     truncated_title[15] = '\0';
@@ -46,7 +42,6 @@ static void log_commanded_window(AppData *app, WindowInfo *win) {
              win->id, win->class_name, truncated_title);
 }
 
-// Activate a window that was modified by a command mode action
 static void activate_commanded_window(AppData *app, WindowInfo *win) {
     if (!app || !win) return;
     
@@ -54,8 +49,6 @@ static void activate_commanded_window(AppData *app, WindowInfo *win) {
     log_commanded_window(app, win);
 }
 
-
-// Add command to global history
 static void add_to_history(CommandMode *cmd, const char *command) {
     if (!command || strlen(command) == 0) return;
 
@@ -98,12 +91,11 @@ static void add_to_history(CommandMode *cmd, const char *command) {
     log_debug("Added command to global history: '%s' (total: %d)", command, g_command_history.history_count);
 }
 
-// Clear command line
 static void clear_command_line(AppData *app) {
     if (!app || !app->entry) return;
     
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-    app->command_mode.history_index = -1; // Reset history browsing
+    app->command_mode.history_index = -1;
 }
 
 static int clamp_int(int value, int min, int max) {
@@ -450,29 +442,18 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
     }
 }
 
-// Helper functions
-static const CommandDef* find_command(const char *cmd_name);
-static TileOption parse_tile_option(const char *arg);
-
-// Find command in dispatch table
 static const CommandDef* find_command(const char *cmd_name) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-        // Check primary name
-        if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].primary) == 0) {
+        if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].primary) == 0)
             return &COMMAND_DEFINITIONS[i];
-        }
-        
-        // Check aliases
         for (int j = 0; j < 5 && COMMAND_DEFINITIONS[i].aliases[j] != NULL; j++) {
-            if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].aliases[j]) == 0) {
+            if (strcmp(cmd_name, COMMAND_DEFINITIONS[i].aliases[j]) == 0)
                 return &COMMAND_DEFINITIONS[i];
-            }
         }
     }
     return NULL;
 }
 
-// Parse tiling option from string
 static TileOption parse_tile_option(const char *arg) {
     if (strlen(arg) == 1) {
         switch (arg[0]) {
@@ -526,9 +507,8 @@ static TileOption parse_tile_option(const char *arg) {
             }
         }
     }
-    return (TileOption)-1; // Invalid option
+    return (TileOption)-1;
 }
-
 
 static gboolean execute_single_command_with_window(const char *command, AppData *app, WindowInfo *window) {
     char cmd_name[128] = {0};
@@ -584,7 +564,6 @@ gboolean execute_command_with_window(const char *command, AppData *app, WindowIn
     return execute_command_impl(command, app, window);
 }
 
-// Command handler implementations
 gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for workspace change");
@@ -1196,45 +1175,23 @@ gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), c
     char cmd[256] = {0};
     int action = parse_hotkey_command(args, key, sizeof(key), cmd, sizeof(cmd));
 
-    if (action == 0) {
-        // Show bindings
-        char buf[4096] = {0};
-        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
-        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
-        app->command_mode.showing_help = TRUE;
-        return FALSE;
-    }
-
     if (action == 1) {
-        // Bind
         add_hotkey_binding(&app->hotkey_config, key, cmd);
         save_hotkey_config(&app->hotkey_config);
         log_info("Hotkey bound: %s → %s", key, cmd);
-
-        // Show updated bindings
-        char buf[4096] = {0};
-        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
-        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
-        app->command_mode.showing_help = TRUE;
-        return FALSE;
-    }
-
-    if (action == 2) {
-        // Unbind
+    } else if (action == 2) {
         if (remove_hotkey_binding(&app->hotkey_config, key)) {
             save_hotkey_config(&app->hotkey_config);
             log_info("Hotkey unbound: %s", key);
         } else {
             log_warn("No hotkey binding for: %s", key);
         }
-
-        char buf[4096] = {0};
-        format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
-        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
-        app->command_mode.showing_help = TRUE;
-        return FALSE;
     }
 
+    char buf[4096] = {0};
+    format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
+    gtk_text_buffer_set_text(app->textbuffer, buf, -1);
+    app->command_mode.showing_help = TRUE;
     return FALSE;
 }
 
@@ -1245,7 +1202,6 @@ gboolean cmd_assign_slots(AppData *app, WindowInfo *window __attribute__((unused
     return TRUE;
 }
 
-// Generate command help text in different formats
 char* generate_command_help_text(HelpFormat format) {
     // Calculate required buffer size
     size_t buffer_size = 1024;  // Base size for headers and footers
