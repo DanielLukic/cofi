@@ -119,6 +119,8 @@ static void stop_animation(WindowHighlight *hl) {
         if (clock) {
             g_signal_handler_disconnect(clock, hl->update_handler_id);
             gdk_frame_clock_end_updating(clock);
+        } else {
+            log_warn("Frame clock gone during stop_animation");
         }
         hl->update_handler_id = 0;
     }
