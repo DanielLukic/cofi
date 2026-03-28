@@ -59,4 +59,54 @@ if [ -f test_hotkey_config ]; then
     fi
 fi
 
+# Run fzf algorithm tests if they exist
+if [ -f test_fzf_algo ]; then
+    echo ""
+    echo "Running fzf algorithm tests..."
+    ./test_fzf_algo
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run named window tests if they exist
+if [ -f test_named_window ]; then
+    echo ""
+    echo "Running named window tests..."
+    ./test_named_window
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run match scoring tests if they exist
+if [ -f test_match_scoring ]; then
+    echo ""
+    echo "Running match scoring tests..."
+    ./test_match_scoring
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run command alias tests if they exist
+if [ -f test_command_aliases ]; then
+    echo ""
+    echo "Running command alias tests..."
+    ./test_command_aliases
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run wildcard match tests if they exist
+if [ -f test_wildcard_match ]; then
+    echo ""
+    echo "Running wildcard match tests..."
+    ./test_wildcard_match
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

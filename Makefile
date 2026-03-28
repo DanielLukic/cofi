@@ -105,7 +105,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config
+test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -123,6 +123,26 @@ test_config_set: test/test_config_set.c src/config.o src/log.o src/utils.o
 # Build hotkey config test
 test_hotkey_config: test/test_hotkey_config.c src/hotkey_config.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_hotkey_config test/test_hotkey_config.c src/hotkey_config.o src/log.o $(LDFLAGS)
+
+# Build fzf algorithm test
+test_fzf_algo: test/test_fzf_algo.c src/fzf_algo.o
+	$(CC) $(CFLAGS) -o test/test_fzf_algo test/test_fzf_algo.c src/fzf_algo.o $(LDFLAGS)
+
+# Build named window test
+test_named_window: test/test_named_window.c src/named_window.o src/window_matcher.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_named_window test/test_named_window.c src/named_window.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+
+# Build match scoring test (fzy algorithm)
+test_match_scoring: test/test_match_scoring.c src/match.o
+	$(CC) $(CFLAGS) -o test/test_match_scoring test/test_match_scoring.c src/match.o $(LDFLAGS)
+
+# Build command alias edge case test
+test_command_aliases: test/test_command_aliases.c src/command_parser.o
+	$(CC) $(CFLAGS) -o test/test_command_aliases test/test_command_aliases.c src/command_parser.o $(LDFLAGS)
+
+# Build wildcard match test
+test_wildcard_match: test/test_wildcard_match.c src/window_matcher.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_wildcard_match test/test_wildcard_match.c src/window_matcher.o src/log.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o
