@@ -1240,6 +1240,7 @@ int main(int argc, char *argv[]) {
     // Cleanup
     if (!app.no_daemon)
         cleanup_hotkeys(&app);
+    cleanup_window_highlight(&app);
     cleanup_x11_event_monitoring();
     XCloseDisplay(app.display);
     
