@@ -14,23 +14,6 @@
 #include "window_highlight.h"
 #include "hotkey_config.h"
 
-// Config tab entry for display
-#define MAX_CONFIG_ENTRIES 32
-#define CONFIG_KEY_LEN 64
-#define CONFIG_VALUE_LEN 128
-
-typedef enum {
-    CONFIG_TYPE_BOOL,
-    CONFIG_TYPE_INT,
-    CONFIG_TYPE_STRING,
-    CONFIG_TYPE_ENUM
-} ConfigFieldType;
-
-typedef struct {
-    char key[CONFIG_KEY_LEN];
-    char value[CONFIG_VALUE_LEN];
-    ConfigFieldType type;
-} ConfigEntry;
 
 typedef enum {
     TAB_WINDOWS,
