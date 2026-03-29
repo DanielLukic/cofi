@@ -64,6 +64,19 @@ DigitSlotMode string_to_digit_slot_mode(const char *str) {
     return DIGIT_MODE_DEFAULT;
 }
 
+const char* slot_sort_order_to_string(SlotSortOrder order) {
+    switch (order) {
+        case SLOT_SORT_COLUMN_FIRST: return "column";
+        default: return "row";
+    }
+}
+
+SlotSortOrder string_to_slot_sort_order(const char *str) {
+    if (!str) return SLOT_SORT_ROW_FIRST;
+    if (strcmp(str, "column") == 0) return SLOT_SORT_COLUMN_FIRST;
+    return SLOT_SORT_ROW_FIRST;
+}
+
 static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
@@ -73,6 +86,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"digit_slot_mode\": \"%s\",\n", digit_slot_mode_to_string(config->digit_slot_mode));
     fprintf(file, "    \"slot_overlay_duration_ms\": %d,\n", config->slot_overlay_duration_ms);
     fprintf(file, "    \"ripple_enabled\": %s,\n", config->ripple_enabled ? "true" : "false");
+    fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
     fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
     fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
     fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
@@ -89,6 +103,7 @@ void init_config_defaults(CofiConfig *config) {
     config->digit_slot_mode = DIGIT_MODE_DEFAULT;
     config->slot_overlay_duration_ms = 750;
     config->ripple_enabled = 1;
+    config->slot_sort_order = SLOT_SORT_ROW_FIRST;
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
     strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
     strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
@@ -160,6 +175,10 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
     } else if (strstr(line, "\"ripple_enabled\":")) {
         config->ripple_enabled = strstr(line, "true") ? 1 : 0;
+    } else if (strstr(line, "\"slot_sort_order\":")) {
+        char val[16] = {0};
+        if (extract_json_string(line, val, sizeof(val)))
+            config->slot_sort_order = string_to_slot_sort_order(val);
     } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
                strstr(line, "\"hotkey_workspaces\":")) {
         char val[64] = {0};
@@ -261,6 +280,17 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         return 1;
     }
 
+    // Enum: slot_sort_order
+    if (strcmp(key, "slot_sort_order") == 0) {
+        SlotSortOrder o = string_to_slot_sort_order(value);
+        if (o == SLOT_SORT_ROW_FIRST && strcmp(value, "row") != 0) {
+            snprintf(err_buf, err_size, "Unknown order: %s (use row/column)", value);
+            return 0;
+        }
+        config->slot_sort_order = o;
+        return 1;
+    }
+
     // Integer: workspaces_per_row (>= 0)
     if (strcmp(key, "workspaces_per_row") == 0) {
         int v = atoi(value);
@@ -315,6 +345,7 @@ int format_config_display(const CofiConfig *config, char *buf, size_t buf_size) 
         "workspaces_per_row     %d\n"
         "tile_columns           %d\n"
         "digit_slot_mode        %s\n"
+        "slot_sort_order        %s\n"
         "slot_overlay_duration_ms %d\n"
         "ripple_enabled         %s\n"
         "hotkey_windows         %s\n"
@@ -325,6 +356,7 @@ int format_config_display(const CofiConfig *config, char *buf, size_t buf_size) 
         config->workspaces_per_row,
         config->tile_columns,
         digit_slot_mode_to_string(config->digit_slot_mode),
+        slot_sort_order_to_string(config->slot_sort_order),
         config->slot_overlay_duration_ms,
         config->ripple_enabled ? "true" : "false",
         config->hotkey_windows,

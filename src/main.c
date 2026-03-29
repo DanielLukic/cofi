@@ -737,6 +737,7 @@ static void build_config_entries(const CofiConfig *config, ConfigEntry *entries,
     ADD_INT("workspaces_per_row", config->workspaces_per_row);
     ADD_INT("tile_columns", config->tile_columns);
     ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
+    ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_STR("hotkey_windows", config->hotkey_windows);
