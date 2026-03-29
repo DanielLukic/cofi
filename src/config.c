@@ -336,31 +336,66 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     return 0;
 }
 
+void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
+    *count = 0;
+
+    #define ADD_BOOL(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, (val) ? "true" : "false", CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_BOOL; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_INT(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        snprintf(entries[*count].value, CONFIG_VALUE_LEN, "%d", val); \
+        entries[*count].type = CONFIG_TYPE_INT; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_STR(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_STRING; \
+        (*count)++; \
+    } while(0)
+
+    #define ADD_ENUM(k, val) do { \
+        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
+        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
+        entries[*count].type = CONFIG_TYPE_ENUM; \
+        (*count)++; \
+    } while(0)
+
+    ADD_BOOL("close_on_focus_loss", config->close_on_focus_loss);
+    ADD_ENUM("align", alignment_to_string(config->alignment));
+    ADD_INT("workspaces_per_row", config->workspaces_per_row);
+    ADD_INT("tile_columns", config->tile_columns);
+    ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
+    ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
+    ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
+    ADD_BOOL("ripple_enabled", config->ripple_enabled);
+    ADD_STR("hotkey_windows", config->hotkey_windows);
+    ADD_STR("hotkey_command", config->hotkey_command);
+    ADD_STR("hotkey_workspaces", config->hotkey_workspaces);
+
+    #undef ADD_BOOL
+    #undef ADD_INT
+    #undef ADD_STR
+    #undef ADD_ENUM
+}
+
 int format_config_display(const CofiConfig *config, char *buf, size_t buf_size) {
     if (!config || !buf || buf_size == 0) return 0;
 
-    return snprintf(buf, buf_size,
-        "close_on_focus_loss    %s\n"
-        "align                  %s\n"
-        "workspaces_per_row     %d\n"
-        "tile_columns           %d\n"
-        "digit_slot_mode        %s\n"
-        "slot_sort_order        %s\n"
-        "slot_overlay_duration_ms %d\n"
-        "ripple_enabled         %s\n"
-        "hotkey_windows         %s\n"
-        "hotkey_command         %s\n"
-        "hotkey_workspaces      %s\n",
-        config->close_on_focus_loss ? "true" : "false",
-        alignment_to_string(config->alignment),
-        config->workspaces_per_row,
-        config->tile_columns,
-        digit_slot_mode_to_string(config->digit_slot_mode),
-        slot_sort_order_to_string(config->slot_sort_order),
-        config->slot_overlay_duration_ms,
-        config->ripple_enabled ? "true" : "false",
-        config->hotkey_windows,
-        config->hotkey_command,
-        config->hotkey_workspaces
-    );
+    ConfigEntry entries[MAX_CONFIG_ENTRIES];
+    int count = 0;
+    build_config_entries(config, entries, &count);
+
+    int written = 0;
+    for (int i = 0; i < count && written < (int)buf_size - 1; i++) {
+        written += snprintf(buf + written, buf_size - written,
+                            "%-26s %s\n", entries[i].key, entries[i].value);
+    }
+    return written;
 }

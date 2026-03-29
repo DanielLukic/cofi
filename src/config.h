@@ -23,6 +23,24 @@ typedef enum {
     DIGIT_MODE_WORKSPACES     // Switch to workspace N
 } DigitSlotMode;
 
+// Config entry for display and editing (used by Config tab and :show config)
+#define MAX_CONFIG_ENTRIES 32
+#define CONFIG_KEY_LEN 64
+#define CONFIG_VALUE_LEN 128
+
+typedef enum {
+    CONFIG_TYPE_BOOL,
+    CONFIG_TYPE_INT,
+    CONFIG_TYPE_STRING,
+    CONFIG_TYPE_ENUM
+} ConfigFieldType;
+
+typedef struct {
+    char key[CONFIG_KEY_LEN];
+    char value[CONFIG_VALUE_LEN];
+    ConfigFieldType type;
+} ConfigEntry;
+
 // Sort order for per-workspace slot assignment
 typedef enum {
     SLOT_SORT_ROW_FIRST,    // Top-to-bottom rows, left-to-right within row (default)
@@ -66,6 +84,9 @@ void init_config_defaults(CofiConfig *config);
 // Apply a single config setting by key/value. Returns 1 on success, 0 on error.
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
                          char *err_buf, size_t err_size);
+
+// Build the canonical list of all config entries. Single source of truth.
+void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count);
 
 // Format all config settings as display text. Returns bytes written.
 int format_config_display(const CofiConfig *config, char *buf, size_t buf_size);

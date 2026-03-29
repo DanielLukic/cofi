@@ -701,55 +701,6 @@ static void filter_harpoon(AppData *app, const char *filter) {
 
 
 // Build config entries from current CofiConfig
-static void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
-    *count = 0;
-
-    #define ADD_BOOL(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        strncpy(entries[*count].value, (val) ? "true" : "false", CONFIG_VALUE_LEN - 1); \
-        entries[*count].type = CONFIG_TYPE_BOOL; \
-        (*count)++; \
-    } while(0)
-
-    #define ADD_INT(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        snprintf(entries[*count].value, CONFIG_VALUE_LEN, "%d", val); \
-        entries[*count].type = CONFIG_TYPE_INT; \
-        (*count)++; \
-    } while(0)
-
-    #define ADD_STR(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
-        entries[*count].type = CONFIG_TYPE_STRING; \
-        (*count)++; \
-    } while(0)
-
-    #define ADD_ENUM(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
-        entries[*count].type = CONFIG_TYPE_ENUM; \
-        (*count)++; \
-    } while(0)
-
-    ADD_BOOL("close_on_focus_loss", config->close_on_focus_loss);
-    ADD_ENUM("align", alignment_to_string(config->alignment));
-    ADD_INT("workspaces_per_row", config->workspaces_per_row);
-    ADD_INT("tile_columns", config->tile_columns);
-    ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
-    ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
-    ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
-    ADD_BOOL("ripple_enabled", config->ripple_enabled);
-    ADD_STR("hotkey_windows", config->hotkey_windows);
-    ADD_STR("hotkey_command", config->hotkey_command);
-    ADD_STR("hotkey_workspaces", config->hotkey_workspaces);
-
-    #undef ADD_BOOL
-    #undef ADD_INT
-    #undef ADD_STR
-    #undef ADD_ENUM
-}
-
 // Config filtering
 static void filter_config(AppData *app, const char *filter) {
     ConfigEntry all_entries[MAX_CONFIG_ENTRIES];
