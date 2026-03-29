@@ -586,7 +586,10 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
 
     // Handle command mode if active
     if (app->command_mode.state == CMD_MODE_COMMAND) {
-        return handle_command_key(event, app);
+        if (handle_command_key(event, app)) {
+            return TRUE;
+        }
+        // Returned FALSE: let event fall through to other handlers
     }
     
     // Handle ':' key to enter command mode

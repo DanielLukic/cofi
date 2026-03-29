@@ -435,7 +435,12 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
         case GDK_KEY_colon:
             // Ignore ':' in command mode - it should not be typed
             return TRUE;
-            
+
+        case GDK_KEY_Tab:
+        case GDK_KEY_ISO_Left_Tab:
+            // Fall through to tab switching, stay in command mode
+            return FALSE;
+
         default:
             // Let the entry widget handle all other keys naturally
             return FALSE; // Let GTK handle the key event
