@@ -23,6 +23,13 @@ typedef enum {
     DIGIT_MODE_WORKSPACES     // Switch to workspace N
 } DigitSlotMode;
 
+// Sort order for per-workspace slot assignment
+typedef enum {
+    SLOT_SORT_ROW_FIRST,    // Top-to-bottom rows, left-to-right within row (default)
+    SLOT_SORT_COLUMN_FIRST  // Left-to-right columns, top-to-bottom within column
+} SlotSortOrder;
+
+
 // Unified configuration structure
 typedef struct {
     int close_on_focus_loss;        // Whether to close window when focus is lost
@@ -32,6 +39,7 @@ typedef struct {
     DigitSlotMode digit_slot_mode; // What Alt+digit does
     int slot_overlay_duration_ms;  // Duration of slot number overlays (0 = disabled)
     int ripple_enabled;            // Whether to show ripple effect on window activation (1=on, 0=off)
+    SlotSortOrder slot_sort_order; // How to number per-workspace slots: row-first or column-first
     char hotkey_windows[64];       // Hotkey for windows mode, e.g. "Mod1+Tab" ("" = disabled)
     char hotkey_command[64];       // Hotkey for command mode, e.g. "Mod1+grave"
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
@@ -43,6 +51,10 @@ const char* alignment_to_string(WindowAlignment align);
 // Digit slot mode string conversion
 const char* digit_slot_mode_to_string(DigitSlotMode mode);
 DigitSlotMode string_to_digit_slot_mode(const char *str);
+
+// Slot sort order string conversion
+const char* slot_sort_order_to_string(SlotSortOrder order);
+SlotSortOrder string_to_slot_sort_order(const char *str);
 
 // Configuration management functions (options only - harpoon slots handled separately)
 void save_config(const CofiConfig *config);

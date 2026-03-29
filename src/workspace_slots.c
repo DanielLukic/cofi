@@ -1,5 +1,6 @@
 #include "workspace_slots.h"
 #include "app_data.h"
+#include "config.h"
 #include "x11_utils.h"
 #include "monitor_move.h"
 #include "slot_overlay.h"
@@ -100,6 +101,20 @@ static int compare_by_position(const void *a, const void *b) {
     return wa->x - wb->x;  // Left to right within row
 }
 
+static int compare_by_column(const void *a, const void *b) {
+    const WindowPosition *wa = (const WindowPosition *)a;
+    const WindowPosition *wb = (const WindowPosition *)b;
+
+    // Group into columns: if X difference is within threshold, same column
+    int col_a = wa->x / ROW_THRESHOLD;
+    int col_b = wb->x / ROW_THRESHOLD;
+
+    if (col_a != col_b) {
+        return col_a - col_b;  // Left columns first
+    }
+    return wa->y - wb->y;  // Top to bottom within column
+}
+
 void init_workspace_slots(WorkspaceSlotManager *manager) {
     memset(manager, 0, sizeof(WorkspaceSlotManager));
     manager->workspace = -1;
@@ -154,8 +169,11 @@ void assign_workspace_slots(AppData *app) {
 
     if (stack) XFree(stack);
 
-    // Sort visible windows by position: top-to-bottom, left-to-right
-    qsort(visible, vis_count, sizeof(WindowPosition), compare_by_position);
+    // Sort visible windows by position
+    int (*cmp)(const void *, const void *) =
+        (app->config.slot_sort_order == SLOT_SORT_COLUMN_FIRST)
+        ? compare_by_column : compare_by_position;
+    qsort(visible, vis_count, sizeof(WindowPosition), cmp);
 
     // Assign slots densely
     for (int i = 0; i < vis_count; i++) {
