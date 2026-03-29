@@ -441,18 +441,22 @@ static gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
         if (app->selection.config_index < app->filtered_config_count) {
             ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+            const char *new_value = NULL;
             if (entry->type == CONFIG_TYPE_BOOL) {
-                // Toggle the boolean value
-                const char *new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
+                new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
+            } else if (entry->type == CONFIG_TYPE_ENUM) {
+                new_value = get_next_enum_value(entry->key, entry->value);
+            }
+            if (new_value) {
                 char err_buf[128];
                 if (apply_config_setting(&app->config, entry->key, new_value, err_buf, sizeof(err_buf))) {
                     save_config(&app->config);
                     const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
                     filter_config(app, current_filter);
                     update_display(app);
-                    log_info("USER: Toggled config '%s' to %s", entry->key, new_value);
+                    log_info("USER: Cycled config '%s' to %s", entry->key, new_value);
                 } else {
-                    log_error("Failed to toggle config '%s': %s", entry->key, err_buf);
+                    log_error("Failed to cycle config '%s': %s", entry->key, err_buf);
                 }
                 return TRUE;
             }
