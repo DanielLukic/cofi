@@ -336,6 +336,39 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     return 0;
 }
 
+const char* get_next_enum_value(const char *key, const char *current_value) {
+    if (!key || !current_value) return NULL;
+
+    static const char *align_values[] = {
+        "center", "top", "top_left", "top_right",
+        "left", "right", "bottom", "bottom_left", "bottom_right"
+    };
+    static const char *digit_slot_mode_values[] = { "default", "per-workspace", "workspaces" };
+    static const char *slot_sort_order_values[] = { "row", "column" };
+
+    const char **values = NULL;
+    int count = 0;
+
+    if (strcmp(key, "align") == 0) {
+        values = align_values;
+        count = 9;
+    } else if (strcmp(key, "digit_slot_mode") == 0) {
+        values = digit_slot_mode_values;
+        count = 3;
+    } else if (strcmp(key, "slot_sort_order") == 0) {
+        values = slot_sort_order_values;
+        count = 2;
+    } else {
+        return NULL;
+    }
+
+    for (int i = 0; i < count; i++) {
+        if (strcmp(values[i], current_value) == 0)
+            return values[(i + 1) % count];
+    }
+    return values[0];  // current value not found, wrap to first
+}
+
 void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
     *count = 0;
 

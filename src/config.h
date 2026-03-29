@@ -85,6 +85,9 @@ void init_config_defaults(CofiConfig *config);
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
                          char *err_buf, size_t err_size);
 
+// Cycle to the next valid value for an enum config key. Returns NULL if not an enum key.
+const char* get_next_enum_value(const char *key, const char *current_value);
+
 // Build the canonical list of all config entries. Single source of truth.
 void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count);
 
