@@ -1094,7 +1094,11 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
 
     switch (mode) {
         case SHOW_MODE_WINDOWS:
-            if (app->current_tab == TAB_WINDOWS) return;
+            if (app->current_tab == TAB_WINDOWS) {
+                // Already showing windows — step selection to next window
+                move_selection_up(app);
+                return;
+            }
             app->current_tab = TAB_WINDOWS;
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
             reset_selection(app);
