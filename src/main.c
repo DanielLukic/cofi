@@ -624,6 +624,19 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
         return TRUE;
     }
 
+    // Alt+Tab / Shift+Alt+Tab: step selection forward/backward on windows tab
+    if (app->current_tab == TAB_WINDOWS && (event->state & GDK_MOD1_MASK)) {
+        if (event->keyval == GDK_KEY_Tab) {
+            move_selection_up(app);
+            return TRUE;
+        }
+        if (event->keyval == GDK_KEY_ISO_Left_Tab ||
+            (event->keyval == GDK_KEY_Tab && (event->state & GDK_SHIFT_MASK))) {
+            move_selection_down(app);
+            return TRUE;
+        }
+    }
+
     if (handle_tab_switching(event, app)) {
         return TRUE;
     }
