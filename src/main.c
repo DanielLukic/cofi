@@ -208,8 +208,10 @@ static gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *
         } else if (app->config.digit_slot_mode == DIGIT_MODE_PER_WORKSPACE
                    && app->current_tab == TAB_WINDOWS) {
             // Per-workspace mode (Windows tab only): auto-assign and activate
+            log_debug("Alt+%d: per-workspace mode, assigning slots", slot);
             assign_workspace_slots(app);
             Window target = get_workspace_slot_window(&app->workspace_slots, slot);
+            log_debug("Alt+%d: target=0x%lx, manager.count=%d", slot, target, app->workspace_slots.count);
             if (target != 0) {
                 set_workspace_switch_state(1);
                 activate_window(app->display, target);

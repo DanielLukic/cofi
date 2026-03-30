@@ -101,18 +101,68 @@ static int compare_by_position(const void *a, const void *b) {
     return wa->x - wb->x;  // Left to right within row
 }
 
-static int compare_by_column(const void *a, const void *b) {
+static int compare_by_x(const void *a, const void *b) {
     const WindowPosition *wa = (const WindowPosition *)a;
     const WindowPosition *wb = (const WindowPosition *)b;
+    return wa->x - wb->x;
+}
 
-    // Group into columns: if X difference is within threshold, same column
-    int col_a = wa->x / ROW_THRESHOLD;
-    int col_b = wb->x / ROW_THRESHOLD;
-
-    if (col_a != col_b) {
-        return col_a - col_b;  // Left columns first
+// Assign column indices by grouping windows whose left-edge X is within ROW_THRESHOLD
+// of each other (gap-based, avoids bucket-boundary sensitivity).
+// windows[] must be pre-sorted by X ascending.
+static void assign_column_indices(WindowPosition *windows, int *col_indices, int count) {
+    if (count == 0) return;
+    int col = 0;
+    int col_start_x = windows[0].x;
+    col_indices[0] = 0;
+    for (int i = 1; i < count; i++) {
+        if (windows[i].x - col_start_x > ROW_THRESHOLD) {
+            col++;
+            col_start_x = windows[i].x;
+        }
+        col_indices[i] = col;
     }
-    return wa->y - wb->y;  // Top to bottom within column
+}
+
+typedef struct {
+    WindowPosition pos;
+    int col;
+} WindowWithCol;
+
+static int compare_by_col_then_y(const void *a, const void *b) {
+    const WindowWithCol *wa = (const WindowWithCol *)a;
+    const WindowWithCol *wb = (const WindowWithCol *)b;
+    if (wa->col != wb->col) return wa->col - wb->col;
+    return wa->pos.y - wb->pos.y;
+}
+
+static void sort_by_column(WindowPosition *windows, int count) {
+    // Phase 1: sort by X to establish left-to-right order
+    qsort(windows, count, sizeof(WindowPosition), compare_by_x);
+
+    // Log positions after X-sort for diagnosis
+    for (int i = 0; i < count; i++) {
+        log_debug("  [col-sort] pre-group[%d]: id=0x%lx x=%d y=%d",
+                  i, windows[i].id, windows[i].x, windows[i].y);
+    }
+
+    // Phase 2: assign column indices based on X gaps
+    int col_indices[MAX_WORKSPACE_SLOTS];
+    assign_column_indices(windows, col_indices, count);
+
+    for (int i = 0; i < count; i++) {
+        log_debug("  [col-sort] col_assign[%d]: id=0x%lx x=%d -> col=%d",
+                  i, windows[i].id, windows[i].x, col_indices[i]);
+    }
+
+    // Phase 3: sort by (col, y)
+    WindowWithCol tmp[MAX_WORKSPACE_SLOTS];
+    for (int i = 0; i < count; i++) {
+        tmp[i].pos = windows[i];
+        tmp[i].col = col_indices[i];
+    }
+    qsort(tmp, count, sizeof(WindowWithCol), compare_by_col_then_y);
+    for (int i = 0; i < count; i++) windows[i] = tmp[i].pos;
 }
 
 void init_workspace_slots(WorkspaceSlotManager *manager) {
@@ -170,10 +220,13 @@ void assign_workspace_slots(AppData *app) {
     if (stack) XFree(stack);
 
     // Sort visible windows by position
-    int (*cmp)(const void *, const void *) =
-        (app->config.slot_sort_order == SLOT_SORT_COLUMN_FIRST)
-        ? compare_by_column : compare_by_position;
-    qsort(visible, vis_count, sizeof(WindowPosition), cmp);
+    log_debug("Sorting %d visible windows (mode=%s)", vis_count,
+              app->config.slot_sort_order == SLOT_SORT_COLUMN_FIRST ? "column" : "row");
+    if (app->config.slot_sort_order == SLOT_SORT_COLUMN_FIRST) {
+        sort_by_column(visible, vis_count);
+    } else {
+        qsort(visible, vis_count, sizeof(WindowPosition), compare_by_position);
+    }
 
     // Assign slots densely
     for (int i = 0; i < vis_count; i++) {
