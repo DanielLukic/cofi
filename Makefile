@@ -88,13 +88,38 @@ clean:
 	rm -f test/test_command_parsing test/test_window_matcher
 
 
-# Install target (optional)
-install: $(TARGET)
-	install -m 755 $(TARGET) /usr/local/bin/
+PREFIX ?= $(HOME)/.local
+BINDIR = $(PREFIX)/bin
+SYSTEMD_USER_DIR = $(HOME)/.config/systemd/user
 
-# Uninstall target
+# Install binary + systemd user service
+install: $(TARGET)
+	install -d $(BINDIR)
+	install -m 755 $(TARGET) $(BINDIR)/
+	install -d $(SYSTEMD_USER_DIR)
+	@echo '[Unit]' > $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'Description=Cofi window switcher' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'After=graphical-session.target' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo '' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo '[Service]' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'Type=simple' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'ExecStart=$(BINDIR)/cofi' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'Restart=on-failure' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'RestartSec=1' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo '' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo '[Install]' >> $(SYSTEMD_USER_DIR)/cofi.service
+	@echo 'WantedBy=default.target' >> $(SYSTEMD_USER_DIR)/cofi.service
+	systemctl --user daemon-reload
+	systemctl --user enable --now cofi
+	@echo "Installed to $(BINDIR)/cofi and enabled systemd user service"
+
+# Uninstall binary + systemd service
 uninstall:
-	rm -f /usr/local/bin/$(TARGET)
+	-systemctl --user disable --now cofi
+	rm -f $(BINDIR)/$(TARGET)
+	rm -f $(SYSTEMD_USER_DIR)/cofi.service
+	systemctl --user daemon-reload
+	@echo "Uninstalled cofi"
 
 # Debug build with debug output enabled
 debug: CFLAGS += -DDEBUG

@@ -1288,11 +1288,12 @@ int main(int argc, char *argv[]) {
     int alignment_specified = 0;
     int close_on_focus_loss_specified = 0;
     
-    // Set default log level to INFO
+    // Set default log level to INFO (will be overridden by config, then by CLI)
     log_set_level(LOG_INFO);
-    
+    int log_level_from_cli = 0;
+
     // Parse command line arguments
-    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified, &close_on_focus_loss_specified, NULL);
+    int parse_result = parse_command_line(argc, argv, &app, &log_file_path, &log_enabled, &alignment_specified, &close_on_focus_loss_specified, &log_level_from_cli);
     if (parse_result == 2) {
         // Version was printed
         return 0;
@@ -1345,6 +1346,15 @@ int main(int argc, char *argv[]) {
     // Note: load_harpoon_slots must come AFTER init_app_data since init_harpoon_manager clears slots
     load_config(&app.config);
     load_harpoon_slots(&app.harpoon);
+
+    // Apply config log_level unless CLI --log-level was specified
+    if (!log_level_from_cli && app.config.log_level[0]) {
+        int level = parse_log_level(app.config.log_level);
+        if (level >= 0) {
+            log_set_level(level);
+            log_debug("Log level set from config: %s", app.config.log_level);
+        }
+    }
 
     // Apply precedence rules for close_on_focus_loss
     // Command line overrides config file (already set by cli_args.c if specified)
