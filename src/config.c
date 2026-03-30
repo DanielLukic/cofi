@@ -77,6 +77,19 @@ SlotSortOrder string_to_slot_sort_order(const char *str) {
     return SLOT_SORT_ROW_FIRST;
 }
 
+const char* window_order_mode_to_string(WindowOrderMode mode) {
+    switch (mode) {
+        case WINDOW_ORDER_NATIVE: return "native";
+        default: return "cofi";
+    }
+}
+
+WindowOrderMode string_to_window_order_mode(const char *str) {
+    if (!str) return WINDOW_ORDER_COFI;
+    if (strcmp(str, "native") == 0) return WINDOW_ORDER_NATIVE;
+    return WINDOW_ORDER_COFI;
+}
+
 static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
@@ -88,6 +101,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"ripple_enabled\": %s,\n", config->ripple_enabled ? "true" : "false");
     fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
     fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
+    fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
     fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
     fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
     fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
@@ -106,6 +120,7 @@ void init_config_defaults(CofiConfig *config) {
     config->ripple_enabled = 1;
     config->slot_sort_order = SLOT_SORT_ROW_FIRST;
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
+    config->window_order_mode = WINDOW_ORDER_COFI;
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
     strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
     strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
@@ -185,6 +200,10 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         char val[16] = {0};
         if (extract_json_string(line, val, sizeof(val)))
             strncpy(config->log_level, val, sizeof(config->log_level) - 1);
+    } else if (strstr(line, "\"window_order_mode\":")) {
+        char val[16] = {0};
+        if (extract_json_string(line, val, sizeof(val)))
+            config->window_order_mode = string_to_window_order_mode(val);
     } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
                strstr(line, "\"hotkey_workspaces\":")) {
         char val[64] = {0};
@@ -297,6 +316,17 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         return 1;
     }
 
+    // Enum: window_order_mode
+    if (strcmp(key, "window_order_mode") == 0) {
+        WindowOrderMode m = string_to_window_order_mode(value);
+        if (m == WINDOW_ORDER_COFI && strcmp(value, "cofi") != 0) {
+            snprintf(err_buf, err_size, "Unknown mode: %s (use cofi/native)", value);
+            return 0;
+        }
+        config->window_order_mode = m;
+        return 1;
+    }
+
     // Integer: workspaces_per_row (>= 0)
     if (strcmp(key, "workspaces_per_row") == 0) {
         int v = atoi(value);
@@ -371,6 +401,7 @@ const char* get_next_enum_value(const char *key, const char *current_value) {
     static const char *digit_slot_mode_values[] = { "default", "per-workspace", "workspaces" };
     static const char *slot_sort_order_values[] = { "row", "column" };
     static const char *log_level_values[] = { "trace", "debug", "info", "warn", "error", "fatal" };
+    static const char *window_order_mode_values[] = { "cofi", "native" };
 
     const char **values = NULL;
     int count = 0;
@@ -387,6 +418,9 @@ const char* get_next_enum_value(const char *key, const char *current_value) {
     } else if (strcmp(key, "log_level") == 0) {
         values = log_level_values;
         count = 6;
+    } else if (strcmp(key, "window_order_mode") == 0) {
+        values = window_order_mode_values;
+        count = 2;
     } else {
         return NULL;
     }
@@ -436,6 +470,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
     ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
     ADD_ENUM("log_level", config->log_level);
+    ADD_ENUM("window_order_mode", window_order_mode_to_string(config->window_order_mode));
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_STR("hotkey_windows", config->hotkey_windows);

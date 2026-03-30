@@ -47,6 +47,12 @@ typedef enum {
     SLOT_SORT_COLUMN_FIRST  // Left-to-right columns, top-to-bottom within column
 } SlotSortOrder;
 
+// Window ordering mode
+typedef enum {
+    WINDOW_ORDER_COFI,   // MRU focus-history ordering (default)
+    WINDOW_ORDER_NATIVE  // _NET_CLIENT_LIST_STACKING Z-order
+} WindowOrderMode;
+
 
 // Unified configuration structure
 typedef struct {
@@ -62,6 +68,7 @@ typedef struct {
     char hotkey_command[64];       // Hotkey for command mode, e.g. "Mod1+grave"
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
     char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
+    WindowOrderMode window_order_mode; // How to order windows in the list
 } CofiConfig;
 
 // Alignment string conversion
@@ -74,6 +81,10 @@ DigitSlotMode string_to_digit_slot_mode(const char *str);
 // Slot sort order string conversion
 const char* slot_sort_order_to_string(SlotSortOrder order);
 SlotSortOrder string_to_slot_sort_order(const char *str);
+
+// Window order mode string conversion
+const char* window_order_mode_to_string(WindowOrderMode mode);
+WindowOrderMode string_to_window_order_mode(const char *str);
 
 // Configuration management functions (options only - harpoon slots handled separately)
 void save_config(const CofiConfig *config);

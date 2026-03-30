@@ -124,8 +124,11 @@ static void draw_number(Display *display, Window win, int screen,
 }
 
 void show_slot_overlays(AppData *app) {
+    log_debug("show_slot_overlays: entered, duration=%d, slot_count=%d",
+              app->config.slot_overlay_duration_ms, app->workspace_slots.count);
     // Check if overlays are disabled
     if (app->config.slot_overlay_duration_ms <= 0) {
+        log_debug("show_slot_overlays: disabled (duration=%d)", app->config.slot_overlay_duration_ms);
         return;
     }
 

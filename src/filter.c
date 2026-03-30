@@ -17,6 +17,7 @@
 #include "selection.h"
 #include "x11_utils.h"
 #include "named_window.h"
+#include <X11/Xatom.h>
 
 #define UNUSED __attribute__((unused))
 
@@ -103,14 +104,64 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
 }
 
 
+// Reorder app->history to match _NET_CLIENT_LIST_STACKING (top-of-stack first)
+static void apply_native_stacking_order(AppData *app) {
+    Atom atom = XInternAtom(app->display, "_NET_CLIENT_LIST_STACKING", False);
+    Atom actual_type;
+    int actual_format;
+    unsigned long n_items, bytes_after;
+    unsigned char *prop = NULL;
+
+    if (XGetWindowProperty(app->display, DefaultRootWindow(app->display), atom,
+                           0, 4096, False, XA_WINDOW,
+                           &actual_type, &actual_format, &n_items, &bytes_after,
+                           &prop) != Success || !prop) {
+        log_warn("Could not fetch _NET_CLIENT_LIST_STACKING, keeping current order");
+        return;
+    }
+
+    Window *stack = (Window *)prop;
+    WindowInfo new_order[MAX_WINDOWS];
+    int new_count = 0;
+
+    // Stack is bottom-to-top; we want top-to-bottom (top = most recently raised first)
+    for (long i = (long)n_items - 1; i >= 0 && new_count < MAX_WINDOWS; i--) {
+        for (int j = 0; j < app->history_count; j++) {
+            if (app->history[j].id == stack[i]) {
+                new_order[new_count++] = app->history[j];
+                break;
+            }
+        }
+    }
+
+    // Copy any windows not in the stacking list (shouldn't happen, but be safe)
+    for (int j = 0; j < app->history_count && new_count < MAX_WINDOWS; j++) {
+        int found = 0;
+        for (int k = 0; k < new_count; k++) {
+            if (new_order[k].id == app->history[j].id) { found = 1; break; }
+        }
+        if (!found) new_order[new_count++] = app->history[j];
+    }
+
+    for (int i = 0; i < new_count; i++) app->history[i] = new_order[i];
+    app->history_count = new_count;
+
+    XFree(prop);
+    log_debug("Native stacking order applied: %d windows", new_count);
+}
+
 // Prepare windows for filtering by updating history and partitioning
 static void prepare_windows_for_filtering(AppData *app) {
     log_trace("Before pipeline - history_count=%d", app->history_count);
-    
+
     // First, update the complete window processing pipeline
     update_history(app);
-    partition_and_reorder(app);
-    
+    if (app->config.window_order_mode == WINDOW_ORDER_NATIVE) {
+        apply_native_stacking_order(app);
+    } else {
+        partition_and_reorder(app);
+    }
+
     // Second, update window titles to include custom names for filtering
     for (int i = 0; i < app->history_count; i++) {
         const char *custom_name = get_window_custom_name(&app->names, app->history[i].id);
@@ -119,12 +170,12 @@ static void prepare_windows_for_filtering(AppData *app) {
             char original_title[MAX_TITLE_LEN];
             strncpy(original_title, app->history[i].title, sizeof(original_title) - 1);
             original_title[sizeof(original_title) - 1] = '\0';
-            
-            // Format as "custom_name - original_title" 
+
+            // Format as "custom_name - original_title"
             snprintf(app->history[i].title, sizeof(app->history[i].title), "%s - %s", custom_name, original_title);
         }
     }
-    
+
     log_trace("After pipeline - history_count=%d", app->history_count);
 }
 
