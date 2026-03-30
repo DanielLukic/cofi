@@ -87,6 +87,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"slot_overlay_duration_ms\": %d,\n", config->slot_overlay_duration_ms);
     fprintf(file, "    \"ripple_enabled\": %s,\n", config->ripple_enabled ? "true" : "false");
     fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
+    fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
     fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
     fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
     fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
@@ -104,6 +105,7 @@ void init_config_defaults(CofiConfig *config) {
     config->slot_overlay_duration_ms = 750;
     config->ripple_enabled = 1;
     config->slot_sort_order = SLOT_SORT_ROW_FIRST;
+    strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
     strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
     strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
@@ -179,6 +181,10 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         char val[16] = {0};
         if (extract_json_string(line, val, sizeof(val)))
             config->slot_sort_order = string_to_slot_sort_order(val);
+    } else if (strstr(line, "\"log_level\":")) {
+        char val[16] = {0};
+        if (extract_json_string(line, val, sizeof(val)))
+            strncpy(config->log_level, val, sizeof(config->log_level) - 1);
     } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
                strstr(line, "\"hotkey_workspaces\":")) {
         char val[64] = {0};
@@ -316,6 +322,25 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     }
 
     // String: hotkeys
+    // Enum: log_level (applies immediately)
+    if (strcmp(key, "log_level") == 0) {
+        int level = -1;
+        if (strcasecmp(value, "trace") == 0) level = 0;
+        else if (strcasecmp(value, "debug") == 0) level = 1;
+        else if (strcasecmp(value, "info") == 0) level = 2;
+        else if (strcasecmp(value, "warn") == 0) level = 3;
+        else if (strcasecmp(value, "error") == 0) level = 4;
+        else if (strcasecmp(value, "fatal") == 0) level = 5;
+        if (level < 0) {
+            snprintf(err_buf, err_size, "Unknown log level: %s (use trace/debug/info/warn/error/fatal)", value);
+            return 0;
+        }
+        strncpy(config->log_level, value, sizeof(config->log_level) - 1);
+        config->log_level[sizeof(config->log_level) - 1] = '\0';
+        log_set_level(level);
+        return 1;
+    }
+
     if (strcmp(key, "hotkey_windows") == 0) {
         strncpy(config->hotkey_windows, value, sizeof(config->hotkey_windows) - 1);
         config->hotkey_windows[sizeof(config->hotkey_windows) - 1] = '\0';
@@ -345,6 +370,7 @@ const char* get_next_enum_value(const char *key, const char *current_value) {
     };
     static const char *digit_slot_mode_values[] = { "default", "per-workspace", "workspaces" };
     static const char *slot_sort_order_values[] = { "row", "column" };
+    static const char *log_level_values[] = { "trace", "debug", "info", "warn", "error", "fatal" };
 
     const char **values = NULL;
     int count = 0;
@@ -358,6 +384,9 @@ const char* get_next_enum_value(const char *key, const char *current_value) {
     } else if (strcmp(key, "slot_sort_order") == 0) {
         values = slot_sort_order_values;
         count = 2;
+    } else if (strcmp(key, "log_level") == 0) {
+        values = log_level_values;
+        count = 6;
     } else {
         return NULL;
     }
@@ -406,6 +435,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_INT("tile_columns", config->tile_columns);
     ADD_ENUM("digit_slot_mode", digit_slot_mode_to_string(config->digit_slot_mode));
     ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
+    ADD_ENUM("log_level", config->log_level);
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_STR("hotkey_windows", config->hotkey_windows);

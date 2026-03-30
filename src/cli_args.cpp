@@ -65,8 +65,7 @@ WindowAlignment parse_alignment(const char *align_str) {
     return ALIGN_CENTER; // Default fallback
 }
 
-int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified, int *close_on_focus_loss_specified, int *workspace_shortcut_specified) {
-    (void)workspace_shortcut_specified; // Unused parameter
+int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, int *log_enabled, int *alignment_specified, int *close_on_focus_loss_specified, int *log_level_specified) {
     
     using namespace popl;
     
@@ -132,6 +131,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
             return 1;
         }
         log_set_level(level);
+        if (log_level_specified) *log_level_specified = 1;
     }
     
     if (log_file_opt->is_set()) {

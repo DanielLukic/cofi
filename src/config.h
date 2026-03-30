@@ -61,6 +61,7 @@ typedef struct {
     char hotkey_windows[64];       // Hotkey for windows mode, e.g. "Mod1+Tab" ("" = disabled)
     char hotkey_command[64];       // Hotkey for command mode, e.g. "Mod1+grave"
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
+    char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
 } CofiConfig;
 
 // Alignment string conversion
