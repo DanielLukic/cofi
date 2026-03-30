@@ -1122,11 +1122,9 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
     if (apply_config_setting(&app->config, key, value, err, sizeof(err))) {
         save_config(&app->config);
         log_info("Config: %s = %s", key, value);
-        // Refresh config display so user sees the change
-        char buf[2048] = {0};
-        format_config_display(&app->config, buf, sizeof(buf));
-        gtk_text_buffer_set_text(app->textbuffer, buf, -1);
-        app->command_mode.showing_help = TRUE;
+        // Switch to Config tab to show the change
+        exit_command_mode(app);
+        switch_to_tab(app, TAB_CONFIG);
     } else {
         char msg[512];
         snprintf(msg, sizeof(msg), "Error: %s\n\nType :config to see available keys.", err);
@@ -1136,18 +1134,8 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
 }
 
 gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args __attribute__((unused))) {
-    char buf[2048] = {0};
-    format_config_display(&app->config, buf, sizeof(buf));
-    log_info("Current config:\n%s", buf);
-
-    // Show in command mode help display
-    app->command_mode.showing_help = TRUE;
-    app->command_mode.help_scroll_offset = 0;
-
-    // Build help-style display with config values
-    GtkTextBuffer *buffer = app->textbuffer;
-    gtk_text_buffer_set_text(buffer, buf, -1);
-
+    exit_command_mode(app);
+    switch_to_tab(app, TAB_CONFIG);
     return FALSE;
 }
 
@@ -1160,11 +1148,15 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
         else if (strcmp(args, "workspaces") == 0)  mode = SHOW_MODE_WORKSPACES;
         else if (strcmp(args, "harpoon") == 0)     mode = SHOW_MODE_HARPOON;
         else if (strcmp(args, "names") == 0) {
-            app->current_tab = TAB_NAMES;
-            update_display(app);
+            exit_command_mode(app);
+            switch_to_tab(app, TAB_NAMES);
+            return FALSE;
+        } else if (strcmp(args, "config") == 0) {
+            exit_command_mode(app);
+            switch_to_tab(app, TAB_CONFIG);
             return FALSE;
         } else {
-            show_error_in_display(app, "Usage: show [windows|command|workspaces|harpoon|names]");
+            show_error_in_display(app, "Usage: show [windows|command|workspaces|harpoon|names|config]");
             return FALSE;
         }
     }

@@ -28,4 +28,8 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
 // Activate window using direct X11 calls
 void activate_window(Display *display, Window window_id);
 
+// Switch to a specific tab (handles filtering, placeholder text, display refresh)
+#include "app_data.h"
+void switch_to_tab(AppData *app, TabMode target_tab);
+
 #endif // DISPLAY_H

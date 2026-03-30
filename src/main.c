@@ -66,7 +66,7 @@ static gboolean check_focus_loss_delayed(AppData *app);
 // Note: Selection management functions moved to selection.c
 
 // Helper function to switch between tabs
-static void switch_to_tab(AppData *app, TabMode target_tab) {
+void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == target_tab) {
         return; // Already on the target tab
     }
