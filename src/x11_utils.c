@@ -575,6 +575,12 @@ void toggle_maximize_vertical(Display *display, Window window) {
     toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
+// Minimize (iconify) a window
+void minimize_window(Display *display, Window window) {
+    XIconifyWindow(display, window, DefaultScreen(display));
+    XFlush(display);
+}
+
 // =============================================================================
 // Cached versions - use pre-interned atoms for better performance
 // =============================================================================

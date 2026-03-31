@@ -56,6 +56,7 @@ gboolean get_window_state(Display *display, Window window, const char *state_ato
 
 // Window management functions
 void close_window(Display *display, Window window);
+void minimize_window(Display *display, Window window);
 void toggle_maximize_window(Display *display, Window window);
 void toggle_maximize_horizontal(Display *display, Window window);
 void toggle_maximize_vertical(Display *display, Window window);

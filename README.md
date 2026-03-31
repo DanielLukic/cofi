@@ -194,6 +194,7 @@ Press `:` to enter command mode for advanced window management operations. Comma
 - `:sw` or `:swap-windows` - Swap two windows (positions and sizes)
 - `:cl` or `:close-window` or `:c` - Close selected window
 - `:mw` or `:maximize-window` or `:m` - Toggle maximize
+- `:miw` or `:min` or `:minimize-window` - Toggle minimize (restore if already minimized)
 - `:hm` or `:horizontal-maximize-window` - Toggle horizontal maximize
 - `:vm` or `:vertical-maximize-window` - Toggle vertical maximize
 

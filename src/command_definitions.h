@@ -26,6 +26,7 @@ gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args);
@@ -128,6 +129,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_move_all_to_workspace,
         .description = "Move all windows from current workspace to target workspace",
         .help_format = "maw, move-all-to-workspace [N]"
+    },
+    {
+        .primary = "miw",
+        .aliases = {"min", "minimize-window", NULL},
+        .handler = cmd_minimize_window,
+        .description = "Toggle minimize selected window (restore if already minimized)",
+        .help_format = "miw, min, minimize-window"
     },
     {
         .primary = "mouse",
