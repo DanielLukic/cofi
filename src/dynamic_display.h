@@ -84,6 +84,11 @@ gint get_dynamic_max_display_lines(struct AppData *app);
  */
 void invalidate_display_line_cache(struct AppData *app);
 
+/**
+ * Get the number of monospace character columns that fit in the text view
+ */
+gint get_display_columns(struct AppData *app);
+
 // Utility functions
 
 /**
