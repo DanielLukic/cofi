@@ -200,16 +200,29 @@ Press `:` to enter command mode for advanced window management operations. Comma
 **Window Properties:**
 - `:sb` or `:skip-taskbar` - Toggle skip taskbar
 - `:at` or `:always-on-top` or `:aot` - Toggle always on top
+- `:ab` or `:always-below` - Toggle always below
 - `:ew` or `:every-workspace` - Toggle sticky (show on all workspaces)
 
 **Navigation:**
 - `:jw [N|dir]` or `:jump-workspace [N|dir]` or `:j [N|dir]` - Jump to workspace N or direction (h/j/k/l)
-  
+
   ![Jump to Workspace](doc/cofi-jump-workspace.png)
+- `:rw [N]` or `:rename-workspace` - Rename workspace N (current if omitted)
 - `:help` or `:h` or `:?` - Show command help
 
 **Window Naming:**
 - `:assign-name` or `:an` or `:n` - Assign custom name to selected window
+
+**Configuration:**
+- `:set <key> <value>` - Set a config option at runtime
+- `:config` or `:cfg` - Switch to the Config tab
+- `:hotkeys` or `:hk` - Show/manage hotkey bindings
+- `:as` or `:assign-slots` - Assign workspace window slots by screen position
+
+**Mouse:**
+- `:mouse away` or `:ma` - Move mouse cursor away
+- `:mouse show` or `:ms` - Show mouse cursor
+- `:mouse hide` or `:mh` - Hide mouse cursor
 
 #### No-Space Syntax
 
@@ -228,7 +241,8 @@ This vim-style syntax works alongside traditional space-separated commands.
 
 ### Window Display
 
-COFI shows windows in a 5-column format:
+COFI shows windows in a 6-column format:
+- **Slot** - Harpoon slot indicator (digit/letter if assigned, blank otherwise)
 - **Desktop** - [0-9] for desktop number, [S] for sticky windows
 - **Instance** - Application instance name
 - **Title** - Window title (truncated to fit)
