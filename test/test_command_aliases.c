@@ -302,6 +302,9 @@ static void test_commands_without_compact_form(void) {
     check("sb bare", "sb", "sb", "");
     check("pw bare", "pw", "pw", "");
     check("mw bare", "mw", "mw", "");
+    check("miw bare", "miw", "miw", "");
+    check("min bare", "min", "min", "");
+    check("minimize-window bare", "minimize-window", "minimize-window", "");
     check("sw bare", "sw", "sw", "");
     check("ew bare", "ew", "ew", "");
     check("aot bare", "aot", "aot", "");

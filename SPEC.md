@@ -231,6 +231,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 - `:sw` (`:swap-windows`) — swap two windows (positions and sizes)
 - `:maw [N|dir]` (`:move-all-to-workspace`) — move all windows from current workspace to target
 - `:mw` (`:max`, `:maximize-window`) — toggle maximize selected window
+- `:miw` (`:min`, `:minimize-window`) — toggle minimize (restore if already minimized, closes cofi)
 
 ### Tiling Commands
 

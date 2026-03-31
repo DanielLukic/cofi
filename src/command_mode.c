@@ -678,6 +678,23 @@ gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __a
     return TRUE;
 }
 
+gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for minimizing");
+        return FALSE;
+    }
+
+    if (get_window_state(app->display, window->id, "_NET_WM_STATE_HIDDEN")) {
+        activate_window(app->display, window->id);
+        log_info("CMD: Restored minimized window '%s'", window->title);
+    } else {
+        minimize_window(app->display, window->id);
+        log_info("CMD: Minimized window '%s'", window->title);
+    }
+    hide_window(app);
+    return TRUE;
+}
+
 gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for maximizing");
