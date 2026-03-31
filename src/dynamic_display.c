@@ -337,6 +337,31 @@ gint get_dynamic_max_display_lines(struct AppData *app) {
     return lines;
 }
 
+// Get the number of monospace character columns that fit in the text view
+gint get_display_columns(struct AppData *app) {
+    if (!app || !app->textview) return 80; // fallback
+
+    GtkWidget *tv = app->textview;
+    int widget_width = gtk_widget_get_allocated_width(tv);
+    int left_margin = gtk_text_view_get_left_margin(GTK_TEXT_VIEW(tv));
+    int right_margin = gtk_text_view_get_right_margin(GTK_TEXT_VIEW(tv));
+    int available = widget_width - left_margin - right_margin;
+
+    // Measure monospace char width via Pango
+    PangoContext *context = gtk_widget_get_pango_context(tv);
+    PangoFontDescription *font_desc = pango_context_get_font_description(context);
+    PangoFontMetrics *metrics = pango_context_get_metrics(context, font_desc, NULL);
+    if (!metrics) return 80;
+
+    int char_width = PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(metrics));
+    pango_font_metrics_unref(metrics);
+
+    if (char_width <= 0) return 80;
+
+    int columns = available / char_width;
+    return columns > 0 ? columns : 80;
+}
+
 // Invalidate cache to force recalculation
 void invalidate_display_line_cache(struct AppData *app) {
     (void)app;  // Unused parameter
