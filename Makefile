@@ -130,7 +130,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match
+test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -168,6 +168,10 @@ test_command_aliases: test/test_command_aliases.c src/command_parser.o
 # Build wildcard match test
 test_wildcard_match: test/test_wildcard_match.c src/window_matcher.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_wildcard_match test/test_wildcard_match.c src/window_matcher.o src/log.o $(LDFLAGS)
+
+# Build parse shortcut test
+test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
+	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o
