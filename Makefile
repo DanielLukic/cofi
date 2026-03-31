@@ -2,7 +2,7 @@
 
 CC = gcc
 CXX = g++
-CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations $(shell pkg-config --cflags gtk+-3.0 x11 gio-2.0)
+CFLAGS = -Wall -Wextra -g -Wno-deprecated-declarations -MMD -MP $(shell pkg-config --cflags gtk+-3.0 x11 gio-2.0)
 CXXFLAGS = $(CFLAGS) -std=c++11 -Iinclude
 LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr -lXfixes -lXft -lstdc++
 
@@ -84,7 +84,7 @@ src/%.o: src/%.cpp
 
 # Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(TARGET) src/*.d
 	rm -f test/test_command_parsing test/test_window_matcher
 
 
@@ -195,5 +195,7 @@ test_event_sequence: test/test_event_sequence.c src/harpoon.o src/window_matcher
 
 clean_tests:
 	rm -f test/test_* test/*.o
+
+-include $(wildcard src/*.d)
 
 .PHONY: all clean install uninstall debug run test build_tests clean_tests
