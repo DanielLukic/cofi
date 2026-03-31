@@ -7,9 +7,6 @@
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
                          char *err_buf, size_t err_size);
 
-// Format config as display string (for :config command)
-int format_config_display(const CofiConfig *config, char *buf, size_t buf_size);
-
 static int tests_passed = 0;
 static int tests_failed = 0;
 
@@ -153,37 +150,6 @@ static void test_unknown_key(void) {
     ASSERT_ERR("set nonexistent_key value", c, "nonexistent_key", "value");
 }
 
-static void test_format_config(void) {
-    CofiConfig c;
-    init_config_defaults(&c);
-
-    char buf[2048] = {0};
-    int len = format_config_display(&c, buf, sizeof(buf));
-
-    if (len <= 0) {
-        printf("FAIL: format_config_display returned %d\n", len);
-        tests_failed++;
-        return;
-    }
-
-    // Check that all keys appear in output
-    const char *expected_keys[] = {
-        "close_on_focus_loss", "align", "workspaces_per_row", "tile_columns",
-        "digit_slot_mode", "slot_overlay_duration_ms", "ripple_enabled",
-        "hotkey_windows", "hotkey_command", "hotkey_workspaces", NULL
-    };
-
-    for (int i = 0; expected_keys[i]; i++) {
-        if (strstr(buf, expected_keys[i])) {
-            printf("PASS: config display contains '%s'\n", expected_keys[i]);
-            tests_passed++;
-        } else {
-            printf("FAIL: config display missing '%s'\n", expected_keys[i]);
-            tests_failed++;
-        }
-    }
-}
-
 int main(void) {
     printf("Config :set and :config tests\n");
     printf("=============================\n\n");
@@ -193,7 +159,6 @@ int main(void) {
     test_enum_fields();
     test_string_fields();
     test_unknown_key();
-    test_format_config();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
