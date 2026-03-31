@@ -21,9 +21,10 @@ int get_max_display_lines_dynamic(AppData *app);
 // Generate text-based scrollbar
 void generate_scrollbar(int total_items, int visible_items, int scroll_offset, char *scrollbar, int scrollbar_height);
 
-// Overlay scrollbar on last char of each line in text (in place).
+// Overlay scrollbar on the rightmost column of each line in text (in place).
+// Pads/truncates each line to target_columns, places scrollbar char at the last position.
 // For bottom-up display, pass flipped offset: (total - visible) - offset.
-void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset);
+void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns);
 
 // Activate window using direct X11 calls
 void activate_window(Display *display, Window window_id);

@@ -13,6 +13,7 @@
 #include "app_data.h"
 #include "hotkey_config.h"
 #include "hotkeys.h"
+#include "dynamic_display.h"
 #include "types.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
@@ -154,7 +155,7 @@ static char *build_help_page_text(AppData *app, char **lines, int total_lines, i
     }
 
     // Help scrollbar: top-down, no inversion needed
-    overlay_scrollbar(rendered, total_lines, visible_lines, start);
+    overlay_scrollbar(rendered, total_lines, visible_lines, start, get_display_columns(app));
 
     return g_string_free(rendered, FALSE);
 }

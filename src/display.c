@@ -210,22 +210,60 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
     scrollbar[scrollbar_height] = '\0';
 }
 
-// Overlay scrollbar indicators on the last character of each line in text.
+// Overlay scrollbar indicators on the rightmost column of each line in text.
+// Pads short lines with spaces, truncates long lines to target_columns.
 // Modifies text in place. For bottom-up (fzf-style) display, caller should
 // pass flipped offset: (total_items - visible_items) - scroll_offset.
-void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset) {
-    if (total_items <= visible_items) return;
+void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
+    if (total_items <= visible_items || target_columns <= 0) return;
+
+    // Find max line length so scrollbar column is at least past all content
+    int max_line_len = 0;
+    const char *scan = text->str;
+    while (*scan) {
+        const char *nl = strchr(scan, '\n');
+        int len = nl ? (int)(nl - scan) : (int)strlen(scan);
+        if (len > max_line_len) max_line_len = len;
+        if (!nl) break;
+        scan = nl + 1;
+    }
+    // Content + 1 space gap + 1 scrollbar char
+    int content_columns = max_line_len + 2;
+    if (content_columns > target_columns) target_columns = content_columns;
 
     char sb[visible_items + 1];
     generate_scrollbar(total_items, visible_items, scroll_offset, sb, visible_items);
 
+    // Rebuild text with each line padded/truncated to target_columns
+    GString *result = g_string_new(NULL);
+    const char *p = text->str;
     int line = 0;
-    for (size_t i = 0; i < text->len && line < visible_items; i++) {
-        if (text->str[i] == '\n' && i > 0) {
-            text->str[i - 1] = sb[line];
-            line++;
+
+    while (*p && line < visible_items) {
+        const char *nl = strchr(p, '\n');
+        int line_len = nl ? (int)(nl - p) : (int)strlen(p);
+
+        if (line_len >= target_columns) {
+            // Truncate to target_columns - 1, then scrollbar
+            g_string_append_len(result, p, target_columns - 1);
+        } else {
+            // Append content, pad with spaces
+            g_string_append_len(result, p, line_len);
+            for (int i = line_len; i < target_columns - 1; i++)
+                g_string_append_c(result, ' ');
         }
+        g_string_append_c(result, sb[line]);
+        g_string_append_c(result, '\n');
+
+        line++;
+        p = nl ? nl + 1 : p + line_len;
     }
+
+    // Append remaining lines unchanged (if any)
+    if (*p) g_string_append(result, p);
+
+    g_string_assign(text, result->str);
+    g_string_free(result, TRUE);
 }
 
 // Format and display windows tab content
@@ -331,7 +369,7 @@ static void format_windows_display(AppData *app, GString *text, int selected_idx
 
     // Overlay scrollbar on last column (flipped offset for bottom-up display)
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 }
 
 // Format and display workspaces tab content
@@ -382,7 +420,7 @@ static void format_workspaces_display(AppData *app, GString *text, int selected_
     }
 
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 }
 
 // Format and display harpoon tab content
@@ -441,7 +479,7 @@ static void format_harpoon_display(AppData *app, GString *text, int selected_idx
     }
 
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 
     // Shortcuts footer
     g_string_append(text, "\n");
@@ -511,7 +549,7 @@ static void format_names_display(AppData *app, GString *text, int selected_idx) 
     }
 
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 
     // Add shortcuts footer
     g_string_append(text, "\n");
@@ -562,7 +600,7 @@ static void format_config_display_tab(AppData *app, GString *text, int selected_
     }
 
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 
     g_string_append(text, "\n");
     g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
@@ -612,7 +650,7 @@ static void format_hotkeys_display(AppData *app, GString *text, int selected_idx
     }
 
     int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped);
+    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 
     g_string_append(text, "\n");
     g_string_append(text, "Shortcuts: Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
