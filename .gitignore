@@ -9,3 +9,4 @@ test/test_*
 !test/test_*.c
 !test/test_*.sh
 !test/test_*.h
+src/*.d
