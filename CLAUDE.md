@@ -1,162 +1,43 @@
-# COFI - C/GTK Port of GOFI Window Switcher
+# COFI - C/GTK Window Switcher
 
-## Project Overview
+## Development Workflow
 
-COFI is a C/GTK port of the golang GOFI window switcher. Instead of using xterm+fzf for the UI, COFI provides a native GTK window with integrated search functionality.
+### Branch Structure
 
-## Core Architecture
+- **`main`** — stable releases, updated via PR from develop
+- **`develop`** — active development, all work merges here first
+- **`fix/*`** or **`feat/*`** — short-lived branches off develop for PRs
 
-### 1. Window Management (X11)
+### Making Changes
 
-- Direct X11 interaction using Xlib
-- EWMH (Extended Window Manager Hints) support
-- Monitor window list changes via _NET_CLIENT_LIST
-- Track active window via _NET_ACTIVE_WINDOW
-- Extract window properties:
-    - Title (_NET_WM_NAME, WM_NAME)
-    - Class/Instance (WM_CLASS)
-    - Type (_NET_WM_WINDOW_TYPE)
-    - Desktop (_NET_WM_DESKTOP)
-    - PID (_NET_WM_PID)
+1. Branch from `develop` (never from `main`)
+2. Make changes, build with `make clean && make`, run `make test`
+3. Push branch, create PR targeting `develop`
+4. Merge PR, update GitHub issue status
 
-### 2. History Management
+### Subagent PRs
 
-- Maintain MRU (Most Recently Used) window list
-- Move newly focused windows to front
-- Preserve order when windows close
-- Ignore self ("cofi" titled windows)
+When spawning agents for isolated work:
+- Always instruct them to branch from `develop`
+- Use `isolation: "worktree"` for parallel work
+- Agent creates branch `fix/<issue-slug>`, pushes, opens PR against `develop`
+- Review diff before merging — agents may branch from wrong base
 
-### 3. Window Ordering
+### Build & Run
 
-- Partition windows by type (Normal vs Special)
-- Normal windows appear first
-- **Alt-Tab Swap Logic**:
-    - The swap happens ONLY in the display layer, never in the data structures
-    - Data structures (windows, history, filtered) maintain true window order
-    - When displaying: swap positions 0 and 1 for visual display only
-    - When user selects entry 0 (first displayed), activate the window that's actually shown there
-    - This enables Alt-Tab-like behavior where pressing Enter immediately switches to previous window
-
-### 4. Multi-Stage Filtering
-
-Real-time search with intelligent scoring:
-
-1. **Word Boundary Matches** (score: 2000) - highest priority
-   - "comm" matches "Commodoro" (starts with "comm")
-   
-2. **Initials Matches** (score: 1900) - very high priority  
-   - "ddl" matches "Daniel Dario Lukic" (D-D-L initials)
-   
-3. **Subsequence Matches** (score: 1500) - high priority
-   - "th" matches "Thunderbird" (t-h in sequence)
-   
-4. **Fuzzy Matches** (variable score) - fallback
-   - Complex character matching with scoring
-
-Case-insensitive matching on window title, class name, and instance name.
-
-### 5. Display Format
-
-- 5-column layout:
-    - Desktop indicator [0-9] or [S] for sticky
-    - Instance name (20 chars)
-    - Window title (55 chars)  
-    - Class name (18 chars)
-    - Window ID (hex)
-- Selection indicator ">"
-- Monospace font for alignment
-- Bottom-up display (fzf-style) with first entry at bottom
-
-### 6. GTK UI
-
-- Borderless window
-- Stay on top
-- Skip taskbar
-- Center on screen
-- Text view for window list (top)
-- Entry widget for search (bottom)
-- Keyboard navigation:
-    - Up/Down: Navigate selection
-    - Enter: Activate selected window
-    - Escape: Cancel
-    - Real-time filtering as user types
-
-### 7. Window Activation
-
-- Direct X11 window activation using EWMH protocol
-- Switch to window's desktop first (_NET_CURRENT_DESKTOP)
-- Send activation message (_NET_ACTIVE_WINDOW)
-- Raise and map window (XMapRaised)
-- No external dependencies (replaced wmctrl)
-
-### 8. Event-Driven Updates
-
-- **PropertyNotify events**: Monitor root window for _NET_CLIENT_LIST and _NET_ACTIVE_WINDOW changes
-- **GIOChannel integration**: X11 file descriptor monitored via GLib main loop
-- **Real-time updates**: Window list refreshes automatically when windows are created/destroyed
-
-### 9. Single Instance Management
-
-- Uses D-Bus IPC for inter-process communication
-- Second instance calls ShowWindow method on first instance via D-Bus
-- Clean inter-process communication with automatic cleanup
-
-### 10. Harpoon-Style Window Assignment
-
-- Assign windows to number keys (Ctrl+number)
-- Direct switching (Alt+number)
-- Persistent storage in ~/.config/cofi.json
-- Automatic reassignment when windows close
-- Fuzzy matching for intelligent reassignment
-
-## Key Data Structures
-
-```c
-typedef struct {
-    Window id;
-    char title[MAX_TITLE_LEN];
-    char class_name[MAX_CLASS_LEN];
-    char instance[MAX_CLASS_LEN];
-    char type[16]; // "Normal" or "Special"
-    int desktop;
-    int pid;
-} WindowInfo;
-
-typedef struct {
-    GtkWidget *window;
-    GtkWidget *entry;
-    GtkWidget *textview;
-    GtkWidget *scrolled;
-    GtkTextBuffer *textbuffer;
-    
-    WindowInfo windows[MAX_WINDOWS];        // Raw window list from X11
-    WindowInfo history[MAX_WINDOWS];        // History-ordered windows
-    WindowInfo filtered[MAX_WINDOWS];       // Filtered and display-ready windows
-    int window_count;
-    int history_count;
-    int filtered_count;
-    int selected_index;
-    int active_window_id;                   // Currently active window
-    
-    Display *display;
-    HarpoonManager harpoon;
-} AppData;
+```bash
+make clean && make      # full rebuild (required after header changes)
+make test               # run all tests
+./restart.sh            # clean build + restart systemd service
+systemctl --user restart cofi  # restart without rebuild
+journalctl --user -u cofi -f   # tail logs
 ```
 
-## File Organization
+### Tracking
 
-- `src/main.c` - Application entry point and GTK setup
-- `src/x11_utils.c` - X11 window property extraction and activation
-- `src/window_list.c` - Window enumeration via EWMH
-- `src/history.c` - MRU ordering and Alt-Tab swap logic
-- `src/filter.c` - Multi-stage filtering with intelligent scoring
-- `src/display.c` - GTK display formatting and window activation
-- `src/x11_events.c` - Event-driven window list updates
-- `src/instance.c` - Single instance management
-- `src/harpoon.c` - Harpoon-style window assignments
-- `src/window_matcher.c` - Window matching logic
-- `src/match.c` - Fuzzy matching algorithms
-- `src/log.c` - Logging infrastructure
+- Issues and project board: https://github.com/DanielLukic/cofi/issues
+- Project: https://github.com/users/DanielLukic/projects/3
+- Status flow: Todo → In Progress → In Review → Done
 
 ## Coding Guidelines
 
@@ -165,13 +46,44 @@ typedef struct {
 3. **Work in small commit steps** with clear messages
 4. **Write tests for essential functionality**
 5. **Use logging instead of print statements**
-6. **Test with background processes** (`./cofi &`)
+6. **`make clean && make` after any header change** (no auto header deps yet)
 
-## Technical Features
+## Architecture Overview
 
-- **Zero external dependencies** for window activation
-- **Event-driven architecture** with no polling
-- **Intelligent fuzzy matching** with multi-stage scoring
-- **Memory efficient** with fixed-size arrays
-- **X11 EWMH compliant** for broad window manager support
-- **GTK3 native UI** with proper focus handling
+- **X11/EWMH** — direct Xlib for window management, no wmctrl
+- **GTK3** — native UI with borderless always-on-top window
+- **Event-driven** — PropertyNotify via GIOChannel, no polling
+- **Single instance** — XGrabKey failure guards against duplicates
+- **Daemon mode** — starts hidden, registers global hotkeys, waits
+- **Systemd** — `make install` sets up user service with auto-restart
+
+## Key Subsystems
+
+- **MRU history** — focus-tracking window order, partition by type/desktop
+- **Fuzzy search** — fzf-style scoring + initials + word boundary matching
+- **Harpoon slots** — 36 persistent window assignments (0-9, a-z)
+- **Workspace slots** — auto-numbered by screen position per workspace
+- **Command mode** — vim-style `:` commands with compact syntax
+- **Tiling** — half/quarter/third/grid positions, multi-monitor aware
+- **Hotkeys** — configurable global X11 grabs via hotkeys.json
+- **Config** — runtime-editable via `:set` or Config tab (Ctrl+T/Ctrl+E)
+
+## File Organization
+
+- `src/main.c` — entry point, GTK setup, key handlers, tab switching
+- `src/filter.c` — search/scoring pipeline, MRU vs native ordering
+- `src/display.c` — text formatting for all tabs
+- `src/config.c` — config load/save/apply, build_config_entries (single source of truth)
+- `src/command_mode.c` — command parsing, execution, all `:` commands
+- `src/workspace_slots.c` — per-workspace slot assignment and column/row sort
+- `src/hotkeys.c` — global XGrabKey registration and dispatch
+- `src/harpoon.c` — persistent window slot assignments
+- `src/history.c` — MRU ordering and partition_and_reorder
+- `src/x11_utils.c` — X11 property extraction and window activation
+- `src/x11_events.c` — event-driven window list updates
+- `src/window_list.c` — EWMH window enumeration
+- `src/slot_overlay.c` — numbered overlay indicators on windows
+- `src/window_highlight.c` — circle ripple effect on activation
+- `src/monitor_move.c` — window geometry and multi-monitor support
+- `src/tiling.c` — tiling positions and calculations
+- `src/log.c` — rxi/log.c logging library
