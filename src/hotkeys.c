@@ -176,7 +176,14 @@ void setup_hotkeys(AppData *app) {
 
 void cleanup_hotkeys(AppData *app) {
     ungrab_all(app->display);
+    grabbed_count = 0;
     log_debug("Hotkeys unregistered");
+}
+
+void regrab_hotkeys(AppData *app) {
+    cleanup_hotkeys(app);
+    setup_hotkeys(app);
+    log_info("Hotkeys re-grabbed after config change");
 }
 
 typedef struct {
