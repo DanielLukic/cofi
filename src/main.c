@@ -488,6 +488,7 @@ static gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
             HotkeyBinding *binding = &app->filtered_hotkeys[app->selection.hotkeys_index];
             remove_hotkey_binding(&app->hotkey_config, binding->key);
             save_hotkey_config(&app->hotkey_config);
+            regrab_hotkeys(app);
 
             const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
             filter_hotkeys(app, current_filter);

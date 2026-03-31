@@ -12,6 +12,7 @@
 #include "workspace_utils.h"
 #include "app_data.h"
 #include "hotkey_config.h"
+#include "hotkeys.h"
 #include "types.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
@@ -1175,10 +1176,12 @@ gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), c
     if (action == 1) {
         add_hotkey_binding(&app->hotkey_config, key, cmd);
         save_hotkey_config(&app->hotkey_config);
+        regrab_hotkeys(app);
         log_info("Hotkey bound: %s → %s", key, cmd);
     } else if (action == 2) {
         if (remove_hotkey_binding(&app->hotkey_config, key)) {
             save_hotkey_config(&app->hotkey_config);
+            regrab_hotkeys(app);
             log_info("Hotkey unbound: %s", key);
         } else {
             log_warn("No hotkey binding for: %s", key);

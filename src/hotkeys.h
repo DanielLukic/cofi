@@ -11,6 +11,9 @@ void setup_hotkeys(AppData *app);
 // Unregister all system hotkeys.
 void cleanup_hotkeys(AppData *app);
 
+// Unregister then re-register all hotkeys (call after bind/unbind).
+void regrab_hotkeys(AppData *app);
+
 // Call from handle_x11_event when a KeyPress event is received.
 void handle_hotkey_event(AppData *app, XKeyEvent *event);
 
