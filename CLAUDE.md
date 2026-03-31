@@ -8,12 +8,18 @@
 - **`develop`** — active development, all work merges here first
 - **`fix/*`** or **`feat/*`** — short-lived branches off develop for PRs
 
+### Rules
+
+- **NEVER push to `develop`, `main`, or `release` without explicit user consent**
+- **NEVER create merge commits — always clean rebase for clean history**
+- **NEVER merge PRs that change app logic without user testing first**
+
 ### Making Changes
 
 1. Branch from `develop` (never from `main`)
 2. Make changes, build with `make clean && make`, run `make test`
 3. Push branch, create PR targeting `develop`
-4. Merge PR, update GitHub issue status
+4. Wait for user approval before merging
 
 ### Subagent PRs
 
