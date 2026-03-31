@@ -483,17 +483,3 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     #undef ADD_ENUM
 }
 
-int format_config_display(const CofiConfig *config, char *buf, size_t buf_size) {
-    if (!config || !buf || buf_size == 0) return 0;
-
-    ConfigEntry entries[MAX_CONFIG_ENTRIES];
-    int count = 0;
-    build_config_entries(config, entries, &count);
-
-    int written = 0;
-    for (int i = 0; i < count && written < (int)buf_size - 1; i++) {
-        written += snprintf(buf + written, buf_size - written,
-                            "%-26s %s\n", entries[i].key, entries[i].value);
-    }
-    return written;
-}

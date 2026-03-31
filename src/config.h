@@ -103,9 +103,6 @@ const char* get_next_enum_value(const char *key, const char *current_value);
 // Build the canonical list of all config entries. Single source of truth.
 void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count);
 
-// Format all config settings as display text. Returns bytes written.
-int format_config_display(const CofiConfig *config, char *buf, size_t buf_size);
-
 /* Scoring constants from fzy (moved to bottom to maintain compatibility) */
 #define SCORE_MATCH_CONSECUTIVE 16
 #define SCORE_MATCH_SLASH 9
