@@ -13,6 +13,8 @@
 #include "atom_cache.h"
 #include "command_mode.h"
 #include "selection.h"
+#include "rules_config.h"
+#include "rules.h"
 
 void init_app_data(AppData *app) {
     // Initialize history and active window tracking
@@ -59,6 +61,11 @@ void init_app_data(AppData *app) {
     
     // Load named windows from configuration
     load_named_windows(&app->names);
+
+    // Initialize rules
+    init_rules_config(&app->rules_config);
+    load_rules_config(&app->rules_config);
+    init_rule_state(&app->rule_state);
 
     // Initialize command mode
     init_command_mode(&app->command_mode);

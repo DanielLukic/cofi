@@ -109,4 +109,14 @@ if [ -f test_wildcard_match ]; then
     fi
 fi
 
+# Run rules tests if they exist
+if [ -f test_rules ]; then
+    echo ""
+    echo "Running rules tests..."
+    ./test_rules
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
