@@ -53,7 +53,9 @@ SOURCES = src/main.c \
           src/fzf_algo.c \
           src/window_highlight.c \
           src/hotkeys.c \
-          src/hotkey_config.c
+          src/hotkey_config.c \
+          src/rules_config.c \
+          src/rules.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
@@ -130,7 +132,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar
+test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -172,6 +174,10 @@ test_wildcard_match: test/test_wildcard_match.c src/window_matcher.o src/log.o
 # Build parse shortcut test
 test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
+
+# Build rules test
+test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_rules test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c

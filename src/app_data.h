@@ -13,6 +13,8 @@
 #include "slot_overlay.h"
 #include "window_highlight.h"
 #include "hotkey_config.h"
+#include "rules_config.h"
+#include "rules.h"
 
 
 typedef enum {
@@ -149,6 +151,8 @@ typedef struct AppData {
     SlotOverlayState slot_overlays;         // Active slot number overlays
     WindowHighlight highlight;              // Active window highlight border
     HotkeyConfig hotkey_config;             // User-defined hotkey bindings
+    RulesConfig rules_config;               // Window title rules
+    RuleState rule_state;                   // Per-rule per-window match state
     CommandMode command_mode;               // Command mode state
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
@@ -167,6 +171,9 @@ typedef struct AppData {
     guint32 focus_timestamp;               // X11 event time for focus requests (0 = CurrentTime)
     int pending_hotkey_mode;               // ShowMode to dispatch on next idle (-1 = none)
     
+    // Background execution (rules) — suppress activate_commanded_window
+    gboolean background_execution;
+
     // Move-all-to-workspace state
     Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command
     int windows_to_move_count;              // Number of windows to move

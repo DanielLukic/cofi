@@ -15,6 +15,9 @@
 #include "named_window_config.h"
 #include "window_highlight.h"
 #include "hotkeys.h"
+#include "command_mode.h"
+#include "window_matcher.h"
+#include "utils.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
@@ -57,6 +60,113 @@ void update_current_workspace(AppData *app) {
     }
 }
 
+// Track which windows we've subscribed to PropertyNotify
+static Window subscribed_windows[MAX_WINDOWS];
+static int subscribed_count = 0;
+
+static int is_subscribed(Window id) {
+    for (int i = 0; i < subscribed_count; i++) {
+        if (subscribed_windows[i] == id) return 1;
+    }
+    return 0;
+}
+
+// Subscribe to PropertyNotify on all current windows (for title change detection)
+static void subscribe_to_window_properties(AppData *app) {
+    for (int i = 0; i < app->window_count; i++) {
+        Window w = app->windows[i].id;
+        if (!is_subscribed(w) && subscribed_count < MAX_WINDOWS) {
+            XWindowAttributes attrs;
+            if (XGetWindowAttributes(app->display, w, &attrs)) {
+                XSelectInput(app->display, w, attrs.your_event_mask | PropertyChangeMask);
+                subscribed_windows[subscribed_count++] = w;
+                log_trace("Subscribed to PropertyNotify on 0x%lx", w);
+            }
+        }
+    }
+}
+
+// Prune subscribed windows that no longer exist in the window list
+static void prune_subscribed_windows(AppData *app) {
+    int write = 0;
+    for (int i = 0; i < subscribed_count; i++) {
+        int found = 0;
+        for (int j = 0; j < app->window_count; j++) {
+            if (app->windows[j].id == subscribed_windows[i]) {
+                found = 1;
+                break;
+            }
+        }
+        if (found) {
+            subscribed_windows[write++] = subscribed_windows[i];
+        } else {
+            rule_state_remove_window(&app->rule_state, subscribed_windows[i]);
+        }
+    }
+    subscribed_count = write;
+}
+
+// Apply rules to all windows (checks state machine — only fires on transitions)
+static void apply_rules_to_windows(AppData *app) {
+    if (app->rules_config.count == 0) return;
+
+    app->background_execution = TRUE;
+    for (int i = 0; i < app->window_count; i++) {
+        WindowInfo *w = &app->windows[i];
+        for (int r = 0; r < app->rules_config.count; r++) {
+            RuleMatch match = check_rule_match(
+                &app->rules_config.rules[r], &app->rule_state, w->id, w->title);
+            if (match.should_fire) {
+                log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
+                         app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
+                execute_command_with_window(match.commands, app, w);
+            }
+        }
+    }
+    app->background_execution = FALSE;
+}
+
+// Handle title change on a specific window
+static void handle_window_title_change(AppData *app, Window id) {
+    if (app->rules_config.count == 0) return;
+
+    // Find the window in our list
+    WindowInfo *w = NULL;
+    for (int i = 0; i < app->window_count; i++) {
+        if (app->windows[i].id == id) {
+            w = &app->windows[i];
+            break;
+        }
+    }
+    if (!w) return;
+
+    // Re-fetch its title using same approach as window_list.c
+    char *new_title = get_window_property(app->display, id, app->atoms.net_wm_name);
+    if (!new_title) {
+        new_title = get_window_property(app->display, id, XA_WM_NAME);
+    }
+    if (!new_title) return;
+
+    if (strcmp(w->title, new_title) != 0) {
+        log_trace("Title changed for 0x%lx: '%s' -> '%s'", id, w->title, new_title);
+        safe_string_copy(w->title, new_title, MAX_TITLE_LEN);
+
+        // Check rules against updated title
+        app->background_execution = TRUE;
+        for (int r = 0; r < app->rules_config.count; r++) {
+            RuleMatch match = check_rule_match(
+                &app->rules_config.rules[r], &app->rule_state, id, w->title);
+            if (match.should_fire) {
+                log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
+                         app->rules_config.rules[r].pattern, id, w->title, match.commands);
+                execute_command_with_window(match.commands, app, w);
+            }
+        }
+        app->background_execution = FALSE;
+    }
+    g_free(new_title);
+}
+
 void setup_x11_event_monitoring(AppData *app) {
     Display *display = app->display;
     Window root = DefaultRootWindow(display);
@@ -70,7 +180,11 @@ void setup_x11_event_monitoring(AppData *app) {
     
     // Add watch for X11 events
     x11_watch_id = g_io_add_watch(x11_channel, G_IO_IN, process_x11_events, app);
-    
+
+    // Subscribe to property changes on existing windows (for title change rules)
+    subscribe_to_window_properties(app);
+    apply_rules_to_windows(app);
+
     log_debug("X11 event monitoring setup complete");
 }
 
@@ -111,13 +225,17 @@ void handle_x11_event(AppData *app, XEvent *event) {
         case PropertyNotify: {
             XPropertyEvent *prop_event = &event->xproperty;
             Window root = DefaultRootWindow(app->display);
-            
-            // Only interested in root window property changes
+
+            // Handle per-window title changes (for rules)
             if (prop_event->window != root) {
+                if (prop_event->atom == app->atoms.net_wm_name ||
+                    prop_event->atom == XA_WM_NAME) {
+                    handle_window_title_change(app, prop_event->window);
+                }
                 break;
             }
-            
-            // Check which property changed
+
+            // Check which root window property changed
             if (prop_event->atom == app->atoms.net_client_list) {
                 log_debug("_NET_CLIENT_LIST changed - updating window list");
                 
@@ -147,7 +265,12 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     save_named_windows(&app->names);
                     log_debug("Saved reassigned named windows after window list change");
                 }
-                
+
+                // Subscribe to per-window property changes and apply rules
+                prune_subscribed_windows(app);
+                subscribe_to_window_properties(app);
+                apply_rules_to_windows(app);
+
                 // Only process if window still exists and is valid
                 if (app->window && GTK_IS_WIDGET(app->window) &&
                     app->entry && GTK_IS_ENTRY(app->entry)) {
