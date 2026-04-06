@@ -28,6 +28,8 @@ static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event);
+static void finish_hotkey_capture_add(AppData *app, const char *hotkey);
+static gboolean should_capture_hotkey_event(const GdkEventKey *event);
 
 // External function declarations
 void hide_window(AppData *app); // From main.c
@@ -51,6 +53,61 @@ static gboolean focus_name_entry_timeout(gpointer user_data) {
 static void focus_name_entry_delayed(AppData *app) {
     // Set focus after a short delay to ensure widgets are realized
     g_timeout_add(50, focus_name_entry_timeout, app);
+}
+
+static gboolean should_capture_hotkey_event(const GdkEventKey *event) {
+    if (!event)
+        return FALSE;
+
+    if (event->keyval == GDK_KEY_Escape ||
+        event->keyval == GDK_KEY_Return ||
+        event->keyval == GDK_KEY_KP_Enter) {
+        return FALSE;
+    }
+
+    GdkModifierType mods = event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK |
+                                          GDK_MOD1_MASK | GDK_SUPER_MASK |
+                                          GDK_META_MASK | GDK_HYPER_MASK);
+    mods &= ~(GDK_LOCK_MASK | GDK_MOD2_MASK);
+
+    // If any non-shift modifier is pressed, capture directly.
+    if (mods & ~(GDK_SHIFT_MASK)) {
+        return TRUE;
+    }
+
+    // Shift+text input is interpreted as typing into the entry; Shift+special keys capture.
+    gunichar uni = gdk_keyval_to_unicode(event->keyval);
+    if (mods == GDK_SHIFT_MASK) {
+        return !(uni != 0 && g_unichar_isprint(uni));
+    }
+
+    // With no modifiers, capture only non-printable/special keys (e.g. Tab, F1, KP_1).
+    return !(uni != 0 && g_unichar_isprint(uni));
+}
+
+static void finish_hotkey_capture_add(AppData *app, const char *hotkey) {
+    // Append newly added binding to live and filtered list.
+    if (!app || !hotkey || hotkey[0] == '\0') {
+        return;
+    }
+
+    filter_hotkeys(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
+
+    gboolean found = FALSE;
+    for (int i = 0; i < app->filtered_hotkeys_count; i++) {
+        if (strcmp(app->filtered_hotkeys[i].key, hotkey) == 0) {
+            app->selection.hotkeys_index = i;
+            found = TRUE;
+            break;
+        }
+    }
+    if (!found) {
+        app->selection.hotkeys_index = 0;
+    }
+
+    validate_selection(app);
+    update_scroll_position(app);
+    update_display(app);
 }
 
 void init_overlay_system(AppData *app) {
@@ -190,6 +247,14 @@ void hide_overlay(AppData *app) {
 
     app->overlay_active = FALSE;
     app->current_overlay = OVERLAY_NONE;
+
+    if (app->hotkey_capture_active) {
+        app->hotkey_capture_active = FALSE;
+        if (!app->no_daemon) {
+            regrab_hotkeys(app);
+        }
+        log_debug("Restored hotkey grabs after hotkey add capture");
+    }
 
     if (app->entry)
         gtk_widget_set_can_focus(app->entry, TRUE);
@@ -634,7 +699,7 @@ static void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppDa
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
-    GtkWidget *info_label = gtk_label_new("Enter a shortcut like Alt+Tab or Ctrl+Return");
+    GtkWidget *info_label = gtk_label_new("Press a key combo to capture, or type a shortcut text");
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
 
     GtkWidget *name_entry = gtk_entry_new();
@@ -650,7 +715,7 @@ static void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppDa
     g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
     g_object_set_data(G_OBJECT(parent_container), "error_label", error_label);
 
-    GtkWidget *inst_label = gtk_label_new("Press Enter to add, Escape to cancel");
+    GtkWidget *inst_label = gtk_label_new("Press Enter to add typed shortcut, Escape to cancel");
     gtk_widget_set_opacity(inst_label, 0.7);
     gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
 
@@ -659,16 +724,16 @@ static void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppDa
 }
 
 static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
+    GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+    GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
+
+    if (!name_entry || !error_label) {
+        log_error("Hotkey add widgets not found");
+        hide_overlay(app);
+        return TRUE;
+    }
+
     if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
-        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
-        GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
-
-        if (!name_entry || !error_label) {
-            log_error("Hotkey add widgets not found");
-            hide_overlay(app);
-            return TRUE;
-        }
-
         const char *shortcut_input = gtk_entry_get_text(GTK_ENTRY(name_entry));
         char canonical[128];
         char err_buf[256];
@@ -695,29 +760,43 @@ static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
         }
 
         save_hotkey_config(&app->hotkey_config);
-        regrab_hotkeys(app);
+        if (!app->hotkey_capture_active)
+            regrab_hotkeys(app);
         log_info("USER: Added hotkey binding '%s'", canonical);
 
         hide_overlay(app);
+        finish_hotkey_capture_add(app, canonical);
+        return TRUE;
+    }
 
-        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        filter_hotkeys(app, current_filter);
+    if (should_capture_hotkey_event(event)) {
+        char canonical[128];
+        char err_buf[256];
 
-        gboolean found = FALSE;
-        for (int i = 0; i < app->filtered_hotkeys_count; i++) {
-            if (strcmp(app->filtered_hotkeys[i].key, canonical) == 0) {
-                app->selection.hotkeys_index = i;
-                found = TRUE;
-                break;
-            }
-        }
-        if (!found) {
-            app->selection.hotkeys_index = 0;
+        if (!canonicalize_hotkey_event(event, canonical, sizeof(canonical),
+                                      err_buf, sizeof(err_buf))) {
+            gtk_label_set_text(GTK_LABEL(error_label), err_buf);
+            return TRUE;
         }
 
-        validate_selection(app);
-        update_scroll_position(app);
-        update_display(app);
+        if (find_hotkey_binding(&app->hotkey_config, canonical) >= 0) {
+            gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
+            return TRUE;
+        }
+
+        if (!add_hotkey_binding(&app->hotkey_config, canonical, "")) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Could not add hotkey binding");
+            return TRUE;
+        }
+
+        gtk_entry_set_text(GTK_ENTRY(name_entry), canonical);
+        save_hotkey_config(&app->hotkey_config);
+        if (!app->hotkey_capture_active)
+            regrab_hotkeys(app);
+        log_info("USER: Captured hotkey binding '%s'", canonical);
+
+        hide_overlay(app);
+        finish_hotkey_capture_add(app, canonical);
         return TRUE;
     }
 

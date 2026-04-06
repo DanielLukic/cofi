@@ -31,6 +31,18 @@ See also:
   Editing, adding, or removing a hotkey is not complete until grabs are refreshed with `regrab_hotkeys()`.
   Saving config without re-registering leaves runtime behavior stale until restart.
 
+- Overlay-driven hotkey changes must refresh list state explicitly.
+  Do not rely on re-setting identical `GtkEntry` text to trigger `changed` and rebuild the Hotkeys tab.
+  GTK may treat that as a no-op, leaving the filtered list stale until the user changes tabs or filter text.
+
+- After overlay add/edit, refresh in the full UI-state order.
+  Use `filter_hotkeys()` first, then `validate_selection()`, then `update_scroll_position()`, then `update_display()`.
+  If scroll position is not updated after moving selection, the selected binding may be off-screen in long lists.
+
+- Overlay code may need direct access to filter helpers.
+  If a modal add/edit flow changes tab data, the relevant `filter_*()` function cannot be treated purely as a local implementation detail in the main event loop.
+  Keep that boundary practical enough for overlays to rebuild visible state immediately.
+
 - Startup hotkey conflicts are a first-class flow.
   Grab failure is not just an exceptional log line; the Retry/Exit dialog is part of normal startup/error handling.
   Changes to hotkey setup should preserve conflict reporting quality.

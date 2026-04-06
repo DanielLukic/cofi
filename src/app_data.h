@@ -162,6 +162,7 @@ typedef struct AppData {
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown
     OverlayType current_overlay;            // Which overlay is currently active
+    gboolean hotkey_capture_active;         // True while hotkey add overlay is in capture mode
     
     // Window visibility state
     gboolean window_visible;                // Whether the window is currently visible

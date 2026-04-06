@@ -283,6 +283,17 @@ static gboolean match_key(const char *token, guint *keyval) {
     return FALSE;
 }
 
+static gboolean is_modifier_only_keyval(guint keyval) {
+    return keyval == GDK_KEY_Shift_L || keyval == GDK_KEY_Shift_R ||
+           keyval == GDK_KEY_Control_L || keyval == GDK_KEY_Control_R ||
+           keyval == GDK_KEY_Alt_L || keyval == GDK_KEY_Alt_R ||
+           keyval == GDK_KEY_Meta_L || keyval == GDK_KEY_Meta_R ||
+           keyval == GDK_KEY_Super_L || keyval == GDK_KEY_Super_R ||
+           keyval == GDK_KEY_Hyper_L || keyval == GDK_KEY_Hyper_R ||
+           keyval == GDK_KEY_Mode_switch || keyval == GDK_KEY_ISO_Level3_Shift ||
+           keyval == GDK_KEY_Caps_Lock || keyval == GDK_KEY_Num_Lock;
+}
+
 static void set_error(char *error_msg, size_t error_msg_size, const char *fmt, ...) {
     if (!error_msg || error_msg_size == 0) return;
     va_list ap;
@@ -466,4 +477,69 @@ gboolean canonicalize_hotkey_shortcut(const char *shortcut_str, char *canonical_
     }
 
     return TRUE;
+}
+
+
+gboolean canonicalize_hotkey_event(const GdkEventKey *event, char *canonical_out,
+                                  size_t canonical_out_size,
+                                  char *error_msg, size_t error_msg_size) {
+    if (canonical_out && canonical_out_size > 0)
+        canonical_out[0] = '\0';
+
+    if (!canonical_out || canonical_out_size == 0) {
+        set_error(error_msg, error_msg_size,
+                  "Missing output buffer for canonical shortcut");
+        return FALSE;
+    }
+
+    if (!event) {
+        set_error(error_msg, error_msg_size, "Missing keyboard event");
+        return FALSE;
+    }
+
+    if (is_modifier_only_keyval(event->keyval)) {
+        set_error(error_msg, error_msg_size,
+                  "Modifier-only event cannot be used as a hotkey. Press another key too.");
+        return FALSE;
+    }
+
+    const char *key_name = gdk_keyval_name(event->keyval);
+    if (!key_name || key_name[0] == '\0') {
+        set_error(error_msg, error_msg_size, "Could not determine key name");
+        return FALSE;
+    }
+
+    GdkModifierType mods = event->state &
+        (GDK_CONTROL_MASK | GDK_SHIFT_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK |
+         GDK_META_MASK | GDK_HYPER_MASK);
+    mods &= ~(GDK_LOCK_MASK | GDK_MOD2_MASK);
+
+    char raw[256] = {0};
+    size_t used = 0;
+
+    if (mods & GDK_CONTROL_MASK) {
+        if (used + 8 >= sizeof(raw)) return FALSE;
+        used += (size_t)snprintf(raw + used, sizeof(raw) - used, "Control+");
+    }
+    if (mods & GDK_SHIFT_MASK) {
+        if (used + 6 >= sizeof(raw)) return FALSE;
+        used += (size_t)snprintf(raw + used, sizeof(raw) - used, "Shift+");
+    }
+    if (mods & GDK_MOD1_MASK) {
+        if (used + 5 >= sizeof(raw)) return FALSE;
+        used += (size_t)snprintf(raw + used, sizeof(raw) - used, "Alt+");
+    }
+    if (mods & GDK_SUPER_MASK) {
+        if (used + 6 >= sizeof(raw)) return FALSE;
+        used += (size_t)snprintf(raw + used, sizeof(raw) - used, "Super+");
+    }
+
+    if (used + strlen(key_name) + 1 > sizeof(raw)) {
+        set_error(error_msg, error_msg_size, "Captured key name is too long");
+        return FALSE;
+    }
+    strncat(raw + used, key_name, sizeof(raw) - used - 1);
+
+    return canonicalize_hotkey_shortcut(raw, canonical_out, canonical_out_size,
+                                       error_msg, error_msg_size);
 }
