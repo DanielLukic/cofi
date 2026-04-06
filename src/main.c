@@ -50,7 +50,7 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 static void filter_workspaces(AppData *app, const char *filter);
 static void filter_harpoon(AppData *app, const char *filter);
-static void filter_config(AppData *app, const char *filter);
+void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
@@ -731,7 +731,7 @@ static void filter_harpoon(AppData *app, const char *filter) {
 
 // Build config entries from current CofiConfig
 // Config filtering
-static void filter_config(AppData *app, const char *filter) {
+void filter_config(AppData *app, const char *filter) {
     ConfigEntry all_entries[MAX_CONFIG_ENTRIES];
     int all_count = 0;
     build_config_entries(&app->config, all_entries, &all_count);

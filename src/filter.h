@@ -10,6 +10,9 @@ typedef struct AppData AppData;
 // Filter windows based on search text
 void filter_windows(AppData *app, const char *filter);
 
+// Filter config options based on search text
+void filter_config(AppData *app, const char *filter);
+
 // Filter hotkeys based on search text
 void filter_hotkeys(AppData *app, const char *filter);
 
