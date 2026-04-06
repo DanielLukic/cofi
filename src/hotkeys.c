@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 extern void show_window(AppData *app);
+extern void hide_window(AppData *app);
 extern void enter_command_mode(AppData *app);
 
 typedef struct {
@@ -224,10 +225,19 @@ static gboolean hotkey_dispatch_idle(gpointer data) {
     if (auto_execute) command[len - 1] = '\0';
 
     if (auto_execute) {
+        gboolean keeps_open = should_keep_open_on_hotkey_auto(command);
+        if (keeps_open) {
+            show_window(app);
+        }
+
         Window active = get_active_window_id(app->display);
         WindowInfo *target = (active && active != app->own_window_id)
                            ? find_window_by_id(app, active) : NULL;
         execute_command_with_window(command, app, target);
+
+        if (!keeps_open && app->window_visible) {
+            hide_window(app);
+        }
     } else {
         prefill_command_mode(app, command);
     }

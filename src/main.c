@@ -1010,6 +1010,43 @@ static gboolean grab_focus_delayed(gpointer data) {
     return FALSE; // Remove timeout
 }
 
+static void ensure_cofi_on_current_workspace(AppData *app) {
+    if (!app || !app->display || app->own_window_id == 0) {
+        return;
+    }
+
+    int current_desktop = get_current_desktop(app->display);
+    if (current_desktop < 0) {
+        return;
+    }
+
+    int actual_format = 0;
+    unsigned long n_items = 0;
+    unsigned char *prop = NULL;
+
+    if (get_x11_property(app->display, app->own_window_id, app->atoms.net_wm_desktop,
+                         XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop) != COFI_SUCCESS) {
+        return;
+    }
+
+    if (actual_format != 32 || n_items < 1 || !prop) {
+        if (prop) XFree(prop);
+        return;
+    }
+
+    long own_desktop = *(long *)prop;
+    XFree(prop);
+
+    if (own_desktop < 0 || own_desktop == 0xFFFFFFFF) {
+        return;
+    }
+
+    if ((int)own_desktop != current_desktop) {
+        move_window_to_desktop(app->display, app->own_window_id, current_desktop);
+        log_debug("Moved cofi window to current desktop %d", current_desktop + 1);
+    }
+}
+
 // Show window and refresh state
 void show_window(AppData *app) {
     if (!app->window) {
@@ -1018,7 +1055,8 @@ void show_window(AppData *app) {
     }
     
     if (app->window_visible) {
-        // Window already visible, just present it
+        // Window already visible, ensure current workspace then present it
+        ensure_cofi_on_current_workspace(app);
         gtk_window_present(GTK_WINDOW(app->window));
         return;
     }
@@ -1053,6 +1091,7 @@ void show_window(AppData *app) {
     // Show and present the window
     gtk_widget_show_all(app->window);
     app->window_visible = TRUE;
+    ensure_cofi_on_current_workspace(app);
     
     // Force window to be active using multiple methods
     GtkWindow *window = GTK_WINDOW(app->window);
@@ -1112,6 +1151,8 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
         g_source_remove(app->focus_loss_timer);
         app->focus_loss_timer = 0;
     }
+
+    ensure_cofi_on_current_workspace(app);
 
     // Switch mode inline
     if (app->command_mode.state == CMD_MODE_COMMAND)
