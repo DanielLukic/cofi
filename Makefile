@@ -55,7 +55,8 @@ SOURCES = src/main.c \
           src/hotkeys.c \
           src/hotkey_config.c \
           src/rules_config.c \
-          src/rules.c
+          src/rules.c \
+          src/display_pipeline.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
@@ -132,7 +133,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed
+test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -190,6 +191,10 @@ test_scrollbar: test/test_scrollbar.c
 # Build fixed window sizing tests
 test_dynamic_display_fixed: test/test_dynamic_display_fixed.c src/dynamic_display.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_dynamic_display_fixed test/test_dynamic_display_fixed.c src/dynamic_display.o src/log.o $(LDFLAGS)
+
+# Build display pipeline tests
+test_display_pipeline: test/test_display_pipeline.c src/display_pipeline.o
+	$(CC) $(CFLAGS) -o test/test_display_pipeline test/test_display_pipeline.c src/display_pipeline.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

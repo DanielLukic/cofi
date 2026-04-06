@@ -149,4 +149,14 @@ if [ -f test_dynamic_display_fixed ]; then
     fi
 fi
 
+# Run display pipeline tests if they exist
+if [ -f test_display_pipeline ]; then
+    echo ""
+    echo "Running display pipeline tests..."
+    ./test_display_pipeline
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
