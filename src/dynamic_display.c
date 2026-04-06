@@ -15,6 +15,15 @@ static guint cache_timestamp = 0;
 #define FIXED_MIN_COLUMNS 80
 #define FIXED_MIN_ROWS 8
 
+// Extra pixel budget for non-textview window chrome around the fixed content box:
+// - horizontal: textview margins + window border/shadow slack
+// - vertical: entry row, tab header/footer separators, and border/shadow slack
+#define FIXED_WINDOW_EXTRA_WIDTH_PX 40
+#define FIXED_WINDOW_EXTRA_HEIGHT_PX 30
+
+#define FIXED_FALLBACK_CHAR_WIDTH_PX 9
+#define FIXED_FALLBACK_LINE_HEIGHT_PX 22
+
 static gboolean clear_fixed_window_init_flag_idle(gpointer data) {
     struct AppData *app = (struct AppData *)data;
     if (app) {
@@ -373,20 +382,23 @@ void init_fixed_window_size(struct AppData *app) {
 
     PangoFontDescription *font_desc = pango_context_get_font_description(context);
     PangoFontMetrics *metrics = pango_context_get_metrics(context, font_desc, NULL);
-    if (!metrics) {
-        return;
+
+    FontMetrics font_metrics = {0};
+    measure_font_metrics(tv, &font_metrics);
+
+    gint char_width = 0;
+    if (metrics) {
+        char_width = PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(metrics));
+        pango_font_metrics_unref(metrics);
     }
 
-    gint char_width = PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(metrics));
-    gint line_height = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics) +
-                                    pango_font_metrics_get_descent(metrics));
-    pango_font_metrics_unref(metrics);
+    gint line_height = font_metrics.line_height;
 
     if (char_width <= 0) {
-        char_width = 9;
+        char_width = FIXED_FALLBACK_CHAR_WIDTH_PX;
     }
     if (line_height <= 0) {
-        line_height = 22;
+        line_height = FIXED_FALLBACK_LINE_HEIGHT_PX;
     }
 
     FixedWindowGridConfig config;
@@ -404,8 +416,8 @@ void init_fixed_window_size(struct AppData *app) {
 
     gint left_margin = gtk_text_view_get_left_margin(GTK_TEXT_VIEW(tv));
     gint right_margin = gtk_text_view_get_right_margin(GTK_TEXT_VIEW(tv));
-    gint horizontal_padding = left_margin + right_margin + 40;
-    gint vertical_padding = 30;
+    gint horizontal_padding = left_margin + right_margin + FIXED_WINDOW_EXTRA_WIDTH_PX;
+    gint vertical_padding = FIXED_WINDOW_EXTRA_HEIGHT_PX;
 
     app->fixed_cols = cols;
     app->fixed_rows = visible_rows;
