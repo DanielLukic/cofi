@@ -46,8 +46,6 @@ static void log_commanded_window(AppData *app, WindowInfo *win) {
 
 static void activate_commanded_window(AppData *app, WindowInfo *win) {
     if (!app || !win) return;
-    if (app->background_execution) return;
-
     activate_window(app->display, win->id);
     log_commanded_window(app, win);
 }
@@ -518,7 +516,7 @@ static TileOption parse_tile_option(const char *arg) {
     return (TileOption)-1;
 }
 
-static gboolean execute_single_command_with_window(const char *command, AppData *app, WindowInfo *window) {
+static gboolean execute_single_command(const char *command, AppData *app, WindowInfo *window, gboolean background) {
     char cmd_name[128] = {0};
     char arg[256] = {0};
 
@@ -536,10 +534,14 @@ static gboolean execute_single_command_with_window(const char *command, AppData 
         return FALSE;
     }
 
-    return cmd->handler(app, window, arg);
+    gboolean result = cmd->handler(app, window, arg);
+    if (result && cmd->activates && !background) {
+        activate_commanded_window(app, window);
+    }
+    return result;
 }
 
-static gboolean execute_command_impl(const char *command, AppData *app, WindowInfo *window) {
+static gboolean execute_commands(const char *command, AppData *app, WindowInfo *window, gboolean background) {
     char local[512] = {0};
     strncpy(local, command, sizeof(local) - 1);
     trim_whitespace_in_place(local);
@@ -551,7 +553,7 @@ static gboolean execute_command_impl(const char *command, AppData *app, WindowIn
     while (token) {
         trim_whitespace_in_place(token);
         if (token[0] != '\0') {
-            if (!execute_single_command_with_window(token, app, window)) {
+            if (!execute_single_command(token, app, window, background)) {
                 return FALSE;
             }
         }
@@ -563,15 +565,22 @@ static gboolean execute_command_impl(const char *command, AppData *app, WindowIn
 gboolean execute_command(const char *command, AppData *app) {
     if (!command || !app) return FALSE;
     log_info("USER: Executing command: '%s'", command);
-    return execute_command_impl(command, app, get_selected_window(app));
+    return execute_commands(command, app, get_selected_window(app), FALSE);
 }
 
 gboolean execute_command_with_window(const char *command, AppData *app, WindowInfo *window) {
     if (!command || !app) return FALSE;
     log_info("HOTKEY: Executing command: '%s'", command);
-    return execute_command_impl(command, app, window);
+    return execute_commands(command, app, window, FALSE);
 }
 
+gboolean execute_command_background(const char *command, AppData *app, WindowInfo *window) {
+    if (!command || !app) return FALSE;
+    log_info("RULE: Executing command: '%s'", command);
+    return execute_commands(command, app, window, TRUE);
+}
+
+// Moves window to target workspace. Activates: yes (dispatcher focuses moved window).
 gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for workspace change");
@@ -583,7 +592,6 @@ gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args
         if (target >= 0) {
             log_info("USER: Moving window '%s' to workspace %d", window->title, target + 1);
             move_window_to_desktop(app->display, window->id, target);
-            activate_commanded_window(app, window);
             return TRUE;
         } else {
             log_warn("Invalid workspace target: %s", args);
@@ -594,81 +602,76 @@ gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args
     return FALSE;
 }
 
+// Pulls window from another workspace to current. Activates: yes (dispatcher focuses pulled window).
 gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for pull");
         return FALSE;
     }
-    
-    // Get current workspace
+
     int current_workspace = get_current_desktop(app->display);
-    
-    // Move window to current workspace
-    log_info("USER: Pulling window '%s' to current workspace %d", 
+    log_info("USER: Pulling window '%s' to current workspace %d",
              window->title, current_workspace + 1);
     move_window_to_desktop(app->display, window->id, current_workspace);
-    
-    // Activate the window
-    activate_commanded_window(app, window);
-    
-    return TRUE; // Exit command mode
+    return TRUE;
 }
 
+// Moves window to next monitor. Activates: yes (dispatcher focuses moved window).
 gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for monitor toggle");
         return FALSE;
     }
-    
+
     move_window_to_next_monitor(app);
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_SKIP_TASKBAR. Activates: yes (dispatcher refocuses).
 gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for skip taskbar toggle");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_ABOVE. Activates: yes (dispatcher refocuses).
 gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for always on top toggle");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_ABOVE");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_BELOW. Activates: yes (dispatcher refocuses).
 gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for always below toggle");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_BELOW");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_STICKY. Activates: yes (dispatcher refocuses).
 gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for every workspace toggle");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_STICKY");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Sends close request to window. Activates: no (window is closing).
 gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for closing");
@@ -679,6 +682,7 @@ gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args __a
     return TRUE;
 }
 
+// Toggles minimize/restore. Activates: no (handles activation directly for restore case, hides cofi).
 gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for minimizing");
@@ -696,36 +700,36 @@ gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args 
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_MAXIMIZED_BOTH. Activates: yes (dispatcher refocuses).
 gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for maximizing");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_BOTH");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_MAXIMIZED_HORZ. Activates: yes (dispatcher refocuses).
 gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for horizontal maximizing");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
+// Toggles _NET_WM_STATE_MAXIMIZED_VERT. Activates: yes (dispatcher refocuses).
 gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
     if (!window) {
         log_warn("No window selected for vertical maximizing");
         return FALSE;
     }
-    
+
     toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT");
-    activate_commanded_window(app, window);
     return TRUE;
 }
 
@@ -773,18 +777,18 @@ gboolean cmd_rename_workspace(AppData *app, WindowInfo *window __attribute__((un
     return FALSE;
 }
 
+// Tiles window to position. Activates: yes (dispatcher focuses tiled window).
 gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for tiling");
         return FALSE;
     }
-    
+
     if (strlen(args) > 0) {
         TileOption option = parse_tile_option(args);
         if (option != (TileOption)-1) {
             log_info("USER: Tiling window '%s' with option: %s", window->title, args);
             apply_tiling(app->display, window->id, option, app->config.tile_columns);
-            activate_commanded_window(app, window);
             return TRUE;
         } else {
             log_warn("Invalid tiling option: %s", args);

@@ -171,9 +171,6 @@ typedef struct AppData {
     guint32 focus_timestamp;               // X11 event time for focus requests (0 = CurrentTime)
     int pending_hotkey_mode;               // ShowMode to dispatch on next idle (-1 = none)
     
-    // Background execution (rules) — suppress activate_commanded_window
-    gboolean background_execution;
-
     // Move-all-to-workspace state
     Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command
     int windows_to_move_count;              // Number of windows to move

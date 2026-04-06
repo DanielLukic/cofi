@@ -15,6 +15,7 @@ typedef struct {
     CommandHandler handler;                 // Handler function
     const char *description;                // Help description
     const char *help_format;                // Format for help display (e.g., "cw [N]")
+    int activates;                          // Dispatcher activates target window after handler
 } CommandDef;
 
 // Command handler declarations
@@ -51,7 +52,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"always-below", NULL},
         .handler = cmd_always_below,
         .description = "Toggle always below for selected window",
-        .help_format = "ab, always-below"
+        .help_format = "ab, always-below",
+        .activates = 1
     },
     {
         .primary = "an",
@@ -72,7 +74,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"at", "always-on-top", NULL},
         .handler = cmd_always_on_top,
         .description = "Toggle always on top for selected window",
-        .help_format = "at, always-on-top, aot"
+        .help_format = "at, always-on-top, aot",
+        .activates = 1
     },
     {
         .primary = "cl",
@@ -93,21 +96,24 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"change-workspace", NULL},
         .handler = cmd_change_workspace,
         .description = "Move selected window to different workspace (N = workspace number)",
-        .help_format = "cw, change-workspace [N]"
+        .help_format = "cw, change-workspace [N]",
+        .activates = 1
     },
     {
         .primary = "ew",
         .aliases = {"every-workspace", NULL},
         .handler = cmd_every_workspace,
         .description = "Toggle show on every workspace for selected window",
-        .help_format = "ew, every-workspace"
+        .help_format = "ew, every-workspace",
+        .activates = 1
     },
     {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
         .handler = cmd_horizontal_maximize,
         .description = "Toggle horizontal maximize",
-        .help_format = "hm, horizontal-maximize-window, hmw"
+        .help_format = "hm, horizontal-maximize-window, hmw",
+        .activates = 1
     },
     {
         .primary = "hotkeys",
@@ -149,14 +155,16 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"max", "maximize-window", NULL},
         .handler = cmd_maximize_window,
         .description = "Toggle maximize selected window",
-        .help_format = "mw, max, maximize-window"
+        .help_format = "mw, max, maximize-window",
+        .activates = 1
     },
     {
         .primary = "pw",
         .aliases = {"pull-window", "p", NULL},
         .handler = cmd_pull_window,
         .description = "Pull selected window to current workspace",
-        .help_format = "pw, pull-window, p"
+        .help_format = "pw, pull-window, p",
+        .activates = 1
     },
     {
         .primary = "rw",
@@ -184,7 +192,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"skip-taskbar", NULL},
         .handler = cmd_skip_taskbar,
         .description = "Toggle skip taskbar for selected window",
-        .help_format = "sb, skip-taskbar"
+        .help_format = "sb, skip-taskbar",
+        .activates = 1
     },
     {
         .primary = "sw",
@@ -198,21 +207,24 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"toggle-monitor", NULL},
         .handler = cmd_toggle_monitor,
         .description = "Move selected window to next monitor",
-        .help_format = "tm, toggle-monitor"
+        .help_format = "tm, toggle-monitor",
+        .activates = 1
     },
     {
         .primary = "tw",
         .aliases = {"tile-window", "t", NULL},
         .handler = cmd_tile_window,
         .description = "Tile window (L/R/T/B/C, 1-9, F, or [lrtbc][1-4] for sizes)",
-        .help_format = "tw, tile-window, t [OPT]"
+        .help_format = "tw, tile-window, t [OPT]",
+        .activates = 1
     },
     {
         .primary = "vmw",
         .aliases = {"vm", "vertical-maximize-window", NULL},
         .handler = cmd_vertical_maximize,
         .description = "Toggle vertical maximize",
-        .help_format = "vm, vertical-maximize-window, vmw"
+        .help_format = "vm, vertical-maximize-window, vmw",
+        .activates = 1
     },
     {
         .primary = "help",

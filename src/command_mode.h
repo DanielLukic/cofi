@@ -16,6 +16,7 @@ void exit_command_mode(AppData *app);
 gboolean handle_command_key(GdkEventKey *event, AppData *app);
 gboolean execute_command(const char *command, AppData *app);
 gboolean execute_command_with_window(const char *command, AppData *app, WindowInfo *window);
+gboolean execute_command_background(const char *command, AppData *app, WindowInfo *window);
 void show_help_commands(AppData *app);
 
 // Shared help text generation

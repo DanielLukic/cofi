@@ -110,7 +110,6 @@ static void prune_subscribed_windows(AppData *app) {
 static void apply_rules_to_windows(AppData *app) {
     if (app->rules_config.count == 0) return;
 
-    app->background_execution = TRUE;
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
         for (int r = 0; r < app->rules_config.count; r++) {
@@ -119,11 +118,10 @@ static void apply_rules_to_windows(AppData *app) {
             if (match.should_fire) {
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
-                execute_command_with_window(match.commands, app, w);
+                execute_command_background(match.commands, app, w);
             }
         }
     }
-    app->background_execution = FALSE;
 }
 
 // Handle title change on a specific window
@@ -152,17 +150,15 @@ static void handle_window_title_change(AppData *app, Window id) {
         safe_string_copy(w->title, new_title, MAX_TITLE_LEN);
 
         // Check rules against updated title
-        app->background_execution = TRUE;
         for (int r = 0; r < app->rules_config.count; r++) {
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, id, w->title);
             if (match.should_fire) {
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, id, w->title, match.commands);
-                execute_command_with_window(match.commands, app, w);
+                execute_command_background(match.commands, app, w);
             }
         }
-        app->background_execution = FALSE;
     }
     g_free(new_title);
 }
