@@ -24,9 +24,12 @@ See also:
 ### Making Changes
 
 1. Branch from `develop` (never from `main`)
-2. Make changes, build with `make clean && make`, run `make test`
-3. Push branch, create PR targeting `develop`
-4. Wait for user approval before merging
+2. For ticket work, prefer test-first: add or update a failing automated test before implementation when feasible
+3. Make changes, then run tests (`make test` unless a narrower subset is clearly sufficient)
+4. Rebuild and restart cofi so the user can verify the change in the running app
+5. Wait for user verification before committing, unless the user explicitly asks for an earlier checkpoint commit
+6. Push branch, create PR targeting `develop`
+7. Wait for user approval before merging
 
 ### Subagent PRs
 
@@ -69,8 +72,26 @@ journalctl --user -u cofi -f   # tail logs
 2. **Use snake_case consistently** for functions and variables
 3. **Work in small commit steps** with clear messages
 4. **Write tests for essential functionality**
-5. **Use logging instead of print statements**
-6. **`make clean && make` after any header change** (no auto header deps yet)
+5. **For behavior changes, prefer TDD when feasible** — if test-first is not practical, say why and add coverage immediately after where reasonable
+6. **User-visible behavior changes should get targeted coverage when the code structure allows it**; if not, call out the gap explicitly
+7. **Use logging instead of print statements**
+8. **`make clean && make` after any header change** (no auto header deps yet)
+
+## Ticket Workflow
+
+For normal interactive ticket work, the default sequence is:
+
+1. Add or update tests first when feasible
+2. Implement the change
+3. Run tests
+4. Rebuild/restart cofi for live user testing
+5. Let the user verify the behavior
+6. Commit only after user verification, unless the user explicitly asks to commit earlier
+
+When reporting progress or handing work back for testing, always state:
+- which tests were run
+- whether cofi was restarted
+- whether the change is committed or intentionally left uncommitted
 
 ## Architecture Overview
 
