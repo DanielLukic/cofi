@@ -47,6 +47,15 @@ typedef struct {
     const char* fallback_reason;  // Reason if fallback was used
 } DisplayLineCalculation;
 
+// Fixed grid/window sizing configuration
+typedef struct {
+    gint target_columns;      // Desired content width in monospace columns
+    gint visible_rows;        // Desired visible list/help rows
+    gint chrome_rows;         // Extra rows for tab header, separators, entry/footer chrome
+    gint min_columns;         // Safety minimum columns
+    gint min_rows;            // Safety minimum visible rows
+} FixedWindowGridConfig;
+
 // Core API functions
 
 /**
@@ -78,6 +87,24 @@ gint calculate_max_display_lines(GtkWidget *window, const DynamicDisplayConfig *
  * Recalculates only when screen or font configuration changes
  */
 gint get_dynamic_max_display_lines(struct AppData *app);
+
+/**
+ * Initialize fixed window sizing from realized textview metrics (one-shot path)
+ */
+void init_fixed_window_size(struct AppData *app);
+
+/**
+ * Initialize fixed grid sizing defaults
+ */
+void init_fixed_window_grid_config(FixedWindowGridConfig *config);
+
+/**
+ * Calculate fixed grid size and pixel window size from measured font metrics
+ */
+gboolean calculate_fixed_window_grid(gint char_width_px, gint line_height_px,
+                                     const FixedWindowGridConfig *config,
+                                     gint *cols_out, gint *visible_rows_out,
+                                     gint *window_width_px_out, gint *window_height_px_out);
 
 /**
  * Force recalculation of display lines (call when font or screen changes)

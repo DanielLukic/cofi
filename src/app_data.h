@@ -166,6 +166,13 @@ typedef struct AppData {
     
     // Window visibility state
     gboolean window_visible;                // Whether the window is currently visible
+
+    // Fixed window sizing authority (TFD-100)
+    gint fixed_cols;                        // Fixed text columns once initialized (0 = not initialized)
+    gint fixed_rows;                        // Fixed visible text rows once initialized (0 = not initialized)
+    gboolean fixed_window_size_initializing; // Guard flag while initial resize is being applied
+    gulong fixed_size_allocate_handler_id;  // One-shot size-allocate handler id for textview
+    gboolean pending_initial_render;        // True when first render is waiting for fixed sizing
     
     // Timer management for deferred operations
     guint focus_loss_timer;                 // Timer ID for focus loss delay

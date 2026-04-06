@@ -73,6 +73,13 @@ void init_app_data(AppData *app) {
     // Initialize window visibility state
     app->window_visible = FALSE;
     app->hotkey_capture_active = FALSE;
+
+    // Initialize fixed window sizing state
+    app->fixed_cols = 0;
+    app->fixed_rows = 0;
+    app->fixed_window_size_initializing = FALSE;
+    app->fixed_size_allocate_handler_id = 0;
+    app->pending_initial_render = FALSE;
     
     // Initialize timers
     app->focus_loss_timer = 0;
