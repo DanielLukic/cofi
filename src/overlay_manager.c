@@ -567,11 +567,13 @@ static gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event) {
 
         hide_overlay(app);
 
-        // Re-filter and update display - we need to rebuild config entries
-        // The filter_config is static in main.c, so we trigger via entry change
+        // Re-filter and redraw the list immediately so edited value is visible.
+        // Re-assigning entry text can be a no-op if unchanged and won't trigger refresh.
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        // Trigger re-filter by setting entry text (which fires on_entry_changed)
-        gtk_entry_set_text(GTK_ENTRY(app->entry), current_filter);
+        filter_config(app, current_filter);
+        validate_selection(app);
+        update_scroll_position(app);
+        update_display(app);
 
         return TRUE;
     }
@@ -747,6 +749,7 @@ static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event) {
                     sizeof(app->hotkey_config.bindings[idx].command) - 1);
             app->hotkey_config.bindings[idx].command[sizeof(app->hotkey_config.bindings[idx].command) - 1] = '\0';
             save_hotkey_config(&app->hotkey_config);
+            regrab_hotkeys(app);
             log_info("USER: Updated hotkey '%s' command to '%s'", hotkey_key, new_command);
         } else {
             log_error("Hotkey '%s' not found for editing", hotkey_key);
