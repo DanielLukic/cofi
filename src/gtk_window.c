@@ -28,6 +28,10 @@ void on_window_size_allocate(GtkWidget *window, GtkAllocation *allocation, gpoin
     AppData *app = (AppData *)user_data;
     WindowAlignment alignment = app->config.alignment;
     
+    if (app->fixed_window_size_initializing) {
+        return;
+    }
+
     // Only reposition if we have a valid size
     if (allocation->width <= 1 || allocation->height <= 1) {
         return;

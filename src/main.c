@@ -36,6 +36,7 @@
 #include "overlay_manager.h"
 #include "version.h"
 #include "hotkeys.h"
+#include "dynamic_display.h"
 
 // MAX_WINDOWS, MAX_TITLE_LEN, MAX_CLASS_LEN are defined in src/window_info.h
 // WindowInfo and AppData types are defined in src/app_data.h
@@ -48,6 +49,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app
 static void on_entry_changed(GtkEntry *entry, AppData *app);
 static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
 static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
+static void on_textview_size_allocate_for_fixed_init(GtkWidget *widget, GtkAllocation *allocation, gpointer user_data);
 static void filter_workspaces(AppData *app, const char *filter);
 static void filter_harpoon(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
@@ -1086,12 +1088,17 @@ void show_window(AppData *app) {
     } else if (app->current_tab == TAB_HARPOON) {
         filter_harpoon(app, "");
     }
-    update_display(app);
-    
-    // Show and present the window
+    // Show and present the window first so allocation/font metrics are reliable
     gtk_widget_show_all(app->window);
     app->window_visible = TRUE;
     ensure_cofi_on_current_workspace(app);
+
+    // First render should happen after window is mapped and fixed sizing is initialized
+    if (app->fixed_cols > 0 && app->fixed_rows > 0) {
+        update_display(app);
+    } else {
+        app->pending_initial_render = TRUE;
+    }
     
     // Force window to be active using multiple methods
     GtkWindow *window = GTK_WINDOW(app->window);
@@ -1325,6 +1332,32 @@ void setup_application(AppData *app, WindowAlignment alignment) {
 
     // Initialize overlay system
     init_overlay_system(app);
+
+    // One-shot fixed sizing initialization after first real textview allocation
+    app->fixed_size_allocate_handler_id =
+        g_signal_connect(app->textview, "size-allocate",
+                         G_CALLBACK(on_textview_size_allocate_for_fixed_init), app);
+}
+
+static void on_textview_size_allocate_for_fixed_init(GtkWidget *widget,
+                                                     GtkAllocation *allocation,
+                                                     gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+    if (!app || allocation->width <= 1 || allocation->height <= 1) {
+        return;
+    }
+
+    if (app->fixed_size_allocate_handler_id > 0) {
+        g_signal_handler_disconnect(widget, app->fixed_size_allocate_handler_id);
+        app->fixed_size_allocate_handler_id = 0;
+    }
+
+    init_fixed_window_size(app);
+
+    if (app->pending_initial_render) {
+        update_display(app);
+        app->pending_initial_render = FALSE;
+    }
 }
 
 

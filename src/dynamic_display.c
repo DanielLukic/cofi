@@ -9,6 +9,20 @@ static DisplayLineCalculation cached_calculation = {0};
 static gboolean cache_valid = FALSE;
 static guint cache_timestamp = 0;
 
+#define FIXED_TARGET_COLUMNS 115
+#define FIXED_VISIBLE_ROWS 22
+#define FIXED_CHROME_ROWS 4
+#define FIXED_MIN_COLUMNS 80
+#define FIXED_MIN_ROWS 8
+
+static gboolean clear_fixed_window_init_flag_idle(gpointer data) {
+    struct AppData *app = (struct AppData *)data;
+    if (app) {
+        app->fixed_window_size_initializing = FALSE;
+    }
+    return FALSE;
+}
+
 // Initialize dynamic display configuration with sensible defaults
 void init_dynamic_display_config(DynamicDisplayConfig *config) {
     if (!config) return;
@@ -298,8 +312,124 @@ gint calculate_max_display_lines(GtkWidget *window, const DynamicDisplayConfig *
     return result->effective_lines;
 }
 
+void init_fixed_window_grid_config(FixedWindowGridConfig *config) {
+    if (!config) {
+        return;
+    }
+
+    config->target_columns = FIXED_TARGET_COLUMNS;
+    config->visible_rows = FIXED_VISIBLE_ROWS;
+    config->chrome_rows = FIXED_CHROME_ROWS;
+    config->min_columns = FIXED_MIN_COLUMNS;
+    config->min_rows = FIXED_MIN_ROWS;
+}
+
+gboolean calculate_fixed_window_grid(gint char_width_px, gint line_height_px,
+                                     const FixedWindowGridConfig *config,
+                                     gint *cols_out, gint *visible_rows_out,
+                                     gint *window_width_px_out, gint *window_height_px_out) {
+    if (!config || !cols_out || !visible_rows_out || !window_width_px_out || !window_height_px_out) {
+        return FALSE;
+    }
+
+    if (char_width_px <= 0 || line_height_px <= 0) {
+        return FALSE;
+    }
+
+    gint cols = config->target_columns;
+    if (cols < config->min_columns) {
+        cols = config->min_columns;
+    }
+
+    gint visible_rows = config->visible_rows;
+    if (visible_rows < config->min_rows) {
+        visible_rows = config->min_rows;
+    }
+
+    gint total_rows = visible_rows + config->chrome_rows;
+
+    *cols_out = cols;
+    *visible_rows_out = visible_rows;
+    *window_width_px_out = cols * char_width_px;
+    *window_height_px_out = total_rows * line_height_px;
+
+    return TRUE;
+}
+
+void init_fixed_window_size(struct AppData *app) {
+    if (!app || !app->window || !app->textview) {
+        return;
+    }
+
+    if (app->fixed_cols > 0 && app->fixed_rows > 0) {
+        return;
+    }
+
+    GtkWidget *tv = app->textview;
+    PangoContext *context = gtk_widget_get_pango_context(tv);
+    if (!context) {
+        return;
+    }
+
+    PangoFontDescription *font_desc = pango_context_get_font_description(context);
+    PangoFontMetrics *metrics = pango_context_get_metrics(context, font_desc, NULL);
+    if (!metrics) {
+        return;
+    }
+
+    gint char_width = PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(metrics));
+    gint line_height = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics) +
+                                    pango_font_metrics_get_descent(metrics));
+    pango_font_metrics_unref(metrics);
+
+    if (char_width <= 0) {
+        char_width = 9;
+    }
+    if (line_height <= 0) {
+        line_height = 22;
+    }
+
+    FixedWindowGridConfig config;
+    init_fixed_window_grid_config(&config);
+
+    gint cols = 0;
+    gint visible_rows = 0;
+    gint width_px = 0;
+    gint height_px = 0;
+
+    if (!calculate_fixed_window_grid(char_width, line_height, &config,
+                                     &cols, &visible_rows, &width_px, &height_px)) {
+        return;
+    }
+
+    gint left_margin = gtk_text_view_get_left_margin(GTK_TEXT_VIEW(tv));
+    gint right_margin = gtk_text_view_get_right_margin(GTK_TEXT_VIEW(tv));
+    gint horizontal_padding = left_margin + right_margin + 40;
+    gint vertical_padding = 30;
+
+    app->fixed_cols = cols;
+    app->fixed_rows = visible_rows;
+    app->fixed_window_size_initializing = TRUE;
+
+    gtk_window_resize(GTK_WINDOW(app->window),
+                      width_px + horizontal_padding,
+                      height_px + vertical_padding);
+
+    invalidate_display_line_cache(app);
+    g_idle_add(clear_fixed_window_init_flag_idle, app);
+
+    log_debug("Initialized fixed window size: cols=%d rows=%d window=%dx%d (char=%d line=%d)",
+              app->fixed_cols, app->fixed_rows,
+              width_px + horizontal_padding, height_px + vertical_padding,
+              char_width, line_height);
+}
+
 // Get dynamic max display lines with caching
 gint get_dynamic_max_display_lines(struct AppData *app) {
+    if (app && app->fixed_rows > 0) {
+        return app->fixed_rows;
+    }
+
     if (!app || !app->window) {
         log_trace("Invalid app data for dynamic line calculation - using default");
         return DEFAULT_FALLBACK_LINES;
@@ -339,6 +469,10 @@ gint get_dynamic_max_display_lines(struct AppData *app) {
 
 // Get the number of monospace character columns that fit in the text view
 gint get_display_columns(struct AppData *app) {
+    if (app && app->fixed_cols > 0) {
+        return app->fixed_cols;
+    }
+
     if (!app || !app->textview) return 80; // fallback
 
     GtkWidget *tv = app->textview;

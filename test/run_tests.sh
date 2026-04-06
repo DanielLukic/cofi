@@ -139,4 +139,14 @@ if [ -f test_rules ]; then
     fi
 fi
 
+# Run fixed dynamic display sizing tests if they exist
+if [ -f test_dynamic_display_fixed ]; then
+    echo ""
+    echo "Running fixed dynamic display sizing tests..."
+    ./test_dynamic_display_fixed
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
