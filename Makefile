@@ -38,10 +38,16 @@ SOURCES = src/main.c \
           src/workarea.c \
           src/size_hints.c \
           src/overlay_manager.c \
+          src/overlay_dispatch.c \
+          src/overlay_hotkey_add.c \
+          src/overlay_hotkey_add_policy.c \
+          src/overlay_hotkey_edit.c \
+          src/overlay_harpoon.c \
+          src/overlay_name.c \
+          src/overlay_config.c \
+          src/overlay_workspace.c \
           src/tiling_overlay.c \
           src/workspace_overlay.c \
-          src/workspace_rename_overlay.c \
-          src/harpoon_overlay.c \
           src/tiling.c \
           src/atom_cache.c \
           src/dynamic_display.c \
@@ -133,7 +139,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline
+test: test_window_matcher test_command_parsing test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -195,6 +201,10 @@ test_dynamic_display_fixed: test/test_dynamic_display_fixed.c src/dynamic_displa
 # Build display pipeline tests
 test_display_pipeline: test/test_display_pipeline.c src/display_pipeline.o
 	$(CC) $(CFLAGS) -o test/test_display_pipeline test/test_display_pipeline.c src/display_pipeline.o $(LDFLAGS)
+
+# Build overlay dispatch tests
+test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o
+	$(CC) $(CFLAGS) -o test/test_overlay_dispatch test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o
