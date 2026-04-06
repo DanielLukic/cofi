@@ -460,6 +460,62 @@ static const CommandDef* find_command(const char *cmd_name) {
     return NULL;
 }
 
+static gboolean is_empty_arg(const char *arg) {
+    return !arg || arg[0] == '\0';
+}
+
+static gboolean keeps_open_without_arg(const char *primary) {
+    return strcmp(primary, "cw") == 0 ||
+           strcmp(primary, "jw") == 0 ||
+           strcmp(primary, "maw") == 0 ||
+           strcmp(primary, "tw") == 0;
+}
+
+static gboolean command_keeps_open_on_hotkey_auto(const CommandDef *cmd, const char *arg) {
+    if (!cmd || !cmd->primary) {
+        return FALSE;
+    }
+
+    if (cmd->keeps_open_on_hotkey_auto) {
+        return TRUE;
+    }
+
+    return is_empty_arg(arg) && keeps_open_without_arg(cmd->primary);
+}
+
+gboolean should_keep_open_on_hotkey_auto(const char *command) {
+    if (!command) {
+        return FALSE;
+    }
+
+    char local[512] = {0};
+    strncpy(local, command, sizeof(local) - 1);
+    trim_whitespace_in_place(local);
+    if (local[0] == '\0') {
+        return FALSE;
+    }
+
+    char *saveptr = NULL;
+    char *token = strtok_r(local, ",", &saveptr);
+    while (token) {
+        char cmd_name[128] = {0};
+        char arg[256] = {0};
+
+        trim_whitespace_in_place(token);
+        if (token[0] != '\0' &&
+            parse_command_and_arg(token, cmd_name, arg, sizeof(cmd_name), sizeof(arg))) {
+            const CommandDef *cmd = find_command(cmd_name);
+            if (command_keeps_open_on_hotkey_auto(cmd, arg)) {
+                return TRUE;
+            }
+        }
+
+        token = strtok_r(NULL, ",", &saveptr);
+    }
+
+    return FALSE;
+}
+
 static TileOption parse_tile_option(const char *arg) {
     if (strlen(arg) == 1) {
         switch (arg[0]) {

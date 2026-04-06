@@ -16,6 +16,7 @@ typedef struct {
     const char *description;                // Help description
     const char *help_format;                // Format for help display (e.g., "cw [N]")
     int activates;                          // Dispatcher activates target window after handler
+    int keeps_open_on_hotkey_auto;          // Auto-! hotkeys keep cofi open after command
 } CommandDef;
 
 // Command handler declarations
@@ -60,7 +61,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"assign-name", "n", NULL},
         .handler = cmd_assign_name,
         .description = "Assign custom name to selected window",
-        .help_format = "an, assign-name, n"
+        .help_format = "an, assign-name, n",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "as",
@@ -89,7 +91,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"conf", "cfg", NULL},
         .handler = cmd_show_config,
         .description = "Show current configuration",
-        .help_format = "config, conf"
+        .help_format = "config, conf",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "cw",
@@ -120,7 +123,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"hotkey", "hk", NULL},
         .handler = cmd_hotkeys,
         .description = "Manage system hotkey bindings",
-        .help_format = "hotkeys [key] [command]"
+        .help_format = "hotkeys [key] [command]",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "jw",
@@ -171,21 +175,24 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"rename-workspace", NULL},
         .handler = cmd_rename_workspace,
         .description = "Rename a workspace (N = workspace number, or current if omitted)",
-        .help_format = "rw, rename-workspace [N]"
+        .help_format = "rw, rename-workspace [N]",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "show",
         .aliases = {"s", NULL},
         .handler = cmd_show,
         .description = "Show cofi in a specific mode (windows/command/workspaces/harpoon/names)",
-        .help_format = "show [windows|command|workspaces|harpoon|names]"
+        .help_format = "show [windows|command|workspaces|harpoon|names]",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "set",
         .aliases = {NULL},
         .handler = cmd_set_config,
         .description = "Set config option: set <key> <value>",
-        .help_format = "set <key> <value>"
+        .help_format = "set <key> <value>",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "sb",
@@ -231,9 +238,18 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"h", "?", NULL},
         .handler = cmd_help,
         .description = "Show this help message",
-        .help_format = "help, h, ?"
+        .help_format = "help, h, ?",
+        .keeps_open_on_hotkey_auto = 1
     },
-    {NULL, {NULL}, NULL, NULL, NULL} // Sentinel
+    {
+        .primary = NULL,
+        .aliases = {NULL},
+        .handler = NULL,
+        .description = NULL,
+        .help_format = NULL,
+        .activates = 0,
+        .keeps_open_on_hotkey_auto = 0
+    } // Sentinel
 };
 
 #endif // COMMAND_DEFINITIONS_H

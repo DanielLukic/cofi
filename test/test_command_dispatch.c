@@ -44,6 +44,28 @@ static int tests_failed = 0;
     } \
 } while (0)
 
+#define ASSERT_KEEP_OPEN(cmd_name, expected) do { \
+    int found = 0; \
+    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) { \
+        if (strcmp(COMMAND_DEFINITIONS[i].primary, (cmd_name)) == 0) { \
+            found = 1; \
+            if (COMMAND_DEFINITIONS[i].keeps_open_on_hotkey_auto != (expected)) { \
+                printf("FAIL: %s .keeps_open_on_hotkey_auto — expected %d, got %d\n", \
+                       (cmd_name), (expected), COMMAND_DEFINITIONS[i].keeps_open_on_hotkey_auto); \
+                tests_failed++; \
+            } else { \
+                printf("PASS: %s .keeps_open_on_hotkey_auto = %d\n", (cmd_name), (expected)); \
+                tests_passed++; \
+            } \
+            break; \
+        } \
+    } \
+    if (!found) { \
+        printf("FAIL: %s not found in COMMAND_DEFINITIONS\n", (cmd_name)); \
+        tests_failed++; \
+    } \
+} while (0)
+
 // Verify that every command has the correct .activates value.
 // Commands that activate: they modify a window property/position and need
 // the dispatcher to focus the target window after (in interactive mode).
@@ -81,6 +103,23 @@ static void test_activates_field(void) {
 }
 
 // Verify no command is missing from the test
+static void test_keep_open_on_hotkey_auto_field(void) {
+    printf("\n--- Hotkey auto-! keep-open metadata ---\n");
+    ASSERT_KEEP_OPEN("show", 1);
+    ASSERT_KEEP_OPEN("help", 1);
+    ASSERT_KEEP_OPEN("config", 1);
+    ASSERT_KEEP_OPEN("set", 1);
+    ASSERT_KEEP_OPEN("an", 1);
+    ASSERT_KEEP_OPEN("rw", 1);
+    ASSERT_KEEP_OPEN("hotkeys", 1);
+
+    ASSERT_KEEP_OPEN("jw", 0);
+    ASSERT_KEEP_OPEN("cw", 0);
+    ASSERT_KEEP_OPEN("maw", 0);
+    ASSERT_KEEP_OPEN("tw", 0);
+    ASSERT_KEEP_OPEN("mw", 0);
+}
+
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = 0;
@@ -102,6 +141,7 @@ int main(void) {
     printf("======================\n\n");
 
     test_activates_field();
+    test_keep_open_on_hotkey_auto_field();
     test_all_commands_covered();
 
     printf("\n=====================================\n");
