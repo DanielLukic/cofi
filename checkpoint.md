@@ -1,4 +1,4 @@
-# Cofi Development Checkpoint — 2026-03-31 (updated)
+# Cofi Development Checkpoint — 2026-04-06 (updated)
 
 Intent: this file is the current-state checkpoint for active development. It tracks branch state, recent completed work, known issues, and operational context needed to resume quickly. It is not the canonical workflow guide and not the long-term home for cross-cutting gotchas.
 
@@ -12,11 +12,14 @@ See also:
 - **Repo**: https://github.com/DanielLukic/cofi
 - **Owner**: DanielLukic (transferred from IntensiCode)
 - **Default branch**: `develop` (changed from `main` — 2026-03-31)
-- **Project board**: Linear (migrated from GitHub) — project "Cofi" in workspace TFD
-- **Linear tickets**: TFD-76 to TFD-101 (26 issues migrated; all GitHub issues deleted)
+- **Tracking**: Linear via `linearis`
+- **Team**: `TFD` / `IntensiCode` (`e82a4779-dde1-44e0-9772-c86ad681114f`)
+- **Project**: `Cofi - The Comfortable Window Switcher` (`6478f7c1-ab2b-4842-ba97-74db69fed434`)
+- **Known issue range**: TFD-76 to TFD-101
 - **Systemd service**: `~/.config/systemd/user/cofi.service`
 - **Restart**: `./restart.sh` — does `make clean && make`, restarts service, shows last log lines
 - **Logs**: `journalctl --user -u cofi -f`
+- **Linear CLI**: `linearis`
 
 ## Critical Rules (in CLAUDE.md and memory)
 
@@ -113,11 +116,13 @@ bc915de Add window_order_mode config, fix column-first slot sort, add restart sc
 - CLI `--log-level` override; `:set log_level info` applies at runtime
 - Ctrl+T cycles in Config tab
 
-### Linear migration (this session)
-- All 26 GitHub issues migrated to Linear (TFD-76 to TFD-101)
-- 23 Done + 3 Backlog
-- All GitHub issues deleted to avoid confusion
-- Linear MCP server (`linear-server`) installed and connected
+### Linear tracking
+- Linear is accessed from the `linearis` CLI, not via MCP tooling
+- Useful commands:
+  `linearis teams list`
+  `linearis projects list`
+  `linearis issues read TFD-82`
+  `linearis issues list -l 25`
 
 ## Linear Tickets (Cofi project)
 
@@ -134,7 +139,7 @@ bc915de Add window_order_mode config, fix column-first slot sort, add restart sc
 
 ## Test Suite
 
-**472 tests** currently run by `make test` across 9 test files:
+**498 tests** currently run by `make test` across 10 test files:
 
 | File | Count |
 |------|-------|
@@ -147,12 +152,11 @@ bc915de Add window_order_mode config, fix column-first slot sort, add restart sc
 | test_match_scoring | 36 |
 | test_command_aliases | 115 |
 | test_wildcard_match | 49 |
+| test_command_dispatch | 26 |
 
 **NOT yet in run_tests.sh (need to add):**
 - `test/test_parse_shortcut.c` — 69 tests
 - `test/test_scrollbar.c` — 26 tests
-
-Binaries exist and pass individually. `test/run_tests.sh` and Makefile need updating.
 
 Run all: `make test`
 

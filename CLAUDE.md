@@ -48,9 +48,20 @@ journalctl --user -u cofi -f   # tail logs
 
 ### Tracking
 
-- Issues and project board: https://github.com/DanielLukic/cofi/issues
-- Project: https://github.com/users/DanielLukic/projects/3
-- Status flow: Todo → In Progress → In Review → Done
+- Tracking is in Linear, accessed from the `linearis` CLI
+- Team: `TFD` / `IntensiCode` (`e82a4779-dde1-44e0-9772-c86ad681114f`)
+- Project: `Cofi - The Comfortable Window Switcher` (`6478f7c1-ab2b-4842-ba97-74db69fed434`)
+- Status flow: Backlog → Todo → In Progress → In Review → Done
+
+### Linearis
+
+- `linearis` is the supported way to read and update Linear from this repo
+- Common commands:
+  `linearis teams list`
+  `linearis projects list`
+  `linearis issues read TFD-82`
+  `linearis issues list -l 25`
+- Use issue identifiers like `TFD-82` in conversation; keep the team/project IDs above for scripts or future automation
 
 ## Coding Guidelines
 
