@@ -36,7 +36,12 @@ See also:
 When spawning agents for isolated work:
 - Always instruct them to branch from `develop`
 - Use `isolation: "worktree"` for parallel work
-- Agent creates branch `fix/<issue-slug>`, pushes, opens PR against `develop`
+- **Always place worktrees inside `.worktrees/` within the project root** — never as siblings of the project directory
+  ```bash
+  git worktree add .worktrees/<branch-slug> -b <branch-name>
+  ```
+- `.worktrees/` is gitignored — worktrees are local/ephemeral only
+- Agent creates branch `fix/<issue-slug>`, works in `.worktrees/fix-<issue-slug>/`
 - Review diff before merging — agents may branch from wrong base
 
 ### Build & Run
