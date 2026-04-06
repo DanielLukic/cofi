@@ -159,4 +159,14 @@ if [ -f test_display_pipeline ]; then
     fi
 fi
 
+# Run overlay dispatch tests if they exist
+if [ -f test_overlay_dispatch ]; then
+    echo ""
+    echo "Running overlay dispatch tests..."
+    ./test_overlay_dispatch
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

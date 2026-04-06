@@ -30,6 +30,10 @@ void show_name_edit_overlay(AppData *app);
 // following the new overlay pattern where content is added directly to parent_container
 
 // Utility functions
-void center_dialog_in_overlay(GtkWidget *dialog_content, AppData *app);
+static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
+    return type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
+           type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
+           type == OVERLAY_HOTKEY_EDIT;
+}
 
 #endif // OVERLAY_MANAGER_H
