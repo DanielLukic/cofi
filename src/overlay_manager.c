@@ -754,9 +754,13 @@ static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event) {
 
         hide_overlay(app);
 
-        // Trigger re-filter via entry change
+        // Re-filter and redraw the list immediately so edited command is visible.
+        // Re-assigning entry text can be a no-op if unchanged and won't trigger refresh.
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        gtk_entry_set_text(GTK_ENTRY(app->entry), current_filter);
+        filter_hotkeys(app, current_filter);
+        validate_selection(app);
+        update_scroll_position(app);
+        update_display(app);
 
         return TRUE;
     }
