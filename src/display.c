@@ -613,6 +613,8 @@ static void format_hotkeys_display(AppData *app, GString *text, int selected_idx
 
     if (total_count == 0) {
         g_string_append(text, "No hotkey bindings found\n");
+        g_string_append(text, "\n");
+        g_string_append(text, "Shortcuts: Ctrl+A=Add binding\n");
         return;
     }
 
@@ -651,7 +653,7 @@ static void format_hotkeys_display(AppData *app, GString *text, int selected_idx
     overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
 
     g_string_append(text, "\n");
-    g_string_append(text, "Shortcuts: Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
+    g_string_append(text, "Shortcuts: Ctrl+A=Add binding  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
 }
 
 // Update the text display with proper 5-column format like Go code

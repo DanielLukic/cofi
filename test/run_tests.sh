@@ -99,6 +99,16 @@ if [ -f test_command_aliases ]; then
     fi
 fi
 
+# Run shortcut parser tests if they exist
+if [ -f test_parse_shortcut ]; then
+    echo ""
+    echo "Running shortcut parser tests..."
+    ./test_parse_shortcut
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run wildcard match tests if they exist
 if [ -f test_wildcard_match ]; then
     echo ""
