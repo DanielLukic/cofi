@@ -1,5 +1,12 @@
 # Cofi Development Checkpoint — 2026-03-31 (updated)
 
+Intent: this file is the current-state checkpoint for active development. It tracks branch state, recent completed work, known issues, and operational context needed to resume quickly. It is not the canonical workflow guide and not the long-term home for cross-cutting gotchas.
+
+See also:
+- `CLAUDE.md` for contributor workflow, branching rules, and repo conventions
+- `docs/gotchas.md` for fragile behaviors, regressions to avoid, and implementation learnings
+- `SPEC.md` for intended product behavior
+
 ## Repo & Infra
 
 - **Repo**: https://github.com/DanielLukic/cofi

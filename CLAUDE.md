@@ -1,5 +1,12 @@
 # COFI - C/GTK Window Switcher
 
+Intent: this file is the contributor workflow and repository operating guide. It covers branching, build/test expectations, coding guidelines, and the high-level subsystem map. It is not the session log and not the place for fragile implementation gotchas.
+
+See also:
+- `checkpoint.md` for current branch/session state, recent changes, and outstanding debt
+- `docs/gotchas.md` for regressions to avoid, tricky invariants, and implementation learnings
+- `SPEC.md` for intended product behavior
+
 ## Development Workflow
 
 ### Branch Structure
