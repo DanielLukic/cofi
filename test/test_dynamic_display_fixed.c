@@ -38,6 +38,28 @@ static void test_calculate_fixed_window_grid_sane_defaults(void) {
     ASSERT_TRUE("pixel height includes chrome rows", height_px == 572);
 }
 
+static void test_calculate_fixed_window_grid_rejects_invalid_inputs(void) {
+    printf("\n--- calculate_fixed_window_grid invalid inputs ---\n");
+
+    FixedWindowGridConfig cfg = {
+        .target_columns = 115,
+        .visible_rows = 22,
+        .chrome_rows = 4,
+        .min_columns = 80,
+        .min_rows = 8,
+    };
+
+    gint cols = 0;
+    gint rows = 0;
+    gint width_px = 0;
+    gint height_px = 0;
+
+    ASSERT_TRUE("rejects char_width <= 0",
+                !calculate_fixed_window_grid(0, 22, &cfg, &cols, &rows, &width_px, &height_px));
+    ASSERT_TRUE("rejects line_height <= 0",
+                !calculate_fixed_window_grid(9, 0, &cfg, &cols, &rows, &width_px, &height_px));
+}
+
 static void test_get_display_columns_uses_fixed_authority(void) {
     printf("\n--- get_display_columns uses fixed authority ---\n");
 
@@ -63,6 +85,7 @@ int main(void) {
     printf("===============================\n");
 
     test_calculate_fixed_window_grid_sane_defaults();
+    test_calculate_fixed_window_grid_rejects_invalid_inputs();
     test_get_display_columns_uses_fixed_authority();
     test_get_dynamic_max_display_lines_uses_fixed_rows();
 
