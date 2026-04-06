@@ -109,6 +109,16 @@ if [ -f test_wildcard_match ]; then
     fi
 fi
 
+# Run command dispatch tests if they exist
+if [ -f test_command_dispatch ]; then
+    echo ""
+    echo "Running command dispatch tests..."
+    ./test_command_dispatch
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run rules tests if they exist
 if [ -f test_rules ]; then
     echo ""
