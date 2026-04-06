@@ -14,6 +14,7 @@
 #include "harpoon.h"
 #include "dynamic_display.h"
 #include "named_window.h"
+#include "display_pipeline.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -266,394 +267,319 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
     g_string_free(result, TRUE);
 }
 
-// Format and display windows tab content
-static void format_windows_display(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+// Shared overlay adapter for display pipeline
+static void overlay_scrollbar_adapter(gpointer context, GString *text,
+                                      gint total_items, gint visible_items,
+                                      gint scroll_offset, gint target_columns) {
+    (void)context;
+    overlay_scrollbar(text, total_items, visible_items,
+                      scroll_offset, target_columns);
+}
 
-    // If no windows, show message
+static void render_windows_item(gpointer context, gint index,
+                                gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    WindowInfo *win = &app->filtered[index];
+
+    g_string_append(text,
+                    (index == selected_idx) ? SELECTION_INDICATOR
+                                            : NO_SELECTION_INDICATOR);
+
+    char display_instance[MAX_CLASS_LEN];
+    char display_class[MAX_CLASS_LEN];
+    if (should_swap_instance_class(win->instance)) {
+        strcpy(display_instance, win->class_name);
+        strcpy(display_class, win->instance);
+    } else {
+        strcpy(display_instance, win->instance);
+        strcpy(display_class, win->class_name);
+    }
+
+    char harpoon_col[DISPLAY_HARPOON_WIDTH + 2];
+    char desktop_col[DISPLAY_DESKTOP_WIDTH + 1];
+    char instance_col[DISPLAY_INSTANCE_WIDTH + 1];
+    char title_col[DISPLAY_TITLE_WIDTH + 1];
+    char class_col[DISPLAY_CLASS_WIDTH + 1];
+    char window_id[32];
+
+    gint slot = get_window_slot(&app->harpoon, win->id);
+    Window display_id = win->id;
+
+    if (slot >= 0) {
+        if (slot <= HARPOON_LAST_NUMBER) {
+            snprintf(harpoon_col, sizeof(harpoon_col), "%d ", slot);
+        } else {
+            snprintf(harpoon_col, sizeof(harpoon_col), "%c ",
+                     'a' + (slot - HARPOON_FIRST_LETTER));
+        }
+
+        if (app->harpoon.slots[slot].assigned) {
+            display_id = app->harpoon.slots[slot].id;
+        }
+    } else {
+        strcpy(harpoon_col, "  ");
+    }
+
+    format_desktop_str(win->desktop, desktop_col);
+    fit_column(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col);
+
+    char display_title[MAX_TITLE_LEN];
+    strncpy(display_title, win->title, sizeof(display_title) - 1);
+    display_title[sizeof(display_title) - 1] = '\0';
+
+    fit_column(display_title, DISPLAY_TITLE_WIDTH, title_col);
+    fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
+    snprintf(window_id, sizeof(window_id), "0x%lx", display_id);
+
+    g_string_append(text, harpoon_col);
+    g_string_append(text, desktop_col);
+    g_string_append(text, " ");
+    g_string_append(text, instance_col);
+    g_string_append(text, " ");
+    g_string_append(text, title_col);
+    g_string_append(text, " ");
+    g_string_append(text, class_col);
+    g_string_append(text, " ");
+    g_string_append(text, window_id);
+    g_string_append(text, "\n");
+}
+
+static void format_windows_display(AppData *app, GString *text, gint selected_idx) {
     if (app->filtered_count == 0) {
         g_string_append(text, "No matching windows found\n");
         return;
     }
 
-    int scroll_offset = get_scroll_offset(app);
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_windows_item;
 
-    // Calculate visible range
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
-    }
-
-    // Display windows in reverse order (best matches at bottom, fzf-style)
-    // But we need to account for scrolling
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        WindowInfo *win = &app->filtered[i];
-        
-        gboolean is_selected = (i == selected_idx);
-        
-        // Selection indicator
-        if (is_selected) {
-            g_string_append(text, SELECTION_INDICATOR);
-        } else {
-            g_string_append(text, NO_SELECTION_INDICATOR);
-        }
-        
-        // Apply instance/class swapping rule like Go code (line 82-84)
-        char display_instance[MAX_CLASS_LEN];
-        char display_class[MAX_CLASS_LEN];
-        
-        if (should_swap_instance_class(win->instance)) {
-            // Swap if instance starts with uppercase
-            strcpy(display_instance, win->class_name);
-            strcpy(display_class, win->instance);
-        } else {
-            strcpy(display_instance, win->instance);
-            strcpy(display_class, win->class_name);
-        }
-        
-        // Format each column
-        char harpoon_col[DISPLAY_HARPOON_WIDTH + 2]; // +2 for space after
-        char desktop_col[DISPLAY_DESKTOP_WIDTH + 1];
-        char instance_col[DISPLAY_INSTANCE_WIDTH + 1];
-        char title_col[DISPLAY_TITLE_WIDTH + 1];
-        char class_col[DISPLAY_CLASS_WIDTH + 1];
-        char window_id[32];
-        
-        // Check if this window has a harpoon assignment
-        int slot = get_window_slot(&app->harpoon, win->id);
-        Window display_id = win->id;
-        
-        if (slot >= 0) {
-            if (slot <= HARPOON_LAST_NUMBER) {
-                snprintf(harpoon_col, sizeof(harpoon_col), "%d ", slot);
-            } else {
-                snprintf(harpoon_col, sizeof(harpoon_col), "%c ", 'a' + (slot - HARPOON_FIRST_LETTER));
-            }
-            // Use the window ID from the harpoon slot since it may have been reassigned
-            if (app->harpoon.slots[slot].assigned) {
-                display_id = app->harpoon.slots[slot].id;
-            }
-        } else {
-            strcpy(harpoon_col, "  ");
-        }
-        
-        format_desktop_str(win->desktop, desktop_col);
-        fit_column(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col);
-        
-        // Use the window title directly (custom names are already included by filtering)
-        char display_title[MAX_TITLE_LEN];
-        strncpy(display_title, win->title, sizeof(display_title) - 1);
-        display_title[sizeof(display_title) - 1] = '\0';
-        
-        fit_column(display_title, DISPLAY_TITLE_WIDTH, title_col);
-        fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
-        snprintf(window_id, sizeof(window_id), "0x%lx", display_id);
-        
-        // Build the line: harpoon desktop instance title class window_id
-        g_string_append(text, harpoon_col);
-        g_string_append(text, desktop_col);
-        g_string_append(text, " ");
-        g_string_append(text, instance_col);
-        g_string_append(text, " ");
-        g_string_append(text, title_col);
-        g_string_append(text, " ");
-        g_string_append(text, class_col);
-        g_string_append(text, " ");
-        g_string_append(text, window_id);
-
-        g_string_append(text, "\n");
-    }
-
-    // Overlay scrollbar on last column (flipped offset for bottom-up display)
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
+    render_display_pipeline(&request, text);
 }
 
-// Format and display workspaces tab content
-static void format_workspaces_display(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_workspace_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+static void render_workspaces_item(gpointer context, gint index,
+                                   gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    WorkspaceInfo *ws = &app->filtered_workspaces[index];
 
-    // If no workspaces, show message
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+    g_string_append(text, ws->is_current ? "* " : "  ");
+    g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
+}
+
+static void format_workspaces_display(AppData *app, GString *text,
+                                      gint selected_idx) {
     if (app->filtered_workspace_count == 0) {
         g_string_append(text, "No matching workspaces found\n");
         return;
     }
 
-    int scroll_offset = get_scroll_offset(app);
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_workspace_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_workspaces_item;
 
-    // Calculate visible range
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
-    }
-
-    // Display workspaces in reverse order (entry 0 at bottom like windows)
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        WorkspaceInfo *ws = &app->filtered_workspaces[i];
-
-        gboolean is_selected = (i == selected_idx);
-
-        // Selection indicator
-        if (is_selected) {
-            g_string_append(text, "> ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        // Current workspace indicator
-        if (ws->is_current) {
-            g_string_append(text, "* ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        // Format: [ID] Name
-        g_string_append_printf(text, "[%d] %s", ws->id + 1, ws->name);
-
-        g_string_append(text, "\n");
-    }
-
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
+    render_display_pipeline(&request, text);
 }
 
-// Format and display harpoon tab content
-static void format_harpoon_display(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_harpoon_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+static void render_harpoon_item(gpointer context, gint index,
+                                gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    HarpoonSlot *slot = &app->filtered_harpoon[index];
 
-    int scroll_offset = get_scroll_offset(app);
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
 
-    // Calculate visible range
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
+    char slot_name[4];
+    gint slot_idx = app->filtered_harpoon_indices[index];
+    if (slot_idx < 10) {
+        snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
+    } else {
+        snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
     }
 
-    // Display harpoon slots in reverse order (entry 0 at bottom like windows)
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        HarpoonSlot *slot = &app->filtered_harpoon[i];
+    if (slot->assigned) {
+        char title_col[56], class_col[19], instance_col[21], type_col[9];
+        fit_column(slot->title, 55, title_col);
+        fit_column(slot->class_name, 18, class_col);
+        fit_column(slot->instance, 20, instance_col);
+        fit_column(slot->type, 8, type_col);
 
-        gboolean is_selected = (i == selected_idx);
-
-        // Selection indicator
-        if (is_selected) {
-            g_string_append(text, "> ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        // Format slot name (0-9, a-z)
-        char slot_name[4];
-        int slot_idx = app->filtered_harpoon_indices[i];
-        if (slot_idx < 10) {
-            snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
-        } else {
-            snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
-        }
-
-        // Format slot display
-        if (slot->assigned) {
-            char title_col[56], class_col[19], instance_col[21], type_col[9];
-            fit_column(slot->title, 55, title_col);
-            fit_column(slot->class_name, 18, class_col);
-            fit_column(slot->instance, 20, instance_col);
-            fit_column(slot->type, 8, type_col);
-
-            g_string_append_printf(text, "%-4s %s %s %s %s",
-                slot_name, title_col, class_col, instance_col, type_col);
-        } else {
-            g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s",
-                slot_name, "* EMPTY *", "-", "-", "-");
-        }
-
-        g_string_append(text, "\n");
+        g_string_append_printf(text, "%-4s %s %s %s %s\n",
+                               slot_name, title_col, class_col,
+                               instance_col, type_col);
+        return;
     }
 
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
+    g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
+                           slot_name, "* EMPTY *", "-", "-", "-");
+}
 
-    // Shortcuts footer
+static void format_harpoon_display(AppData *app, GString *text,
+                                   gint selected_idx) {
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_harpoon_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_harpoon_item;
+
+    render_display_pipeline(&request, text);
     g_string_append(text, "\n");
-    g_string_append(text, "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
+    g_string_append(text,
+        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
 }
 
-// Format and display names tab content
-static void format_names_display(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_names_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+static void render_names_item(gpointer context, gint index,
+                              gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    NamedWindow *named = &app->filtered_names[index];
 
-    // If no named windows, show message and shortcuts
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+
+    char custom_name_col[21], original_title_col[46], class_col[19];
+    char window_id[12];
+
+    fit_column(named->custom_name, 20, custom_name_col);
+    fit_column(named->original_title, 45, original_title_col);
+    fit_column(named->class_name, 18, class_col);
+
+    if (named->assigned) {
+        snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
+    } else {
+        strcpy(window_id, "* NONE *");
+    }
+
+    g_string_append(text, custom_name_col);
+    g_string_append(text, " ");
+    g_string_append(text, original_title_col);
+    g_string_append(text, " ");
+    g_string_append(text, class_col);
+    g_string_append(text, " ");
+    g_string_append(text, window_id);
+    g_string_append(text, "\n");
+}
+
+static void format_names_display(AppData *app, GString *text, gint selected_idx) {
     if (app->filtered_names_count == 0) {
-        g_string_append(text, "No named windows found\n");
-        g_string_append(text, "\n");
+        g_string_append(text, "No named windows found\n\n");
         g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
         return;
     }
 
-    int scroll_offset = get_scroll_offset(app);
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_names_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_names_item;
 
-    // Calculate visible range
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
-    }
-
-    // Display named windows in reverse order (entry 0 at bottom like windows)
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        NamedWindow *named = &app->filtered_names[i];
-
-        gboolean is_selected = (i == selected_idx);
-
-        // Selection indicator
-        if (is_selected) {
-            g_string_append(text, "> ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        // Format columns — sized to fit within ~115 char budget (matching windows tab)
-        char custom_name_col[21], original_title_col[46], class_col[19];
-        char window_id[12];
-
-        fit_column(named->custom_name, 20, custom_name_col);
-        fit_column(named->original_title, 45, original_title_col);
-        fit_column(named->class_name, 18, class_col);
-
-        if (named->assigned) {
-            snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
-        } else {
-            strcpy(window_id, "* NONE *");
-        }
-
-        // Build the line: custom_name original_title class window_id
-        g_string_append(text, custom_name_col);
-        g_string_append(text, " ");
-        g_string_append(text, original_title_col);
-        g_string_append(text, " ");
-        g_string_append(text, class_col);
-        g_string_append(text, " ");
-        g_string_append(text, window_id);
-
-        g_string_append(text, "\n");
-    }
-
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
-
-    // Add shortcuts footer
+    render_display_pipeline(&request, text);
     g_string_append(text, "\n");
     g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
 }
 
-// Format and display config tab content
-static void format_config_display_tab(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_config_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+static void render_config_item(gpointer context, gint index,
+                               gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    ConfigEntry *entry = &app->filtered_config[index];
 
-    if (total_count == 0) {
-        g_string_append(text, "No matching config options found\n");
-        g_string_append(text, "\n");
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+
+    char key_col[33], value_col[61];
+    fit_column(entry->key, 32, key_col);
+    fit_column(entry->value, 60, value_col);
+
+    g_string_append(text, key_col);
+    g_string_append(text, " ");
+    g_string_append(text, value_col);
+    g_string_append(text, "\n");
+}
+
+static void format_config_display_tab(AppData *app, GString *text,
+                                      gint selected_idx) {
+    if (app->filtered_config_count == 0) {
+        g_string_append(text, "No matching config options found\n\n");
         g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
         return;
     }
 
-    int scroll_offset = get_scroll_offset(app);
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_config_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_config_item;
 
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
-    }
-
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        ConfigEntry *entry = &app->filtered_config[i];
-
-        gboolean is_selected = (i == selected_idx);
-
-        if (is_selected) {
-            g_string_append(text, "> ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        char key_col[33], value_col[61];
-        fit_column(entry->key, 32, key_col);
-        fit_column(entry->value, 60, value_col);
-
-        g_string_append(text, key_col);
-        g_string_append(text, " ");
-        g_string_append(text, value_col);
-
-        g_string_append(text, "\n");
-    }
-
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
-
+    render_display_pipeline(&request, text);
     g_string_append(text, "\n");
     g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
 }
 
-// Format and display hotkeys tab content
-static void format_hotkeys_display(AppData *app, GString *text, int selected_idx) {
-    int total_count = app->filtered_hotkeys_count;
-    int max_lines = get_max_display_lines_dynamic(app);
+static void render_hotkeys_item(gpointer context, gint index,
+                                gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    HotkeyBinding *binding = &app->filtered_hotkeys[index];
 
-    if (total_count == 0) {
-        g_string_append(text, "No hotkey bindings found\n");
-        g_string_append(text, "\n");
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+
+    char key_col[25], cmd_col[71];
+    fit_column(binding->key, 24, key_col);
+    fit_column(binding->command, 70, cmd_col);
+
+    g_string_append(text, key_col);
+    g_string_append(text, " ");
+    g_string_append(text, cmd_col);
+    g_string_append(text, "\n");
+}
+
+static void format_hotkeys_display(AppData *app, GString *text,
+                                   gint selected_idx) {
+    if (app->filtered_hotkeys_count == 0) {
+        g_string_append(text, "No hotkey bindings found\n\n");
         g_string_append(text, "Shortcuts: Ctrl+A=Add binding\n");
         return;
     }
 
-    int scroll_offset = get_scroll_offset(app);
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_hotkeys_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_hotkeys_item;
 
-    int start_idx = scroll_offset;
-    int end_idx = start_idx + max_lines;
-    if (end_idx > total_count) {
-        end_idx = total_count;
-    }
-
-    int display_line = 0;
-    for (int i = end_idx - 1; i >= start_idx && display_line < max_lines; i--, display_line++) {
-        HotkeyBinding *binding = &app->filtered_hotkeys[i];
-
-        gboolean is_selected = (i == selected_idx);
-
-        if (is_selected) {
-            g_string_append(text, "> ");
-        } else {
-            g_string_append(text, "  ");
-        }
-
-        char key_col[25], cmd_col[71];
-        fit_column(binding->key, 24, key_col);
-        fit_column(binding->command, 70, cmd_col);
-
-        g_string_append(text, key_col);
-        g_string_append(text, " ");
-        g_string_append(text, cmd_col);
-
-        g_string_append(text, "\n");
-    }
-
-    int flipped = (total_count > max_lines) ? (total_count - max_lines) - scroll_offset : 0;
-    overlay_scrollbar(text, total_count, max_lines, flipped, get_display_columns(app));
-
+    render_display_pipeline(&request, text);
     g_string_append(text, "\n");
-    g_string_append(text, "Shortcuts: Ctrl+A=Add binding  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
+    g_string_append(text,
+        "Shortcuts: Ctrl+A=Add binding  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
 }
 
 // Update the text display with proper 5-column format like Go code
