@@ -613,8 +613,6 @@ static void format_hotkeys_display(AppData *app, GString *text, int selected_idx
 
     if (total_count == 0) {
         g_string_append(text, "No hotkey bindings found\n");
-        g_string_append(text, "\n");
-        g_string_append(text, "Shortcuts: Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
         return;
     }
 
