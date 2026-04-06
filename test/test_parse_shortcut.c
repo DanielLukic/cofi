@@ -27,6 +27,18 @@ static gboolean parse_fail(const char *str, char *err, size_t err_size) {
     return !parse_shortcut_with_error(str, &key, &mods, err, err_size);
 }
 
+static gboolean canonicalize_ok(const char *str, char *out, size_t out_size) {
+    char err[256] = {0};
+    gboolean ok = canonicalize_hotkey_shortcut(str, out, out_size, err, sizeof(err));
+    if (!ok) printf("    (error: %s)\n", err);
+    return ok;
+}
+
+static gboolean canonicalize_fail(const char *str, char *err, size_t err_size) {
+    char out[128];
+    return !canonicalize_hotkey_shortcut(str, out, sizeof(out), err, err_size);
+}
+
 // --- Test groups ---
 
 static void test_case_insensitive_modifiers(void) {
@@ -157,6 +169,24 @@ static void test_key_aliases(void) {
     ASSERT(parse_ok("Alt+backslash", &key, &mods) && key == GDK_KEY_backslash, "backslash key");
 }
 
+static void test_numpad_keys(void) {
+    printf("\n--- NumPad keys ---\n");
+    guint key; GdkModifierType mods;
+
+    ASSERT(parse_ok("KP_0", &key, &mods) && key == GDK_KEY_KP_0,
+           "KP_0");
+    ASSERT(parse_ok("kp_1", &key, &mods) && key == GDK_KEY_KP_1,
+           "kp_1");
+    ASSERT(parse_ok("Numpad2", &key, &mods) && key == GDK_KEY_KP_2,
+           "Numpad2");
+    ASSERT(parse_ok("Ctrl+KP_Add", &key, &mods) &&
+           (mods & GDK_CONTROL_MASK) && key == GDK_KEY_KP_Add,
+           "Ctrl+KP_Add");
+    ASSERT(parse_ok("Ctrl+numpad_enter", &key, &mods) &&
+           (mods & GDK_CONTROL_MASK) && key == GDK_KEY_KP_Enter,
+           "Ctrl+numpad_enter");
+}
+
 static void test_multi_modifier(void) {
     printf("\n--- Multi-modifier combos ---\n");
     guint key; GdkModifierType mods;
@@ -242,6 +272,40 @@ static void test_whitespace_handling(void) {
            "Extra whitespace handled");
 }
 
+static void test_hotkey_canonicalization(void) {
+    printf("\n--- Hotkey canonicalization ---\n");
+    char out[128];
+
+    ASSERT(canonicalize_ok("alt+tab", out, sizeof(out)) && strcmp(out, "Mod1+Tab") == 0,
+           "alt+tab -> Mod1+Tab");
+    ASSERT(canonicalize_ok("ctrl+enter", out, sizeof(out)) && strcmp(out, "Control+Return") == 0,
+           "ctrl+enter -> Control+Return");
+    ASSERT(canonicalize_ok("win+x", out, sizeof(out)) && strcmp(out, "Mod4+x") == 0,
+           "win+x -> Mod4+x");
+    ASSERT(canonicalize_ok("Shift+Backspace", out, sizeof(out)) && strcmp(out, "Shift+BackSpace") == 0,
+           "Shift+Backspace -> Shift+BackSpace");
+    ASSERT(canonicalize_ok("mod1+grave", out, sizeof(out)) && strcmp(out, "Mod1+grave") == 0,
+           "mod1+grave -> Mod1+grave");
+    ASSERT(canonicalize_ok("KP_1", out, sizeof(out)) && strcmp(out, "KP_1") == 0,
+           "KP_1");
+    ASSERT(canonicalize_ok("Ctrl+kp_enter", out, sizeof(out)) && strcmp(out, "Control+KP_Enter") == 0,
+           "Ctrl+kp_enter -> Control+KP_Enter");
+}
+
+static void test_hotkey_canonicalization_errors(void) {
+    printf("\n--- Hotkey canonicalization errors ---\n");
+    char err[256];
+
+    ASSERT(canonicalize_fail("Meta+x", err, sizeof(err)) && strstr(err, "not supported"),
+           "Meta rejected for XGrabKey hotkeys");
+    ASSERT(canonicalize_fail("Hyper+x", err, sizeof(err)) && strstr(err, "not supported"),
+           "Hyper rejected for XGrabKey hotkeys");
+    ASSERT(canonicalize_fail("Mod2+x", err, sizeof(err)) && strstr(err, "Unknown modifier"),
+           "Mod2 still rejected by user parser");
+    ASSERT(canonicalize_fail("Alt+NoSuchKey", err, sizeof(err)) && strstr(err, "Unknown key"),
+           "Unknown key rejected");
+}
+
 int main(void) {
     printf("=== parse_shortcut tests ===\n");
 
@@ -249,9 +313,12 @@ int main(void) {
     test_modifier_aliases();
     test_key_aliases();
     test_multi_modifier();
+    test_numpad_keys();
     test_error_messages();
     test_backward_compat();
     test_whitespace_handling();
+    test_hotkey_canonicalization();
+    test_hotkey_canonicalization_errors();
 
     printf("\n=== Summary: %d/%d passed ===\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

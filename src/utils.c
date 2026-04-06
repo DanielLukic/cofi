@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <gdk/gdkkeysyms.h>
 
 // Safe string copy - always null-terminates the destination
@@ -137,6 +138,62 @@ static const char* suggest_key(const char *token) {
     return best;
 }
 
+static gboolean build_numpad_key_name(const char *token, char *out, size_t out_size) {
+    const char *rest = NULL;
+    if (strncmp(token, "kp_", 3) == 0) {
+        rest = token + 3;
+    } else if (strncmp(token, "numpad", 6) == 0) {
+        rest = token + 6;
+    } else {
+        return FALSE;
+    }
+
+    while (*rest == '_' || *rest == '-' || *rest == ' ') {
+        rest++;
+    }
+    if (*rest == '\0') return FALSE;
+
+    size_t rest_len = strlen(rest);
+    if (rest_len == 0 || (sizeof("KP_") + rest_len) >= out_size) {
+        return FALSE;
+    }
+
+    size_t dst = 0;
+    out[dst++] = 'K';
+    out[dst++] = 'P';
+    out[dst++] = '_';
+
+    gboolean at_word_start = TRUE;
+    for (size_t i = 0; i < rest_len; i++) {
+        char c = rest[i];
+        if (c == '_' || c == '-') {
+            out[dst++] = '_';
+            at_word_start = TRUE;
+            continue;
+        }
+
+        if (isdigit((unsigned char)c)) {
+            out[dst++] = c;
+            at_word_start = FALSE;
+            continue;
+        }
+
+        if (at_word_start) {
+            out[dst++] = (char)toupper((unsigned char)c);
+            at_word_start = FALSE;
+        } else {
+            out[dst++] = (char)tolower((unsigned char)c);
+        }
+
+        if (dst + 1 >= out_size) {
+            return FALSE;
+        }
+    }
+
+    out[dst] = '\0';
+    return TRUE;
+}
+
 // Try to match a modifier token (lowercase). Returns TRUE and sets mask on match.
 static gboolean match_modifier(const char *token, GdkModifierType *mask) {
     for (int i = 0; i < NUM_MOD_ALIASES; i++) {
@@ -148,9 +205,13 @@ static gboolean match_modifier(const char *token, GdkModifierType *mask) {
     return FALSE;
 }
 
-// Try to match a key token (lowercase). Returns TRUE and sets keyval on match.
 static gboolean match_key(const char *token, guint *keyval) {
     // Single character keys
+    GdkModifierType dummy;
+    if (match_modifier(token, &dummy)) {
+        return FALSE;
+    }
+
     if (strlen(token) == 1) {
         *keyval = gdk_unicode_to_keyval(token[0]);
         return TRUE;
@@ -165,11 +226,57 @@ static gboolean match_key(const char *token, guint *keyval) {
     }
 
     // Function keys F1-F12
-    if (token[0] == 'f' && isdigit(token[1])) {
+    if (token[0] == 'f' && isdigit((unsigned char)token[1])) {
         int fnum = atoi(token + 1);
         if (fnum >= 1 && fnum <= 12) {
             *keyval = GDK_KEY_F1 + (fnum - 1);
             return TRUE;
+        }
+    }
+
+    // NumPad aliases are usually exposed as key symbols too, e.g. KP_1, KP_Add.
+    // Handle canonical variants like kp_enter, numpad_enter, etc.
+    char upper_token[256];
+    if (build_numpad_key_name(token, upper_token, sizeof(upper_token))) {
+        guint kp = gdk_keyval_from_name(upper_token);
+        if (kp != GDK_KEY_VoidSymbol) {
+            *keyval = kp;
+            return TRUE;
+        }
+    }
+
+    // Common keys like Tab/Return may be lowercase in tokenized input, so try direct
+    // lookup and then an uppercased variant for named X11 keys (e.g. KP_Add).
+    guint kv = gdk_keyval_from_name(token);
+    if (kv != GDK_KEY_VoidSymbol) {
+        *keyval = kv;
+        return TRUE;
+    }
+
+    size_t len = strlen(token);
+    if (len >= sizeof(upper_token)) {
+        return FALSE;
+    }
+
+    for (size_t i = 0; i < len; i++) {
+        upper_token[i] = (char)toupper((unsigned char)token[i]);
+    }
+    upper_token[len] = '\0';
+
+    kv = gdk_keyval_from_name(upper_token);
+    if (kv != GDK_KEY_VoidSymbol) {
+        *keyval = kv;
+        return TRUE;
+    }
+
+    if (strncmp(token, "numpad", 6) == 0) {
+        // e.g. numpad_enter -> KP_Enter
+        if (build_numpad_key_name(token, upper_token, sizeof(upper_token))) {
+            kv = gdk_keyval_from_name(upper_token);
+            if (kv != GDK_KEY_VoidSymbol) {
+                *keyval = kv;
+                return TRUE;
+            }
         }
     }
 
@@ -273,7 +380,7 @@ gboolean parse_shortcut_with_error(const char *shortcut_str, guint *key,
                   "Unknown key '%s'. Did you mean '%s'?", key_token, key_suggestion);
     } else {
         set_error(error_msg, error_msg_size,
-                  "Unknown key '%s'. Examples: Tab, Space, Return, Escape, BackSpace, a-z, F1-F12",
+                  "Unknown key '%s'. Examples: Tab, Space, Return, Escape, BackSpace, a-z, F1-F12, KP_1, KP_Add",
                   key_token);
     }
     return FALSE;
@@ -282,4 +389,81 @@ gboolean parse_shortcut_with_error(const char *shortcut_str, guint *key,
 // Original API preserved for backward compatibility
 gboolean parse_shortcut(const char *shortcut_str, guint *key, GdkModifierType *mods) {
     return parse_shortcut_with_error(shortcut_str, key, mods, NULL, 0);
+}
+
+static const char *canonical_modifier_name(GdkModifierType mask) {
+    switch (mask) {
+        case GDK_CONTROL_MASK: return "Control";
+        case GDK_SHIFT_MASK:   return "Shift";
+        case GDK_MOD1_MASK:    return "Mod1";
+        case GDK_SUPER_MASK:   return "Mod4";
+        default:               return NULL;
+    }
+}
+
+gboolean canonicalize_hotkey_shortcut(const char *shortcut_str, char *canonical_out,
+                                      size_t canonical_out_size,
+                                      char *error_msg, size_t error_msg_size) {
+    guint key = 0;
+    GdkModifierType mods = 0;
+    if (canonical_out && canonical_out_size > 0)
+        canonical_out[0] = '\0';
+
+    if (!canonical_out || canonical_out_size == 0) {
+        set_error(error_msg, error_msg_size, "Missing output buffer for canonical shortcut");
+        return FALSE;
+    }
+
+    if (!parse_shortcut_with_error(shortcut_str, &key, &mods, error_msg, error_msg_size))
+        return FALSE;
+
+    GdkModifierType unsupported = mods & ~(GDK_CONTROL_MASK | GDK_SHIFT_MASK |
+                                           GDK_MOD1_MASK | GDK_SUPER_MASK);
+    if (unsupported != 0) {
+        set_error(error_msg, error_msg_size,
+                  "Modifier combination is not supported for X11 hotkeys. Use Ctrl, Shift, Alt/Mod1, or Super/Mod4");
+        return FALSE;
+    }
+
+    const GdkModifierType ordered_mods[] = {
+        GDK_CONTROL_MASK,
+        GDK_SHIFT_MASK,
+        GDK_MOD1_MASK,
+        GDK_SUPER_MASK,
+    };
+
+    size_t used = 0;
+    canonical_out[0] = '\0';
+    for (int i = 0; i < 4; i++) {
+        if (!(mods & ordered_mods[i]))
+            continue;
+
+        const char *name = canonical_modifier_name(ordered_mods[i]);
+        if (!name) {
+            set_error(error_msg, error_msg_size, "Internal error while formatting modifiers");
+            return FALSE;
+        }
+
+        int n = snprintf(canonical_out + used, canonical_out_size - used,
+                         "%s+", name);
+        if (n < 0 || used + (size_t)n >= canonical_out_size) {
+            set_error(error_msg, error_msg_size, "Canonical shortcut is too long");
+            return FALSE;
+        }
+        used += (size_t)n;
+    }
+
+    const char *key_name = gdk_keyval_name(key);
+    if (!key_name || key_name[0] == '\0') {
+        set_error(error_msg, error_msg_size, "Could not determine canonical key name");
+        return FALSE;
+    }
+
+    int n = snprintf(canonical_out + used, canonical_out_size - used, "%s", key_name);
+    if (n < 0 || used + (size_t)n >= canonical_out_size) {
+        set_error(error_msg, error_msg_size, "Canonical shortcut is too long");
+        return FALSE;
+    }
+
+    return TRUE;
 }

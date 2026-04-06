@@ -51,7 +51,7 @@ static gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppD
 static void filter_workspaces(AppData *app, const char *filter);
 static void filter_harpoon(AppData *app, const char *filter);
 static void filter_config(AppData *app, const char *filter);
-static void filter_hotkeys(AppData *app, const char *filter);
+void filter_hotkeys(AppData *app, const char *filter);
 static gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 static gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
 static gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app);
@@ -482,6 +482,12 @@ static gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
+    // Handle Ctrl+a for add hotkey binding
+    if (event->keyval == GDK_KEY_a && (event->state & GDK_CONTROL_MASK)) {
+        show_overlay(app, OVERLAY_HOTKEY_ADD, NULL);
+        return TRUE;
+    }
+
     // Handle Ctrl+d for delete hotkey binding
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
         if (app->selection.hotkeys_index < app->filtered_hotkeys_count) {
@@ -749,7 +755,7 @@ static void filter_config(AppData *app, const char *filter) {
 }
 
 // Hotkeys filtering
-static void filter_hotkeys(AppData *app, const char *filter) {
+void filter_hotkeys(AppData *app, const char *filter) {
     app->filtered_hotkeys_count = 0;
 
     if (!filter || !*filter) {

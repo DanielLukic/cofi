@@ -10,6 +10,9 @@
 #include "filter.h"
 #include "filter_names.h"
 #include "display.h"
+#include "hotkeys.h"
+#include "selection.h"
+#include "utils.h"
 #include <gtk/gtk.h>
 #include <string.h>
 
@@ -18,10 +21,12 @@ static gboolean on_overlay_key_press(GtkWidget *widget, GdkEventKey *event, gpoi
 static void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *app);
 static void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app);
 static void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *app);
+static void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppData *app);
 static void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppData *app);
 static gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event);
+static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event);
 static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event);
 
 // External function declarations
@@ -129,6 +134,9 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_CONFIG_EDIT:
             create_config_edit_overlay_content(app->dialog_container, app);
             break;
+        case OVERLAY_HOTKEY_ADD:
+            create_hotkey_add_overlay_content(app->dialog_container, app);
+            break;
         case OVERLAY_HOTKEY_EDIT:
             create_hotkey_edit_overlay_content(app->dialog_container, app);
             break;
@@ -156,7 +164,8 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
     if (type == OVERLAY_HARPOON_EDIT || type == OVERLAY_WORKSPACE_RENAME) {
         focus_harpoon_edit_entry_delayed(app);
     } else if (type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
-               type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_EDIT) {
+               type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
+               type == OVERLAY_HOTKEY_EDIT) {
         focus_name_entry_delayed(app);
     } else {
         gtk_widget_grab_focus(app->modal_background);
@@ -235,6 +244,8 @@ gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_edit_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
             return handle_config_edit_key_press(app, event);
+        case OVERLAY_HOTKEY_ADD:
+            return handle_hotkey_add_key_press(app, event);
         case OVERLAY_HOTKEY_EDIT:
             return handle_hotkey_edit_key_press(app, event);
         case OVERLAY_NONE:
@@ -608,6 +619,107 @@ static void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppD
 
     gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
     log_info("Hotkey edit overlay created for key: %s", binding->key);
+}
+
+static void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppData *app) {
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Add Hotkey Binding");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    GtkWidget *info_label = gtk_label_new("Enter a shortcut like Alt+Tab or Ctrl+Return");
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(name_entry), "e.g. Mod1+Tab");
+    gtk_widget_set_size_request(name_entry, 400, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+
+    GtkWidget *error_label = gtk_label_new("");
+    gtk_widget_set_halign(error_label, GTK_ALIGN_START);
+    gtk_widget_set_opacity(error_label, 0.8);
+    gtk_box_pack_start(GTK_BOX(vbox), error_label, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+    g_object_set_data(G_OBJECT(parent_container), "error_label", error_label);
+
+    GtkWidget *inst_label = gtk_label_new("Press Enter to add, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Hotkey add overlay created");
+}
+
+static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+        GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+        GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
+
+        if (!name_entry || !error_label) {
+            log_error("Hotkey add widgets not found");
+            hide_overlay(app);
+            return TRUE;
+        }
+
+        const char *shortcut_input = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        char canonical[128];
+        char err_buf[256];
+
+        if (!shortcut_input || shortcut_input[0] == '\0') {
+            gtk_label_set_text(GTK_LABEL(error_label), "Enter a shortcut to add");
+            return TRUE;
+        }
+
+        if (!canonicalize_hotkey_shortcut(shortcut_input, canonical, sizeof(canonical),
+                                          err_buf, sizeof(err_buf))) {
+            gtk_label_set_text(GTK_LABEL(error_label), err_buf);
+            return TRUE;
+        }
+
+        if (find_hotkey_binding(&app->hotkey_config, canonical) >= 0) {
+            gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
+            return TRUE;
+        }
+
+        if (!add_hotkey_binding(&app->hotkey_config, canonical, "")) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Could not add hotkey binding");
+            return TRUE;
+        }
+
+        save_hotkey_config(&app->hotkey_config);
+        regrab_hotkeys(app);
+        log_info("USER: Added hotkey binding '%s'", canonical);
+
+        hide_overlay(app);
+
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        filter_hotkeys(app, current_filter);
+
+        gboolean found = FALSE;
+        for (int i = 0; i < app->filtered_hotkeys_count; i++) {
+            if (strcmp(app->filtered_hotkeys[i].key, canonical) == 0) {
+                app->selection.hotkeys_index = i;
+                found = TRUE;
+                break;
+            }
+        }
+        if (!found) {
+            app->selection.hotkeys_index = 0;
+        }
+
+        validate_selection(app);
+        update_scroll_position(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static gboolean handle_hotkey_edit_key_press(AppData *app, GdkEventKey *event) {

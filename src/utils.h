@@ -10,12 +10,19 @@ void safe_string_copy(char *dest, const char *src, size_t dest_size);
 // Parse a shortcut string like "Super+w" or "Ctrl+Shift+w" into key and modifiers.
 // Supports case-insensitive modifiers and common aliases:
 //   Modifiers: ctrl/control, alt/mod1, super/mod4/win/windows, shift
-//   Keys: enter/return, esc/escape, backspace, delete, space, tab, f1-f12
+//   Keys: enter/return, esc/escape, backspace, delete, space, tab, f1-f12, KP_* (e.g. KP_1, KP_Enter)
 // If error_msg is non-NULL and parsing fails, writes a helpful diagnostic
 // (e.g. "Did you mean 'Mod1'?") into error_msg (up to error_msg_size bytes).
 gboolean parse_shortcut(const char *shortcut_str, guint *key, GdkModifierType *mods);
 gboolean parse_shortcut_with_error(const char *shortcut_str, guint *key,
                                    GdkModifierType *mods,
                                    char *error_msg, size_t error_msg_size);
+
+// Parse a user-entered shortcut and rewrite it into the canonical form expected
+// by XGrabKey registration, e.g. "alt+enter" -> "Mod1+Return".
+// Rejects modifiers that the hotkey grab layer does not support.
+gboolean canonicalize_hotkey_shortcut(const char *shortcut_str, char *canonical_out,
+                                      size_t canonical_out_size,
+                                      char *error_msg, size_t error_msg_size);
 
 #endif // UTILS_H
