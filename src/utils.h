@@ -25,4 +25,10 @@ gboolean canonicalize_hotkey_shortcut(const char *shortcut_str, char *canonical_
                                       size_t canonical_out_size,
                                       char *error_msg, size_t error_msg_size);
 
+// Convert a live GDK key event into a canonical hotkey string.
+// Returns FALSE for unsupported/invalid input (e.g. modifier-only events).
+gboolean canonicalize_hotkey_event(const GdkEventKey *event, char *canonical_out,
+                                  size_t canonical_out_size,
+                                  char *error_msg, size_t error_msg_size);
+
 #endif // UTILS_H

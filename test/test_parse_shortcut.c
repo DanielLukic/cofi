@@ -39,6 +39,20 @@ static gboolean canonicalize_fail(const char *str, char *err, size_t err_size) {
     return !canonicalize_hotkey_shortcut(str, out, sizeof(out), err, err_size);
 }
 
+static gboolean canonicalize_event_ok(GdkEventKey *event, char *out, size_t out_size) {
+    char err[256] = {0};
+    gboolean ok = canonicalize_hotkey_event(event, out, out_size, err, sizeof(err));
+    if (!ok) {
+        printf("    (error: %s)\n", err);
+    }
+    return ok;
+}
+
+static gboolean canonicalize_event_fail(GdkEventKey *event, char *err, size_t err_size) {
+    char out[128];
+    return !canonicalize_hotkey_event(event, out, sizeof(out), err, err_size);
+}
+
 // --- Test groups ---
 
 static void test_case_insensitive_modifiers(void) {
@@ -306,6 +320,36 @@ static void test_hotkey_canonicalization_errors(void) {
            "Unknown key rejected");
 }
 
+static void test_hotkey_event_canonicalization(void) {
+    printf("\n--- Hotkey event canonicalization ---\n");
+    char out[128];
+
+    GdkEventKey event = {0};
+    event.state = GDK_CONTROL_MASK;
+    event.keyval = GDK_KEY_Tab;
+    ASSERT(canonicalize_event_ok(&event, out, sizeof(out)) && strcmp(out, "Control+Tab") == 0,
+           "Event Ctrl+Tab -> Control+Tab");
+
+    event = (GdkEventKey){0};
+    event.state = GDK_MOD1_MASK;
+    event.keyval = GDK_KEY_q;
+    ASSERT(canonicalize_event_ok(&event, out, sizeof(out)) && strcmp(out, "Mod1+q") == 0,
+           "Event Mod1+q -> Mod1+q");
+
+    event = (GdkEventKey){0};
+    event.state = GDK_SUPER_MASK;
+    event.keyval = GDK_KEY_Escape;
+    ASSERT(canonicalize_event_ok(&event, out, sizeof(out)) && strcmp(out, "Mod4+Escape") == 0,
+           "Event Super+Escape -> Mod4+Escape");
+
+    event = (GdkEventKey){0};
+    event.state = 0;
+    event.keyval = GDK_KEY_Control_L;
+    char err[256];
+    ASSERT(canonicalize_event_fail(&event, err, sizeof(err)) && strstr(err, "Modifier"),
+           "Modifier-only event rejected");
+}
+
 int main(void) {
     printf("=== parse_shortcut tests ===\n");
 
@@ -319,6 +363,7 @@ int main(void) {
     test_whitespace_handling();
     test_hotkey_canonicalization();
     test_hotkey_canonicalization_errors();
+    test_hotkey_event_canonicalization();
 
     printf("\n=== Summary: %d/%d passed ===\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

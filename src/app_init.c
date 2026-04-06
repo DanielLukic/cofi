@@ -72,6 +72,7 @@ void init_app_data(AppData *app) {
     
     // Initialize window visibility state
     app->window_visible = FALSE;
+    app->hotkey_capture_active = FALSE;
     
     // Initialize timers
     app->focus_loss_timer = 0;
