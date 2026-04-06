@@ -74,13 +74,37 @@ static int grab_error_handler(Display *display, XErrorEvent *error) {
     return 0;
 }
 
+// Find all keycodes that have `sym` in any column. Returns count.
+static int find_keycodes_for_sym(Display *display, KeySym sym,
+                                  KeyCode *out, int max_out) {
+    int min_kc, max_kc;
+    XDisplayKeycodes(display, &min_kc, &max_kc);
+    int n = max_kc - min_kc + 1;
+    int ksyms_per_kc;
+    KeySym *map = XGetKeyboardMapping(display, (KeyCode)min_kc, n, &ksyms_per_kc);
+    if (!map) return 0;
+    int count = 0;
+    for (int kc = min_kc; kc <= max_kc && count < max_out; kc++) {
+        KeySym *ks = map + (kc - min_kc) * ksyms_per_kc;
+        for (int col = 0; col < ksyms_per_kc; col++) {
+            if (ks[col] == sym) {
+                out[count++] = (KeyCode)kc;
+                break;
+            }
+        }
+    }
+    XFree(map);
+    return count;
+}
+
 static void ungrab_all(Display *display) {
     Window root = DefaultRootWindow(display);
+    KeyCode kcs[16];
     for (int i = 0; i < grabbed_count; i++) {
-        KeyCode kc = XKeysymToKeycode(display, grabbed_hotkeys[i].sym);
-        if (kc == 0) continue;
-        for (int v = 0; v < NUM_MOD_VARIANTS; v++)
-            XUngrabKey(display, kc, grabbed_hotkeys[i].mod | mod_variants[v], root);
+        int nkc = find_keycodes_for_sym(display, grabbed_hotkeys[i].sym, kcs, 16);
+        for (int k = 0; k < nkc; k++)
+            for (int v = 0; v < NUM_MOD_VARIANTS; v++)
+                XUngrabKey(display, kcs[k], grabbed_hotkeys[i].mod | mod_variants[v], root);
     }
     XFlush(display);
 }
@@ -144,17 +168,19 @@ void setup_hotkeys(AppData *app) {
         XErrorHandler old_handler = XSetErrorHandler(grab_error_handler);
 
         for (int i = 0; i < grabbed_count; i++) {
-            KeyCode kc = XKeysymToKeycode(display, grabbed_hotkeys[i].sym);
-            if (kc == 0) {
+            KeyCode kcs[16];
+            int nkc = find_keycodes_for_sym(display, grabbed_hotkeys[i].sym, kcs, 16);
+            if (nkc == 0) {
                 log_warn("No keycode for hotkey %s", grabbed_hotkeys[i].key_name);
                 append_failed_key(failed_keys, sizeof(failed_keys), grabbed_hotkeys[i].key_name);
                 continue;
             }
 
             grab_error_occurred = 0;
-            for (int v = 0; v < NUM_MOD_VARIANTS; v++)
-                XGrabKey(display, kc, grabbed_hotkeys[i].mod | mod_variants[v],
-                         root, False, GrabModeAsync, GrabModeAsync);
+            for (int k = 0; k < nkc; k++)
+                for (int v = 0; v < NUM_MOD_VARIANTS; v++)
+                    XGrabKey(display, kcs[k], grabbed_hotkeys[i].mod | mod_variants[v],
+                             root, False, GrabModeAsync, GrabModeAsync);
             XSync(display, False);
 
             if (grab_error_occurred) {
@@ -250,8 +276,12 @@ void handle_hotkey_event(AppData *app, XKeyEvent *event) {
     unsigned int clean_state = event->state & ~(LockMask | Mod2Mask);
 
     for (int i = 0; i < grabbed_count; i++) {
-        KeyCode kc = XKeysymToKeycode(app->display, grabbed_hotkeys[i].sym);
-        if (event->keycode == kc && clean_state == grabbed_hotkeys[i].mod) {
+        KeyCode kcs[16];
+        int nkc = find_keycodes_for_sym(app->display, grabbed_hotkeys[i].sym, kcs, 16);
+        int kc_match = 0;
+        for (int k = 0; k < nkc; k++)
+            if (kcs[k] == (KeyCode)event->keycode) { kc_match = 1; break; }
+        if (kc_match && clean_state == grabbed_hotkeys[i].mod) {
             log_debug("Hotkey fired: %s → %s", grabbed_hotkeys[i].key_name, grabbed_hotkeys[i].command);
 
             if (app->window_visible && app->focus_loss_timer > 0) {

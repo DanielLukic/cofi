@@ -59,9 +59,15 @@ static gboolean should_capture_hotkey_event(const GdkEventKey *event) {
     if (!event)
         return FALSE;
 
-    if (event->keyval == GDK_KEY_Escape ||
-        event->keyval == GDK_KEY_Return ||
-        event->keyval == GDK_KEY_KP_Enter) {
+    if (event->keyval == GDK_KEY_Escape) {
+        return FALSE;
+    }
+
+    // Return/KP_Enter without modifiers = confirm/submit; with modifiers = valid hotkey combo.
+    GdkModifierType relevant = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK |
+                                               GDK_SUPER_MASK | GDK_META_MASK |
+                                               GDK_HYPER_MASK);
+    if ((event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) && !relevant) {
         return FALSE;
     }
 
@@ -733,7 +739,10 @@ static gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) {
+    GdkModifierType add_mods = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK |
+                                               GDK_SUPER_MASK | GDK_META_MASK |
+                                               GDK_HYPER_MASK);
+    if ((event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) && !add_mods) {
         const char *shortcut_input = gtk_entry_get_text(GTK_ENTRY(name_entry));
         char canonical[128];
         char err_buf[256];
