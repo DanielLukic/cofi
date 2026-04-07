@@ -79,6 +79,10 @@ journalctl --user -u cofi -f   # tail logs
 4. **Write tests for essential functionality**
 5. **For behavior changes, prefer TDD when feasible** — if test-first is not practical, say why and add coverage immediately after where reasonable
 6. **User-visible behavior changes should get targeted coverage when the code structure allows it**; if not, call out the gap explicitly
+7. **TDD for refactoring is different from TDD for features**:
+   - **Feature TDD**: write a *failing* test first, then implement until it passes
+   - **Refactoring TDD**: write *passing* behavioral tests against the **existing code first**, documenting current behavior as a regression safety net, then refactor — tests must still pass after. A structural/wiring test is not sufficient; tests must exercise actual behavior that would break if the refactor were wrong.
+   - When briefing agents on refactoring tasks, always say: "write behavioral tests that pass on the current code, then refactor" — never "write failing tests first"
 7. **Use logging instead of print statements**
 8. **`make clean && make` after any header change** (no auto header deps yet)
 
