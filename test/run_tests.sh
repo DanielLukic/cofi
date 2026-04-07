@@ -199,4 +199,14 @@ if [ -f test_command_handlers_split ]; then
     fi
 fi
 
+# Run command handler behavior tests if they exist
+if [ -f test_command_handlers_behavior ]; then
+    echo ""
+    echo "Running command handler behavior tests..."
+    ./test_command_handlers_behavior
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
