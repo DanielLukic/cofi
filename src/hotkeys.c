@@ -20,49 +20,14 @@ extern void enter_command_mode(AppData *app);
 static const unsigned int mod_variants[] = {0, LockMask, Mod2Mask, LockMask | Mod2Mask};
 #define NUM_MOD_VARIANTS ((int)(sizeof(mod_variants) / sizeof(mod_variants[0])))
 
-static int parse_hotkey(const char *spec, KeySym *sym_out, unsigned int *mod_out) {
-    if (!spec || spec[0] == '\0') {
-        return 0;
+static int grab_error_occurred = 0;
+
+static int grab_error_handler(Display *display, XErrorEvent *error) {
+    (void)display;
+    if (error->error_code == BadAccess) {
+        grab_error_occurred = 1;
     }
-
-    char buf[64];
-    strncpy(buf, spec, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';
-
-    unsigned int mod = 0;
-    char *tok = strtok(buf, "+");
-    char *next = tok ? strtok(NULL, "+") : NULL;
-
-    while (tok && next) {
-        if (strcmp(tok, "Mod1") == 0) {
-            mod |= Mod1Mask;
-        } else if (strcmp(tok, "Mod2") == 0) {
-            mod |= Mod2Mask;
-        } else if (strcmp(tok, "Mod3") == 0) {
-            mod |= Mod3Mask;
-        } else if (strcmp(tok, "Mod4") == 0) {
-            mod |= Mod4Mask;
-        } else if (strcmp(tok, "Control") == 0) {
-            mod |= ControlMask;
-        } else if (strcmp(tok, "Shift") == 0) {
-            mod |= ShiftMask;
-        } else {
-            log_warn("Unknown modifier '%s' in hotkey '%s'", tok, spec);
-            return 0;
-        }
-        tok = next;
-        next = strtok(NULL, "+");
-    }
-
-    KeySym sym = XStringToKeysym(tok);
-    if (sym == NoSymbol) {
-        log_warn("Unknown key name '%s' in hotkey '%s'", tok, spec);
-        return 0;
-    }
-
-    *sym_out = sym;
-    *mod_out = mod;
-    return 1;
+    return 0;
 }
 
 static int find_keycodes_for_sym(Display *display, KeySym sym,
@@ -140,28 +105,6 @@ static void show_grab_failure_dialog(AppData *app, const char *failed_keys) {
     }
 }
 
-static void build_hotkey_list(AppData *app, HotkeyGrabState *state) {
-    init_hotkey_grab_state(state);
-
-    HotkeyConfig *config = &app->hotkey_config;
-    for (int i = 0; i < config->count && state->grabbed_count < MAX_HOTKEY_BINDINGS; i++) {
-        KeySym sym;
-        unsigned int mod;
-        if (!parse_hotkey(config->bindings[i].key, &sym, &mod)) {
-            log_info("Hotkey disabled or invalid: '%s'", config->bindings[i].key);
-            continue;
-        }
-
-        GrabbedHotkey *slot = &state->grabbed_hotkeys[state->grabbed_count];
-        slot->sym = sym;
-        slot->mod = mod;
-        strncpy(slot->key_name, config->bindings[i].key, sizeof(slot->key_name) - 1);
-        slot->key_name[sizeof(slot->key_name) - 1] = '\0';
-        strncpy(slot->command, config->bindings[i].command, sizeof(slot->command) - 1);
-        slot->command[sizeof(slot->command) - 1] = '\0';
-        state->grabbed_count++;
-    }
-}
 
 static void append_failed_key(char *failed_keys, size_t size, const char *key_name) {
     if (failed_keys[0] != '\0') {
@@ -172,23 +115,13 @@ static void append_failed_key(char *failed_keys, size_t size, const char *key_na
 
 void setup_hotkeys(AppData *app) {
     HotkeyGrabState *state = &app->hotkey_grab_state;
-    build_hotkey_list(app, state);
+    populate_hotkey_grab_state(&app->hotkey_config, state);
 
     Display *display = app->display;
     Window root = DefaultRootWindow(display);
 
     while (1) {
         char failed_keys[256] = "";
-        int grab_error_occurred = 0;
-
-        int grab_error_handler(Display *x_display, XErrorEvent *error) {
-            (void)x_display;
-            if (error->error_code == BadAccess) {
-                grab_error_occurred = 1;
-            }
-            return 0;
-        }
-
         XErrorHandler old_handler = XSetErrorHandler(grab_error_handler);
 
         for (int i = 0; i < state->grabbed_count; i++) {

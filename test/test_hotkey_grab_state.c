@@ -25,6 +25,34 @@ static void test_init_hotkey_grab_state_resets_fields(void) {
     ASSERT_TRUE("first command cleared", state.grabbed_hotkeys[0].command[0] == '\0');
 }
 
+static void test_populate_hotkey_grab_state_counts_valid_bindings(void) {
+    printf("\n--- populate_hotkey_grab_state counts valid bindings ---\n");
+
+    HotkeyConfig config;
+    memset(&config, 0, sizeof(config));
+
+    strcpy(config.bindings[0].key, "Mod1+Tab");
+    strcpy(config.bindings[0].command, "show windows!");
+
+    strcpy(config.bindings[1].key, "Bogus+Key");
+    strcpy(config.bindings[1].command, "bad");
+
+    strcpy(config.bindings[2].key, "Control+Return");
+    strcpy(config.bindings[2].command, "show command!");
+
+    config.count = 3;
+
+    HotkeyGrabState state;
+    memset(&state, 0, sizeof(state));
+
+    int populated = populate_hotkey_grab_state(&config, &state);
+
+    ASSERT_TRUE("only valid bindings are counted", populated == 2);
+    ASSERT_TRUE("state grabbed_count matches populated", state.grabbed_count == 2);
+    ASSERT_TRUE("first key copied", strcmp(state.grabbed_hotkeys[0].key_name, "Mod1+Tab") == 0);
+    ASSERT_TRUE("second key copied", strcmp(state.grabbed_hotkeys[1].key_name, "Control+Return") == 0);
+}
+
 static void test_app_data_exposes_hotkey_grab_state(void) {
     printf("\n--- AppData exposes hotkey_grab_state ---\n");
 
@@ -42,6 +70,7 @@ int main(void) {
     printf("=======================\n");
 
     test_init_hotkey_grab_state_resets_fields();
+    test_populate_hotkey_grab_state_counts_valid_bindings();
     test_app_data_exposes_hotkey_grab_state();
 
     printf("\n=== Summary: %d/%d passed ===\n", pass, pass + fail);

@@ -59,6 +59,7 @@ SOURCES = src/main.c \
           src/fzf_algo.c \
           src/window_highlight.c \
           src/hotkeys.c \
+          src/hotkey_grab_state.c \
           src/hotkey_config.c \
           src/rules_config.c \
           src/rules.c \
@@ -207,8 +208,8 @@ test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_polic
 	$(CC) $(CFLAGS) -o test/test_overlay_dispatch test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o $(LDFLAGS)
 
 # Build hotkey grab state tests
-test_hotkey_grab_state: test/test_hotkey_grab_state.c
-	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c $(LDFLAGS)
+test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

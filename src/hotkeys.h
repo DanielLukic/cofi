@@ -19,6 +19,8 @@ typedef struct {
     int grabbed_count;
 } HotkeyGrabState;
 
+int populate_hotkey_grab_state(const HotkeyConfig *config, HotkeyGrabState *state);
+
 static inline void init_hotkey_grab_state(HotkeyGrabState *state) {
     if (!state) {
         return;
