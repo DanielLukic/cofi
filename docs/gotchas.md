@@ -74,6 +74,13 @@ See also:
   It still mentions old architecture such as D-Bus-based single-instance behavior.
   Verify against code and recent commits before relying on it.
 
+## Fixed Window Sizing (TFD-100)
+
+- `fixed_window_size_initializing` flag is cleared via `g_idle_add` after `gtk_window_resize()` in `init_fixed_window_size()`.
+  `gtk_window_resize()` is async — the resize-triggered `size-allocate` on the window (which fires `on_window_size_allocate`) may arrive after the idle clears the flag, letting the reposition callback run during init.
+  In practice the reposition is idempotent so this is low impact, but if you touch the fixed sizing init path, be aware of this ordering hazard.
+  A cleaner fix would compare the current allocation against the target size inside `on_window_size_allocate` rather than relying on the flag.
+
 ## Testing
 
 - Do not assume all test entrypoints cover the same set.
