@@ -512,40 +512,129 @@ gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+static const char *skip_spaces(const char *text) {
+    while (text && *text == ' ') {
+        text++;
+    }
+    return text;
+}
+
+static gboolean matches_mouse_action(const char *action, const char *word, char short_name) {
+    return strncmp(action, word, strlen(word)) == 0 ||
+           strncmp(action, &short_name, 1) == 0;
+}
+
+static gboolean perform_mouse_action(AppData *app, const char *action) {
+    Window root = DefaultRootWindow(app->display);
+
+    if (matches_mouse_action(action, "away", 'a')) {
+        XWarpPointer(app->display, None, root, 0, 0, 0, 0, 0, 0);
+        XFlush(app->display);
+        log_info("USER: Mouse moved to corner");
+        return TRUE;
+    }
+
+    if (matches_mouse_action(action, "show", 's')) {
+        XFixesShowCursor(app->display, root);
+        XFlush(app->display);
+        log_info("USER: Mouse cursor shown");
+        return TRUE;
+    }
+
+    if (matches_mouse_action(action, "hide", 'h')) {
+        XFixesHideCursor(app->display, root);
+        XFlush(app->display);
+        log_info("USER: Mouse cursor hidden");
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 gboolean cmd_mouse(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     if (!app || !app->display) {
         log_warn("Cannot control mouse: display not available");
         return FALSE;
     }
 
-    Window root = DefaultRootWindow(app->display);
-    if (!args || strlen(args) == 0) {
+    const char *action = skip_spaces(args);
+    if (!action || action[0] == '\0') {
         log_warn("Mouse command requires an action: away, show, or hide");
         return FALSE;
     }
 
-    while (*args == ' ') {
-        args++;
-    }
-
-    if (strncmp(args, "away", 4) == 0 || strncmp(args, "a", 1) == 0) {
-        XWarpPointer(app->display, None, root, 0, 0, 0, 0, 0, 0);
-        XFlush(app->display);
-        log_info("USER: Mouse moved to corner");
-    } else if (strncmp(args, "show", 4) == 0 || strncmp(args, "s", 1) == 0) {
-        XFixesShowCursor(app->display, root);
-        XFlush(app->display);
-        log_info("USER: Mouse cursor shown");
-    } else if (strncmp(args, "hide", 4) == 0 || strncmp(args, "h", 1) == 0) {
-        XFixesHideCursor(app->display, root);
-        XFlush(app->display);
-        log_info("USER: Mouse cursor hidden");
-    } else {
-        log_warn("Unknown mouse action: %s (use away/a, show/s, or hide/h)", args);
+    if (!perform_mouse_action(app, action)) {
+        log_warn("Unknown mouse action: %s (use away/a, show/s, or hide/h)", action);
         return FALSE;
     }
 
     hide_window(app);
+    return TRUE;
+}
+
+static gboolean window_is_sticky_desktop(const WindowInfo *window) {
+    return window->desktop == -1 || window->desktop == 0xFFFFFFFF;
+}
+
+static gboolean should_move_window(AppData *app, WindowInfo *win, int current_workspace) {
+    if (strcmp(win->type, "Special") == 0) {
+        log_debug("Skipping special window: %s", win->title);
+        return FALSE;
+    }
+
+    if (win->desktop != current_workspace) {
+        if (window_is_sticky_desktop(win)) {
+            log_debug("Skipping sticky window: %s", win->title);
+        }
+        return FALSE;
+    }
+
+    if (get_window_state(app->display, win->id, "_NET_WM_STATE_STICKY")) {
+        log_debug("Skipping sticky window (state check): %s", win->title);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static int collect_windows_to_move(AppData *app, int current_workspace) {
+    app->windows_to_move_count = 0;
+
+    for (int i = 0; i < app->window_count; i++) {
+        WindowInfo *win = &app->windows[i];
+        if (!should_move_window(app, win, current_workspace)) {
+            continue;
+        }
+
+        if (app->windows_to_move_count >= MAX_WINDOWS) {
+            continue;
+        }
+
+        app->windows_to_move[app->windows_to_move_count++] = win->id;
+        log_debug("Will move window: %s (ID: 0x%lx)", win->title, win->id);
+    }
+
+    return app->windows_to_move_count;
+}
+
+static void move_collected_windows(AppData *app, int target_workspace) {
+    for (int i = 0; i < app->windows_to_move_count; i++) {
+        move_window_to_desktop(app->display, app->windows_to_move[i], target_workspace);
+    }
+}
+
+static gboolean move_collected_windows_to_target(AppData *app, const char *args,
+                                               int current_workspace) {
+    int target = resolve_workspace_from_arg(app->display, args, app->config.workspaces_per_row);
+    if (target < 0) {
+        log_warn("Invalid workspace target: %s", args);
+        return FALSE;
+    }
+
+    move_collected_windows(app, target);
+    switch_to_desktop(app->display, target);
+    log_info("USER: Moved %d windows from workspace %d to %d",
+             app->windows_to_move_count, current_workspace + 1, target + 1);
     return TRUE;
 }
 
@@ -556,65 +645,116 @@ gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute_
     }
 
     int current_workspace = get_current_desktop(app->display);
-    app->windows_to_move_count = 0;
-
-    int normal_window_count = 0;
-    for (int i = 0; i < app->window_count; i++) {
-        WindowInfo *win = &app->windows[i];
-        if (strcmp(win->type, "Special") == 0) {
-            log_debug("Skipping special window: %s", win->title);
-            continue;
-        }
-
-        if (win->desktop != current_workspace) {
-            if (win->desktop == -1 || win->desktop == 0xFFFFFFFF) {
-                log_debug("Skipping sticky window: %s", win->title);
-            }
-            continue;
-        }
-
-        if (get_window_state(app->display, win->id, "_NET_WM_STATE_STICKY")) {
-            log_debug("Skipping sticky window (state check): %s", win->title);
-            continue;
-        }
-
-        if (app->windows_to_move_count < MAX_WINDOWS) {
-            app->windows_to_move[app->windows_to_move_count++] = win->id;
-            normal_window_count++;
-            log_debug("Will move window: %s (ID: 0x%lx)", win->title, win->id);
-        }
-    }
-
-    if (normal_window_count == 0) {
+    int movable_count = collect_windows_to_move(app, current_workspace);
+    if (movable_count == 0) {
         log_warn("No movable windows found on current workspace %d", current_workspace + 1);
         return FALSE;
     }
 
-    log_info("USER: Found %d windows to move from workspace %d",
-             normal_window_count, current_workspace + 1);
-
-    if (strlen(args) > 0) {
-        int target = resolve_workspace_from_arg(app->display, args, app->config.workspaces_per_row);
-        if (target < 0) {
-            log_warn("Invalid workspace target: %s", args);
-            return FALSE;
-        }
-
-        for (int i = 0; i < app->windows_to_move_count; i++) {
-            move_window_to_desktop(app->display, app->windows_to_move[i], target);
-        }
-        switch_to_desktop(app->display, target);
-        log_info("USER: Moved %d windows from workspace %d to %d",
-                 app->windows_to_move_count, current_workspace + 1, target + 1);
-        return TRUE;
+    log_info("USER: Found %d windows to move from workspace %d", movable_count, current_workspace + 1);
+    if (!args || args[0] == '\0') {
+        show_workspace_move_all_overlay(app);
+        return FALSE;
     }
 
-    show_workspace_move_all_overlay(app);
-    return FALSE;
+    return move_collected_windows_to_target(app, args, current_workspace);
 }
 
-// Swap window positions and sizes
-gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+typedef struct {
+    Window id;
+    int x;
+    int y;
+    int width;
+    int height;
+    gboolean max_vert;
+    gboolean max_horz;
+} SwapWindowState;
+
+typedef struct {
+    Atom net_wm_state;
+    Atom max_vert;
+    Atom max_horz;
+} SwapAtoms;
+
+static WindowInfo *find_swap_partner(AppData *app, Window selected_id) {
+    for (int i = 0; i < app->filtered_count; i++) {
+        if (app->filtered[i].id != selected_id) {
+            return &app->filtered[i];
+        }
+    }
+    return NULL;
+}
+
+static gboolean load_swap_state(AppData *app, WindowInfo *window,
+                                SwapWindowState *state, const char *label) {
+    state->id = window->id;
+    if (!get_window_geometry(app->display, window->id,
+                             &state->x, &state->y, &state->width, &state->height)) {
+        log_error("Failed to get geometry for %s", label);
+        return FALSE;
+    }
+
+    state->max_vert = get_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    state->max_horz = get_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    return TRUE;
+}
+
+static SwapAtoms init_swap_atoms(Display *display) {
+    SwapAtoms atoms;
+    atoms.net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    atoms.max_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    atoms.max_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    return atoms;
+}
+
+static void send_maximize_change(Display *display, Window window, const SwapAtoms *atoms,
+                                 long action, gboolean set_vert, gboolean set_horz) {
+    if (!set_vert && !set_horz) {
+        return;
+    }
+
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.window = window;
+    event.xclient.message_type = atoms->net_wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = action;
+
+    if (action == 0) {
+        event.xclient.data.l[1] = atoms->max_vert;
+        event.xclient.data.l[2] = atoms->max_horz;
+        XSendEvent(display, DefaultRootWindow(display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        return;
+    }
+
+    if (set_vert) {
+        event.xclient.data.l[1] = atoms->max_vert;
+        event.xclient.data.l[2] = 0;
+        XSendEvent(display, DefaultRootWindow(display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    }
+
+    if (set_horz) {
+        event.xclient.data.l[1] = atoms->max_horz;
+        event.xclient.data.l[2] = 0;
+        XSendEvent(display, DefaultRootWindow(display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    }
+}
+
+static void swap_window_geometry(Display *display,
+                                 const SwapWindowState *first,
+                                 const SwapWindowState *second) {
+    XMoveResizeWindow(display, first->id, second->x, second->y, second->width, second->height);
+    XMoveResizeWindow(display, second->id, first->x, first->y, first->width, first->height);
+}
+
+static gboolean prepare_swap_states(AppData *app, WindowInfo *window,
+                                   WindowInfo **partner_out,
+                                   SwapWindowState *first,
+                                   SwapWindowState *second) {
     if (!window) {
         log_warn("No window selected for swap");
         return FALSE;
@@ -625,143 +765,49 @@ gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __a
         return FALSE;
     }
 
-    WindowInfo *window1 = window;
-    WindowInfo *window2 = NULL;
-    for (int i = 0; i < app->filtered_count; i++) {
-        if (app->filtered[i].id != window1->id) {
-            window2 = &app->filtered[i];
-            break;
-        }
-    }
-
-    if (!window2) {
+    *partner_out = find_swap_partner(app, window->id);
+    if (!*partner_out) {
         log_warn("Could not find second window to swap with");
         return FALSE;
     }
 
-    log_info("Swapping windows: '%s' <-> '%s'", window1->title, window2->title);
+    return load_swap_state(app, window, first, "window 1") &&
+           load_swap_state(app, *partner_out, second, "window 2");
+}
 
-    int x1, y1, w1, h1;
-    int x2, y2, w2, h2;
-
-    if (!get_window_geometry(app->display, window1->id, &x1, &y1, &w1, &h1)) {
-        log_error("Failed to get geometry for window 1");
-        return FALSE;
-    }
-
-    if (!get_window_geometry(app->display, window2->id, &x2, &y2, &w2, &h2)) {
-        log_error("Failed to get geometry for window 2");
-        return FALSE;
-    }
-
-    log_debug("Window 1 geometry: %dx%d at (%d,%d)", w1, h1, x1, y1);
-    log_debug("Window 2 geometry: %dx%d at (%d,%d)", w2, h2, x2, y2);
-
-    gboolean win1_max_vert = get_window_state(app->display, window1->id, "_NET_WM_STATE_MAXIMIZED_VERT");
-    gboolean win1_max_horz = get_window_state(app->display, window1->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
-    gboolean win2_max_vert = get_window_state(app->display, window2->id, "_NET_WM_STATE_MAXIMIZED_VERT");
-    gboolean win2_max_horz = get_window_state(app->display, window2->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
-
-    log_debug("Window 1 max state: vert=%d, horz=%d", win1_max_vert, win1_max_horz);
-    log_debug("Window 2 max state: vert=%d, horz=%d", win2_max_vert, win2_max_horz);
-
-    Atom net_wm_state = XInternAtom(app->display, "_NET_WM_STATE", False);
-    Atom net_wm_state_maximized_vert = XInternAtom(app->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    Atom net_wm_state_maximized_horz = XInternAtom(app->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-
-    if (win1_max_vert || win1_max_horz) {
-        XEvent event;
-        memset(&event, 0, sizeof(event));
-        event.type = ClientMessage;
-        event.xclient.window = window1->id;
-        event.xclient.message_type = net_wm_state;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = 0;
-        event.xclient.data.l[1] = net_wm_state_maximized_vert;
-        event.xclient.data.l[2] = net_wm_state_maximized_horz;
-
-        XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
-    }
-
-    if (win2_max_vert || win2_max_horz) {
-        XEvent event;
-        memset(&event, 0, sizeof(event));
-        event.type = ClientMessage;
-        event.xclient.window = window2->id;
-        event.xclient.message_type = net_wm_state;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = 0;
-        event.xclient.data.l[1] = net_wm_state_maximized_vert;
-        event.xclient.data.l[2] = net_wm_state_maximized_horz;
-
-        XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
-    }
-
+static void run_swap_sequence(AppData *app, const SwapWindowState *first,
+                              const SwapWindowState *second) {
+    SwapAtoms atoms = init_swap_atoms(app->display);
+    send_maximize_change(app->display, first->id, &atoms, 0, first->max_vert, first->max_horz);
+    send_maximize_change(app->display, second->id, &atoms, 0, second->max_vert, second->max_horz);
     XFlush(app->display);
     usleep(100000);
 
-    XMoveResizeWindow(app->display, window1->id, x2, y2, w2, h2);
-    XMoveResizeWindow(app->display, window2->id, x1, y1, w1, h1);
+    swap_window_geometry(app->display, first, second);
     XFlush(app->display);
     usleep(50000);
 
-    if (win2_max_vert || win2_max_horz) {
-        XEvent event;
-        memset(&event, 0, sizeof(event));
-        event.type = ClientMessage;
-        event.xclient.window = window1->id;
-        event.xclient.message_type = net_wm_state;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = 1;
-
-        if (win2_max_vert) {
-            event.xclient.data.l[1] = net_wm_state_maximized_vert;
-            event.xclient.data.l[2] = 0;
-            XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        }
-
-        if (win2_max_horz) {
-            event.xclient.data.l[1] = net_wm_state_maximized_horz;
-            event.xclient.data.l[2] = 0;
-            XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        }
-    }
-
-    if (win1_max_vert || win1_max_horz) {
-        XEvent event;
-        memset(&event, 0, sizeof(event));
-        event.type = ClientMessage;
-        event.xclient.window = window2->id;
-        event.xclient.message_type = net_wm_state;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = 1;
-
-        if (win1_max_vert) {
-            event.xclient.data.l[1] = net_wm_state_maximized_vert;
-            event.xclient.data.l[2] = 0;
-            XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        }
-
-        if (win1_max_horz) {
-            event.xclient.data.l[1] = net_wm_state_maximized_horz;
-            event.xclient.data.l[2] = 0;
-            XSendEvent(app->display, DefaultRootWindow(app->display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        }
-    }
-
+    send_maximize_change(app->display, first->id, &atoms, 1, second->max_vert, second->max_horz);
+    send_maximize_change(app->display, second->id, &atoms, 1, first->max_vert, first->max_horz);
     XFlush(app->display);
     usleep(50000);
 
-    XMoveResizeWindow(app->display, window1->id, x2, y2, w2, h2);
-    XMoveResizeWindow(app->display, window2->id, x1, y1, w1, h1);
+    swap_window_geometry(app->display, first, second);
     XFlush(app->display);
+}
 
+// Swap window positions and sizes
+gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    WindowInfo *partner = NULL;
+    SwapWindowState first = {0};
+    SwapWindowState second = {0};
+
+    if (!prepare_swap_states(app, window, &partner, &first, &second)) {
+        return FALSE;
+    }
+
+    log_info("Swapping windows: '%s' <-> '%s'", window->title, partner->title);
+    run_swap_sequence(app, &first, &second);
     log_info("Window swap completed");
     return TRUE;
 }
@@ -773,29 +819,53 @@ static void show_error_in_display(AppData *app, const char *msg) {
     app->command_mode.showing_help = TRUE;
 }
 
-gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+static gboolean parse_set_assignment(const char *args, char *key, size_t key_size,
+                                     const char **value_out) {
     if (!args || args[0] == '\0') {
-        show_error_in_display(app, "Usage: set <key> <value>\n\nType :config to see available keys.");
         return FALSE;
     }
 
-    char key[64] = {0};
-    const char *value = "";
     const char *sep = args;
     while (*sep && *sep != ' ' && *sep != '=') {
         sep++;
     }
 
     size_t key_len = (size_t)(sep - args);
-    if (key_len >= sizeof(key)) {
-        key_len = sizeof(key) - 1;
+    if (key_len >= key_size) {
+        key_len = key_size - 1;
     }
 
     memcpy(key, args, key_len);
+    key[key_len] = '\0';
     while (*sep == ' ' || *sep == '=') {
         sep++;
     }
-    value = sep;
+
+    *value_out = sep;
+    return TRUE;
+}
+
+static void handle_set_success(AppData *app, const char *key, const char *value) {
+    save_config(&app->config);
+    log_info("Config: %s = %s", key, value);
+    exit_command_mode(app);
+    switch_to_tab(app, TAB_CONFIG);
+}
+
+static void handle_set_error(AppData *app, const char *error_text) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "Error: %s\n\nType :config to see available keys.", error_text);
+    show_error_in_display(app, msg);
+}
+
+gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    char key[64] = {0};
+    const char *value = "";
+
+    if (!parse_set_assignment(args, key, sizeof(key), &value)) {
+        show_error_in_display(app, "Usage: set <key> <value>\n\nType :config to see available keys.");
+        return FALSE;
+    }
 
     if (value[0] == '\0') {
         char msg[256];
@@ -806,15 +876,11 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
 
     char err[256] = {0};
     if (apply_config_setting(&app->config, key, value, err, sizeof(err))) {
-        save_config(&app->config);
-        log_info("Config: %s = %s", key, value);
-        exit_command_mode(app);
-        switch_to_tab(app, TAB_CONFIG);
+        handle_set_success(app, key, value);
     } else {
-        char msg[512];
-        snprintf(msg, sizeof(msg), "Error: %s\n\nType :config to see available keys.", err);
-        show_error_in_display(app, msg);
+        handle_set_error(app, err);
     }
+
     return FALSE;
 }
 
