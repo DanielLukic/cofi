@@ -1,4 +1,4 @@
-# Cofi Development Checkpoint — 2026-04-06 (updated)
+# Cofi Development Checkpoint — 2026-04-07
 
 Intent: this file is the current-state checkpoint for active development. It tracks branch state, recent completed work, known issues, and operational context needed to resume quickly. It is not the canonical workflow guide and not the long-term home for cross-cutting gotchas.
 
@@ -7,203 +7,244 @@ See also:
 - `docs/gotchas.md` for fragile behaviors, regressions to avoid, and implementation learnings
 - `SPEC.md` for intended product behavior
 
+---
+
 ## Repo & Infra
 
 - **Repo**: https://github.com/DanielLukic/cofi
 - **Owner**: DanielLukic (transferred from IntensiCode)
-- **Default branch**: `develop` (changed from `main` — 2026-03-31)
+- **Default branch**: `develop`
 - **Tracking**: Linear via `linearis`
 - **Team**: `TFD` / `IntensiCode` (`e82a4779-dde1-44e0-9772-c86ad681114f`)
 - **Project**: `Cofi - The Comfortable Window Switcher` (`6478f7c1-ab2b-4842-ba97-74db69fed434`)
-- **Known issue range**: TFD-76 to TFD-101
 - **Systemd service**: `~/.config/systemd/user/cofi.service`
 - **Restart**: `./restart.sh` — does `make clean && make`, restarts service, shows last log lines
 - **Logs**: `journalctl --user -u cofi -f`
 - **Linear CLI**: `linearis`
 
-## Critical Rules (in CLAUDE.md and memory)
+---
+
+## Critical Rules (in CLAUDE.md)
 
 1. **NEVER push to develop/main/release without explicit user consent**
 2. **NEVER create merge commits — always clean rebase**
 3. **Direct session work goes straight to develop (no PR needed)**
-4. **Subagent work uses worktrees + PRs targeting develop**
+4. **Subagent work uses `.worktrees/` inside project root**
+   - `git worktree add .worktrees/<slug> -b <branch>`
+   - `.worktrees/` is gitignored
 5. **App logic PRs need user testing before merge; trivial (docs/dead code) can merge immediately**
-6. **After any header (.h) change: `make clean && make` required** (deps via `-MMD -MP`)
-7. **Build → commit → restart after every feature/fix so user can test**
-8. **"Ticket" = Linear board card, not just an issue**
-9. **Subagents must always branch from `develop`**
+6. **After any header (.h) change: `make clean && make` required**
+7. **TDD for refactoring ≠ TDD for features** (see CLAUDE.md rule 7):
+   - Refactoring: write *passing* behavioral tests against existing code first, then refactor
+   - Feature: write *failing* tests first, then implement
+
+---
 
 ## Current Branch State
 
-Branch: `develop`. All work since last push is here.
+Branch: `develop`. All work is local — nothing pushed to origin since `0aa26f8`.
 
-### Commits not yet on origin/main (newest first):
+### Recent commits (newest first):
 
 ```
-2314d06 Add window title to hotkey conflict dialog
-7387dc2 Fix :tm closing cofi and remove duplicate activate_window
-237a139 Add minimize window command (:miw / :min)
-fbd60b0 Fix scrollbar: pad lines to window width, place at rightmost column
-0b1c5bd Add push/merge rules to CLAUDE.md: no unauthorized pushes, rebase only
-a8bf625 Add live hotkey re-grab after bind/unbind
-e14f095 Add case-insensitive hotkey parsing, aliases, and typo suggestions
-15e0e0e Add header dependency tracking to Makefile (-MMD -MP)
-9182349 Update docs to match codebase: 6 tabs, 6-column display, missing commands
-e02bb48 Update CLAUDE.md: branch workflow, subagent PR rules, current architecture
-3ab1ee3 Remove dead format_config_display() after :config switched to Config tab
-bc915de Add window_order_mode config, fix column-first slot sort, add restart script
+ac43cc0 Split main.c into focused lifecycle, tabs, key, and setup modules
+b11a648 Add behavioral regression tests for split command handlers
+ca7d590 docs: clarify TDD rule for refactoring vs feature work
+56154e5 Split command handlers into domain modules
+d22206b Test init_app_data hotkey grab-state initialization path
+909813f Extract command API header and add chain policy tests
+d3f55d6 docs: note fixed window sizing init flag race in gotchas
+fcb5c5c Decompose oversized command handlers into helpers
+8ac1aaf Refactor command subsystem into UI, parser, and handlers
+1b53845 Fix hotkey error handler and add grab-state behavior tests
+8112a97 Move hotkey grab state into AppData
+ab8fa69 Split overlay manager into per-overlay modules
+6bf52ee Add worktree placement rule: always use .worktrees/ inside project root
+e4fd23a Refactor tab display rendering through shared pipeline
+0506cb8 Fix hotkey capture and dispatch for KP_Enter and multi-column keysyms
 ```
 
-(Last fully pushed baseline: `0aa26f8 Make :cfg/:config switch to interactive Config tab`)
+---
 
-## Recently Completed Work (this session)
+## Recently Completed Work
 
-### Hotkey conflict dialog title (2314d06)
-- Added `gtk_window_set_title(GTK_WINDOW(dialog), "Cofi — Hotkey Conflict")`
-- File: `src/hotkeys.c` in `show_grab_failure_dialog()`
+### Major refactoring wave (TFD-255 through TFD-268)
 
-### Fix :tm crashing cofi (7387dc2)
-- Root cause: `gtk_main_quit()` was baked into `move_window_to_next_monitor()` since
-  original commit `0ecd091` when `:tm` was dispatched inline. Never removed when
-  `cmd_toggle_monitor` handler was introduced.
-- Fix: removed `gtk_main_quit()` from `move_window_to_next_monitor()`
-- Also removed duplicate `activate_window()` call — `cmd_toggle_monitor` already calls
-  `activate_commanded_window(app, window)`
-- File: `src/monitor_move.c`
+All 8 refactoring tickets completed. Before/after summary:
 
-### :miw / :min — Minimize Window (237a139)
-- New command `cmd_minimize_window` in `command_mode.c`
-- Toggles: minimizes if not hidden, restores via `activate_window` if already minimized
-- Uses `get_window_state(display, id, "_NET_WM_STATE_HIDDEN")` to detect minimized state
-- Uses `XIconifyWindow` to minimize; `activate_window` / `XMapRaised` to restore
-- Added `minimize_window()` to `x11_utils.c` / `x11_utils.h`
-- Aliases: `miw`, `min`, `minimize-window` (no compact form)
-- 3 alias tests added to `test_command_aliases.c`
-- SPEC.md and README.md updated
+| File | Before | After | Ticket |
+|------|--------|-------|--------|
+| `src/main.c` | 1531L | 7L | TFD-255 |
+| `src/command_mode.c` | 1330L | 381L | TFD-259 |
+| `src/overlay_manager.c` | 866L | 147L | TFD-257 |
+| `src/display.c` | 771L | 697L | TFD-256 |
+| `src/command_handlers.c` (was in command_mode.c) | — | 164L + 4 domain files | TFD-268 |
 
-### Scrollbar fix (fbd60b0)
-- `overlay_scrollbar()` signature: added `target_columns` parameter
-- Pads each line to `max(content_width + 2, window_columns)` — +2 for space + scrollbar char
-- `get_display_columns()` added to `dynamic_display.c` — measures text view width / char width
-- All 7 callers updated (6 in `display.c`, 1 in `command_mode.c`)
-- 26 unit tests in `test/test_scrollbar.c` (NOT yet in run_tests.sh — see Known Issues)
+New files introduced:
+- `src/app_setup.c` (289L) — GTK setup + `run_cofi()` startup
+- `src/key_handler.c` (447L) — all keyboard input handling
+- `src/tab_switching.c` (210L) — tab switching + per-tab filter functions
+- `src/window_lifecycle.c` (276L) — show/hide/destroy/focus lifecycle
+- `src/hotkey_dispatch.c` (93L) — hotkey show-mode dispatch + delayed command mode
+- `src/command_handlers_window.c` (301L) — per-window cmd_* handlers
+- `src/command_handlers_workspace.c` (177L) — workspace cmd_* handlers
+- `src/command_handlers_tiling.c` (152L) — tiling + mouse cmd_* handlers
+- `src/command_handlers_ui.c` (195L) — UI/config cmd_* handlers
+- `src/command_api.h` (23L) — shared non-UI command declarations
+- `src/display_pipeline.c` (57L) — shared tab formatter pipeline
+- `src/hotkey_grab_state.c` (75L) — `populate_hotkey_grab_state()` builder
+- `src/overlay_dispatch.c` (132L) — overlay create/dispatch routing
+- `src/overlay_hotkey_add.c`, `src/overlay_hotkey_edit.c`, `src/overlay_harpoon.c`, `src/overlay_name.c`, `src/overlay_config.c`, `src/overlay_workspace.c` — one file per overlay type
 
-### Live hotkey re-grab (a8bf625)
-- `regrab_hotkeys(AppData*)` = `cleanup_hotkeys` + `setup_hotkeys`
-- Called after `:hotkeys` bind/unbind and Hotkeys tab Ctrl+D delete
-- No restart needed for hotkey changes
+### Bug fixes (same session)
 
-### Hotkey key name UX (e14f095)
-- Case-insensitive modifier parsing (ctrl/Ctrl/CTRL all work)
-- 11 modifier aliases: ctrl, control, shift, alt, mod1, super, mod4, win, windows, meta, hyper
-- 28 key aliases: enter/return, esc/escape, del/delete, pageup/page_up, arrows, punctuation
-- Levenshtein-based "did you mean?" suggestions on typos
-- `parse_shortcut_with_error()` new function; old `parse_shortcut()` preserved as wrapper
-- 69 unit tests in `test/test_parse_shortcut.c` (NOT yet in run_tests.sh — see Known Issues)
+- **KP_Enter capture** (0506cb8): `should_capture_hotkey_event()` and `handle_hotkey_add_key_press()` were blocking modifier+KP_Enter unconditionally. Fixed to only block bare KP_Enter.
+- **KP_Decimal not firing** (0506cb8): `XKeysymToKeycode` only finds column-0 keycodes; physical numpad dot (kc 91) has KP_Decimal at column 1. Fixed by scanning all keycodes/columns in grab, ungrab, and dispatch.
+- **Fixed window sizing** (TFD-100): One-shot `size-allocate` init sets `fixed_cols`/`fixed_rows` in AppData after first map. Scrollbar race on first render fixed.
 
-### Window order mode + column sort (bc915de)
-- `window_order_mode` config: "cofi" (MRU) or "native" (_NET_CLIENT_LIST_STACKING Z-order)
-- Two-phase gap-based column sort replaces old `x/50` bucket approach:
-  Phase 1: sort by X → Phase 2: assign columns by X-gap (threshold 50px) → Phase 3: sort (col, Y)
+### Hotkey grab state encapsulation (TFD-258)
 
-### Config tab / :cfg (0aa26f8 — already on origin)
-- `:config`/`:cfg`/`:conf` exits command mode and switches to interactive Config tab
-- `:set key value` applies and switches to Config tab
-- Old static overlay removed
+- `GrabbedHotkey` + `HotkeyGrabState` structs in `hotkeys.h`
+- `app->hotkey_grab_state` replaces file-scope globals in `hotkeys.c`
+- `grab_error_occurred` stays as file-scope static (reset per grab attempt) — nested function approach was rejected: caused executable stack (`RWE`) via GCC trampoline
 
-### log_level config (e24fce4 — already on origin)
-- `log_level` in options.json, default "debug"
-- CLI `--log-level` override; `:set log_level info` applies at runtime
-- Ctrl+T cycles in Config tab
+### Follow-up tickets created (TFD-265/266)
 
-### Linear tracking
-- Linear is accessed from the `linearis` CLI, not via MCP tooling
-- Useful commands:
-  `linearis teams list`
-  `linearis projects list`
-  `linearis issues read TFD-82`
-  `linearis issues list -l 25`
+- TFD-265: command API header decoupling + alias drift guard + chain tests → **Done**
+- TFD-266: `init_app_data` → `hotkey_grab_state` end-to-end test → **Done**
 
-## Linear Tickets (Cofi project)
-
-### Open / Backlog
-| ID | Title | Notes |
-|----|-------|-------|
-| TFD-82 | Hotkey capture mode | ~90 lines. Needs: temporary ungrab during capture, GDK key event → "Mod1+Tab" format conversion. Low priority. |
-| TFD-85 | External config screen | Someday/maybe. Lua/guile/python external config editor. |
-| TFD-100 | Overhaul window width/height management | Window height driven by Windows tab, doesn't adapt for :help. Width measurement unreliable on first display. Need fixed/static approach. |
-
-### Closed this session
-- TFD-101: Minimize window command (:miw)
-- TFD-76 to TFD-99: Historical issues (all Done, migrated from GitHub)
+---
 
 ## Test Suite
 
-**498 tests** currently run by `make test` across 10 test files:
+**~951 total assertions** across all test files. `make test` runs all.
 
-| File | Count |
-|------|-------|
-| test_command_parsing | 47 |
-| test_config_roundtrip | 32 |
-| test_config_set | 46 |
-| test_hotkey_config | 46 |
-| test_fzf_algo | 46 |
-| test_named_window | 55 |
-| test_match_scoring | 36 |
+| Test file | Assertions |
+|-----------|------------|
 | test_command_aliases | 115 |
+| test_fzf_algo | 46 |
+| test_command_dispatch | 86 |
+| test_named_window | 55 |
+| test_command_parsing | 47 |
+| test_command_set | 46 |
+| test_hotkey_config | 46 |
+| test_parse_shortcut | 89 (run_tests) |
 | test_wildcard_match | 49 |
-| test_command_dispatch | 26 |
+| test_match_scoring | 36 |
+| test_config_roundtrip | 32 |
+| test_scrollbar | 43 |
+| test_rules | 43 |
+| test_command_dispatch | 86 |
+| test_dynamic_display_fixed | 9 |
+| test_display_pipeline | 12 |
+| test_overlay_dispatch | 15 |
+| test_hotkey_grab_state | 9 |
+| test_command_parser_execution | 8 |
+| test_command_handlers_split | 8 |
+| test_command_handlers_behavior | 12 |
+| test_main_split_regression | 8 |
 
-**NOT yet in run_tests.sh (need to add):**
-- `test/test_parse_shortcut.c` — 69 tests
-- `test/test_scrollbar.c` — 26 tests
+All passing as of last run.
 
-Run all: `make test`
+**NOT in run_tests.sh** (need to verify): none known outstanding.
 
-## Key File Map
+---
+
+## Open Linear Tickets
+
+| ID | Title | Status |
+|----|-------|--------|
+| TFD-269 | Investigate and fix window-ready timing: replace command_mode_timer with post-map action queue | Backlog |
+| TFD-270 | Split key_handler.c into focused sub-modules | Backlog |
+| TFD-267 | Investigate: --screenshot=<delay_ms> CLI option for visual regression testing | Backlog |
+| TFD-82 | Hotkey capture mode | Backlog |
+
+### Recently Done (this session)
+TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268
+
+---
+
+## Key File Map (post-refactor)
 
 | File | Purpose |
 |------|---------|
-| `src/main.c` | Entry point, key handlers, tab switching |
-| `src/display.c` | Text formatting, overlay_scrollbar, tab formatters |
-| `src/dynamic_display.c` | Font metrics, line count, get_display_columns |
-| `src/config.c` | Load/save/apply, build_config_entries (single source of truth) |
-| `src/command_mode.c` | All `:` commands incl. cmd_minimize_window, cmd_toggle_monitor |
-| `src/command_definitions.h` | Command table (primary, aliases, handler, description) |
-| `src/command_parser.c` | parse_command_and_arg, compact forms (cw5, jw4 etc) |
-| `src/monitor_move.c` | move_window_to_next_monitor — moves only, no activation/quit |
-| `src/workspace_slots.c` | Per-workspace slot assignment, two-phase column sort |
-| `src/hotkeys.c` | XGrabKey registration, regrab_hotkeys, show_grab_failure_dialog |
-| `src/hotkey_config.c` | hotkeys.json load/save |
-| `src/x11_utils.c` | X11 property extraction, activate_window, minimize_window |
-| `src/filter.c` | Search/scoring, MRU vs native ordering |
-| `src/utils.c` | parse_shortcut with aliases and typo suggestions |
-| `src/history.c` | MRU ordering, partition_and_reorder |
-| `restart.sh` | clean build + systemd restart + log tail |
-| `Makefile` | `-MMD -MP` header deps, `make install` for systemd, `make test` |
-| `SPEC.md` | Authoritative behavior specification |
+| `src/main.c` | 7 lines — calls `run_cofi()` |
+| `src/app_setup.c` | GTK window construction, `setup_application()`, `run_cofi()` startup |
+| `src/key_handler.c` | All keyboard input: `on_key_press`, navigation, per-tab handlers, harpoon keys |
+| `src/tab_switching.c` | `switch_to_tab()`, `filter_*()` per tab |
+| `src/window_lifecycle.c` | `show_window()`, `hide_window()`, focus/close events |
+| `src/hotkey_dispatch.c` | `dispatch_hotkey_mode()`, `delayed_command_mode()`, `command_mode_timer` |
+| `src/command_mode.c` | Command mode UI: entry, cursor, history, help rendering |
+| `src/command_handlers.c` | Execute pipeline: `execute_command_with_window()`, keep-open policy |
+| `src/command_handlers_window.c` | Window cmd_* implementations |
+| `src/command_handlers_workspace.c` | Workspace cmd_* implementations |
+| `src/command_handlers_tiling.c` | Tiling + mouse cmd_* implementations |
+| `src/command_handlers_ui.c` | UI/config/hotkey cmd_* implementations |
+| `src/command_parser.c` | All parsing: compact forms, alias resolution, chain tokenization |
+| `src/command_definitions.h` | Command table: names, aliases, handler pointers, help text |
+| `src/display.c` | Tab formatters using shared `display_pipeline` |
+| `src/display_pipeline.c` | Shared pagination/render pipeline for all tabs |
+| `src/overlay_manager.c` | Overlay lifecycle: show/hide/dispatch (~147L) |
+| `src/overlay_*.c` | One file per overlay type |
+| `src/hotkeys.c` | XGrabKey registration + dispatch using `app->hotkey_grab_state` |
+| `src/hotkey_grab_state.c` | `populate_hotkey_grab_state()` builder |
+| `src/dynamic_display.c` | Fixed window sizing, font metrics, `init_fixed_window_size()` |
+| `src/app_data.h` | AppData struct — single source of truth for all app state |
+| `src/app_init.c` | `init_app_data()` — zero-initializes all AppData fields |
+| `src/config.c` | Config load/save/apply, `build_config_entries()` |
+| `src/filter.c` | Search/scoring pipeline, MRU vs native ordering |
+| `src/history.c` | MRU ordering, `partition_and_reorder()` |
+| `src/x11_utils.c` | X11 property extraction, `activate_window()`, `minimize_window()` |
+
+---
 
 ## Known Issues / Tech Debt
 
-1. **`test_parse_shortcut` and `test_scrollbar` not in `run_tests.sh`** — add them
-2. **Window width/height management** (TFD-100) — window height driven by Windows tab content,
-   doesn't adapt for `:help`. Width measurement unreliable on first display.
-3. **`src/monitor_move.c` unused parameter warning** — `screen` param in
-   `move_window_to_next_monitor_with_screen()` is unused (GDK monitor detection TODO)
-4. **Unused includes in `monitor_move.c`** — `display.h`, `window_list.h`, `filter.h`
-   flagged by clangd (not build failures)
+1. **`command_mode_timer` cross-module coupling** (TFD-269) — `window_lifecycle.c` directly references `command_mode_timer` global from `hotkey_dispatch.c`. Also: three inconsistent window-ready paths (path 1 uses 50ms timer, paths 2+3 don't). Critical investigation needed before fix.
+
+2. **`key_handler.c` at 447 lines** (TFD-270) — largest file post-refactor. Should split into harpoon keys + tab keys + core navigation.
+
+3. **Fixed window sizing init flag race** (TFD-100, in gotchas.md) — `fixed_window_size_initializing` cleared via `g_idle_add` may race with resize-triggered `size-allocate`. Low impact.
+
+4. **Keep-open policy duplication** — `COMMAND_DEFINITIONS[*].keeps_open_on_hotkey_auto` and hardcoded lists in `command_handlers.c` can drift silently. No ticket yet.
+
+5. **`cmd_mouse` in tiling handlers** — slightly awkward domain fit; should eventually move to window handlers or rename file to `command_handlers_placement.c`.
+
+6. **`COMMAND_POLICY_ONLY` compile flag** in `command_handlers.c` — tactical test isolation seam; watch for it spreading.
+
+7. **Handler behavioral test coverage is thin** — `test_command_handlers_behavior.c` covers one representative per domain. Deeper coverage would require more stubs or integration tests.
+
+8. **No visual/UI regression tests** — TFD-267 investigates `--screenshot=<delay_ms>` as a solution.
+
+---
 
 ## Architecture Notes
 
-- **Command dispatch**: `command_definitions.h` table → `find_command()` resolves aliases →
-  handler called with `(AppData*, WindowInfo*, args)`
-- **Compact forms** (e.g. `cw5`, `jw4`): handled in `command_parser.c` COMPACT_FORMS table,
-  SEPARATE from alias resolution. `parse_command_and_arg` does NOT resolve aliases —
-  that happens in `find_command()`.
-- **Minimize/restore**: minimized windows appear in cofi via `_NET_CLIENT_LIST`.
-  `XMapRaised` in `activate_window` deiconifies naturally — no special case needed.
-- **Monitor move**: `move_window_to_next_monitor()` ONLY moves. Caller (`cmd_toggle_monitor`)
-  handles activation via `activate_commanded_window()`. Do NOT put `gtk_main_quit()` or
-  `activate_window()` back into `move_window_to_next_monitor()`.
-- **Hotkey dialog**: `show_grab_failure_dialog()` in `hotkeys.c` shows Retry/Exit on grab
-  failure. Title is "Cofi — Hotkey Conflict".
+- **Command dispatch**: `command_definitions.h` table → `command_parser.c` resolves aliases → `command_handlers.c` `execute_command_with_window()` → domain handler files
+- **Hotkey flow**: X11 `PropertyNotify` → `handle_hotkey_event()` → `g_idle_add(hotkey_dispatch_idle)` → `dispatch_hotkey_mode()` or `prefill_command_mode()`
+- **Display pipeline**: all 6 tabs use `render_display_pipeline()` in `display_pipeline.c` — tab formatters only provide item count + `render_item()` callback
+- **Overlay system**: `show_overlay(type)` → `overlay_dispatch.c` creates content → per-type file handles key press
+- **Fixed window sizing**: one-shot `size-allocate` on textview → `init_fixed_window_size()` → `app->fixed_cols`/`fixed_rows` → all formatters use these values
+- **Hotkey grab**: `app->hotkey_grab_state` (not globals) — `populate_hotkey_grab_state()` builds from `HotkeyConfig`, `find_keycodes_for_sym()` scans all columns (fixes KP_Decimal/column-1 keysyms)
+
+---
+
+## Multi-Agent Workflow
+
+- **MainAgent** (this agent): chief engineer — plans, reviews, merges
+- **FastIce** (GPT-5.3-codex or similar frontier): implements tickets
+- **assistant** (devstral-medium or similar): code review only — no implementation
+- Pattern: FastIce implements in `.worktrees/<slug>` → MainAgent verifies → assistant reviews → MainAgent merges to develop
+- Key lesson: devstral-medium struggles with files >500L and runs out of context on large refactors. Use for review only or small targeted tasks.
+
+---
+
+## How to Resume
+
+1. `cd /home/dl/Projects/cofi`
+2. `git log --oneline -5` — verify you're on develop at the right commit
+3. `make test` — verify all tests pass
+4. `systemctl --user status cofi` — verify service is running
+5. `linearis issues list -l 10` — check current ticket state
+6. Read this file + `docs/gotchas.md` for context
+7. Next up: **TFD-269** (window-ready timing investigation) then **TFD-270** (key_handler split)
