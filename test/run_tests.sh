@@ -209,4 +209,14 @@ if [ -f test_command_handlers_behavior ]; then
     fi
 fi
 
+# Run main-split regression tests if they exist
+if [ -f test_main_split_regression ]; then
+    echo ""
+    echo "Running main-split regression tests..."
+    ./test_main_split_regression
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
