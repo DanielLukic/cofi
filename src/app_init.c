@@ -39,6 +39,7 @@ void init_app_data(AppData *app) {
     init_slot_overlay_state(&app->slot_overlays);
     init_window_highlight(&app->highlight);
     init_hotkey_config(&app->hotkey_config);
+    init_hotkey_grab_state(&app->hotkey_grab_state);
     if (!load_hotkey_config(&app->hotkey_config)) {
         // No hotkeys.json yet — create defaults from legacy config
         add_hotkey_binding(&app->hotkey_config, app->config.hotkey_windows, "show windows!");

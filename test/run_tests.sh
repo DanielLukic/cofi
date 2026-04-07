@@ -169,4 +169,14 @@ if [ -f test_overlay_dispatch ]; then
     fi
 fi
 
+# Run hotkey grab state tests if they exist
+if [ -f test_hotkey_grab_state ]; then
+    echo ""
+    echo "Running hotkey grab state tests..."
+    ./test_hotkey_grab_state
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
