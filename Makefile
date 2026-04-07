@@ -213,8 +213,8 @@ test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_polic
 	$(CC) $(CFLAGS) -o test/test_overlay_dispatch test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o $(LDFLAGS)
 
 # Build hotkey grab state tests
-test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o
-	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o $(LDFLAGS)
+test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o
