@@ -13,6 +13,7 @@
 #include "slot_overlay.h"
 #include "window_highlight.h"
 #include "hotkey_config.h"
+#include "hotkeys.h"
 #include "rules_config.h"
 #include "rules.h"
 
@@ -152,6 +153,7 @@ typedef struct AppData {
     SlotOverlayState slot_overlays;         // Active slot number overlays
     WindowHighlight highlight;              // Active window highlight border
     HotkeyConfig hotkey_config;             // User-defined hotkey bindings
+    HotkeyGrabState hotkey_grab_state;      // Runtime XGrabKey registration state
     RulesConfig rules_config;               // Window title rules
     RuleState rule_state;                   // Per-rule per-window match state
     CommandMode command_mode;               // Command mode state
