@@ -189,8 +189,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c
-	$(CC) $(CFLAGS) -o test/test_command_dispatch test/test_command_dispatch.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c src/command_parser.o
+	$(CC) $(CFLAGS) -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o

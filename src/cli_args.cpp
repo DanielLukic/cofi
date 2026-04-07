@@ -12,7 +12,7 @@ extern "C" {
 #include "log.h"
 #include "version.h"
 #include "utils.h"
-#include "command_mode.h"
+#include "command_api.h"
 
 void print_usage(const char *prog_name) {
     printf("Usage: %s [options]\n", prog_name);

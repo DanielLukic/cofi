@@ -2,8 +2,10 @@
 #include <string.h>
 #include <gtk/gtk.h>
 
-// Include the header first (it forward-declares AppData, WindowInfo, handlers)
+// Include command metadata and parser APIs under test.
 #include "../src/command_definitions.h"
+#include "../src/command_api.h"
+#include "../src/command_parser.h"
 
 // Stub all command handlers — we only need the table metadata, not execution.
 #define STUB(name) gboolean name(AppData *a, WindowInfo *w, const char *s) { \
@@ -21,6 +23,12 @@ STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
+
+typedef struct {
+    int seen;
+    int fail_at;
+    const char *expected[8];
+} SegmentVisitState;
 
 #define ASSERT_ACTIVATES(cmd_name, expected) do { \
     int found = 0; \
@@ -120,6 +128,96 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("mw", 0);
 }
 
+static gboolean record_segment_visitor(const char *segment, void *user_data) {
+    SegmentVisitState *state = user_data;
+    if (state->expected[state->seen] && strcmp(segment, state->expected[state->seen]) != 0) {
+        return FALSE;
+    }
+
+    state->seen++;
+    if (state->fail_at > 0 && state->seen >= state->fail_at) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void test_should_keep_open_runtime_policy(void) {
+    printf("\n--- should_keep_open_on_hotkey_auto runtime policy ---\n");
+
+    if (should_keep_open_on_hotkey_auto("show")) { printf("PASS: show keeps open\n"); tests_passed++; }
+    else { printf("FAIL: show should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("cw")) { printf("PASS: cw (no arg) keeps open\n"); tests_passed++; }
+    else { printf("FAIL: cw with no arg should keep open\n"); tests_failed++; }
+
+    if (!should_keep_open_on_hotkey_auto("cw2")) { printf("PASS: cw2 does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: cw2 should not keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("cw2,show windows")) { printf("PASS: chain keeps open when any segment does\n"); tests_passed++; }
+    else { printf("FAIL: chain with show should keep open\n"); tests_failed++; }
+
+    if (!should_keep_open_on_hotkey_auto("mw,cw2")) { printf("PASS: non-UI chain does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: mw,cw2 should not keep open\n"); tests_failed++; }
+}
+
+static void test_command_chain_semantics(void) {
+    printf("\n--- Command chain parsing and stop-on-failure ---\n");
+
+    SegmentVisitState parse_state = {
+        .seen = 0,
+        .fail_at = 0,
+        .expected = {"cw1", "twL", "jw2", NULL}
+    };
+
+    gboolean parsed = visit_command_segments("  cw1, , twL , jw2  ", record_segment_visitor, &parse_state);
+    if (parsed && parse_state.seen == 3) {
+        printf("PASS: comma chain parses expected segments\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: comma chain parsing mismatch (ok=%d seen=%d)\n", parsed, parse_state.seen);
+        tests_failed++;
+    }
+
+    SegmentVisitState stop_state = {
+        .seen = 0,
+        .fail_at = 2,
+        .expected = {"cw1", "twL", "jw2", NULL}
+    };
+
+    gboolean stop_ok = visit_command_segments("cw1,twL,jw2", record_segment_visitor, &stop_state);
+    if (!stop_ok && stop_state.seen == 2) {
+        printf("PASS: chain stops when visitor fails\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: stop-on-failure broken (ok=%d seen=%d)\n", stop_ok, stop_state.seen);
+        tests_failed++;
+    }
+}
+
+static void test_alias_drift_guard(void) {
+    printf("\n--- Alias drift guard (definitions vs parser) ---\n");
+    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
+        char resolved[64] = {0};
+        const char *primary = COMMAND_DEFINITIONS[i].primary;
+
+        if (!resolve_command_primary(primary, resolved, sizeof(resolved)) || strcmp(resolved, primary) != 0) {
+            printf("FAIL: primary '%s' does not resolve to itself\n", primary);
+            tests_failed++;
+            continue;
+        }
+
+        for (int a = 0; a < 5 && COMMAND_DEFINITIONS[i].aliases[a]; a++) {
+            const char *alias = COMMAND_DEFINITIONS[i].aliases[a];
+            if (!resolve_command_primary(alias, resolved, sizeof(resolved)) || strcmp(resolved, primary) != 0) {
+                printf("FAIL: alias '%s' does not resolve to '%s'\n", alias, primary);
+                tests_failed++;
+            } else {
+                tests_passed++;
+            }
+        }
+    }
+}
+
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = 0;
@@ -142,6 +240,9 @@ int main(void) {
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();
+    test_should_keep_open_runtime_policy();
+    test_command_chain_semantics();
+    test_alias_drift_guard();
     test_all_commands_covered();
 
     printf("\n=====================================\n");

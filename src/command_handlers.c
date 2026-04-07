@@ -1,4 +1,4 @@
-#include "command_mode.h"
+#include "command_api.h"
 #include "command_definitions.h"
 #include "workspace_slots.h"
 #include "log.h"
@@ -23,6 +23,8 @@
 
 extern void hide_window(AppData *app);
 extern void dispatch_hotkey_mode(AppData *app, ShowMode mode);
+extern void exit_command_mode(AppData *app);
+extern void show_help_commands(AppData *app);
 
 static void log_commanded_window(AppData *app, WindowInfo *win) {
     if (!app || !win) return;
@@ -48,61 +50,6 @@ static const CommandDef *find_command_by_primary(const char *primary) {
         }
     }
     return NULL;
-}
-
-static gboolean is_empty_arg(const char *arg) {
-    return !arg || arg[0] == '\0';
-}
-
-static gboolean keeps_open_without_arg(const char *primary) {
-    return strcmp(primary, "cw") == 0 ||
-           strcmp(primary, "jw") == 0 ||
-           strcmp(primary, "maw") == 0 ||
-           strcmp(primary, "tw") == 0;
-}
-
-static gboolean command_keeps_open_on_hotkey_auto(const CommandDef *cmd, const char *arg) {
-    if (!cmd || !cmd->primary) {
-        return FALSE;
-    }
-
-    if (cmd->keeps_open_on_hotkey_auto) {
-        return TRUE;
-    }
-
-    return is_empty_arg(arg) && keeps_open_without_arg(cmd->primary);
-}
-
-gboolean should_keep_open_on_hotkey_auto(const char *command) {
-    if (!command) {
-        return FALSE;
-    }
-
-    char local[512] = {0};
-    strncpy(local, command, sizeof(local) - 1);
-    trim_whitespace_in_place(local);
-
-    if (local[0] == '\0') {
-        return FALSE;
-    }
-
-    char *cursor = local;
-    char segment[256] = {0};
-    while (next_command_segment(&cursor, segment, sizeof(segment))) {
-        char primary[128] = {0};
-        char arg[256] = {0};
-
-        if (!parse_command_for_execution(segment, primary, arg, sizeof(primary), sizeof(arg))) {
-            continue;
-        }
-
-        const CommandDef *cmd = find_command_by_primary(primary);
-        if (command_keeps_open_on_hotkey_auto(cmd, arg)) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
 }
 
 static TileOption parse_tile_option(const char *arg) {
@@ -189,25 +136,26 @@ static gboolean execute_single_command(const char *command, AppData *app,
     return result;
 }
 
+typedef struct {
+    AppData *app;
+    WindowInfo *window;
+    gboolean background;
+} ExecuteContext;
+
+static gboolean execute_segment_callback(const char *segment, void *user_data) {
+    ExecuteContext *ctx = user_data;
+    return execute_single_command(segment, ctx->app, ctx->window, ctx->background);
+}
+
 static gboolean execute_commands(const char *command, AppData *app,
                                  WindowInfo *window, gboolean background) {
-    char local[512] = {0};
-    strncpy(local, command, sizeof(local) - 1);
-    trim_whitespace_in_place(local);
+    ExecuteContext ctx = {
+        .app = app,
+        .window = window,
+        .background = background,
+    };
 
-    if (local[0] == '\0') {
-        return TRUE;
-    }
-
-    char *cursor = local;
-    char segment[256] = {0};
-    while (next_command_segment(&cursor, segment, sizeof(segment))) {
-        if (!execute_single_command(segment, app, window, background)) {
-            return FALSE;
-        }
-    }
-
-    return TRUE;
+    return visit_command_segments(command, execute_segment_callback, &ctx);
 }
 
 gboolean execute_command(const char *command, AppData *app) {
