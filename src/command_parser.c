@@ -1,4 +1,5 @@
 #include "command_parser.h"
+#include "command_api.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -241,4 +242,93 @@ gboolean next_command_segment(char **cursor, char *segment_out, size_t segment_s
     }
 
     return TRUE;
+}
+
+static gboolean keeps_open_always(const char *primary) {
+    return strcmp(primary, "show") == 0 ||
+           strcmp(primary, "help") == 0 ||
+           strcmp(primary, "config") == 0 ||
+           strcmp(primary, "set") == 0 ||
+           strcmp(primary, "an") == 0 ||
+           strcmp(primary, "rw") == 0 ||
+           strcmp(primary, "hotkeys") == 0;
+}
+
+static gboolean keeps_open_without_arg(const char *primary) {
+    return strcmp(primary, "cw") == 0 ||
+           strcmp(primary, "jw") == 0 ||
+           strcmp(primary, "maw") == 0 ||
+           strcmp(primary, "tw") == 0;
+}
+
+static gboolean command_keeps_open(const char *primary, const char *arg) {
+    if (!primary || primary[0] == '\0') {
+        return FALSE;
+    }
+
+    if (keeps_open_always(primary)) {
+        return TRUE;
+    }
+
+    return (!arg || arg[0] == '\0') && keeps_open_without_arg(primary);
+}
+
+gboolean visit_command_segments(const char *command,
+                                CommandSegmentVisitor visitor,
+                                void *user_data) {
+    if (!command || !visitor) {
+        return FALSE;
+    }
+
+    char local[512] = {0};
+    strncpy(local, command, sizeof(local) - 1);
+    trim_whitespace_in_place(local);
+    if (local[0] == '\0') {
+        return TRUE;
+    }
+
+    char *cursor = local;
+    char segment[256] = {0};
+    while (next_command_segment(&cursor, segment, sizeof(segment))) {
+        if (!visitor(segment, user_data)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean keep_open_visitor(const char *segment, void *user_data) {
+    (void)user_data;
+
+    char primary[128] = {0};
+    char arg[256] = {0};
+    if (!parse_command_for_execution(segment, primary, arg, sizeof(primary), sizeof(arg))) {
+        return FALSE;
+    }
+
+    return command_keeps_open(primary, arg);
+}
+
+gboolean should_keep_open_on_hotkey_auto(const char *command) {
+    if (!command) {
+        return FALSE;
+    }
+
+    char local[512] = {0};
+    strncpy(local, command, sizeof(local) - 1);
+    trim_whitespace_in_place(local);
+    if (local[0] == '\0') {
+        return FALSE;
+    }
+
+    char *cursor = local;
+    char segment[256] = {0};
+    while (next_command_segment(&cursor, segment, sizeof(segment))) {
+        if (keep_open_visitor(segment, NULL)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }

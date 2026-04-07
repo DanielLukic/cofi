@@ -1,4 +1,5 @@
 #include "command_mode.h"
+#include "command_api.h"
 #include "log.h"
 #include "display.h"
 #include "selection.h"

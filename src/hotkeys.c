@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "app_data.h"
-#include "command_mode.h"
+#include "command_api.h"
 #include "hotkey_config.h"
 #include "log.h"
 #include "types.h"

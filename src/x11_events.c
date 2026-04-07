@@ -15,7 +15,7 @@
 #include "named_window_config.h"
 #include "window_highlight.h"
 #include "hotkeys.h"
-#include "command_mode.h"
+#include "command_api.h"
 #include "window_matcher.h"
 #include "utils.h"
 
