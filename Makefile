@@ -31,6 +31,11 @@ SOURCES = src/main.c \
           src/cli_args.cpp \
           src/gtk_window.c \
           src/app_init.c \
+          src/app_setup.c \
+          src/tab_switching.c \
+          src/key_handler.c \
+          src/window_lifecycle.c \
+          src/hotkey_dispatch.c \
           src/command_mode.c \
           src/command_handlers.c \
           src/command_handlers_window.c \
@@ -93,6 +98,10 @@ $(TARGET): $(OBJECTS)
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Compile testable main object (renamed entrypoint to avoid collision in tests)
+src/main_testable.o: src/main.c
+	$(CC) $(CFLAGS) -Dmain=cofi_main_entry -c $< -o $@
+
 # Compile C++ source files
 src/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -145,7 +154,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -227,6 +236,10 @@ test_command_handlers_split: test/test_command_handlers_split.c
 # Build command handler behavior regression tests
 test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/log.o $(LDFLAGS)
+
+# Build main-split regression tests (links all non-main objects)
+test_main_split_regression: test/test_main_split_regression.c $(filter-out src/main.o,$(OBJECTS))
+	$(CC) $(CFLAGS) -o test/test_main_split_regression test/test_main_split_regression.c $(filter-out src/main.o,$(OBJECTS)) $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o
