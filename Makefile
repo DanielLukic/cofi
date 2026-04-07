@@ -33,6 +33,10 @@ SOURCES = src/main.c \
           src/app_init.c \
           src/command_mode.c \
           src/command_handlers.c \
+          src/command_handlers_window.c \
+          src/command_handlers_workspace.c \
+          src/command_handlers_tiling.c \
+          src/command_handlers_ui.c \
           src/command_parser.c \
           src/monitor_move.c \
           src/selection.c \
@@ -141,7 +145,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -190,7 +194,7 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 
 # Build command dispatch test
 test_command_dispatch: test/test_command_dispatch.c src/command_parser.o
-	$(CC) $(CFLAGS) -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -215,6 +219,10 @@ test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_polic
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o
 	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o $(LDFLAGS)
+
+# Build command handlers split tests
+test_command_handlers_split: test/test_command_handlers_split.c
+	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

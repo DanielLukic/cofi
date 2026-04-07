@@ -189,4 +189,14 @@ if [ -f test_hotkey_grab_state ]; then
     fi
 fi
 
+# Run command handlers split tests if they exist
+if [ -f test_command_handlers_split ]; then
+    echo ""
+    echo "Running command handlers split tests..."
+    ./test_command_handlers_split
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

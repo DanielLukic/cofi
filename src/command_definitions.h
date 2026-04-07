@@ -1,9 +1,12 @@
 #ifndef COMMAND_DEFINITIONS_H
 #define COMMAND_DEFINITIONS_H
 
-// Forward declarations
-typedef struct AppData AppData;
-typedef struct WindowInfo WindowInfo;
+#include <glib.h>
+
+#include "command_handlers_tiling.h"
+#include "command_handlers_ui.h"
+#include "command_handlers_window.h"
+#include "command_handlers_workspace.h"
 
 // Command handler function type
 typedef gboolean (*CommandHandler)(AppData *app, WindowInfo *window, const char *args);
@@ -18,33 +21,6 @@ typedef struct {
     int activates;                          // Dispatcher activates target window after handler
     int keeps_open_on_hotkey_auto;          // Auto-! hotkeys keep cofi open after command
 } CommandDef;
-
-// Command handler declarations
-gboolean cmd_change_workspace(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_close_window(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_jump_workspace(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_rename_workspace(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_tile_window(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_mouse(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_assign_slots(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_set_config(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_show_config(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_show(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_hotkeys(AppData *app, WindowInfo *window, const char *args);
 
 // Master command definitions - single source of truth
 static const CommandDef COMMAND_DEFINITIONS[] = {
