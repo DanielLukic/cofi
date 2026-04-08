@@ -47,21 +47,14 @@ Branch: `develop`. All work is local — nothing pushed to origin since `0aa26f8
 ### Recent commits (newest first):
 
 ```
+e52c5bd Fix workspace slot assignment cap after occlusion filtering
+9d5b471 chore: update checkpoint.md
 ac43cc0 Split main.c into focused lifecycle, tabs, key, and setup modules
 b11a648 Add behavioral regression tests for split command handlers
 ca7d590 docs: clarify TDD rule for refactoring vs feature work
 56154e5 Split command handlers into domain modules
 d22206b Test init_app_data hotkey grab-state initialization path
 909813f Extract command API header and add chain policy tests
-d3f55d6 docs: note fixed window sizing init flag race in gotchas
-fcb5c5c Decompose oversized command handlers into helpers
-8ac1aaf Refactor command subsystem into UI, parser, and handlers
-1b53845 Fix hotkey error handler and add grab-state behavior tests
-8112a97 Move hotkey grab state into AppData
-ab8fa69 Split overlay manager into per-overlay modules
-6bf52ee Add worktree placement rule: always use .worktrees/ inside project root
-e4fd23a Refactor tab display rendering through shared pipeline
-0506cb8 Fix hotkey capture and dispatch for KP_Enter and multi-column keysyms
 ```
 
 ---
@@ -156,11 +149,12 @@ All passing as of last run.
 |----|-------|--------|
 | TFD-269 | Investigate and fix window-ready timing: replace command_mode_timer with post-map action queue | Backlog |
 | TFD-270 | Split key_handler.c into focused sub-modules | Backlog |
+| TFD-285 | Fix: workspace slot cap applied before occlusion silently drops windows | Done |
 | TFD-267 | Investigate: --screenshot=<delay_ms> CLI option for visual regression testing | Backlog |
 | TFD-82 | Hotkey capture mode | Backlog |
 
 ### Recently Done (this session)
-TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268
+TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268, TFD-285
 
 ---
 
@@ -199,6 +193,8 @@ TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268
 ---
 
 ## Known Issues / Tech Debt
+
+0. **Workspace slot cap bug — fixed** (TFD-285, e52c5bd): `MAX_WORKSPACE_SLOTS=9` was used as both collection cap and slot cap. Occlusion filtering happens after collection, so a sticky window consuming the 9th candidate slot silently dropped real visible windows. Fixed: collect all qualifying windows, apply occlusion, then cap to MAX_WORKSPACE_SLOTS at assignment only.
 
 1. **`command_mode_timer` cross-module coupling** (TFD-269) — `window_lifecycle.c` directly references `command_mode_timer` global from `hotkey_dispatch.c`. Also: three inconsistent window-ready paths (path 1 uses 50ms timer, paths 2+3 don't). Critical investigation needed before fix.
 
@@ -239,6 +235,15 @@ TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268
 
 ---
 
+## Multi-Agent Workflow Notes
+
+- **assistant** is now running GPT-5.4 (not devstral) — accurate and fast for analysis/review
+- **FastHawk** is GPT-5.3-codex — solid implementer, handles large refactors well
+- **Bug hunt pattern**: MainAgent gathers data → sends to both agents simultaneously → assistant diagnoses → FastHawk implements → assistant reviews → MainAgent merges
+- TFD-285 was found and fixed entirely within one session using this pattern (~30min from bug report to live verification)
+
+---
+
 ## How to Resume
 
 1. `cd /home/dl/Projects/cofi`
@@ -247,4 +252,4 @@ TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268
 4. `systemctl --user status cofi` — verify service is running
 5. `linearis issues list -l 10` — check current ticket state
 6. Read this file + `docs/gotchas.md` for context
-7. Next up: **TFD-269** (window-ready timing investigation) then **TFD-270** (key_handler split)
+7. Next up: **TFD-269** (window-ready timing investigation) or **TFD-270** (key_handler split)
