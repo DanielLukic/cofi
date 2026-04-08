@@ -147,7 +147,7 @@ static void sort_by_column(WindowPosition *windows, int count) {
     }
 
     // Phase 2: assign column indices based on X gaps
-    int col_indices[MAX_WORKSPACE_SLOTS];
+    int col_indices[MAX_WINDOWS];
     assign_column_indices(windows, col_indices, count);
 
     for (int i = 0; i < count; i++) {
@@ -156,7 +156,7 @@ static void sort_by_column(WindowPosition *windows, int count) {
     }
 
     // Phase 3: sort by (col, y)
-    WindowWithCol tmp[MAX_WORKSPACE_SLOTS];
+    WindowWithCol tmp[MAX_WINDOWS];
     for (int i = 0; i < count; i++) {
         tmp[i].pos = windows[i];
         tmp[i].col = col_indices[i];
@@ -178,10 +178,10 @@ void assign_workspace_slots(AppData *app) {
     manager->workspace = current_desktop;
 
     // Collect all candidate windows with geometry
-    WindowPosition candidates[MAX_WORKSPACE_SLOTS];
+    WindowPosition candidates[MAX_WINDOWS];
     int cand_count = 0;
 
-    for (int i = 0; i < app->window_count && cand_count < MAX_WORKSPACE_SLOTS; i++) {
+    for (int i = 0; i < app->window_count; i++) {
         WindowInfo *win = &app->windows[i];
 
         if (win->desktop == -1 && strcmp(win->type, "Normal") != 0) continue;
@@ -205,7 +205,7 @@ void assign_workspace_slots(AppData *app) {
     unsigned long stack_count = 0;
     Window *stack = get_stacking_order(app->display, &stack_count);
 
-    WindowPosition visible[MAX_WORKSPACE_SLOTS];
+    WindowPosition visible[MAX_WINDOWS];
     int vis_count = 0;
 
     for (int i = 0; i < cand_count; i++) {
@@ -228,13 +228,14 @@ void assign_workspace_slots(AppData *app) {
         qsort(visible, vis_count, sizeof(WindowPosition), compare_by_position);
     }
 
-    // Assign slots densely
-    for (int i = 0; i < vis_count; i++) {
+    // Assign slots densely (capped to available workspace slots)
+    int assigned_count = (vis_count < MAX_WORKSPACE_SLOTS) ? vis_count : MAX_WORKSPACE_SLOTS;
+    for (int i = 0; i < assigned_count; i++) {
         manager->slots[i].id = visible[i].id;
         log_info("Workspace slot %d -> window 0x%lx (x=%d, y=%d)",
                  i + 1, visible[i].id, visible[i].x, visible[i].y);
     }
-    manager->count = vis_count;
+    manager->count = assigned_count;
 
     // Auto-switch to per-workspace mode when slots are assigned
     if (app->config.digit_slot_mode != DIGIT_MODE_PER_WORKSPACE) {
@@ -243,8 +244,8 @@ void assign_workspace_slots(AppData *app) {
         log_info("Auto-switched digit_slot_mode to per-workspace");
     }
 
-    log_info("Assigned %d workspace slots on desktop %d (%d candidates, %d visible)",
-             vis_count, current_desktop, cand_count, vis_count);
+    log_info("Assigned %d workspace slots on desktop %d (%d qualifying, %d visible after occlusion)",
+             assigned_count, current_desktop, cand_count, vis_count);
 
     // Show overlay indicators
     show_slot_overlays(app);

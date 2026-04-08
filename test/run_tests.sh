@@ -219,4 +219,14 @@ if [ -f test_main_split_regression ]; then
     fi
 fi
 
+# Run workspace slot cap regression tests if they exist
+if [ -f test_workspace_slots_cap ]; then
+    echo ""
+    echo "Running workspace slot cap regression tests..."
+    ./test_workspace_slots_cap
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
