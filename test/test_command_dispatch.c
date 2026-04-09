@@ -19,7 +19,7 @@ STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_help) STUB(cmd_layout)
+STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -101,7 +101,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("help",    0);   // help: shows help text
     ASSERT_ACTIVATES("hotkeys", 0);   // hotkeys: manages bindings
     ASSERT_ACTIVATES("jw",      0);   // jump-workspace: switches desktop, no window
-    ASSERT_ACTIVATES("layout",  0);   // layout: explicit apply/refresh/off only
     ASSERT_ACTIVATES("maw",     0);   // move-all: moves multiple windows
     ASSERT_ACTIVATES("miw",     0);   // minimize: handles activation directly
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
@@ -225,12 +224,12 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 15 non-activating = 26 commands
-    if (table_count == 26) {
+    // 11 activating + 14 non-activating = 25 commands
+    if (table_count == 25) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 26 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 25 — update test!\n", table_count);
         tests_failed++;
     }
 }

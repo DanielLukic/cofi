@@ -209,16 +209,6 @@ if [ -f test_command_handlers_behavior ]; then
     fi
 fi
 
-# Run layout pattern geometry tests if they exist
-if [ -f test_layout_patterns ]; then
-    echo ""
-    echo "Running layout pattern geometry tests..."
-    ./test_layout_patterns
-    if [ $? -ne 0 ]; then
-        overall_exit=1
-    fi
-fi
-
 # Run main-split regression tests if they exist
 if [ -f test_main_split_regression ]; then
     echo ""

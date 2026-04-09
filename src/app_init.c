@@ -15,7 +15,6 @@
 #include "selection.h"
 #include "rules_config.h"
 #include "rules.h"
-#include "layout_manager.h"
 
 void init_app_data(AppData *app) {
     // Initialize history and active window tracking
@@ -71,9 +70,6 @@ void init_app_data(AppData *app) {
 
     // Initialize command mode
     init_command_mode(&app->command_mode);
-
-    // Initialize per-workspace layout state (runtime only)
-    init_layout_states(app->layout_states, MAX_LAYOUT_WORKSPACES);
     
     // Initialize window visibility state
     app->window_visible = FALSE;

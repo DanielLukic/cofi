@@ -15,15 +15,21 @@ typedef struct {
     int width, height;
 } MonitorInfo;
 
+// Tiling calculation structure
+typedef struct {
+    int x, y;
+    int width, height;
+} TileGeometry;
+
 // XRandR helper functions (reused from monitor_move.c)
 static int get_monitors_xrandr(Display *display, MonitorInfo **monitors);
 static int get_window_monitor_xrandr(Display *display, int win_x, int win_y, int win_width, int win_height);
 
 // New helper functions
 static void unmaximize_window(Display *display, Window window_id);
-void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
+static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
 static void calculate_tile_geometry(TileOption option, const WorkArea *work_area, int tile_columns, TileGeometry *geometry);
-void apply_window_position(Display *display, Window window_id, const TileGeometry *geometry, const WindowSizeHints *size_hints);
+static void apply_window_position(Display *display, Window window_id, const TileGeometry *geometry, const WindowSizeHints *size_hints);
 static void apply_maximization_hints(Display *display, Window window_id, TileOption option);
 
 // Unmaximize window before tiling
@@ -50,7 +56,7 @@ static void unmaximize_window(Display *display, Window window_id) {
 }
 
 // Get the work area for the monitor containing the window
-void get_target_work_area(Display *display, Window window_id, WorkArea *work_area) {
+static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area) {
     // Get current window geometry
     int window_x, window_y, window_width, window_height;
     if (!get_window_geometry(display, window_id, &window_x, &window_y, &window_width, &window_height)) {
@@ -113,9 +119,8 @@ void get_target_work_area(Display *display, Window window_id, WorkArea *work_are
 }
 
 // Apply window position with size hints
-void apply_window_position(Display *display, Window window_id,
-                           const TileGeometry *geometry,
-                           const WindowSizeHints *size_hints) {
+static void apply_window_position(Display *display, Window window_id, 
+                                const TileGeometry *geometry, const WindowSizeHints *size_hints) {
     int x = geometry->x;
     int y = geometry->y;
     int width = geometry->width;

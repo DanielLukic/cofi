@@ -93,10 +93,6 @@ gboolean remove_hotkey_binding(HotkeyConfig *config, const char *key) {
     (void)config; (void)key;
     return FALSE;
 }
-gboolean cmd_layout(AppData *app, WindowInfo *window, const char *args) {
-    (void)app; (void)window; (void)args;
-    return FALSE;
-}
 gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return TRUE; }
 void regrab_hotkeys(AppData *app) { (void)app; }
 int format_hotkey_display(const HotkeyConfig *config, char *buffer, size_t size) {
