@@ -16,7 +16,6 @@
 #include "hotkeys.h"
 #include "rules_config.h"
 #include "rules.h"
-#include "layout_manager.h"
 
 
 typedef enum {
@@ -186,8 +185,6 @@ typedef struct AppData {
     // Move-all-to-workspace state
     Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command
     int windows_to_move_count;              // Number of windows to move
-
-    WorkspaceLayoutState layout_states[MAX_LAYOUT_WORKSPACES]; // Per-workspace layout runtime state
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

@@ -3,15 +3,6 @@
 
 #include <X11/Xlib.h>
 
-#include "size_hints.h"
-#include "workarea.h"
-
-// Tiling geometry structure
-typedef struct {
-    int x, y;
-    int width, height;
-} TileGeometry;
-
 // Tiling options
 typedef enum {
     TILE_LEFT_HALF,      // L - Tile left half
@@ -75,11 +66,5 @@ typedef enum {
 
 // Apply tiling to window
 void apply_tiling(Display *display, Window window_id, TileOption option, int tile_columns);
-
-// Shared tiling primitives used by layout manager/patterns
-void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
-void apply_window_position(Display *display, Window window_id,
-                           const TileGeometry *geometry,
-                           const WindowSizeHints *size_hints);
 
 #endif // TILING_H

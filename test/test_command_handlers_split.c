@@ -6,7 +6,6 @@
 #include "../src/command_handlers_workspace.h"
 #include "../src/command_handlers_tiling.h"
 #include "../src/command_handlers_ui.h"
-#include "../src/command_handlers_layout.h"
 
 #define STUB_HANDLER(name) \
     gboolean name(AppData *app, WindowInfo *window, const char *args) { \
@@ -39,7 +38,6 @@ STUB_HANDLER(cmd_set_config)
 STUB_HANDLER(cmd_show_config)
 STUB_HANDLER(cmd_show)
 STUB_HANDLER(cmd_hotkeys)
-STUB_HANDLER(cmd_layout)
 
 static int tests_run = 0;
 static int tests_passed = 0;
