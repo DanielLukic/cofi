@@ -71,6 +71,16 @@ journalctl --user -u cofi -f   # tail logs
   `linearis issues list -l 25`
 - Use issue identifiers like `TFD-82` in conversation; keep the team/project IDs above for scripts or future automation
 
+## Design Principles
+
+These apply to every file, every module, every change — not just when it's convenient.
+
+- **Separation of concerns** — each module owns one thing. If you can't describe a file's responsibility in one sentence without using "and", it needs splitting.
+- **High cohesion, low coupling** — functions within a module should belong together; modules should know as little as possible about each other. Reach for a clean API boundary instead of a naked extern or a global.
+- **Boy Scout Rule** *(The Pragmatic Programmer)* — leave the code cleaner than you found it. Not a full refactor every time — just a little better. If you touch an oversized file, split off what you can as part of your change. If you see a stale comment or a misnamed variable, fix it.
+- **Broken Windows** *(The Pragmatic Programmer)* — don't leave broken windows unrepaired. A function that's too long, a file that's grown past its responsibility, a coupling that shouldn't exist — each one signals that nobody cares, and entropy accelerates. Fix them or file a ticket; never just accept them.
+- **File size as a signal** — a file that keeps growing is a design smell. When a file is already at its natural limit, the next addition is the trigger to split — not a separate refactoring ticket, but part of the change that introduced the new code. The split is the price of admission.
+
 ## Coding Guidelines
 
 1. **Write small functions** (10-15 lines, max 30)
@@ -83,8 +93,8 @@ journalctl --user -u cofi -f   # tail logs
    - **Feature TDD**: write a *failing* test first, then implement until it passes
    - **Refactoring TDD**: write *passing* behavioral tests against the **existing code first**, documenting current behavior as a regression safety net, then refactor — tests must still pass after. A structural/wiring test is not sufficient; tests must exercise actual behavior that would break if the refactor were wrong.
    - When briefing agents on refactoring tasks, always say: "write behavioral tests that pass on the current code, then refactor" — never "write failing tests first"
-7. **Use logging instead of print statements**
-8. **`make clean && make` after any header change** (no auto header deps yet)
+8. **Use logging instead of print statements**
+9. **`make clean && make` after any header change** (no auto header deps yet)
 
 ## Ticket Workflow
 
