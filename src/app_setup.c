@@ -29,7 +29,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(app->window), "cofi");
     gtk_window_set_default_size(GTK_WINDOW(app->window), 900, 500);
-    apply_window_position(app->window, alignment);
+    apply_gtk_window_position(app->window, alignment);
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(app->window), TRUE);
     gtk_window_set_decorated(GTK_WINDOW(app->window), FALSE);

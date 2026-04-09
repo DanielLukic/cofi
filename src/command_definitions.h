@@ -7,6 +7,7 @@
 #include "command_handlers_ui.h"
 #include "command_handlers_window.h"
 #include "command_handlers_workspace.h"
+#include "command_handlers_layout.h"
 
 // Command handler function type
 typedef gboolean (*CommandHandler)(AppData *app, WindowInfo *window, const char *args);
@@ -108,6 +109,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_jump_workspace,
         .description = "Jump to different workspace (N = workspace number)",
         .help_format = "jw, jump-workspace, j [N]"
+    },
+    {
+        .primary = "layout",
+        .aliases = {"ly", NULL},
+        .handler = cmd_layout,
+        .description = "Layout controls: main+stack, refresh, off",
+        .help_format = "layout, ly [main+stack|refresh|off]"
     },
     {
         .primary = "maw",
