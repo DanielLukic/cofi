@@ -12,3 +12,5 @@ test/test_*
 !test/test_*.h
 src/*.d
 .worktrees/
+.pi/messenger/feed.jsonl
+.pi/messenger/sessions/
