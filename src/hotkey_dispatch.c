@@ -9,16 +9,6 @@
 #include "tab_switching.h"
 #include "window_lifecycle.h"
 
-guint command_mode_timer = 0;
-
-gboolean delayed_command_mode(gpointer data) {
-    command_mode_timer = 0;
-    AppData *app = (AppData *)data;
-    if (app->window_visible) {
-        enter_command_mode(app);
-    }
-    return FALSE;
-}
 
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
     if (!app->window_visible) {
@@ -26,10 +16,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             case SHOW_MODE_COMMAND:
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                if (command_mode_timer > 0) {
-                    g_source_remove(command_mode_timer);
-                }
-                command_mode_timer = g_timeout_add(50, delayed_command_mode, app);
+                enter_command_mode(app);  // EXPERIMENT: direct call, no timer
                 break;
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WORKSPACES;

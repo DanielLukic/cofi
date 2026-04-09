@@ -18,7 +18,6 @@
 #include "window_list.h"
 #include "workspace_utils.h"
 #include "x11_utils.h"
-#include "hotkey_dispatch.h"
 
 static gboolean grab_focus_delayed(gpointer data);
 
@@ -127,10 +126,6 @@ void hide_window(AppData *app) {
     if (app->focus_loss_timer > 0) {
         g_source_remove(app->focus_loss_timer);
         app->focus_loss_timer = 0;
-    }
-    if (command_mode_timer > 0) {
-        g_source_remove(command_mode_timer);
-        command_mode_timer = 0;
     }
     if (app->focus_grab_timer > 0) {
         g_source_remove(app->focus_grab_timer);

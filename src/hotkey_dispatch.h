@@ -6,9 +6,6 @@
 #include "app_data.h"
 #include "types.h"
 
-extern guint command_mode_timer;
-
-gboolean delayed_command_mode(gpointer data);
 void dispatch_hotkey_mode(AppData *app, ShowMode mode);
 
 #endif
