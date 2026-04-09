@@ -4,7 +4,7 @@
 #include "log.h"
 
 
-void apply_window_position(GtkWidget *window, WindowAlignment alignment) {
+void apply_gtk_window_position(GtkWidget *window, WindowAlignment alignment) {
     switch (alignment) {
         case ALIGN_CENTER:
             gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
