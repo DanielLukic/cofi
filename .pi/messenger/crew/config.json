@@ -1,0 +1,9 @@
+{
+  "coordination": "chatty",
+  "messageBudgets": {
+    "none": -1,
+    "minimal": -1,
+    "moderate": -1,
+    "chatty": -1
+  }
+}
