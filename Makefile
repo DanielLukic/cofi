@@ -154,7 +154,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap test_workspace_slots_occlusion
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -245,6 +245,11 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 # (includes workspace_slots.c directly with X11/config stubs)
 test_workspace_slots_cap: test/test_workspace_slots_cap.c
 	$(CC) $(CFLAGS) -o test/test_workspace_slots_cap test/test_workspace_slots_cap.c $(LDFLAGS)
+
+# Build workspace slot occlusion behavioral tests
+# (includes workspace_slots.c directly with X11/config stubs)
+test_workspace_slots_occlusion: test/test_workspace_slots_occlusion.c
+	$(CC) $(CFLAGS) -o test/test_workspace_slots_occlusion test/test_workspace_slots_occlusion.c $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

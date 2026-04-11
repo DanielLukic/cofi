@@ -69,6 +69,7 @@ typedef struct {
     char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
     char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
     WindowOrderMode window_order_mode; // How to order windows in the list
+    double slot_occlusion_threshold;   // Min visible fraction for workspace slots (0.0-1.0, default 0.02)
 } CofiConfig;
 
 // Alignment string conversion
