@@ -91,7 +91,8 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
                                                           const WindowPosition *all, int count,
                                                           Window *stack, unsigned long stack_count,
                                                           int *overlay_x, int *overlay_y,
-                                                          int *largest_w, int *largest_h) {
+                                                          int *largest_w, int *largest_h,
+                                                          double *largest_fraction) {
     // Content rect: outer rect inset by frame extents.
     // Rectangle subtraction uses outer geometry (stacking order handles who
     // occludes whom). Frame extents are only applied when measuring the result:
@@ -125,6 +126,7 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
     if (overlay_y) *overlay_y = 0;
     if (largest_w) *largest_w = 0;
     if (largest_h) *largest_h = 0;
+    if (largest_fraction) *largest_fraction = 0.0;
     if (total_area <= 0) return 0.0;
 
     // Collect occluding rects (windows above us in the stack)
@@ -155,6 +157,7 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
         if (overlay_y) *overlay_y = content_rect.y1 + ch / 2;
         if (largest_w) *largest_w = cw;
         if (largest_h) *largest_h = ch;
+        if (largest_fraction) *largest_fraction = 1.0;
         return 1.0;
     }
 
@@ -216,6 +219,7 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
         if (overlay_y) *overlay_y = (largest.y1 + largest.y2) / 2;
         if (largest_w) *largest_w = largest.x2 - largest.x1;
         if (largest_h) *largest_h = largest.y2 - largest.y1;
+        if (largest_fraction) *largest_fraction = (double)largest_area / total_area;
     }
 
     return visible_area / total_area;
@@ -392,13 +396,19 @@ void assign_workspace_slots(AppData *app) {
             int overlay_y = 0;
             int largest_w = 0;
             int largest_h = 0;
+            double largest_fraction = 0.0;
             double visible_fraction = compute_visible_fraction_and_overlay_center(
                 &candidates[i], stack_pos, candidates, cand_count, stack, stack_count,
-                &overlay_x, &overlay_y, &largest_w, &largest_h);
+                &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
 
             if (visible_fraction < occlusion_threshold) {
                 log_debug("Window 0x%lx excluded: %.1f%% visible (threshold %d%%)",
                           candidates[i].id, visible_fraction * 100, occlusion_threshold_pct);
+                continue;
+            }
+            if (largest_fraction < occlusion_threshold) {
+                log_debug("Window 0x%lx excluded: largest fragment %.1f%% visible (threshold %d%%)",
+                          candidates[i].id, largest_fraction * 100, occlusion_threshold_pct);
                 continue;
             }
             if (largest_w < MIN_VISIBLE_DIM_PX || largest_h < MIN_VISIBLE_DIM_PX) {

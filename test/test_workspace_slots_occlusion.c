@@ -908,6 +908,74 @@ static void test_real_sp4_workspace(void) {
 }
 
 /* ==================================================================
+ * Test 21: Workspace 1 real geometry — Thunderbird maximized behind
+ *          two tiled terminals.
+ *
+ *  Monitor: 3840×2112
+ *  Thunderbird: (0,0) 3840×2112 — maximized, bottom of stack
+ *  Left terminal: outer (20,58) 1880×2034, frame {left=20,top=58,right=20,bot=20}
+ *  Right terminal: outer (1940,58) 1880×2034, same frame extents
+ *  Bottom dock: sticky, type Dock, (0,2112) 3840×48 — should not get a slot
+ *
+ *  Thunderbird has ~5.7% total area visible (thin strips at top, sides,
+ *  center gap, bottom) but the largest single fragment is 1880×58 =
+ *  109,040 px = 1.34% of 8,110,080 — well below the 5% threshold.
+ *  "fragmented edge visibility" → Thunderbird is EXCLUDED.
+ *
+ *  Terminals: unoccluded (dock doesn't overlap them), full content
+ *  area visible → both SURVIVE.
+ * ================================================================== */
+static void test_workspace1_tiled_terminals_thunderbird(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 4;
+
+    reset_test_state();
+
+    /* Thunderbird: maximized, no frame extents (WM removes decorations) */
+    app.windows[0].id = 0xAA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xAA, 0, 0, 3840, 2112);
+
+    /* Left terminal: outer rect starts at (20,58), frame top=58 */
+    app.windows[1].id = 0xBB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xBB, 20, 58, 1880, 2034);
+    add_frame_extents(0xBB, 20, 58, 20, 20);  /* left, top, right, bottom */
+
+    /* Right terminal: same geometry, right half of screen */
+    app.windows[2].id = 0xCC;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xCC, 1940, 58, 1880, 2034);
+    add_frame_extents(0xCC, 20, 58, 20, 20);
+
+    /* Bottom dock: sticky, Dock type — must NOT receive a digit slot */
+    app.windows[3].id = 0xDD;
+    app.windows[3].desktop = -1;
+    strcpy(app.windows[3].type, "Dock");
+    add_geometry(0xDD, 0, 2112, 3840, 48);
+
+    /* Thunderbird bottom of stack; terminals above it; dock topmost */
+    Window stack[] = { 0xAA, 0xBB, 0xCC, 0xDD };
+    set_stack(stack, 4);
+
+    assign_workspace_slots(&app);
+
+    /* Two slots: one per terminal */
+    ASSERT_TRUE("ws1: 2 slots",                       app.workspace_slots.count == 2);
+    ASSERT_TRUE("ws1: left terminal included",         slot_contains(&app.workspace_slots, 0xBB));
+    ASSERT_TRUE("ws1: right terminal included",        slot_contains(&app.workspace_slots, 0xCC));
+    ASSERT_TRUE("ws1: Thunderbird excluded (fragmented)", !slot_contains(&app.workspace_slots, 0xAA));
+    ASSERT_TRUE("ws1: dock excluded (not Normal type)",   !slot_contains(&app.workspace_slots, 0xDD));
+}
+
+/* ==================================================================
  * Test 19: Frame extents — decoration strip excluded when content
  *          is fully behind an occluder.
  *
@@ -1004,6 +1072,52 @@ static void test_frame_extents_partial_content_survives(void) {
     ASSERT_TRUE("fe partial: B survives", slot_contains(&app.workspace_slots, 0xB));
 }
 
+/* ==================================================================
+ * Test 21: Workspace 1 left monitor snapshot.
+ *          Thunderbird is maximized behind two tiled terminals.
+ *          Geometric leftovers (top strip, side strips, center gap)
+ *          are not meaningfully reachable by eye and should not earn
+ *          a digit slot. Only the front terminals should survive.
+ * ================================================================== */
+static void test_workspace1_thunderbird_behind_two_terminals_is_excluded(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_COLUMN_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 3;
+
+    reset_test_state();
+
+    app.windows[0].id = 0xA1;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA1, 0, 0, 3840, 2112);
+
+    app.windows[1].id = 0xB1;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB1, 20, 58, 1880, 2034);
+    add_frame_extents(0xB1, 20, 20, 58, 20);
+
+    app.windows[2].id = 0xC1;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xC1, 1940, 58, 1880, 2034);
+    add_frame_extents(0xC1, 20, 20, 58, 20);
+
+    /* Thunderbird below, terminals above */
+    Window stack[] = { 0xA1, 0xC1, 0xB1 };
+    set_stack(stack, 3);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("ws1 tb: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("ws1 tb: left terminal survives", slot_contains(&app.workspace_slots, 0xB1));
+    ASSERT_TRUE("ws1 tb: right terminal survives", slot_contains(&app.workspace_slots, 0xC1));
+    ASSERT_TRUE("ws1 tb: thunderbird excluded", !slot_contains(&app.workspace_slots, 0xA1));
+}
+
 int main(void) {
     printf("Workspace slot occlusion behavioral tests\n");
     printf("==========================================\n\n");
@@ -1026,8 +1140,10 @@ int main(void) {
     test_dimension_boundary_exactly_8_survives();
     test_dimension_boundary_7_excluded();
     test_real_sp4_workspace();
+    test_workspace1_tiled_terminals_thunderbird();
     test_frame_extents_titlebar_strip_excluded();
     test_frame_extents_partial_content_survives();
+    test_workspace1_thunderbird_behind_two_terminals_is_excluded();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
