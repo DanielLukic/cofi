@@ -44,6 +44,14 @@ static unsigned long test_stack_count = 0;
 static Window test_hidden[MAX_WINDOWS];
 static int test_hidden_count = 0;
 
+typedef struct {
+    Window id;
+    int left, right, top, bottom;
+} TestFrameExtents;
+
+static TestFrameExtents test_fe_table[MAX_WINDOWS];
+static int test_fe_count = 0;
+
 static void reset_test_state(void) {
     memset(test_geometries, 0, sizeof(test_geometries));
     test_geometry_count = 0;
@@ -52,6 +60,8 @@ static void reset_test_state(void) {
     test_stack_count = 0;
     memset(test_hidden, 0, sizeof(test_hidden));
     test_hidden_count = 0;
+    memset(test_fe_table, 0, sizeof(test_fe_table));
+    test_fe_count = 0;
 }
 
 static void add_geometry(Window id, int x, int y, int w, int h) {
@@ -70,6 +80,15 @@ static void set_stack(Window *stack, int count) {
 
 static void add_hidden(Window id) {
     test_hidden[test_hidden_count++] = id;
+}
+
+static void add_frame_extents(Window id, int left, int top, int right, int bottom) {
+    test_fe_table[test_fe_count].id     = id;
+    test_fe_table[test_fe_count].left   = left;
+    test_fe_table[test_fe_count].right  = right;
+    test_fe_table[test_fe_count].top    = top;
+    test_fe_table[test_fe_count].bottom = bottom;
+    test_fe_count++;
 }
 
 /* Helper: check if slot manager contains a specific window */
@@ -153,6 +172,25 @@ int XFree(void *data) { free(data); return 0; }
 
 #undef DefaultRootWindow
 #define DefaultRootWindow(dpy) ((Window)0)
+
+/* Strong definition overrides the weak extern in workspace_slots.c.
+ * Returns frame extents from the test table, or 0 (failure) if not found.
+ * Windows not in the table get zero insets → content_rect = outer_rect,
+ * preserving all existing test behavior unchanged. */
+#include "../src/frame_extents.h"
+int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
+    (void)display;
+    for (int i = 0; i < test_fe_count; i++) {
+        if (test_fe_table[i].id == window) {
+            extents->left   = test_fe_table[i].left;
+            extents->right  = test_fe_table[i].right;
+            extents->top    = test_fe_table[i].top;
+            extents->bottom = test_fe_table[i].bottom;
+            return 1;
+        }
+    }
+    return 0;
+}
 
 #include "../src/workspace_slots.c"
 
@@ -869,6 +907,103 @@ static void test_real_sp4_workspace(void) {
     ASSERT_TRUE("sp4: Term-D excluded", !slot_contains(&app.workspace_slots, 0x4106885));
 }
 
+/* ==================================================================
+ * Test 19: Frame extents — decoration strip excluded when content
+ *          is fully behind an occluder.
+ *
+ *          Reproduces the SP4 bug: terminal has outer y=-20 (WM frame),
+ *          Chrome starts at y=0 and covers the full content area.
+ *          The 20px visible strip is the titlebar decoration — not
+ *          real content. After clipping to the content rect it clips
+ *          to zero area → window is EXCLUDED.
+ *
+ *          A: outer (100,-20) size 1920×1120, frame.top=20
+ *             content rect = (100,0)-(2020,1100) = 1920×1100
+ *          B: outer (0,0) size 3840×1100, ON TOP, covers all of A's content.
+ *          Expected: B survives, A excluded.
+ * ================================================================== */
+static void test_frame_extents_titlebar_strip_excluded(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    /* A: terminal with 20px WM titlebar above content */
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 100, -20, 1920, 1120);  /* outer: y=-20, h includes titlebar */
+    add_frame_extents(0xA, 0, 20, 0, 0);      /* top inset = 20px */
+
+    /* B: Chrome, starts at y=0, fully covers A's content rect */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 0, 0, 3840, 1100);
+
+    /* B is on top */
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("fe strip: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("fe strip: B (top) survives", slot_contains(&app.workspace_slots, 0xB));
+    ASSERT_TRUE("fe strip: A (titlebar only) excluded", !slot_contains(&app.workspace_slots, 0xA));
+}
+
+/* ==================================================================
+ * Test 20: Frame extents — partial content visible despite frame offset.
+ *
+ *          Same terminal frame offset (outer y=-20, fe_top=20), but
+ *          the occluder only covers the LEFT half of the content rect.
+ *          Right half remains visible: 480×1100 / 960×1100 = 50%.
+ *          A SURVIVES.
+ *
+ *          A: outer (100,-20) size 960×1120, frame.top=20
+ *             content rect = (100,0)-(1060,1100) = 960×1100
+ *          B: outer (100,0) size 480×1100, ON TOP, covers left half.
+ *          Expected: both survive (A at 50%, B unoccluded).
+ * ================================================================== */
+static void test_frame_extents_partial_content_survives(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    /* A: terminal, fe_top=20, only left half covered by B */
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 100, -20, 960, 1120);
+    add_frame_extents(0xA, 0, 20, 0, 0);
+
+    /* B: covers exactly the left half of A's content rect */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 100, 0, 480, 1100);
+
+    /* B on top */
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    /* A has 50% content visible — well above 5% threshold */
+    ASSERT_TRUE("fe partial: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("fe partial: A survives (50% content)", slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("fe partial: B survives", slot_contains(&app.workspace_slots, 0xB));
+}
+
 int main(void) {
     printf("Workspace slot occlusion behavioral tests\n");
     printf("==========================================\n\n");
@@ -891,6 +1026,8 @@ int main(void) {
     test_dimension_boundary_exactly_8_survives();
     test_dimension_boundary_7_excluded();
     test_real_sp4_workspace();
+    test_frame_extents_titlebar_strip_excluded();
+    test_frame_extents_partial_content_survives();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

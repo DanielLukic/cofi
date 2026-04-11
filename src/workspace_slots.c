@@ -38,6 +38,7 @@ typedef struct {
     int h;
     int overlay_x;  // centroid of largest visible fragment (screen coords)
     int overlay_y;
+    FrameExtents frame;  // decoration insets for post-subtraction filtering
 } WindowPosition;
 
 // A rect for visible-area computation (axis-aligned bounding box)
@@ -91,7 +92,35 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
                                                           Window *stack, unsigned long stack_count,
                                                           int *overlay_x, int *overlay_y,
                                                           int *largest_w, int *largest_h) {
-    double total_area = (double)win->w * win->h;
+    // Content rect: outer rect inset by frame extents.
+    // Rectangle subtraction uses outer geometry (stacking order handles who
+    // occludes whom). Frame extents are only applied when measuring the result:
+    // visible fragments are clipped to the content rect so that decoration strips
+    // (title bars, borders) that peek out from behind occluders don't count.
+    int left = win->frame.left < 0 ? 0 : win->frame.left;
+    int right = win->frame.right < 0 ? 0 : win->frame.right;
+    int top = win->frame.top < 0 ? 0 : win->frame.top;
+    int bottom = win->frame.bottom < 0 ? 0 : win->frame.bottom;
+
+    if (left > win->w) left = win->w;
+    if (right > win->w - left) right = win->w - left;
+    if (top > win->h) top = win->h;
+    if (bottom > win->h - top) bottom = win->h - top;
+
+    Rect content_rect = {
+        win->x + left,
+        win->y + top,
+        win->x + win->w - right,
+        win->y + win->h - bottom
+    };
+
+    if (content_rect.x2 <= content_rect.x1 || content_rect.y2 <= content_rect.y1) {
+        content_rect = (Rect){win->x, win->y, win->x + win->w, win->y + win->h};
+    }
+
+    double total_area = (double)(content_rect.x2 - content_rect.x1) *
+                        (content_rect.y2 - content_rect.y1);
+
     if (overlay_x) *overlay_x = 0;
     if (overlay_y) *overlay_y = 0;
     if (largest_w) *largest_w = 0;
@@ -119,11 +148,13 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
     }
 
     if (occ_count == 0) {
-        // Nothing occluding: largest visible fragment is the full window rect.
-        if (overlay_x) *overlay_x = win->x + win->w / 2;
-        if (overlay_y) *overlay_y = win->y + win->h / 2;
-        if (largest_w) *largest_w = win->w;
-        if (largest_h) *largest_h = win->h;
+        // Nothing occluding: full content area is visible.
+        int cw = content_rect.x2 - content_rect.x1;
+        int ch = content_rect.y2 - content_rect.y1;
+        if (overlay_x) *overlay_x = content_rect.x1 + cw / 2;
+        if (overlay_y) *overlay_y = content_rect.y1 + ch / 2;
+        if (largest_w) *largest_w = cw;
+        if (largest_h) *largest_h = ch;
         return 1.0;
     }
 
@@ -156,19 +187,27 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
         if (vis_count == 0) return 0.0;
     }
 
-    // Sum remaining visible area and track largest remaining fragment.
+    // Sum remaining visible area (clipped to content) and track largest fragment.
     double visible_area = 0.0;
     int largest_area = 0;
     Rect largest = {0};
     for (int v = 0; v < vis_count; v++) {
-        int rw = visible[v].x2 - visible[v].x1;
-        int rh = visible[v].y2 - visible[v].y1;
+        // Clip fragment to content rect
+        Rect clipped = {
+            visible[v].x1 > content_rect.x1 ? visible[v].x1 : content_rect.x1,
+            visible[v].y1 > content_rect.y1 ? visible[v].y1 : content_rect.y1,
+            visible[v].x2 < content_rect.x2 ? visible[v].x2 : content_rect.x2,
+            visible[v].y2 < content_rect.y2 ? visible[v].y2 : content_rect.y2
+        };
+        int rw = clipped.x2 - clipped.x1;
+        int rh = clipped.y2 - clipped.y1;
+        if (rw <= 0 || rh <= 0) continue;  // fragment entirely in decoration zone
         int area = rw * rh;
         visible_area += (double)area;
 
         if (area > largest_area) {
             largest_area = area;
-            largest = visible[v];
+            largest = clipped;
         }
     }
 
@@ -324,17 +363,6 @@ void assign_workspace_slots(AppData *app) {
         int x, y, w, h;
         if (!get_window_geometry(app->display, win->id, &x, &y, &w, &h)) continue;
 
-        // Convert from outer frame geometry to client/content geometry
-        // so decoration leaks (title bars/borders) don't count as visible.
-        FrameExtents fe;
-        if (get_frame_extents && get_frame_extents(app->display, win->id, &fe)) {
-            x += fe.left;
-            y += fe.top;
-            w -= (fe.left + fe.right);
-            h -= (fe.top + fe.bottom);
-        }
-        if (w <= 0 || h <= 0) continue;
-
         candidates[cand_count].id = win->id;
         candidates[cand_count].x = x;
         candidates[cand_count].y = y;
@@ -342,6 +370,11 @@ void assign_workspace_slots(AppData *app) {
         candidates[cand_count].h = h;
         candidates[cand_count].overlay_x = x + w / 2;
         candidates[cand_count].overlay_y = y + h / 2;
+        // Store frame extents for post-subtraction decoration filtering
+        memset(&candidates[cand_count].frame, 0, sizeof(FrameExtents));
+        if (get_frame_extents && get_frame_extents(app->display, win->id, &candidates[cand_count].frame)) {
+            // frame stored for later use
+        }
         cand_count++;
     }
 
