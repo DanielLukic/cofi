@@ -6,6 +6,7 @@
 #include "config.h"
 #include "display.h"
 #include "filter.h"
+#include "repeat_action.h"
 #include "filter_names.h"
 #include "harpoon.h"
 #include "harpoon_config.h"
@@ -310,6 +311,8 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 if (win) {
                     log_debug("USER: ENTER pressed -> Activating window '%s' (ID: 0x%lx)",
                              win->title, win->id);
+                    store_last_windows_query(app,
+                        gtk_entry_get_text(GTK_ENTRY(app->entry)));
                     set_workspace_switch_state(1);
                     activate_window(app->display, win->id);
                     highlight_window(app, win->id);
@@ -407,6 +410,14 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     }
 
     if (handle_tab_switching(event, app)) {
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_period &&
+        app->current_tab == TAB_WINDOWS &&
+        strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0) {
+        log_debug("USER: '.' pressed with empty query -> repeat last action");
+        handle_repeat_key(app);
         return TRUE;
     }
 

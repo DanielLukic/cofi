@@ -150,4 +150,5 @@ When reporting progress or handing work back for testing, always state:
 - `src/window_highlight.c` — circle ripple effect on activation
 - `src/monitor_move.c` — window geometry and multi-monitor support
 - `src/tiling.c` — tiling positions and calculations
+- `src/repeat_action.c` — session-only repeat-last-query action for Windows tab `.`
 - `src/log.c` — rxi/log.c logging library
