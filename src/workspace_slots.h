@@ -8,6 +8,9 @@
 
 typedef struct {
     Window id;
+    int overlay_x;  // Center of visible area for overlay positioning
+    int overlay_y;
+    int has_overlay_pos;  // 1 if overlay_x/y are valid
 } WorkspaceSlot;
 
 typedef struct {

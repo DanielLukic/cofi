@@ -9,9 +9,9 @@
  *              harpoon/fuzzy = what you HAVE (all windows)."
  *
  * Occlusion excludes windows whose visible area falls below a
- * configurable threshold (default 2%). Windows with >= threshold
- * visible area survive. This filters out frame edges and debris
- * while keeping windows showing actual content.
+ * configurable threshold (default 5%). Windows with >= threshold
+ * visible area survive. This filters out frame edges, debris,
+ * and windows mostly dragged off-screen.
  */
 
 #include <stdio.h>
@@ -41,6 +41,8 @@ static int test_current_desktop = 0;
 
 static Window test_stack[MAX_WINDOWS];
 static unsigned long test_stack_count = 0;
+static Window test_hidden[MAX_WINDOWS];
+static int test_hidden_count = 0;
 
 static void reset_test_state(void) {
     memset(test_geometries, 0, sizeof(test_geometries));
@@ -48,6 +50,8 @@ static void reset_test_state(void) {
     test_current_desktop = 0;
     memset(test_stack, 0, sizeof(test_stack));
     test_stack_count = 0;
+    memset(test_hidden, 0, sizeof(test_hidden));
+    test_hidden_count = 0;
 }
 
 static void add_geometry(Window id, int x, int y, int w, int h) {
@@ -62,6 +66,10 @@ static void add_geometry(Window id, int x, int y, int w, int h) {
 static void set_stack(Window *stack, int count) {
     memcpy(test_stack, stack, count * sizeof(Window));
     test_stack_count = count;
+}
+
+static void add_hidden(Window id) {
+    test_hidden[test_hidden_count++] = id;
 }
 
 /* Helper: check if slot manager contains a specific window */
@@ -81,8 +89,10 @@ int get_current_desktop(Display *display) {
 
 int get_window_state(Display *display, Window window, const char *state_name) {
     (void)display;
-    (void)window;
-    (void)state_name;
+    if (strcmp(state_name, "_NET_WM_STATE_HIDDEN") != 0) return 0;
+    for (int i = 0; i < test_hidden_count; i++) {
+        if (test_hidden[i] == window) return 1;
+    }
     return 0;
 }
 
@@ -155,6 +165,7 @@ static void test_no_occlusion_all_get_slots(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 4;
 
     reset_test_state();
@@ -185,6 +196,7 @@ static void test_fully_covered_by_single_window_is_excluded(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -211,13 +223,15 @@ static void test_fully_covered_by_single_window_is_excluded(void) {
 
 /* ==================================================================
  * Test 3: Maximized window covers most of background, but a visible
- *         strip remains on the left. Background should SURVIVE.
+ *         strip remains on the left (100px = 5.2% visible).
+ *         Background should SURVIVE.
  * ================================================================== */
 static void test_partially_visible_strip_survives(void) {
     AppData app = {0};
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -230,7 +244,7 @@ static void test_partially_visible_strip_survives(void) {
     app.windows[1].id = 0xB;
     app.windows[1].desktop = 0;
     strcpy(app.windows[1].type, "Normal");
-    add_geometry(0xB, 40, 0, 1880, 1080);
+    add_geometry(0xB, 100, 0, 1820, 1080);
 
     Window stack[] = { 0xA, 0xB };
     set_stack(stack, 2);
@@ -265,6 +279,7 @@ static void test_real_side_project_workspace(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_COLUMN_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 4;
 
     reset_test_state();
@@ -316,6 +331,7 @@ static void test_fully_covered_by_multiple_windows_is_excluded(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 3;
 
     reset_test_state();
@@ -347,14 +363,15 @@ static void test_fully_covered_by_multiple_windows_is_excluded(void) {
 }
 
 /* ==================================================================
- * Test 6: Multiple windows cover most but NOT all — visible strip.
- *         A should SURVIVE.
+ * Test 6: Multiple windows cover most but NOT all — 120px visible strip
+ *         (6.25% visible). A should SURVIVE.
  * ================================================================== */
 static void test_mostly_covered_but_visible_strip_survives(void) {
     AppData app = {0};
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 3;
 
     reset_test_state();
@@ -372,7 +389,7 @@ static void test_mostly_covered_but_visible_strip_survives(void) {
     app.windows[2].id = 0xC;
     app.windows[2].desktop = 0;
     strcpy(app.windows[2].type, "Normal");
-    add_geometry(0xC, 960, 0, 900, 1080);
+    add_geometry(0xC, 960, 0, 840, 1080);
 
     Window stack[] = { 0xA, 0xB, 0xC };
     set_stack(stack, 3);
@@ -393,6 +410,7 @@ static void test_overlapping_occluders_cover_fully(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 3;
 
     reset_test_state();
@@ -430,6 +448,7 @@ static void test_overlapping_occluders_with_gap_survives(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 3;
 
     reset_test_state();
@@ -468,6 +487,7 @@ static void test_one_pixel_visible_is_excluded(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -493,8 +513,8 @@ static void test_one_pixel_visible_is_excluded(void) {
 }
 
 /* ==================================================================
- * Test 10: Vertical visible strip (top, 30px = 2.78% of area).
- *          Above the 2% threshold — enough to show real content.
+ * Test 10: Vertical visible strip (top, 60px = 5.56% of area).
+ *          Above the 5% threshold — enough to show real content.
  *          A should SURVIVE.
  * ================================================================== */
 static void test_vertical_strip_top_survives(void) {
@@ -502,6 +522,7 @@ static void test_vertical_strip_top_survives(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -511,11 +532,11 @@ static void test_vertical_strip_top_survives(void) {
     strcpy(app.windows[0].type, "Normal");
     add_geometry(0xA, 0, 0, 1920, 1080);
 
-    /* B covers bottom portion, leaves 30px visible at top */
+    /* B covers bottom portion, leaves 60px visible at top */
     app.windows[1].id = 0xB;
     app.windows[1].desktop = 0;
     strcpy(app.windows[1].type, "Normal");
-    add_geometry(0xB, 0, 30, 1920, 1050);
+    add_geometry(0xB, 0, 60, 1920, 1020);
 
     Window stack[] = { 0xA, 0xB };
     set_stack(stack, 2);
@@ -536,6 +557,7 @@ static void test_below_in_stack_does_not_occlude(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -563,9 +585,9 @@ static void test_below_in_stack_does_not_occlude(void) {
 }
 
 /* ==================================================================
- * Test 12: Exactly 2% visible area — the boundary.
+ * Test 12: Exactly 5% visible area — the boundary.
  *          Policy: >= threshold survives. This test locks that in.
- *          1000x1000 window, 20px strip = exactly 2.0%.
+ *          1000x1000 window, 50px strip = exactly 5.0%.
  *          A should SURVIVE (>= threshold).
  * ================================================================== */
 static void test_exactly_at_threshold_survives(void) {
@@ -573,6 +595,7 @@ static void test_exactly_at_threshold_survives(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -582,11 +605,11 @@ static void test_exactly_at_threshold_survives(void) {
     strcpy(app.windows[0].type, "Normal");
     add_geometry(0xA, 0, 0, 1000, 1000);
 
-    /* B covers all but 20px on the right = exactly 2% visible */
+    /* B covers all but 50px on the right = exactly 5% visible */
     app.windows[1].id = 0xB;
     app.windows[1].desktop = 0;
     strcpy(app.windows[1].type, "Normal");
-    add_geometry(0xB, 0, 0, 980, 1000);
+    add_geometry(0xB, 0, 0, 950, 1000);
 
     Window stack[] = { 0xA, 0xB };
     set_stack(stack, 2);
@@ -594,7 +617,7 @@ static void test_exactly_at_threshold_survives(void) {
     assign_workspace_slots(&app);
 
     ASSERT_TRUE("boundary: 2 slots", app.workspace_slots.count == 2);
-    ASSERT_TRUE("boundary: A survives (exactly 2%)", slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("boundary: A survives (exactly 5%)", slot_contains(&app.workspace_slots, 0xA));
 }
 
 /* ==================================================================
@@ -606,6 +629,7 @@ static void test_window_not_in_stack_survives(void) {
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
     app.window_count = 2;
 
     reset_test_state();
@@ -630,6 +654,221 @@ static void test_window_not_in_stack_survives(void) {
     ASSERT_TRUE("no stack entry: A survives", slot_contains(&app.workspace_slots, 0xA));
 }
 
+/* ==================================================================
+ * Test 14: Thin decoration strip with area > 5% but height < 8px.
+ *          Must be excluded by min-dimension check.
+ * ================================================================== */
+static void test_thin_decoration_strip_excluded_by_dimension(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 0, 0, 3840, 55);
+
+    /* B covers all but a 3px strip at the bottom of A */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 0, 0, 3840, 52);
+
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("thin dim strip: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("thin dim strip: A excluded", !slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("thin dim strip: B survives", slot_contains(&app.workspace_slots, 0xB));
+}
+
+/* ==================================================================
+ * Test 16: Dimension boundary - exactly 8px in smallest dim survives.
+ *          Visible fragment 8px tall, area well above threshold.
+ * ================================================================== */
+static void test_dimension_boundary_exactly_8_survives(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 0, 0, 100, 100);
+
+    /* B covers top 92px, leaves a 100x8 bottom fragment (exactly MIN_VISIBLE_DIM_PX) */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 0, 0, 100, 92);
+
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("dim boundary 8: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("dim boundary 8: A survives", slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("dim boundary 8: B survives", slot_contains(&app.workspace_slots, 0xB));
+}
+
+/* ==================================================================
+ * Test 17: Dimension boundary - 7px in smallest dim is excluded.
+ *          Visible fragment 7px tall, area passes but dimension fails.
+ * ================================================================== */
+static void test_dimension_boundary_7_excluded(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 0, 0, 100, 100);
+
+    /* B covers top 93px, leaves a 100x7 bottom fragment (just under MIN_VISIBLE_DIM_PX) */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 0, 0, 100, 93);
+
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("dim boundary 7: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("dim boundary 7: A excluded", !slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("dim boundary 7: B survives", slot_contains(&app.workspace_slots, 0xB));
+}
+/* ==================================================================
+ * Test 15: Small but chunky visible fragment (100x10) should survive
+ *          when area and min dimensions both pass.
+ * ================================================================== */
+static void test_small_chunky_fragment_survives(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+
+    app.windows[0].id = 0xA;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA, 0, 0, 100, 100);
+
+    /* B covers top 90px, leaves a 100x10 bottom fragment */
+    app.windows[1].id = 0xB;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB, 0, 0, 100, 90);
+
+    Window stack[] = { 0xA, 0xB };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("chunky fragment: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("chunky fragment: A survives", slot_contains(&app.workspace_slots, 0xA));
+    ASSERT_TRUE("chunky fragment: B survives", slot_contains(&app.workspace_slots, 0xB));
+}
+
+/* ==================================================================
+ * Test 18: Real SP4 workspace geometry (desktop 7 snapshot).
+ *          Four terminals are tiled below a maximized Chrome on the
+ *          right monitor; hidden Kraken window must be ignored.
+ *          Expected survivors: Chrome-L and Chrome-R only.
+ * ================================================================== */
+static void test_real_sp4_workspace(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_COLUMN_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 7;
+
+    reset_test_state();
+
+    /* 0x4106885 Term-D (bottom-right quarter) */
+    app.windows[0].id = 0x4106885;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0x4106885, 5780, 1114, 1880, 978);
+
+    /* 0x400d858 Term-B (bottom-left quarter) */
+    app.windows[1].id = 0x400d858;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0x400d858, 3860, 1114, 1880, 978);
+
+    /* 0x4c003a9 Kraken (hidden, should be ignored) */
+    app.windows[2].id = 0x4c003a9;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0x4c003a9, 3840, 0, 3840, 2112);
+    add_hidden(0x4c003a9);
+
+    /* 0x412b6b0 Term-C (top-right quarter) */
+    app.windows[3].id = 0x412b6b0;
+    app.windows[3].desktop = 0;
+    strcpy(app.windows[3].type, "Normal");
+    add_geometry(0x412b6b0, 5780, 58, 1880, 978);
+
+    /* 0x411a4bc Chrome-L (left monitor maximized) */
+    app.windows[4].id = 0x411a4bc;
+    app.windows[4].desktop = 0;
+    strcpy(app.windows[4].type, "Normal");
+    add_geometry(0x411a4bc, 0, 6, 3840, 2104);
+
+    /* 0x400d721 Term-A (top-left quarter) */
+    app.windows[5].id = 0x400d721;
+    app.windows[5].desktop = 0;
+    strcpy(app.windows[5].type, "Normal");
+    add_geometry(0x400d721, 3860, 58, 1880, 978);
+
+    /* 0x4c001fc Chrome-R (right monitor maximized, top of stack) */
+    app.windows[6].id = 0x4c001fc;
+    app.windows[6].desktop = 0;
+    strcpy(app.windows[6].type, "Normal");
+    add_geometry(0x4c001fc, 3840, 0, 3840, 2112);
+
+    Window stack[] = {
+        0x4106885, 0x400d858, 0x4c003a9, 0x412b6b0, 0x411a4bc, 0x400d721, 0x4c001fc
+    };
+    set_stack(stack, 7);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("sp4: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("sp4: Chrome-L included", slot_contains(&app.workspace_slots, 0x411a4bc));
+    ASSERT_TRUE("sp4: Chrome-R included", slot_contains(&app.workspace_slots, 0x4c001fc));
+
+    ASSERT_TRUE("sp4: Term-A excluded", !slot_contains(&app.workspace_slots, 0x400d721));
+    ASSERT_TRUE("sp4: Term-B excluded", !slot_contains(&app.workspace_slots, 0x400d858));
+    ASSERT_TRUE("sp4: Term-C excluded", !slot_contains(&app.workspace_slots, 0x412b6b0));
+    ASSERT_TRUE("sp4: Term-D excluded", !slot_contains(&app.workspace_slots, 0x4106885));
+}
+
 int main(void) {
     printf("Workspace slot occlusion behavioral tests\n");
     printf("==========================================\n\n");
@@ -647,6 +886,11 @@ int main(void) {
     test_below_in_stack_does_not_occlude();
     test_exactly_at_threshold_survives();
     test_window_not_in_stack_survives();
+    test_thin_decoration_strip_excluded_by_dimension();
+    test_small_chunky_fragment_survives();
+    test_dimension_boundary_exactly_8_survives();
+    test_dimension_boundary_7_excluded();
+    test_real_sp4_workspace();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

@@ -102,7 +102,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
     fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
     fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
-    fprintf(file, "    \"slot_occlusion_threshold\": %.4f,\n", config->slot_occlusion_threshold);
+    fprintf(file, "    \"slot_occlusion_threshold\": %d,\n", config->slot_occlusion_threshold_pct);
     fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
     fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
     fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
@@ -120,7 +120,7 @@ void init_config_defaults(CofiConfig *config) {
     config->slot_overlay_duration_ms = 750;
     config->ripple_enabled = 1;
     config->slot_sort_order = SLOT_SORT_ROW_FIRST;
-    config->slot_occlusion_threshold = 0.02;
+    config->slot_occlusion_threshold_pct = 5;
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     config->window_order_mode = WINDOW_ORDER_COFI;
     strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
@@ -193,7 +193,21 @@ static void parse_options_line(const char *line, CofiConfig *config) {
     } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
         sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
     } else if (strstr(line, "\"slot_occlusion_threshold\":")) {
-        sscanf(line, " \"slot_occlusion_threshold\": %lf", &config->slot_occlusion_threshold);
+        double raw = 0.0;
+        if (sscanf(line, " \"slot_occlusion_threshold\": %lf", &raw) == 1) {
+            int pct = 0;
+            if (raw >= 0.0 && raw < 1.0) {
+                // Legacy format: fraction (e.g. 0.05). Strict < 1.0 so that
+                // the new integer value 1 (= 1%) is not misread as 100%.
+                pct = (int)(raw * 100.0 + 0.5);
+            } else {
+                // New format: integer percent (e.g. 5)
+                pct = (int)(raw + 0.5);
+            }
+            if (pct >= 1 && pct <= 100) {
+                config->slot_occlusion_threshold_pct = pct;
+            }
+        }
     } else if (strstr(line, "\"ripple_enabled\":")) {
         config->ripple_enabled = strstr(line, "true") ? 1 : 0;
     } else if (strstr(line, "\"slot_sort_order\":")) {
@@ -355,11 +369,13 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         return 1;
     }
 
-    // Double: slot_occlusion_threshold (0.0-1.0)
+    // Integer: slot_occlusion_threshold (1-100 percent)
     if (strcmp(key, "slot_occlusion_threshold") == 0) {
-        double v = atof(value);
-        if (v < 0.0 || v > 1.0) { snprintf(err_buf, err_size, "Must be 0.0-1.0"); return 0; }
-        config->slot_occlusion_threshold = v;
+        char *end = NULL;
+        long v = strtol(value, &end, 10);
+        if (end == value || *end != '\0') { snprintf(err_buf, err_size, "Must be integer 1-100"); return 0; }
+        if (v < 1 || v > 100) { snprintf(err_buf, err_size, "Must be 1-100"); return 0; }
+        config->slot_occlusion_threshold_pct = (int)v;
         return 1;
     }
 
@@ -474,14 +490,6 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
         entries[*count].type = CONFIG_TYPE_ENUM; \
         (*count)++; \
     } while(0)
-
-    #define ADD_FLOAT(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        snprintf(entries[*count].value, CONFIG_VALUE_LEN, "%.4f", val); \
-        entries[*count].type = CONFIG_TYPE_INT; \
-        (*count)++; \
-    } while(0)
-
     ADD_BOOL("close_on_focus_loss", config->close_on_focus_loss);
     ADD_ENUM("align", alignment_to_string(config->alignment));
     ADD_INT("workspaces_per_row", config->workspaces_per_row);
@@ -492,7 +500,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_ENUM("window_order_mode", window_order_mode_to_string(config->window_order_mode));
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
-    ADD_FLOAT("slot_occlusion_threshold", config->slot_occlusion_threshold);
+    ADD_INT("slot_occlusion_threshold", config->slot_occlusion_threshold_pct);
     ADD_STR("hotkey_windows", config->hotkey_windows);
     ADD_STR("hotkey_command", config->hotkey_command);
     ADD_STR("hotkey_workspaces", config->hotkey_workspaces);
@@ -501,6 +509,5 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     #undef ADD_INT
     #undef ADD_STR
     #undef ADD_ENUM
-    #undef ADD_FLOAT
 }
 
