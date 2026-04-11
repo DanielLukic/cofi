@@ -13,8 +13,12 @@
 // are considered to be in the same row
 #define ROW_THRESHOLD 50
 
-// If a window is covered by more than this fraction, exclude it
-#define OCCLUSION_THRESHOLD 0.8
+// If a window has less than this fraction of its area visible, exclude it
+// (configurable via slot_occlusion_threshold, default 0.02 = 2%)
+#define DEFAULT_OCCLUSION_THRESHOLD 0.02
+
+// Max occluding rects for visible-area subtraction
+#define MAX_OCCLUDERS 32
 
 typedef struct {
     Window id;
@@ -24,7 +28,130 @@ typedef struct {
     int h;
 } WindowPosition;
 
-// Get stacking order from _NET_CLIENT_LIST_STACKING
+// A rect for visible-area computation (axis-aligned bounding box)
+typedef struct {
+    int x1, y1, x2, y2;  // top-left (x1,y1), bottom-right (x2,y2) exclusive
+} Rect;
+
+// Forward declaration (compute_visible_fraction uses this helper)
+static int get_stack_position(Window id, Window *stack, unsigned long stack_count);
+
+// Subtract rect B from rect A, producing up to 4 remaining rects.
+// Returns the number of resulting rects written to `out`.
+static int rect_subtract(Rect a, Rect b, Rect *out) {
+    // No overlap
+    if (b.x2 <= a.x1 || b.x1 >= a.x2 || b.y2 <= a.y1 || b.y1 >= a.y2) {
+        out[0] = a;
+        return 1;
+    }
+
+    int n = 0;
+
+    // Left strip
+    if (b.x1 > a.x1) {
+        out[n++] = (Rect){a.x1, a.y1, b.x1, a.y2};
+    }
+    // Right strip
+    if (b.x2 < a.x2) {
+        out[n++] = (Rect){b.x2, a.y1, a.x2, a.y2};
+    }
+    // Top strip (clipped to B's x-range)
+    if (b.y1 > a.y1) {
+        out[n++] = (Rect){b.x1 > a.x1 ? b.x1 : a.x1, a.y1,
+                          b.x2 < a.x2 ? b.x2 : a.x2, b.y1};
+    }
+    // Bottom strip (clipped to B's x-range)
+    if (b.y2 < a.y2) {
+        out[n++] = (Rect){b.x1 > a.x1 ? b.x1 : a.x1, b.y2,
+                          b.x2 < a.x2 ? b.x2 : a.x2, a.y2};
+    }
+
+    return n;
+}
+
+// Compute the visible fraction of a window by subtracting all occluding rects
+// (windows above it in the stacking order) using rectangle subtraction.
+// This avoids double-counting overlapping occluders.
+static double compute_visible_fraction(const WindowPosition *win, int win_stack_pos,
+                                       const WindowPosition *all, int count,
+                                       Window *stack, unsigned long stack_count) {
+    double total_area = (double)win->w * win->h;
+    if (total_area <= 0) return 0.0;
+
+    // Collect occluding rects (windows above us in the stack)
+    Rect occluders[MAX_OCCLUDERS];
+    int occ_count = 0;
+
+    for (int i = 0; i < count && occ_count < MAX_OCCLUDERS; i++) {
+        if (all[i].id == win->id) continue;
+        int other_pos = get_stack_position(all[i].id, stack, stack_count);
+        if (other_pos <= win_stack_pos) continue;  // Below us in stack
+
+        // Check if this window overlaps at all
+        int ix1 = (win->x > all[i].x) ? win->x : all[i].x;
+        int iy1 = (win->y > all[i].y) ? win->y : all[i].y;
+        int ix2 = (win->x + win->w < all[i].x + all[i].w) ? win->x + win->w : all[i].x + all[i].w;
+        int iy2 = (win->y + win->h < all[i].y + all[i].h) ? win->y + win->h : all[i].y + all[i].h;
+
+        if (ix2 > ix1 && iy2 > iy1) {
+            occluders[occ_count++] = (Rect){ix1, iy1, ix2, iy2};
+        }
+    }
+
+    if (occ_count == 0) return 1.0;  // Nothing occluding
+
+    // Start with the full window rect as the visible region
+    Rect visible[MAX_OCCLUDERS * 4];  // Each subtraction can quad-section
+    int vis_count = 1;
+    visible[0] = (Rect){win->x, win->y, win->x + win->w, win->y + win->h};
+
+    // Subtract each occluder from all current visible rects
+    for (int o = 0; o < occ_count; o++) {
+        Rect new_visible[MAX_OCCLUDERS * 4];
+        int new_count = 0;
+
+        for (int v = 0; v < vis_count; v++) {
+            Rect split[4];
+            int n = rect_subtract(visible[v], occluders[o], split);
+            for (int s = 0; s < n && new_count < MAX_OCCLUDERS * 4; s++) {
+                new_visible[new_count++] = split[s];
+            }
+            if (n > 0 && new_count >= MAX_OCCLUDERS * 4) {
+                log_warn("Visible rect buffer full (%d rects), occlusion may be inaccurate",
+                         MAX_OCCLUDERS * 4);
+            }
+        }
+
+        vis_count = new_count;
+        memcpy(visible, new_visible, vis_count * sizeof(Rect));
+
+        // Early exit: if nothing visible left
+        if (vis_count == 0) return 0.0;
+    }
+
+    // Sum remaining visible area
+    double visible_area = 0.0;
+    for (int v = 0; v < vis_count; v++) {
+        visible_area += (double)(visible[v].x2 - visible[v].x1) * (visible[v].y2 - visible[v].y1);
+    }
+
+    return visible_area / total_area;
+}
+
+// Check if a window is occluded (visible area below threshold)
+static int is_occluded(const WindowPosition *win, int win_stack_pos,
+                       const WindowPosition *all, int count,
+                       Window *stack, unsigned long stack_count,
+                       double threshold) {
+    double visible = compute_visible_fraction(win, win_stack_pos, all, count, stack, stack_count);
+    if (visible < threshold) {
+        log_debug("Window 0x%lx is %.1f%% visible (threshold %.1f%%), excluding",
+                  win->id, visible * 100, threshold * 100);
+        return 1;
+    }
+    return 0;
+}
+
 // Returns array of Window IDs (bottom to top), caller must XFree
 static Window *get_stacking_order(Display *display, unsigned long *count) {
     Atom atom = XInternAtom(display, "_NET_CLIENT_LIST_STACKING", False);
@@ -50,41 +177,6 @@ static int get_stack_position(Window id, Window *stack, unsigned long stack_coun
         if (stack[i] == id) return (int)i;
     }
     return -1;
-}
-
-// Compute what fraction of window A is covered by window B
-static double compute_overlap_fraction(const WindowPosition *a, const WindowPosition *b) {
-    int ix1 = (a->x > b->x) ? a->x : b->x;
-    int iy1 = (a->y > b->y) ? a->y : b->y;
-    int ix2 = (a->x + a->w < b->x + b->w) ? a->x + a->w : b->x + b->w;
-    int iy2 = (a->y + a->h < b->y + b->h) ? a->y + a->h : b->y + b->h;
-
-    if (ix2 <= ix1 || iy2 <= iy1) return 0.0;
-
-    double overlap_area = (double)(ix2 - ix1) * (iy2 - iy1);
-    double a_area = (double)a->w * a->h;
-    if (a_area <= 0) return 0.0;
-    return overlap_area / a_area;
-}
-
-// Check if a window is mostly occluded by any single window above it in the stack
-static int is_occluded(const WindowPosition *win, int win_stack_pos,
-                       const WindowPosition *all, int count,
-                       Window *stack, unsigned long stack_count) {
-    double total_overlap = 0.0;
-    for (int i = 0; i < count; i++) {
-        if (all[i].id == win->id) continue;
-        int other_pos = get_stack_position(all[i].id, stack, stack_count);
-        if (other_pos <= win_stack_pos) continue;  // Below us in stack
-
-        total_overlap += compute_overlap_fraction(win, &all[i]);
-        if (total_overlap >= OCCLUSION_THRESHOLD) {
-            log_debug("Window 0x%lx is %.0f%% cumulatively occluded, excluding",
-                      win->id, total_overlap * 100);
-            return 1;
-        }
-    }
-    return 0;
 }
 
 static int compare_by_position(const void *a, const void *b) {
@@ -173,6 +265,13 @@ void init_workspace_slots(WorkspaceSlotManager *manager) {
 void assign_workspace_slots(AppData *app) {
     WorkspaceSlotManager *manager = &app->workspace_slots;
     int current_desktop = get_current_desktop(app->display);
+    double occlusion_threshold = app->config.slot_occlusion_threshold;
+
+    // Defensive fallback: some test harnesses and early call paths may not run
+    // init_config_defaults(), leaving this at 0. Use product default in that case.
+    if (occlusion_threshold <= 0.0 || occlusion_threshold > 1.0) {
+        occlusion_threshold = DEFAULT_OCCLUSION_THRESHOLD;
+    }
 
     manager->count = 0;
     manager->workspace = current_desktop;
@@ -211,7 +310,8 @@ void assign_workspace_slots(AppData *app) {
     for (int i = 0; i < cand_count; i++) {
         int stack_pos = stack ? get_stack_position(candidates[i].id, stack, stack_count) : -1;
         if (stack && stack_pos >= 0 &&
-            is_occluded(&candidates[i], stack_pos, candidates, cand_count, stack, stack_count)) {
+            is_occluded(&candidates[i], stack_pos, candidates, cand_count, stack, stack_count,
+                        occlusion_threshold)) {
             continue;
         }
         visible[vis_count++] = candidates[i];
