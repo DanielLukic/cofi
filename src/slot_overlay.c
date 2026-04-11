@@ -153,9 +153,19 @@ void show_slot_overlays(AppData *app) {
         int screen_h = DisplayHeight(app->display, screen);
         int size = screen_h / OVERLAY_SCREEN_FRACTION;
 
-        // Center on target window
-        int ox = win_x + (win_w - size) / 2;
-        int oy = win_y + (win_h - size) / 2;
+        // Prefer centroid of largest visible fragment, if available.
+        // Fallback to full-window center for backwards compatibility.
+        int cx, cy;
+        if (slots->slots[i].has_overlay_pos) {
+            cx = slots->slots[i].overlay_x;
+            cy = slots->slots[i].overlay_y;
+        } else {
+            cx = win_x + win_w / 2;
+            cy = win_y + win_h / 2;
+        }
+
+        int ox = cx - size / 2;
+        int oy = cy - size / 2;
 
         Window ow = create_overlay_window(app->display, ox, oy, size, size);
         XMapRaised(app->display, ow);

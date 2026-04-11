@@ -1,14 +1,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <string.h>
+#include "frame_extents.h"
 #include "log.h"
-
-typedef struct {
-    int left;
-    int right;
-    int top;
-    int bottom;
-} FrameExtents;
 
 // Get window frame extents (decorations/borders added by window manager)
 // Returns TRUE if successful, FALSE otherwise
