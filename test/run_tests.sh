@@ -229,4 +229,24 @@ if [ -f test_workspace_slots_cap ]; then
     fi
 fi
 
+# Run workspace slot occlusion behavioral tests if they exist
+if [ -f test_workspace_slots_occlusion ]; then
+    echo ""
+    echo "Running workspace slot occlusion behavioral tests..."
+    ./test_workspace_slots_occlusion
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run repeat last action behavioral tests if they exist
+if [ -f test_repeat_action ]; then
+    echo ""
+    echo "Running repeat last action behavioral tests..."
+    ./test_repeat_action
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

@@ -73,7 +73,8 @@ SOURCES = src/main.c \
           src/hotkey_config.c \
           src/rules_config.c \
           src/rules.c \
-          src/display_pipeline.c
+          src/display_pipeline.c \
+          src/repeat_action.c
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
@@ -154,7 +155,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap test_workspace_slots_occlusion
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -250,6 +251,11 @@ test_workspace_slots_cap: test/test_workspace_slots_cap.c
 # (includes workspace_slots.c directly with X11/config stubs)
 test_workspace_slots_occlusion: test/test_workspace_slots_occlusion.c
 	$(CC) $(CFLAGS) -o test/test_workspace_slots_occlusion test/test_workspace_slots_occlusion.c $(LDFLAGS)
+
+# Build repeat-last-action behavioral tests
+# (includes repeat_action.c directly with stubs)
+test_repeat_action: test/test_repeat_action.c src/log.o
+	$(CC) $(CFLAGS) -o test/test_repeat_action test/test_repeat_action.c src/log.o $(LDFLAGS)
 
 # Quick test targets for development
 test_quick: src/match.o

@@ -31,6 +31,10 @@ When cofi opens, the selection starts on the second entry (index 1) — the prev
 
 - Pressing Enter immediately switches to that previous window, enabling quick Alt-Tab-style toggling
 - No swap of data structures is needed; this is purely about initial selection placement
+- On the Windows tab only, pressing `.` with an empty query repeats the last successful non-empty query-driven window activation for this session
+- Repeat re-runs the saved query against the current live window list and immediately activates the current top match
+- `.` with a non-empty query inserts a literal period normally
+- If no repeatable query has been stored yet, or the saved query has no current matches, `.` is a no-op and cofi stays open
 
 ## Search
 
@@ -159,11 +163,17 @@ Assign windows to persistent slots for direct access.
 
 When `digit_slot_mode` is set to `per-workspace`, Alt+1-9 activates the Nth window on the current workspace.
 
-- Only visible windows are numbered. Excluded:
+- Only meaningfully visible windows are numbered. Excluded:
   - Minimized or shaded windows
-  - Occluded windows (>80% covered by a window above in the stacking order)
   - Cofi's own window
-  - Minimizing or moving windows lets the user control which windows get slots
+  - Non-normal windows such as docks
+  - Windows whose visible content area is too small after accounting for occlusion by windows above them in the stacking order
+- Visibility is based on the window content rect, not decoration leaks such as titlebars or borders
+- A window must pass all of these checks to receive a digit slot:
+  - total visible content fraction meets the configured threshold
+  - largest single visible content fragment also meets that threshold
+  - largest visible fragment is at least 8x8 px
+- The threshold is configured by `slot_occlusion_threshold` as an integer percent (`5` means 5%)
 - Windows are auto-numbered by screen position: left-to-right, top-to-bottom
 - No manual assignment needed — numbering updates automatically as windows move, resize, minimize, or restore
 - Alt+N is a no-op if the current workspace has fewer than N visible windows
@@ -171,9 +181,10 @@ When `digit_slot_mode` is set to `per-workspace`, Alt+1-9 activates the Nth wind
 
 ### Slot Overlay Indicators
 
-After slot assignment, numbered overlays appear briefly centered on each assigned window.
+After slot assignment, numbered overlays appear briefly on each assigned window.
 
 - Overlays are independent X11 windows (visible even after cofi hides)
+- Overlay position is the center of the largest visible content fragment, not the raw window center
 - Duration controlled by `slot_overlay_duration_ms` config (default 750, 0 = disabled)
 - Catppuccin-themed: dark background, light text
 

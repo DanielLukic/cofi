@@ -185,6 +185,10 @@ typedef struct AppData {
     // Move-all-to-workspace state
     Window windows_to_move[MAX_WINDOWS];    // Windows to move for move-all command
     int windows_to_move_count;              // Number of windows to move
+
+    // Repeat last action (windows tab, session-only)
+    char last_windows_query[256];           // Query from last successful windows-tab activation
+    gboolean last_windows_query_valid;      // Whether a repeatable action has been stored
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

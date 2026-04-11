@@ -1,4 +1,4 @@
-# Cofi Development Checkpoint — 2026-04-07
+# Cofi Development Checkpoint — 2026-04-10
 
 Intent: this file is the current-state checkpoint for active development. It tracks branch state, recent completed work, known issues, and operational context needed to resume quickly. It is not the canonical workflow guide and not the long-term home for cross-cutting gotchas.
 
@@ -42,24 +42,50 @@ See also:
 
 ## Current Branch State
 
-Branch: `develop`. All work is local — nothing pushed to origin since `0aa26f8`.
+Branch: `develop`. Local branch contains substantial work not yet pushed to `main`; recent local work also remains unpushed.
 
-### Recent commits (newest first):
+### Recent commits on `develop` (newest first):
 
 ```
-e52c5bd Fix workspace slot assignment cap after occlusion filtering
-9d5b471 chore: update checkpoint.md
-ac43cc0 Split main.c into focused lifecycle, tabs, key, and setup modules
-b11a648 Add behavioral regression tests for split command handlers
-ca7d590 docs: clarify TDD rule for refactoring vs feature work
-56154e5 Split command handlers into domain modules
-d22206b Test init_app_data hotkey grab-state initialization path
-909813f Extract command API header and add chain policy tests
+3eb74ed test: cover fragment-threshold slot visibility cases
+8ba881f fix: clip slot visibility to content rects
+745a3e5 fix: accurate workspace slot occlusion filtering
+ab84081 Fix workspace slot occlusion: rectangle subtraction + configurable threshold
+06517c6 chore: commit pi-messenger project config, gitignore feed journal
+62424aa Revert TFD-311 layout manager — needs more design work on hidden/maximized window handling
+1438596 Implement TFD-311 layout manager MVP commands and main+stack pattern
+b6e8f20 Remove command_mode_timer: call enter_command_mode directly after show_window
 ```
 
 ---
 
 ## Recently Completed Work
+
+### Workspace slot occlusion + overlay accuracy
+
+Completed on `develop` in commits `745a3e5`, `8ba881f`, and `3eb74ed`.
+
+- Replaced cumulative overlap math with rectangle subtraction so overlapping occluders do not double-count
+- Changed slot visibility semantics from raw area leakage to meaningfully visible content
+- Visibility now uses the window content rect (via frame extents) so titlebars/borders do not keep hidden windows eligible
+- A window must clear the configured threshold for both:
+  - total visible content fraction
+  - largest single visible content fragment fraction
+- Largest visible fragment must also satisfy the minimum dimension gate (currently 8x8 px)
+- `slot_occlusion_threshold` now uses integer-percent UX and serialization (`5` means 5%) with legacy float-load compatibility
+- Slot overlays are placed at the center of the largest visible fragment, not the raw window center
+- Behavioral coverage expanded heavily in `test/test_workspace_slots_occlusion.c`, including SP4/workspace regressions and frame-extents cases
+
+### Repeat last action (`.`) on Windows tab
+
+Implemented locally, tested, restarted for live verification, and approved by user for commit.
+
+- New `src/repeat_action.c` / `src/repeat_action.h` module
+- Session-only v1 behavior: on the Windows tab, pressing `.` with an empty query replays the last successful non-empty query-driven activation
+- Replay re-filters the live window list and activates the current top match
+- `.` with a non-empty query inserts normally
+- Empty-query Enter does not overwrite repeat state
+- Coverage added in `test/test_repeat_action.c`; integrated into `make test` and `test/run_tests.sh`
 
 ### Major refactoring wave (TFD-255 through TFD-268)
 
@@ -110,7 +136,7 @@ New files introduced:
 
 ## Test Suite
 
-**~951 total assertions** across all test files. `make test` runs all.
+`make test` runs the full suite, including workspace-slot occlusion and repeat-action behavioral tests.
 
 | Test file | Assertions |
 |-----------|------------|
@@ -136,10 +162,12 @@ New files introduced:
 | test_command_handlers_split | 8 |
 | test_command_handlers_behavior | 12 |
 | test_main_split_regression | 8 |
+| test_workspace_slots_occlusion | 69 |
+| test_repeat_action | 21 |
 
-All passing as of last run.
+All passing as of the latest local run.
 
-**NOT in run_tests.sh** (need to verify): none known outstanding.
+**NOT in run_tests.sh** (need to verify): none known outstanding after adding occlusion + repeat tests.
 
 ---
 
@@ -189,12 +217,17 @@ TFD-100, TFD-255, TFD-256, TFD-257, TFD-258, TFD-259, TFD-265, TFD-266, TFD-268,
 | `src/filter.c` | Search/scoring pipeline, MRU vs native ordering |
 | `src/history.c` | MRU ordering, `partition_and_reorder()` |
 | `src/x11_utils.c` | X11 property extraction, `activate_window()`, `minimize_window()` |
+| `src/workspace_slots.c` | Per-workspace digit-slot assignment with meaningful-visibility occlusion filtering |
+| `src/slot_overlay.c` | Digit-slot overlay rendering at largest-visible-fragment coordinates |
+| `src/repeat_action.c` | Session-only repeat-last-query action for Windows tab `.` |
 
 ---
 
 ## Known Issues / Tech Debt
 
 0. **Workspace slot cap bug — fixed** (TFD-285, e52c5bd): `MAX_WORKSPACE_SLOTS=9` was used as both collection cap and slot cap. Occlusion filtering happens after collection, so a sticky window consuming the 9th candidate slot silently dropped real visible windows. Fixed: collect all qualifying windows, apply occlusion, then cap to MAX_WORKSPACE_SLOTS at assignment only.
+
+0a. **Off-screen visibility clipping still missing** — current occlusion semantics clip to content rects but do not yet clip to monitor bounds. Off-screen content can still count as visible.
 
 1. **`command_mode_timer` cross-module coupling** (TFD-269) — `window_lifecycle.c` directly references `command_mode_timer` global from `hotkey_dispatch.c`. Also: three inconsistent window-ready paths (path 1 uses 50ms timer, paths 2+3 don't). Critical investigation needed before fix.
 

@@ -81,6 +81,46 @@ See also:
   In practice the reposition is idempotent so this is low impact, but if you touch the fixed sizing init path, be aware of this ordering hazard.
   A cleaner fix would compare the current allocation against the target size inside `on_window_size_allocate` rather than relying on the flag.
 
+## Workspace Slots And Occlusion
+
+- Digit slots are intentionally stricter than "any visible pixel."
+  The design target is "reachable by eye": only meaningfully visible windows should receive Alt+1-9 workspace slots.
+
+- Occlusion uses rectangle subtraction, not summed overlap.
+  Do not go back to accumulating occluder overlap percentages; overlapping occluders double-count and can report impossible values like >100% occluded.
+
+- Use outer/frame geometry for subtraction, but content rects for visibility.
+  Shrinking windows to content rects before subtraction caused regressions. The correct rule is: subtract using full window geometry, then clip surviving fragments to the target window's content rect before counting visible area.
+
+- Decoration leaks must not count as visible content.
+  Frame extents are used so titlebars/borders do not keep a heavily covered window eligible for a digit slot.
+
+- Total visible scraps are not enough by themselves.
+  A window must clear the configured threshold both for total visible content fraction and for its largest single visible content fragment. This prevents fragmented leftovers from qualifying.
+
+- Thin slivers should not receive digit slots.
+  The largest visible fragment must also satisfy the minimum visible dimension gate (currently 8x8 px).
+
+- Slot overlays should track the meaningful visible area.
+  Place the overlay at the center of the largest visible fragment, not the raw window center and not a weighted average across multiple fragments.
+
+- `slot_occlusion_threshold` is an integer percent.
+  `5` means 5 percent. Keep legacy float config compatibility in the loader, but write/save the modern integer-percent form.
+
+## Repeat Last Action
+
+- Repeat-last-action is intentionally narrow in v1.
+  It applies only on the Windows tab, only for the current session, and only when `.` is pressed with an empty query.
+
+- Repeat stores queries, not window identities.
+  The saved state is the last successful non-empty windows-tab query-driven activation. Replay must re-filter the live list and activate the current top match, not a stale window ID.
+
+- Empty-query Enter must not overwrite repeat state.
+  Storing `""` turns repeat into a generic "activate current top window" shortcut, which is explicitly out of scope for v1.
+
+- `.` must insert normally when the query is non-empty.
+  The repeat intercept only applies to the Windows tab with an empty entry.
+
 ## Testing
 
 - Do not assume all test entrypoints cover the same set.
