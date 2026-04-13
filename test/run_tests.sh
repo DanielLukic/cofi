@@ -213,7 +213,11 @@ fi
 if [ -f test_main_split_regression ]; then
     echo ""
     echo "Running main-split regression tests..."
-    ./test_main_split_regression
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_main_split_regression
+    else
+        ./test_main_split_regression
+    fi
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi
@@ -244,6 +248,26 @@ if [ -f test_repeat_action ]; then
     echo ""
     echo "Running repeat last action behavioral tests..."
     ./test_repeat_action
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run filter ranking behavioral tests if they exist
+if [ -f test_filter_ranking ]; then
+    echo ""
+    echo "Running filter ranking behavioral tests..."
+    ./test_filter_ranking
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run apps tab behavioral tests if they exist
+if [ -f test_apps ]; then
+    echo ""
+    echo "Running apps tab behavioral tests..."
+    ./test_apps
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi

@@ -16,6 +16,8 @@
 #include "named_window.h"
 #include "named_window_config.h"
 #include "overlay_manager.h"
+#include "apps.h"
+#include "run_mode.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -318,6 +320,13 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     highlight_window(app, win->id);
                     hide_window(app);
                 }
+            } else if (app->current_tab == TAB_APPS) {
+                if (app->selection.apps_index < app->filtered_apps_count) {
+                    AppEntry *entry = &app->filtered_apps[app->selection.apps_index];
+                    log_info("USER: ENTER pressed -> Launching app '%s'", entry->name);
+                    apps_launch(entry);
+                    hide_window(app);
+                }
             } else {
                 WorkspaceInfo *ws = get_selected_workspace(app);
                 if (ws) {
@@ -365,11 +374,21 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         if (handle_command_key(event, app)) {
             return TRUE;
         }
+    } else if (app->command_mode.state == CMD_MODE_RUN) {
+        if (handle_run_key(event, app)) {
+            return TRUE;
+        }
     }
 
-    if (event->keyval == GDK_KEY_colon) {
+    if (app->command_mode.state == CMD_MODE_NORMAL && event->keyval == GDK_KEY_colon) {
         log_debug("USER: ':' pressed -> Entering command mode");
         enter_command_mode(app);
+        return TRUE;
+    }
+
+    if (app->command_mode.state == CMD_MODE_NORMAL && event->keyval == GDK_KEY_exclam) {
+        log_debug("USER: '!' pressed -> Entering run mode");
+        enter_run_mode(app, NULL);
         return TRUE;
     }
 
@@ -432,6 +451,10 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         return;
     }
+    if (app->command_mode.state == CMD_MODE_RUN) {
+        handle_run_entry_changed(entry, app);
+        return;
+    }
 
     const char *text = gtk_entry_get_text(entry);
 
@@ -451,6 +474,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_config(app, text);
     } else if (app->current_tab == TAB_HOTKEYS) {
         filter_hotkeys(app, text);
+    } else if (app->current_tab == TAB_APPS) {
+        filter_apps(app, text);
     }
 
     reset_selection(app);

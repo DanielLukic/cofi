@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "apps.h"
 #include "config.h"
 #include "display.h"
 #include "filter.h"
@@ -37,12 +38,16 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_HOTKEYS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter hotkey bindings...");
         filter_hotkeys(app, "");
+    } else if (target_tab == TAB_APPS) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
+        apps_load();
+        filter_apps(app, "");
     }
 
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -52,15 +57,16 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
 
         if (event->state & GDK_SHIFT_MASK) {
             switch (app->current_tab) {
-                case TAB_WINDOWS: next_tab = TAB_HOTKEYS; break;
+                case TAB_WINDOWS: next_tab = TAB_APPS; break;
                 case TAB_WORKSPACES: next_tab = TAB_WINDOWS; break;
                 case TAB_HARPOON: next_tab = TAB_WORKSPACES; break;
                 case TAB_NAMES: next_tab = TAB_HARPOON; break;
                 case TAB_CONFIG: next_tab = TAB_NAMES; break;
                 case TAB_HOTKEYS: next_tab = TAB_CONFIG; break;
+                case TAB_APPS: next_tab = TAB_HOTKEYS; break;
                 default: next_tab = TAB_WINDOWS; break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
             log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         } else {
             switch (app->current_tab) {
@@ -69,10 +75,11 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
                 case TAB_HARPOON: next_tab = TAB_NAMES; break;
                 case TAB_NAMES: next_tab = TAB_CONFIG; break;
                 case TAB_CONFIG: next_tab = TAB_HOTKEYS; break;
-                case TAB_HOTKEYS: next_tab = TAB_WINDOWS; break;
+                case TAB_HOTKEYS: next_tab = TAB_APPS; break;
+                case TAB_APPS: next_tab = TAB_WINDOWS; break;
                 default: next_tab = TAB_WINDOWS; break;
             }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
+            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
             log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         }
 
@@ -83,16 +90,17 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     if (event->keyval == GDK_KEY_ISO_Left_Tab) {
         TabMode next_tab;
         switch (app->current_tab) {
-            case TAB_WINDOWS: next_tab = TAB_HOTKEYS; break;
+            case TAB_WINDOWS: next_tab = TAB_APPS; break;
             case TAB_WORKSPACES: next_tab = TAB_WINDOWS; break;
             case TAB_HARPOON: next_tab = TAB_WORKSPACES; break;
             case TAB_NAMES: next_tab = TAB_HARPOON; break;
             case TAB_CONFIG: next_tab = TAB_NAMES; break;
             case TAB_HOTKEYS: next_tab = TAB_CONFIG; break;
+            case TAB_APPS: next_tab = TAB_HOTKEYS; break;
             default: next_tab = TAB_WINDOWS; break;
         }
 
-        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys"};
+        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
         switch_to_tab(app, next_tab);
         return TRUE;
@@ -207,4 +215,8 @@ void filter_hotkeys(AppData *app, const char *filter) {
             app->filtered_hotkeys_count++;
         }
     }
+}
+
+void filter_apps(AppData *app, const char *filter) {
+    apps_filter(filter, app->filtered_apps, &app->filtered_apps_count);
 }

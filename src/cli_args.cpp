@@ -27,6 +27,8 @@ void print_usage(const char *prog_name) {
     printf("  --harpoon            Start with the Harpoon tab active\n");
     printf("  --names              Start with the Names tab active\n");
     printf("  --command            Start in command mode (with ':' prompt)\n");
+    printf("  --run                Start in run mode (with '!' prompt)\n");
+    printf("  --applications       Start with the Apps tab active\n");
     printf("  --assign-slots       Assign workspace window slots and exit\n");
     printf("  --no-daemon          Show window immediately and exit on close (no hotkeys)\n");
     printf("  --version            Show version information\n");
@@ -80,6 +82,8 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto harpoon_opt = op.add<Switch>("", "harpoon", "Start with the Harpoon tab active");
     auto names_opt = op.add<Switch>("", "names", "Start with the Names tab active");
     auto command_opt = op.add<Switch>("c", "command", "Start in command mode (with ':' prompt)");
+    auto run_opt = op.add<Switch>("", "run", "Start in run mode (with '!' prompt)");
+    auto applications_opt = op.add<Switch>("", "applications", "Start with the Apps tab active");
     auto assign_slots_opt = op.add<Switch>("", "assign-slots", "Assign workspace window slots and exit");
     auto no_daemon_opt = op.add<Switch>("", "no-daemon", "Show window immediately and exit on close (no hotkey registration)");
     auto version_opt = op.add<Switch>("v", "version", "Show version information");
@@ -166,6 +170,14 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     
     if (command_opt->is_set()) {
         app->start_in_command_mode = 1;
+    }
+
+    if (run_opt->is_set()) {
+        app->start_in_run_mode = 1;
+    }
+
+    if (applications_opt->is_set()) {
+        app->current_tab = TAB_APPS;
     }
 
     if (assign_slots_opt->is_set()) {

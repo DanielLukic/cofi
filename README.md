@@ -87,6 +87,8 @@ Install for automatic startup at login:
 - `--harpoon` - Start with the Harpoon tab active
 - `--names` - Start with the Names tab active
 - `--command` (-c) - Start directly in command mode with `:` prompt active
+- `--run` - Start directly in run mode with `!` prompt active
+- `--applications` - Start with the Apps tab active
 - `--assign-slots` - Assign workspace window slots and exit
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help
@@ -119,7 +121,7 @@ COFI saves configuration to `~/.config/cofi/`:
 #### Window/Workspace Navigation
 - **Up/Down arrows** - Navigate through windows
 - **Ctrl+k/Ctrl+j** - Navigate up/down (Vim-style)
-- **Tab/Shift+Tab** - Cycle between Windows, Workspaces, Harpoon, and Names tabs
+- **Tab/Shift+Tab** - Cycle between Windows, Workspaces, Harpoon, Names, Config, Hotkeys, and Apps tabs
 - **Enter** - Activate selected window/workspace
 - **Escape** - Cancel and close
 - **Type to search** - Filter windows in real-time
@@ -174,6 +176,22 @@ When `digit_slot_mode` is `"workspaces"` in options.json:
 Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments. Command mode preserves your current window selection unless you're entering from the default alt-tab position. In that latter case, selection will auto-jump to the previously active window. This will allow quick command application to the currently active window without having to select it first.
 
 ![Command Mode](doc/cofi-commands.png)
+
+### Run Mode
+
+Press `!` to enter run mode for detached shell commands. The entry switches to a `!` prompt, Up/Down browse a separate session-only run history, Enter launches the trimmed command detached and closes cofi, and deleting back to empty exits run mode. Bare `!` or whitespace-only commands are ignored. `:show run` and `--run` open directly into the same run surface.
+
+### Apps Tab
+
+The Apps tab launches installed desktop applications from XDG desktop entries via GLib/GIO.
+
+- Start directly with `--applications`
+- Switch from command mode with `:show apps`
+- Enter launches the selected app detached and closes cofi
+- Hidden / invalid / `NoDisplay` apps are excluded
+- Apps matching/ranking is local to the Apps tab, not the window-switcher MRU/fuzzy ranking
+- Ranking order: `name` > `generic_name` > `keywords`
+- `generic_name` and `keywords` are token-matched to avoid cross-token false positives
 
 #### Available Commands
 

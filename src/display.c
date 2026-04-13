@@ -72,6 +72,14 @@ static void format_tab_header(TabMode current_tab, GString *output) {
         g_string_append(output, "  Hotkeys  ");
     }
 
+    g_string_append(output, "    ");
+
+    if (current_tab == TAB_APPS) {
+        g_string_append(output, "[ APPS ]");
+    } else {
+        g_string_append(output, "  Apps  ");
+    }
+
     g_string_append(output, "\n");
 }
 
@@ -582,6 +590,43 @@ static void format_hotkeys_display(AppData *app, GString *text,
         "Shortcuts: Ctrl+A=Add binding  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
 }
 
+static void render_apps_item(gpointer context, gint index,
+                              gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    AppEntry *entry = &app->filtered_apps[index];
+
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+
+    char name_col[49], generic_col[41];
+    fit_column(entry->name, 48, name_col);
+    fit_column(entry->generic_name, 40, generic_col);
+
+    g_string_append(text, name_col);
+    g_string_append(text, " ");
+    g_string_append(text, generic_col);
+    g_string_append(text, "\n");
+}
+
+static void format_apps_display(AppData *app, GString *text, gint selected_idx) {
+    if (app->filtered_apps_count == 0) {
+        g_string_append(text, "No matching applications found\n");
+        return;
+    }
+
+    DisplayPipelineRequest request = {
+        .total_count = app->filtered_apps_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_apps_item;
+
+    render_display_pipeline(&request, text);
+}
+
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
     int selected_idx = get_selected_index(app);
@@ -626,6 +671,9 @@ void update_display(AppData *app) {
             break;
         case TAB_HOTKEYS:
             format_hotkeys_display(app, text, selected_idx);
+            break;
+        case TAB_APPS:
+            format_apps_display(app, text, selected_idx);
             break;
     }
     

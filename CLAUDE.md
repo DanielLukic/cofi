@@ -130,6 +130,8 @@ When reporting progress or handing work back for testing, always state:
 - **Command mode** — vim-style `:` commands with compact syntax
 - **Tiling** — half/quarter/third/grid positions, multi-monitor aware
 - **Hotkeys** — configurable global X11 grabs via hotkeys.json
+- **Run mode** — first-class `!` entry mode with session-only history and detached shell launch
+- **Apps tab** — desktop application launcher with Apps-local matching/ranking and detached launch
 - **Config** — runtime-editable via `:set` or Config tab (Ctrl+T/Ctrl+E)
 
 ## File Organization
@@ -151,4 +153,6 @@ When reporting progress or handing work back for testing, always state:
 - `src/monitor_move.c` — window geometry and multi-monitor support
 - `src/tiling.c` — tiling positions and calculations
 - `src/repeat_action.c` — session-only repeat-last-query action for Windows tab `.`
+- `src/run_mode.c` — run mode state, history, and detached shell launch
+- `src/apps.c` — desktop app loading, Apps-local matching/ranking, and detached launch
 - `src/log.c` — rxi/log.c logging library

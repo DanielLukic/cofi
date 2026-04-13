@@ -271,7 +271,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 if (app->window && GTK_IS_WIDGET(app->window) &&
                     app->entry && GTK_IS_ENTRY(app->entry)) {
                     // Skip filtering when in command mode
-                    if (app->command_mode.state == CMD_MODE_COMMAND) {
+                    if (app->command_mode.state != CMD_MODE_NORMAL) {
                         // In command mode, don't apply entry text as filter
                         filter_windows(app, "");
                     } else {

@@ -20,10 +20,16 @@ static int tests_passed = 0;
     } while (0)
 
 static int show_name_assign_overlay_calls = 0;
+static int dispatch_hotkey_mode_calls = 0;
+static ShowMode last_show_mode = SHOW_MODE_WINDOWS;
 
 // --- shared stubs for handler dependencies ---
 void hide_window(AppData *app) { (void)app; }
-void dispatch_hotkey_mode(AppData *app, ShowMode mode) { (void)app; (void)mode; }
+void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
+    (void)app;
+    dispatch_hotkey_mode_calls++;
+    last_show_mode = mode;
+}
 void exit_command_mode(AppData *app) { (void)app; }
 void show_help_commands(AppData *app) { (void)app; }
 void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_tab; }
@@ -170,6 +176,13 @@ static void test_ui_handler_behavior(void) {
     gboolean result = cmd->handler(&app, NULL, "not-a-mode");
     ASSERT_TRUE("show rejects invalid mode", result == FALSE);
     ASSERT_TRUE("show invalid mode sets showing_help", app.command_mode.showing_help == TRUE);
+
+    dispatch_hotkey_mode_calls = 0;
+    last_show_mode = SHOW_MODE_WINDOWS;
+    result = cmd->handler(&app, NULL, "run");
+    ASSERT_TRUE("show run is accepted", result == FALSE);
+    ASSERT_TRUE("show run dispatches exactly once", dispatch_hotkey_mode_calls == 1);
+    ASSERT_TRUE("show run dispatches run mode", last_show_mode == SHOW_MODE_RUN);
 }
 
 int main(void) {

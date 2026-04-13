@@ -1,7 +1,8 @@
 #include "command_mode.h"
 #include "command_api.h"
-#include "log.h"
 #include "display.h"
+#include "log.h"
+#include "run_mode.h"
 #include "selection.h"
 #include "dynamic_display.h"
 
@@ -358,6 +359,10 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             return TRUE;
 
         case GDK_KEY_colon:
+            return TRUE;
+
+        case GDK_KEY_exclam:
+            enter_run_mode(app, NULL);
             return TRUE;
 
         case GDK_KEY_Tab:

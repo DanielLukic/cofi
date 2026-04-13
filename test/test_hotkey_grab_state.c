@@ -73,6 +73,7 @@ void init_rules_config(RulesConfig *config) { (void)config; }
 gboolean load_rules_config(RulesConfig *config) { (void)config; return TRUE; }
 void init_rule_state(RuleState *state) { (void)state; }
 void init_command_mode(CommandMode *cmd) { (void)cmd; }
+void init_run_mode(RunMode *run_mode) { (void)run_mode; }
 
 // Unused init_x11/init_workspace symbols in app_init.o (stubbed for linker completeness)
 void atom_cache_init(Display *display, AtomCache *cache) { (void)display; (void)cache; }

@@ -1,4 +1,5 @@
 #include "app_setup.h"
+#include "run_mode.h"
 
 #include <gdk/gdkx.h>
 #include <stdio.h>
@@ -256,15 +257,21 @@ int run_cofi(int argc, char *argv[]) {
         log_warn("Could not get own window ID");
     }
 
-    if (app.no_daemon) {
+    if (!app.no_daemon) {
+        setup_hotkeys(&app);
+    }
+
+    if (app.no_daemon || app.start_in_run_mode) {
         show_window(&app);
         if (app.start_in_command_mode) {
             app.command_mode.close_on_exit = TRUE;
             enter_command_mode(&app);
+        } else if (app.start_in_run_mode) {
+            app.run_mode.close_on_exit = TRUE;
+            enter_run_mode(&app, NULL);
         }
-        log_info("Started in no-daemon mode");
-    } else {
-        setup_hotkeys(&app);
+        log_info("Started with immediate UI mode");
+    } else if (!app.no_daemon) {
         log_info("Daemon started, waiting for hotkeys");
     }
 

@@ -56,9 +56,12 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_HOTKEYS) {
         app->selection.hotkeys_index = 0;
         app->selection.hotkeys_scroll_offset = 0;
+    } else if (app->current_tab == TAB_APPS) {
+        app->selection.apps_index = 0;
+        app->selection.apps_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "apps"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -100,6 +103,8 @@ int get_selected_index(AppData *app) {
         return app->selection.config_index;
     } else if (app->current_tab == TAB_HOTKEYS) {
         return app->selection.hotkeys_index;
+    } else if (app->current_tab == TAB_APPS) {
+        return app->selection.apps_index;
     }
 
     return 0;
@@ -192,6 +197,19 @@ void move_selection_up(AppData *app) {
                      app->selection.hotkeys_index,
                      app->filtered_hotkeys[app->selection.hotkeys_index].key);
         }
+    } else if (app->current_tab == TAB_APPS) {
+        if (app->filtered_apps_count > 0) {
+            if (app->selection.apps_index < app->filtered_apps_count - 1) {
+                app->selection.apps_index++;
+            } else {
+                app->selection.apps_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> App[%d] '%s'",
+                     app->selection.apps_index,
+                     app->filtered_apps[app->selection.apps_index].name);
+        }
     }
 }
 
@@ -281,6 +299,19 @@ void move_selection_down(AppData *app) {
             log_info("USER: Selection DOWN -> Hotkey[%d] '%s'",
                      app->selection.hotkeys_index,
                      app->filtered_hotkeys[app->selection.hotkeys_index].key);
+        }
+    } else if (app->current_tab == TAB_APPS) {
+        if (app->filtered_apps_count > 0) {
+            if (app->selection.apps_index > 0) {
+                app->selection.apps_index--;
+            } else {
+                app->selection.apps_index = app->filtered_apps_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> App[%d] '%s'",
+                     app->selection.apps_index,
+                     app->filtered_apps[app->selection.apps_index].name);
         }
     }
 }
@@ -387,6 +418,8 @@ int get_scroll_offset(AppData *app) {
             return app->selection.config_scroll_offset;
         case TAB_HOTKEYS:
             return app->selection.hotkeys_scroll_offset;
+        case TAB_APPS:
+            return app->selection.apps_scroll_offset;
         default:
             return 0;
     }
@@ -414,6 +447,9 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_HOTKEYS:
             app->selection.hotkeys_scroll_offset = offset;
+            break;
+        case TAB_APPS:
+            app->selection.apps_scroll_offset = offset;
             break;
     }
 }
@@ -445,6 +481,9 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_HOTKEYS:
             total_count = app->filtered_hotkeys_count;
+            break;
+        case TAB_APPS:
+            total_count = app->filtered_apps_count;
             break;
     }
 
