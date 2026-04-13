@@ -1,0 +1,36 @@
+#ifndef APPS_H
+#define APPS_H
+
+#include <gio/gdesktopappinfo.h>
+#include "match.h"
+
+#define MAX_APPS 512
+
+typedef struct {
+    char name[256];
+    char generic_name[256];
+    char keywords[512];
+    GAppInfo *info;  /* owned by GIO list; valid until apps_unload() */
+} AppEntry;
+
+/* Load all launchable desktop apps, sorted alphabetically. */
+void apps_load(void);
+
+/* Free GIO resources (called at reload or shutdown). */
+void apps_unload(void);
+
+/* Filter src entries by query into out. Pure: no GIO calls. */
+void apps_filter_entries(const char *query,
+                         AppEntry *src, int src_count,
+                         AppEntry *out, int *out_count);
+
+/* Sort entries alphabetically by name (in-place). Pure. */
+void apps_sort_entries(AppEntry *entries, int count);
+
+/* Fill out/out_count from the loaded list filtered by query. */
+void apps_filter(const char *query, AppEntry *out, int *out_count);
+
+/* Launch app detached. Logs on failure. */
+void apps_launch(const AppEntry *entry);
+
+#endif /* APPS_H */

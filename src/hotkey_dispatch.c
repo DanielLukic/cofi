@@ -5,6 +5,7 @@
 #include "filter.h"
 #include "key_handler.h"
 #include "log.h"
+#include "run_mode.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -17,6 +18,11 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
                 enter_command_mode(app);  // EXPERIMENT: direct call, no timer
+                break;
+            case SHOW_MODE_RUN:
+                app->current_tab = TAB_WINDOWS;
+                show_window(app);
+                enter_run_mode(app, NULL);
                 break;
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WORKSPACES;
@@ -39,6 +45,8 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
 
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_RUN) {
+        exit_run_mode(app);
     }
 
     switch (mode) {
@@ -72,6 +80,14 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             }
             app->current_tab = TAB_WINDOWS;
             enter_command_mode(app);
+            break;
+
+        case SHOW_MODE_RUN:
+            if (app->command_mode.state == CMD_MODE_RUN) {
+                return;
+            }
+            app->current_tab = TAB_WINDOWS;
+            enter_run_mode(app, NULL);
             break;
 
         default:

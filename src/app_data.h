@@ -16,6 +16,7 @@
 #include "hotkeys.h"
 #include "rules_config.h"
 #include "rules.h"
+#include "apps.h"
 
 
 typedef enum {
@@ -24,7 +25,8 @@ typedef enum {
     TAB_HARPOON,
     TAB_NAMES,
     TAB_CONFIG,
-    TAB_HOTKEYS
+    TAB_HOTKEYS,
+    TAB_APPS
 } TabMode;
 
 // Overlay types for dialog management
@@ -44,10 +46,11 @@ typedef enum {
     OVERLAY_HOTKEY_EDIT
 } OverlayType;
 
-// Command mode definitions
+// Entry mode definitions
 typedef enum {
     CMD_MODE_NORMAL,    // Regular window switching mode
-    CMD_MODE_COMMAND    // Command entry mode (after pressing ':')
+    CMD_MODE_COMMAND,   // Command entry mode (after pressing ':')
+    CMD_MODE_RUN        // Run entry mode (after pressing '!')
 } CommandModeState;
 
 typedef struct {
@@ -62,6 +65,14 @@ typedef struct {
     gboolean close_on_exit;         // True when window should close after exiting command mode
 } CommandMode;
 
+typedef struct {
+    char history[10][256];          // Session-only run history (last 10 commands)
+    int history_count;              // Number of run commands in history
+    int history_index;              // Current position in history (-1 = not browsing)
+    gboolean close_on_exit;         // True when window should close after exiting run mode
+    gboolean suppress_entry_change; // Guard while programmatically updating the entry text
+} RunMode;
+
 // Selection management structure
 typedef struct {
     int window_index;                       // Selected index in filtered windows array
@@ -73,14 +84,16 @@ typedef struct {
 
     int config_index;                       // Selected index in config tab
     int hotkeys_index;                      // Selected index in hotkeys tab
+    int apps_index;                         // Selected index in apps tab
 
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
     int workspace_scroll_offset;            // First visible item index for workspaces tab
     int harpoon_scroll_offset;              // First visible item index for harpoon tab
-    int names_scroll_offset;                // First visible item index for names tab
-    int config_scroll_offset;               // First visible item index for config tab
-    int hotkeys_scroll_offset;              // First visible item index for hotkeys tab
+    int names_scroll_offset;               // First visible item index for names tab
+    int config_scroll_offset;              // First visible item index for config tab
+    int hotkeys_scroll_offset;             // First visible item index for hotkeys tab
+    int apps_scroll_offset;                // First visible item index for apps tab
 } SelectionState;
 
 typedef struct AppData {
@@ -131,6 +144,10 @@ typedef struct AppData {
     int filtered_hotkeys_indices[MAX_HOTKEY_BINDINGS];  // Actual indices in hotkey_config.bindings
     int filtered_hotkeys_count;
 
+    // Apps tab data
+    AppEntry filtered_apps[MAX_APPS];
+    int filtered_apps_count;
+
     // Edit state for harpoon
     struct {
         gboolean editing;
@@ -157,7 +174,9 @@ typedef struct AppData {
     RulesConfig rules_config;               // Window title rules
     RuleState rule_state;                   // Per-rule per-window match state
     CommandMode command_mode;               // Command mode state
+    RunMode run_mode;                       // Run mode state
     int start_in_command_mode;              // Whether to start in command mode (--command flag)
+    int start_in_run_mode;                  // Whether to start in run mode (--run flag)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
     int no_daemon;                          // Whether to run in no-daemon mode (--no-daemon flag)
 

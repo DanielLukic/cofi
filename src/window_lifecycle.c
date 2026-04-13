@@ -12,6 +12,7 @@
 #include "log.h"
 #include "named_window.h"
 #include "overlay_manager.h"
+#include "run_mode.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
@@ -32,9 +33,14 @@ gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *ap
     (void)widget;
     (void)event;
 
-    if (app->command_mode.state == CMD_MODE_COMMAND && app->pending_hotkey_mode < 0) {
-        log_debug("Resetting command mode due to focus loss");
-        exit_command_mode(app);
+    if (app->pending_hotkey_mode < 0) {
+        if (app->command_mode.state == CMD_MODE_COMMAND) {
+            log_debug("Resetting command mode due to focus loss");
+            exit_command_mode(app);
+        } else if (app->command_mode.state == CMD_MODE_RUN) {
+            log_debug("Resetting run mode due to focus loss");
+            exit_run_mode(app);
+        }
     }
 
     if (!app->config.close_on_focus_loss) {
@@ -83,6 +89,9 @@ void destroy_window(AppData *app) {
         app->command_mode.command_buffer[0] = '\0';
         app->command_mode.cursor_pos = 0;
         app->command_mode.history_index = -1;
+        app->run_mode.history_index = -1;
+        app->run_mode.close_on_exit = FALSE;
+        app->run_mode.suppress_entry_change = FALSE;
 
         reset_selection(app);
         log_debug("Selection reset to 0 in destroy_window");
@@ -111,6 +120,8 @@ void hide_window(AppData *app) {
 
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_RUN) {
+        exit_run_mode(app);
     }
 
     if (app->mode_indicator) {
@@ -230,7 +241,12 @@ void show_window(AppData *app) {
     log_debug("Showing window and refreshing state");
 
     if (app->mode_indicator) {
-        const char *indicator = (app->command_mode.state == CMD_MODE_COMMAND) ? ":" : ">";
+        const char *indicator = ">";
+        if (app->command_mode.state == CMD_MODE_COMMAND) {
+            indicator = ":";
+        } else if (app->command_mode.state == CMD_MODE_RUN) {
+            indicator = "!";
+        }
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), indicator);
     }
 

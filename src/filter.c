@@ -203,9 +203,9 @@ static int score_and_filter_windows(AppData *app, const char *filter,
             
             // Add workspace bonus if window is on current workspace
             if (best_score > SCORE_MIN && win->desktop == current_desktop && win->desktop != -1) {
-                // Add significant bonus for current workspace windows
-                // This should be enough to prioritize them but not override better matches
-                score_t workspace_bonus = 25;
+                // Small bonus for current workspace windows — enough to break ties
+                // without overriding a clearly better cross-workspace match
+                score_t workspace_bonus = 5;
                 best_score += workspace_bonus;
                 log_debug("Window '%s' on current workspace %d - added bonus %.0f (new score: %.0f)", 
                          win->title, current_desktop, workspace_bonus, best_score);
@@ -327,7 +327,8 @@ void apply_alt_tab_selection(AppData *app, const char *filter) {
     if (app->filtered_count >= 2 && 
         filter && strlen(filter) == 0 &&
         !app->start_in_command_mode &&
-        app->command_mode.state != CMD_MODE_COMMAND) {
+        !app->start_in_run_mode &&
+        app->command_mode.state == CMD_MODE_NORMAL) {
         
         // Set selection to index 1 for alt-tab behavior
         app->selection.window_index = 1;
@@ -338,4 +339,3 @@ void apply_alt_tab_selection(AppData *app, const char *filter) {
         log_debug("Alt-tab selection: set selection to index 1 (previous window)");
     }
 }
-

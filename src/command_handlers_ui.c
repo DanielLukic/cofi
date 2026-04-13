@@ -7,6 +7,7 @@
 #include "hotkey_config.h"
 #include "hotkeys.h"
 #include "log.h"
+#include "run_mode.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +102,7 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
     if (args && args[0] != '\0') {
         if (strcmp(args, "windows") == 0) mode = SHOW_MODE_WINDOWS;
         else if (strcmp(args, "command") == 0) mode = SHOW_MODE_COMMAND;
+        else if (strcmp(args, "run") == 0) mode = SHOW_MODE_RUN;
         else if (strcmp(args, "workspaces") == 0) mode = SHOW_MODE_WORKSPACES;
         else if (strcmp(args, "harpoon") == 0) mode = SHOW_MODE_HARPOON;
         else if (strcmp(args, "names") == 0) {
@@ -111,8 +113,12 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             exit_command_mode(app);
             switch_to_tab(app, TAB_CONFIG);
             return FALSE;
+        } else if (strcmp(args, "apps") == 0) {
+            exit_command_mode(app);
+            switch_to_tab(app, TAB_APPS);
+            return FALSE;
         } else {
-            show_error_in_display(app, "Usage: show [windows|command|workspaces|harpoon|names|config]");
+            show_error_in_display(app, "Usage: show [windows|command|run|workspaces|harpoon|names|config|apps]");
             return FALSE;
         }
     }

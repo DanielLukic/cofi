@@ -8,6 +8,7 @@ void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void hide_window(AppData *app);
 void dispatch_hotkey_mode(AppData *app, ShowMode mode);
+gboolean handle_command_key(GdkEventKey *event, AppData *app);
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -97,7 +98,33 @@ static void test_dispatch_hotkey_mode_steps_windows_selection(void) {
                 app.selection.window_index == 1);
 }
 
+static void test_exclam_switches_from_command_mode_to_run_mode(void) {
+    AppData app;
+    GdkEventKey event;
+    memset(&app, 0, sizeof(app));
+    memset(&event, 0, sizeof(event));
+
+    app.command_mode.state = CMD_MODE_COMMAND;
+    app.entry = gtk_entry_new();
+    app.mode_indicator = gtk_label_new(":");
+
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+    event.keyval = GDK_KEY_exclam;
+
+    ASSERT_TRUE("handle_command_key consumes ! in command mode",
+                handle_command_key(&event, &app) == TRUE);
+    ASSERT_TRUE("! switches entry state to run mode",
+                app.command_mode.state == CMD_MODE_RUN);
+    ASSERT_TRUE("! seeds run prompt in entry",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "!") == 0);
+}
+
 int main(void) {
+    int argc = 0;
+    char **argv = NULL;
+
+    gtk_init(&argc, &argv);
+
     printf("Main split regression tests\n");
     printf("===========================\n\n");
 
@@ -105,6 +132,7 @@ int main(void) {
     test_filter_config_behavior();
     test_hide_window_noop_when_already_hidden();
     test_dispatch_hotkey_mode_steps_windows_selection();
+    test_exclam_switches_from_command_mode_to_run_mode();
 
     printf("\n===========================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

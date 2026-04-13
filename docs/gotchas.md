@@ -121,6 +121,23 @@ See also:
 - `.` must insert normally when the query is non-empty.
   The repeat intercept only applies to the Windows tab with an empty entry.
 
+## Apps Tab Filtering
+
+- Do not concatenate `name`, `generic_name`, and `keywords` into one search string.
+  `has_match` is a subsequence check; concatenation creates cross-field false positives.
+  Example: `audac` can match Atril via characters spread across multiple fields.
+  Match each field independently instead.
+
+- Do not treat the keywords field as one big string either.
+  Space-joined keywords let subsequence matching hop across unrelated tokens.
+  Example: `thu` can match Audacity via letters spread across separate keyword words.
+  Split keywords into tokens and match each token independently.
+
+- Apps ranking is local to the Apps launcher.
+  Do not "fix" Apps behavior by changing the shared Windows-tab fuzzy/MRU ranking pipeline.
+
+- These invariants are regression-tested in `test/test_apps.c`.
+
 ## Testing
 
 - Do not assume all test entrypoints cover the same set.

@@ -12,6 +12,7 @@
 #include "x11_utils.h"
 #include "atom_cache.h"
 #include "command_mode.h"
+#include "run_mode.h"
 #include "selection.h"
 #include "rules_config.h"
 #include "rules.h"
@@ -70,6 +71,7 @@ void init_app_data(AppData *app) {
 
     // Initialize command mode
     init_command_mode(&app->command_mode);
+    init_run_mode(&app->run_mode);
     
     // Initialize window visibility state
     app->window_visible = FALSE;

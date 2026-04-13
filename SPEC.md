@@ -70,7 +70,7 @@ The search matches against the full displayed row as the user sees it — deskto
 - **Up/Down** (or **Ctrl+k/j**) — move selection through the window list
 - **Enter** — activate the selected window
 - **Escape** — close cofi without switching
-- **Tab / Shift+Tab** — switch between tabs (Windows, Workspaces, Harpoon, Names)
+- **Tab / Shift+Tab** — switch between tabs (Windows, Workspaces, Harpoon, Names, Config, Hotkeys, Apps)
 - Typing any character starts filtering immediately (no mode switch needed)
 
 ## Window Appearance
@@ -120,8 +120,21 @@ Hotkey command strings support a `!` suffix to control dispatch behavior:
 
 Examples:
 - `"show windows!"` — opens cofi in windows mode immediately
+- `"show run!"` — opens cofi in run mode immediately
 - `"jw 3!"` — jumps to workspace 3 silently, no cofi window
 - `"maw"` — opens cofi with `:maw` prefilled, user types direction + Enter
+
+## Run Mode
+
+Shell run entry triggered by typing `!` in the search field or via `show run`.
+
+- Mode indicator changes from `>` to `!`
+- The entry keeps a literal `!` prefix while run mode is active
+- Enter launches the trimmed command detached via the user's shell, then closes cofi
+- Bare `!` or whitespace-only commands are a no-op
+- Run history is session-only, separate from command history, and navigable with Up/Down
+- Deleting back from `!foo` to empty exits run mode cleanly
+- Run mode never updates repeat-last-query state
 
 ## Single Instance
 
@@ -315,6 +328,24 @@ Position and resize the selected window to predefined screen regions.
 - Respects work area (excludes panels, docks, taskbars)
 - Respects window size hints (e.g., terminal minimum sizes)
 
+## Apps Tab
+
+Launch installed desktop applications from a dedicated Apps tab.
+
+- Data source: XDG desktop applications via GLib/GIO app-info APIs
+- Excludes hidden / invalid / `NoDisplay` apps
+- Enter launches the selected app detached and closes cofi
+- `--applications` starts directly on the Apps tab
+- `:show apps` switches to the Apps tab
+
+### Apps Matching And Ranking
+
+Apps tab matching is local to the Apps launcher and does not reuse Windows-tab MRU/fuzzy ranking.
+
+- Ranking priority: `name` > `generic_name` > `keywords`
+- `generic_name` and `keywords` are token-matched to avoid cross-token false positives
+- Alphabetical order is only used as a tie-breaker within the same ranking tier
+
 ## Workspace Management
 
 View and interact with workspaces via the Workspaces tab.
@@ -327,7 +358,7 @@ View and interact with workspaces via the Workspaces tab.
 
 ## Tabs
 
-Six tabs accessible via Tab/Shift+Tab:
+Seven tabs accessible via Tab/Shift+Tab:
 
 1. **Windows** — main window list with search and MRU ordering
 2. **Workspaces** — workspace list and management
@@ -335,6 +366,7 @@ Six tabs accessible via Tab/Shift+Tab:
 4. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete)
 5. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit)
 6. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete)
+7. **Apps** — installed desktop application launcher
 
 - Selection state is preserved per tab when switching
 
@@ -366,6 +398,8 @@ Runtime config changes via `:set <key> <value>` are saved to `options.json` imme
 - `--harpoon` — start on the Harpoon tab
 - `--names` — start on the Names tab
 - `--command` — start in command mode
+- `--run` — start in run mode
+- `--applications` — start on the Apps tab
 - `--no-daemon` — show window immediately, quit on close, no hotkey registration
 - `--assign-slots` — assign workspace window slots and exit
 - `--log-level LEVEL` — set log verbosity (trace, debug, info, warn, error, fatal)
