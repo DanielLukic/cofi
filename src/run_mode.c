@@ -128,10 +128,11 @@ gboolean browse_run_history(RunMode *run_mode, int direction, char *entry_text_o
     }
 
     if (run_mode->history_index >= 0) {
-        g_snprintf(entry_text_out, entry_text_size, "!%s",
-                   run_mode->history[run_mode->history_index]);
+        g_strlcpy(entry_text_out,
+                  run_mode->history[run_mode->history_index],
+                  entry_text_size);
     } else {
-        g_strlcpy(entry_text_out, "!", entry_text_size);
+        g_strlcpy(entry_text_out, "", entry_text_size);
     }
     return TRUE;
 }
@@ -149,11 +150,9 @@ void enter_run_mode(AppData *app, const char *prefill_command) {
     }
 
     if (prefill_command && prefill_command[0] != '\0') {
-        char entry_text[257];
-        g_snprintf(entry_text, sizeof(entry_text), "!%s", prefill_command);
-        set_run_entry_text(app, entry_text);
+        set_run_entry_text(app, prefill_command);
     } else {
-        set_run_entry_text(app, "!");
+        set_run_entry_text(app, "");
     }
 
     log_info("USER: Entered run mode");
@@ -194,12 +193,6 @@ void handle_run_entry_changed(GtkEntry *entry, AppData *app) {
     if (!text || text[0] == '\0' || strcmp(text, "!") == 0) {
         exit_run_mode(app);
         return;
-    }
-
-    if (text[0] != '!') {
-        char entry_text[257];
-        g_snprintf(entry_text, sizeof(entry_text), "!%s", text);
-        set_run_entry_text(app, entry_text);
     }
 }
 
