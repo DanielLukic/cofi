@@ -22,7 +22,7 @@ int main() {
     strcpy(windows[2].class_name, "Google-chrome");
     windows[2].desktop = 2;
     
-    strcpy(windows[3].title, "cofi [~/Projects/cofi] — /home/dl/Projects/cofi/CLAUD");
+    strcpy(windows[3].title, "cofi [~/code/cofi] — ~/code/cofi/CLAUD");
     strcpy(windows[3].instance, "jetbrains-clion");
     strcpy(windows[3].class_name, "jetbrains-clion");
     windows[3].desktop = 3;

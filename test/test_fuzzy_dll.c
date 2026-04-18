@@ -8,7 +8,7 @@ int main() {
         {"Daniel Dario Lukic (DM) - GLS-STUDIO - Slack - Google C", "Daniel Dario Lukic"},
         {"Watch Resident Alien S1E5 online TV Series - Google Chr", "Resident Alien"},
         {"Flagsmith Android/Kotlin SDK | Flagsmith Docs - Google", "Flagsmith"},
-        {"cofi [~/Projects/cofi] — /home/dl/Projects/cofi/CLAUD", "cofi"}
+        {"cofi [~/code/cofi] — ~/code/cofi/CLAUD", "cofi"}
     };
     
     const char *queries[] = {"dll", "ddl", "dario", "daniel", "dal"};
