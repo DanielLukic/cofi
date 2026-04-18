@@ -6,6 +6,7 @@
 #include "../src/cli_args.h"
 #include "../src/command_api.h"
 #include "../src/config.h"
+#include "../src/daemon_socket.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -44,6 +45,7 @@ static void test_parse_run_flag_sets_startup_mode(void) {
     ASSERT_TRUE("parse --run succeeds", result == 0);
     ASSERT_TRUE("parse --run sets start_in_run_mode", app.start_in_run_mode == 1);
     ASSERT_TRUE("parse --run leaves command mode flag unset", app.start_in_command_mode == 0);
+    ASSERT_TRUE("parse --run sets delegate opcode", app.startup_delegate_opcode == COFI_OPCODE_RUN);
 
     free(log_file);
 }

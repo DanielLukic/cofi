@@ -213,12 +213,22 @@ fi
 if [ -f test_main_split_regression ]; then
     echo ""
     echo "Running main-split regression tests..."
+
+    test_exit=0
     if command -v xvfb-run >/dev/null 2>&1; then
         xvfb-run -a ./test_main_split_regression
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_main_split_regression
+            test_exit=$?
+        fi
     else
         ./test_main_split_regression
+        test_exit=$?
     fi
-    if [ $? -ne 0 ]; then
+
+    if [ $test_exit -ne 0 ]; then
         overall_exit=1
     fi
 fi
@@ -277,6 +287,33 @@ if [ -f test_command_mode_targeting ]; then
     echo ""
     echo "Running command mode targeting tests..."
     ./test_command_mode_targeting
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_daemon_socket ]; then
+    echo ""
+    echo "Running daemon socket tests..."
+    ./test_daemon_socket
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_daemon_socket_dispatch ]; then
+    echo ""
+    echo "Running daemon socket dispatch tests..."
+    ./test_daemon_socket_dispatch
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_cli_args_delegate ]; then
+    echo ""
+    echo "Running CLI delegate parsing tests..."
+    ./test_cli_args_delegate
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi

@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include <X11/Xlib.h>
+#include <stdint.h>
 #include "window_info.h"
 #include "workspace_info.h"
 #include "harpoon.h"
@@ -17,6 +18,7 @@
 #include "rules_config.h"
 #include "rules.h"
 #include "apps.h"
+#include "daemon_socket.h"
 
 
 typedef enum {
@@ -176,10 +178,15 @@ typedef struct AppData {
     RuleState rule_state;                   // Per-rule per-window match state
     CommandMode command_mode;               // Command mode state
     RunMode run_mode;                       // Run mode state
-    int start_in_command_mode;              // Whether to start in command mode (--command flag)
-    int start_in_run_mode;                  // Whether to start in run mode (--run flag)
+    int start_in_command_mode;              // Whether to start in command mode (--command delegate)
+    int start_in_run_mode;                  // Whether to start in run mode (--run delegate)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
-    int no_daemon;                          // Whether to run in no-daemon mode (--no-daemon flag)
+    uint8_t startup_delegate_opcode;        // Startup delegate opcode requested by CLI (0 = none)
+
+    int daemon_socket_fd;                   // Listening unix socket fd (-1 when inactive)
+    char daemon_socket_path[COFI_SOCKET_PATH_MAX]; // Bound unix socket path
+    GIOChannel *daemon_socket_channel;      // GLib channel for daemon socket watcher
+    guint daemon_socket_watch_id;           // GLib watch id for daemon socket
 
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown

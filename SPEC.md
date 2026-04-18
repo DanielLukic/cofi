@@ -140,13 +140,16 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 
 Only one cofi instance runs at a time.
 
-- XGrabKey registration is the natural duplicate-instance guard: a second instance fails to grab hotkeys (BadAccess) and shows a retry/exit dialog
-- No D-Bus or lock files needed
+- Primary guard is a Unix domain socket at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`)
+- `cofi` with no delegate flags returns `already running` + exit 1 when daemon exists
+- Delegate flags (`--windows`, `--workspaces`, `--harpoon`, `--names`, `--command`, `--run`, `--applications`) connect to the daemon, send a 1-byte opcode, and exit 0
+- If no daemon exists, cofi binds the socket, starts daemon mode, and applies the requested startup delegate mode
+- Stale socket path is recovered by connect-fail → unlink → bind retry
 
-## Daemon vs No-Daemon Mode
+## Daemon Startup Model
 
 - **Daemon (default)** — starts hidden, registers hotkeys, waits. Window shown only on hotkey press.
-- **`--no-daemon`** — shows window immediately, no hotkey registration, quits on close. Useful for WM-shortcut driven workflows.
+- **Delegate launch** — any delegate flag opens the requested tab/mode via socket; no separate no-daemon mode exists.
 
 ## Live Window List
 
@@ -394,13 +397,13 @@ Runtime config changes via `:set <key> <value>` are saved to `options.json` imme
 
 - `--align ALIGNMENT` — window position (center, top, bottom, top_left, top_right, left, right, bottom_left, bottom_right)
 - `--no-auto-close` — keep cofi open when it loses focus
-- `--workspaces` — start on the Workspaces tab
-- `--harpoon` — start on the Harpoon tab
-- `--names` — start on the Names tab
-- `--command` — start in command mode
-- `--run` — start in run mode
-- `--applications` — start on the Apps tab
-- `--no-daemon` — show window immediately, quit on close, no hotkey registration
+- `--windows` / `-W` — delegate to Windows tab
+- `--workspaces` — delegate to Workspaces tab
+- `--harpoon` — delegate to Harpoon tab
+- `--names` — delegate to Names tab
+- `--command` — delegate to command mode
+- `--run` — delegate to run mode
+- `--applications` — delegate to Apps tab
 - `--assign-slots` — assign workspace window slots and exit
 - `--log-level LEVEL` — set log verbosity (trace, debug, info, warn, error, fatal)
 - `--log-file FILE` — write logs to file

@@ -23,10 +23,9 @@ void init_app_data(AppData *app) {
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
     app->command_target_id = 0;
 
-    // Initialize tab mode - always reset to windows unless explicitly set by --workspaces, --harpoon, or --names
-    // This ensures reopening always starts in windows tab unless a specific tab is requested
-    // Note: Command line parsing sets current_tab when --workspaces, --harpoon, or --names is used
-    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON && app->current_tab != TAB_NAMES) {
+    // Initialize tab mode - always reset to windows unless explicitly set by startup delegate flags
+    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON &&
+        app->current_tab != TAB_NAMES && app->current_tab != TAB_APPS) {
         app->current_tab = TAB_WINDOWS;
     }
 
@@ -88,6 +87,12 @@ void init_app_data(AppData *app) {
     // Initialize timers
     app->focus_loss_timer = 0;
     app->focus_grab_timer = 0;
+
+    if (app->daemon_socket_fd == 0) {
+        app->daemon_socket_fd = -1;
+    }
+    app->daemon_socket_watch_id = 0;
+    app->daemon_socket_channel = NULL;
 }
 
 void init_x11_connection(AppData *app) {

@@ -255,9 +255,7 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_a && (event->state & GDK_CONTROL_MASK)) {
-        if (!app->no_daemon) {
-            cleanup_hotkeys(app);
-        }
+        cleanup_hotkeys(app);
         app->hotkey_capture_active = TRUE;
         show_overlay(app, OVERLAY_HOTKEY_ADD, NULL);
         return TRUE;
