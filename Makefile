@@ -157,7 +157,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_command_mode_targeting
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -262,6 +262,10 @@ test_repeat_action: test/test_repeat_action.c src/log.o
 # Build run-mode behavioral tests
 test_run_mode: test/test_run_mode.c src/log.o
 	$(CC) $(CFLAGS) -o test/test_run_mode test/test_run_mode.c src/log.o $(LDFLAGS)
+
+# Build command mode targeting tests
+test_command_mode_targeting: test/test_command_mode_targeting.c src/log.o
+	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c src/log.o $(LDFLAGS)
 
 # Build CLI run-flag parsing tests
 test_cli_args_run: test/test_cli_args_run.c src/cli_args.o src/config.o src/log.o src/utils.o

@@ -119,6 +119,7 @@ typedef struct AppData {
     SelectionState selection;               // Centralized selection management
     int active_window_id;                   // Currently active window
     Window own_window_id;                   // Our own window ID for filtering
+    Window command_target_id;              // Pre-focus active window for command mode targeting
 
     WorkspaceInfo workspaces[MAX_WORKSPACES]; // Workspace list
     WorkspaceInfo filtered_workspaces[MAX_WORKSPACES]; // Filtered workspaces
