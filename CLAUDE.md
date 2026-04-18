@@ -3,7 +3,6 @@
 Intent: this file is the contributor workflow and repository operating guide. It covers branching, build/test expectations, coding guidelines, and the high-level subsystem map. It is not the session log and not the place for fragile implementation gotchas.
 
 See also:
-- `checkpoint.md` for current branch/session state, recent changes, and outstanding debt
 - `docs/gotchas.md` for regressions to avoid, tricky invariants, and implementation learnings
 - `SPEC.md` for intended product behavior
 
@@ -117,7 +116,7 @@ When reporting progress or handing work back for testing, always state:
 - **X11/EWMH** — direct Xlib for window management, no wmctrl
 - **GTK3** — native UI with borderless always-on-top window
 - **Event-driven** — PropertyNotify via GIOChannel, no polling
-- **Single instance** — XGrabKey failure guards against duplicates
+- **Single instance** — Unix-socket daemon guard at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`); second instances delegate argv/opcodes to the running daemon
 - **Daemon mode** — starts hidden, registers global hotkeys, waits
 - **Systemd** — `make install` sets up user service with auto-restart
 
@@ -133,14 +132,17 @@ When reporting progress or handing work back for testing, always state:
 - **Run mode** — first-class `!` entry mode with session-only history and detached shell launch
 - **Apps tab** — desktop application launcher with Apps-local matching/ranking and detached launch
 - **Config** — runtime-editable via `:set` or Config tab (Ctrl+T/Ctrl+E)
+- **Daemon socket delegation** — single-instance Unix socket listener + opcode dispatch for delegated startup modes
 
 ## File Organization
 
-- `src/main.c` — entry point, GTK setup, key handlers, tab switching
+- `src/main.c` — entry point, startup wiring, GTK setup, daemon bootstrap/delegation handoff
 - `src/filter.c` — search/scoring pipeline, MRU vs native ordering
 - `src/display.c` — text formatting for all tabs
 - `src/config.c` — config load/save/apply, build_config_entries (single source of truth)
 - `src/command_mode.c` — command parsing, execution, all `:` commands
+- `src/daemon_socket.c` — Unix-socket protocol/path/bind/connect/send/accept primitives
+- `src/daemon_socket_runtime.c` — daemon socket watch integration + opcode-to-UI dispatch
 - `src/workspace_slots.c` — per-workspace slot assignment and column/row sort
 - `src/hotkeys.c` — global XGrabKey registration and dispatch
 - `src/harpoon.c` — persistent window slot assignments
@@ -153,6 +155,9 @@ When reporting progress or handing work back for testing, always state:
 - `src/monitor_move.c` — window geometry and multi-monitor support
 - `src/tiling.c` — tiling positions and calculations
 - `src/repeat_action.c` — session-only repeat-last-query action for Windows tab `.`
+- `src/key_handler.c` — core key dispatch, mode precedence, navigation, entry-changed routing
+- `src/key_handler_harpoon.c` — harpoon assignment + Alt-slot/workspace switching key paths
+- `src/key_handler_tabs.c` — tab-specific key handlers (Names/Harpoon/Config/Hotkeys)
 - `src/run_mode.c` — run mode state, history, and detached shell launch
 - `src/apps.c` — desktop app loading, Apps-local matching/ranking, and detached launch
 - `src/log.c` — rxi/log.c logging library
