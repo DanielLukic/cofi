@@ -56,6 +56,7 @@ Run cofi daemon (starts hidden, shows on hotkey):
 ```
 
 Delegate to a specific mode/tab (opens existing daemon if running, otherwise starts daemon and opens that mode):
+All delegate flags (`--command`, `--run`, `--workspaces`, `--harpoon`, `--names`, `--applications`, `--windows`/`-W`) forward over the daemon socket to the running instance, or autostart the daemon if none is running.
 
 ```bash
 ./cofi --command
@@ -174,13 +175,13 @@ When `digit_slot_mode` is `"workspaces"` in options.json:
 
 ### Command Mode
 
-Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments. Command mode preserves your current window selection unless you're entering from the default alt-tab position. In that latter case, selection will auto-jump to the previously active window. This will allow quick command application to the currently active window without having to select it first.
+Press `:` to enter command mode for advanced window management operations. Commands can be typed with or without spaces between the command and arguments. When entered from hidden/delegated flows, command targeting is pinned by the pre-show active window ID (captured before show) and then resolved in the filtered list on command-mode entry.
 
 ![Command Mode](doc/cofi-commands.png)
 
 ### Run Mode
 
-Press `!` to enter run mode for detached shell commands. The entry switches to a `!` prompt, Up/Down browse a separate session-only run history, Enter launches the trimmed command detached and closes cofi, and deleting back to empty exits run mode. Bare `!` or whitespace-only commands are ignored. `:show run` and `--run` open directly into the same run surface.
+Press `!` to enter run mode for detached shell commands. `!` is the mode indicator label; the entry itself holds raw command text (no literal `!` prefix). Up/Down browse a separate session-only run history, Enter launches the trimmed command detached and closes cofi, and deleting back to empty exits run mode. Bare `!` (legacy tolerated) or whitespace-only commands are ignored. `:show run` and `--run` open directly into the same run surface.
 
 ### Apps Tab
 

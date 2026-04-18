@@ -4,7 +4,6 @@ Intent: this file captures implementation learnings, fragile behaviors, and regr
 
 See also:
 - `CLAUDE.md` for contributor workflow, build rules, and subsystem map
-- `checkpoint.md` for current branch/session state and recent work
 - `SPEC.md` for intended product behavior
 
 ## Hotkeys
@@ -62,13 +61,21 @@ See also:
   `cmd_toggle_monitor` already activates the commanded window after moving it.
   Reintroducing activation inside the lower-level move helper can cause double-activation or control-flow bugs.
 
+## Command Targeting Ordering (TFD-511)
+
+- `command_target_id` must be captured before `show_window()` when entering command mode from hidden/delegated flows.
+  Required ordering is `get_active_window_id()` → `show_window()` → `enter_command_mode()`.
+
+- Daemon-socket dispatch preserves this ordering for `--command` / command opcode paths.
+  Hidden hotkey command-mode dispatch follows the same sequence.
+
+- Regression risk: if `show_window()` is moved before capture, command targeting can drift to the wrong window.
+  TFD-511 behavior depends on identity pinning from the pre-show active window, not post-open selection side effects.
+
 ## Docs And Truth Sources
 
 - Treat `SPEC.md` as the behavior spec.
   It is the best source for intended user-visible behavior.
-
-- Treat `checkpoint.md` as current-state operational context.
-  It is useful for recent fixes, outstanding debt, and what changed lately, but it is not the canonical feature spec.
 
 - Treat `COFI_PRD.md` as partially stale unless refreshed.
   It still mentions old architecture such as D-Bus-based single-instance behavior.
@@ -153,4 +160,4 @@ See also:
   A large share of regressions come from code that works when cofi is hidden but behaves differently when the window is already open.
 
 - Prefer current code plus recent commits over older prose.
-  When docs disagree, trust the implementation, `SPEC.md`, `checkpoint.md`, and the newest relevant commits first.
+  When docs disagree, trust the implementation, `SPEC.md`, and the newest relevant commits first.

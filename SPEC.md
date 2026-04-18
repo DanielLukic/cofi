@@ -129,11 +129,12 @@ Examples:
 Shell run entry triggered by typing `!` in the search field or via `show run`.
 
 - Mode indicator changes from `>` to `!`
-- The entry keeps a literal `!` prefix while run mode is active
+- `!` is indicator-only; run entry text is raw command text (no literal `!` prefix)
 - Enter launches the trimmed command detached via the user's shell, then closes cofi
-- Bare `!` or whitespace-only commands are a no-op
+- Bare `!` (legacy tolerated by parser) or whitespace-only commands are a no-op
 - Run history is session-only, separate from command history, and navigable with Up/Down
-- Deleting back from `!foo` to empty exits run mode cleanly
+- Deleting back to empty exits run mode cleanly
+- `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
 ## Single Instance
@@ -249,6 +250,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 - Command history: last 10 commands, navigable with Up/Down
 - Help available via `:help` with paged output
 - Help/config display persists while typing (dismissed on Esc)
+- When entered from hidden/delegated flows, target selection is pinned by `command_target_id`: capture active window ID before `show_window()`, then `enter_command_mode()` resolves that ID in the current filtered list
 
 ### Window Commands
 
@@ -300,7 +302,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `workspaces`, `harpoon`, `names`, `config`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `hotkeys`, `apps`/`applications`
 
 ### Hotkey Management Commands
 
