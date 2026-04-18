@@ -115,8 +115,8 @@ static void test_exclam_switches_from_command_mode_to_run_mode(void) {
                 handle_command_key(&event, &app) == TRUE);
     ASSERT_TRUE("! switches entry state to run mode",
                 app.command_mode.state == CMD_MODE_RUN);
-    ASSERT_TRUE("! seeds run prompt in entry",
-                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "!") == 0);
+    ASSERT_TRUE("! enters run mode with empty entry text",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
 }
 
 int main(void) {
