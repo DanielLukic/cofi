@@ -236,7 +236,19 @@ void enter_command_mode(AppData *app) {
     app->command_mode.help_scroll_offset = 0;
 
     if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0 &&
-        app->selection.window_index == 1) {
+        app->command_target_id != 0) {
+        for (int i = 0; i < app->filtered_count; i++) {
+            if ((Window)app->filtered[i].id == app->command_target_id) {
+                app->selection.window_index = i;
+                app->selection.selected_window_id = app->filtered[i].id;
+                update_display(app);
+                log_debug("Command mode: selected window 0x%lx at index %d by pre-focus ID",
+                          app->command_target_id, i);
+                break;
+            }
+        }
+    } else if (app->current_tab == TAB_WINDOWS && app->filtered_count > 0 &&
+               app->selection.window_index == 1) {
         app->selection.window_index = 0;
         app->selection.selected_window_id = app->filtered[0].id;
         update_display(app);
@@ -265,6 +277,7 @@ void exit_command_mode(AppData *app) {
     app->command_mode.help_scroll_offset = 0;
     app->command_mode.history_index = -1;
     app->command_mode.close_on_exit = FALSE;
+    app->command_target_id = 0;
 
     if (should_close) {
         log_info("USER: Exited command mode (started with --command, closing window)");

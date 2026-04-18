@@ -9,6 +9,7 @@
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
+#include "x11_utils.h"
 
 
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
@@ -16,8 +17,9 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
         switch (mode) {
             case SHOW_MODE_COMMAND:
                 app->current_tab = TAB_WINDOWS;
+                app->command_target_id = (Window)get_active_window_id(app->display);
                 show_window(app);
-                enter_command_mode(app);  // EXPERIMENT: direct call, no timer
+                enter_command_mode(app);
                 break;
             case SHOW_MODE_RUN:
                 app->current_tab = TAB_WINDOWS;
@@ -79,6 +81,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 return;
             }
             app->current_tab = TAB_WINDOWS;
+            app->command_target_id = (Window)app->active_window_id;
             enter_command_mode(app);
             break;
 

@@ -21,6 +21,7 @@ void init_app_data(AppData *app) {
     // Initialize history and active window tracking
     app->history_count = 0;
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
+    app->command_target_id = 0;
 
     // Initialize tab mode - always reset to windows unless explicitly set by --workspaces, --harpoon, or --names
     // This ensures reopening always starts in windows tab unless a specific tab is requested

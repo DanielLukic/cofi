@@ -273,4 +273,13 @@ if [ -f test_apps ]; then
     fi
 fi
 
+if [ -f test_command_mode_targeting ]; then
+    echo ""
+    echo "Running command mode targeting tests..."
+    ./test_command_mode_targeting
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

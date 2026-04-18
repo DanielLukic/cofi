@@ -23,6 +23,7 @@
 #include "window_lifecycle.h"
 #include "workspace_slots.h"
 #include "x11_events.h"
+#include "x11_utils.h"
 
 void setup_application(AppData *app, WindowAlignment alignment) {
     app->config.alignment = alignment;
@@ -262,6 +263,9 @@ int run_cofi(int argc, char *argv[]) {
     }
 
     if (app.no_daemon || app.start_in_run_mode) {
+        if (app.start_in_command_mode) {
+            app.command_target_id = (Window)get_active_window_id(app.display);
+        }
         show_window(&app);
         if (app.start_in_command_mode) {
             app.command_mode.close_on_exit = TRUE;

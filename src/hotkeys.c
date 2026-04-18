@@ -186,6 +186,7 @@ typedef struct {
 } HotkeyDispatch;
 
 static void prefill_command_mode(AppData *app, const char *command) {
+    app->command_target_id = (Window)get_active_window_id(app->display);
     show_window(app);
     if (app->command_mode.state != CMD_MODE_COMMAND) {
         enter_command_mode(app);
