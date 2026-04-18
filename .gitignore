@@ -5,6 +5,22 @@
 *.o
 cofi
 
+# Secrets / credentials (prophylactic)
+.env
+.env.*
+credentials*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.secret
+id_rsa
+id_ed25519
+id_ecdsa
+id_dsa
+
 # Test binaries
 test/test_*
 !test/test_*.c

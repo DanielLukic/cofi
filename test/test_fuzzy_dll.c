@@ -8,7 +8,7 @@ int main() {
         {"Diana Drew Lane (DM) - EXAMPLE-STUDIO - Slack - Google C", "Diana Drew Lane"},
         {"Watch Resident Alien S1E5 online TV Series - Google Chr", "Resident Alien"},
         {"Feature Flags Android/Kotlin SDK | Feature Flags Docs - Google", "Feature Flags"},
-        {"cofi [~/Projects/sample-app] — /home/user/Projects/cofi/CLAUD", "cofi"}
+        {"cofi [~/code/cofi] — ~/code/cofi/CLAUD", "cofi"}
     };
     
     const char *queries[] = {"dll", "ddl", "dario", "daniel", "dal"};
