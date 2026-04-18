@@ -233,6 +233,36 @@ if [ -f test_main_split_regression ]; then
     fi
 fi
 
+# Run key-handler core behavioral tests if they exist
+if [ -f test_key_handler_core ]; then
+    echo ""
+    echo "Running key-handler core behavioral tests..."
+    ./test_key_handler_core
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run key-handler harpoon behavioral tests if they exist
+if [ -f test_key_handler_harpoon ]; then
+    echo ""
+    echo "Running key-handler harpoon behavioral tests..."
+    ./test_key_handler_harpoon
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run key-handler tab-specific behavioral tests if they exist
+if [ -f test_key_handler_tabs ]; then
+    echo ""
+    echo "Running key-handler tab-specific behavioral tests..."
+    ./test_key_handler_tabs
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run workspace slot cap regression tests if they exist
 if [ -f test_workspace_slots_cap ]; then
     echo ""
