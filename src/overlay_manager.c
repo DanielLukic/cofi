@@ -104,9 +104,7 @@ void hide_overlay(AppData *app) {
 
     if (app->hotkey_capture_active) {
         app->hotkey_capture_active = FALSE;
-        if (!app->no_daemon) {
-            regrab_hotkeys(app);
-        }
+        regrab_hotkeys(app);
     }
 
     set_main_focusability(app, TRUE);

@@ -13,6 +13,35 @@ extern "C" {
 #include "version.h"
 #include "utils.h"
 #include "command_api.h"
+#include "daemon_socket.h"
+
+static void set_startup_delegate(AppData *app, uint8_t opcode) {
+    if (!app) {
+        return;
+    }
+
+    app->startup_delegate_opcode = opcode;
+    app->start_in_command_mode = (opcode == COFI_OPCODE_COMMAND);
+    app->start_in_run_mode = (opcode == COFI_OPCODE_RUN);
+
+    switch (opcode) {
+        case COFI_OPCODE_WORKSPACES:
+            app->current_tab = TAB_WORKSPACES;
+            break;
+        case COFI_OPCODE_HARPOON:
+            app->current_tab = TAB_HARPOON;
+            break;
+        case COFI_OPCODE_NAMES:
+            app->current_tab = TAB_NAMES;
+            break;
+        case COFI_OPCODE_APPLICATIONS:
+            app->current_tab = TAB_APPS;
+            break;
+        default:
+            app->current_tab = TAB_WINDOWS;
+            break;
+    }
+}
 
 void print_usage(const char *prog_name) {
     printf("Usage: %s [options]\n", prog_name);
@@ -23,14 +52,14 @@ void print_usage(const char *prog_name) {
     printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
     printf("                       left, right, bottom, bottom_left, bottom_right)\n");
     printf("  --no-auto-close      Don't close window when focus is lost\n");
-    printf("  --workspaces         Start with the Workspaces tab active\n");
-    printf("  --harpoon            Start with the Harpoon tab active\n");
-    printf("  --names              Start with the Names tab active\n");
-    printf("  --command            Start in command mode (with ':' prompt)\n");
-    printf("  --run                Start in run mode (with '!' prompt)\n");
-    printf("  --applications       Start with the Apps tab active\n");
+    printf("  --windows, -W        Delegate to Windows tab if daemon running\n");
+    printf("  --workspaces         Delegate to Workspaces tab\n");
+    printf("  --harpoon            Delegate to Harpoon tab\n");
+    printf("  --names              Delegate to Names tab\n");
+    printf("  --command            Delegate to command mode (with ':' prompt)\n");
+    printf("  --run                Delegate to run mode (with '!' prompt)\n");
+    printf("  --applications       Delegate to Apps tab\n");
     printf("  --assign-slots       Assign workspace window slots and exit\n");
-    printf("  --no-daemon          Show window immediately and exit on close (no hotkeys)\n");
     printf("  --version            Show version information\n");
     printf("  --help               Show this help message\n");
     printf("  --help-commands, -H  Show command mode help\n");
@@ -78,14 +107,14 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto no_log_opt = op.add<Switch>("n", "no-log", "Disable logging");
     auto align_opt = op.add<Value<std::string>>("a", "align", "Set window alignment");
     auto no_auto_close_opt = op.add<Switch>("C", "no-auto-close", "Don't close window when focus is lost");
-    auto workspaces_opt = op.add<Switch>("w", "workspaces", "Start with the Workspaces tab active");
-    auto harpoon_opt = op.add<Switch>("", "harpoon", "Start with the Harpoon tab active");
-    auto names_opt = op.add<Switch>("", "names", "Start with the Names tab active");
-    auto command_opt = op.add<Switch>("c", "command", "Start in command mode (with ':' prompt)");
-    auto run_opt = op.add<Switch>("", "run", "Start in run mode (with '!' prompt)");
-    auto applications_opt = op.add<Switch>("", "applications", "Start with the Apps tab active");
+    auto windows_opt = op.add<Switch>("W", "windows", "Delegate to the Windows tab");
+    auto workspaces_opt = op.add<Switch>("w", "workspaces", "Delegate to the Workspaces tab");
+    auto harpoon_opt = op.add<Switch>("", "harpoon", "Delegate to the Harpoon tab");
+    auto names_opt = op.add<Switch>("", "names", "Delegate to the Names tab");
+    auto command_opt = op.add<Switch>("c", "command", "Delegate to command mode (with ':' prompt)");
+    auto run_opt = op.add<Switch>("", "run", "Delegate to run mode (with '!' prompt)");
+    auto applications_opt = op.add<Switch>("", "applications", "Delegate to the Apps tab");
     auto assign_slots_opt = op.add<Switch>("", "assign-slots", "Assign workspace window slots and exit");
-    auto no_daemon_opt = op.add<Switch>("", "no-daemon", "Show window immediately and exit on close (no hotkey registration)");
     auto version_opt = op.add<Switch>("v", "version", "Show version information");
     auto help_opt = op.add<Switch>("h", "help", "Show this help message");
     auto help_commands_opt = op.add<Switch>("H", "help-commands", "Show command mode help");
@@ -156,36 +185,36 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
         if (close_on_focus_loss_specified) *close_on_focus_loss_specified = 1;
     }
     
+    if (windows_opt->is_set()) {
+        set_startup_delegate(app, COFI_OPCODE_WINDOWS);
+    }
+
     if (workspaces_opt->is_set()) {
-        app->current_tab = TAB_WORKSPACES;
+        set_startup_delegate(app, COFI_OPCODE_WORKSPACES);
     }
-    
+
     if (harpoon_opt->is_set()) {
-        app->current_tab = TAB_HARPOON;
+        set_startup_delegate(app, COFI_OPCODE_HARPOON);
     }
-    
+
     if (names_opt->is_set()) {
-        app->current_tab = TAB_NAMES;
+        set_startup_delegate(app, COFI_OPCODE_NAMES);
     }
-    
+
     if (command_opt->is_set()) {
-        app->start_in_command_mode = 1;
+        set_startup_delegate(app, COFI_OPCODE_COMMAND);
     }
 
     if (run_opt->is_set()) {
-        app->start_in_run_mode = 1;
+        set_startup_delegate(app, COFI_OPCODE_RUN);
     }
 
     if (applications_opt->is_set()) {
-        app->current_tab = TAB_APPS;
+        set_startup_delegate(app, COFI_OPCODE_APPLICATIONS);
     }
 
     if (assign_slots_opt->is_set()) {
         app->assign_slots_and_exit = 1;
-    }
-
-    if (no_daemon_opt->is_set()) {
-        app->no_daemon = 1;
     }
 
     return 0; // Success

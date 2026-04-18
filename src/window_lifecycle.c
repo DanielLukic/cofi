@@ -103,11 +103,6 @@ void hide_window(AppData *app) {
         return;
     }
 
-    if (app->no_daemon) {
-        gtk_main_quit();
-        return;
-    }
-
     log_debug("Hiding window without destroying");
 
     if (app->entry) {

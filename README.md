@@ -49,16 +49,17 @@ make debug
 
 ## Usage
 
-Run cofi (daemon mode — starts hidden, shows on hotkey):
+Run cofi daemon (starts hidden, shows on hotkey):
 
 ```bash
 ./cofi
 ```
 
-Or run in no-daemon mode (shows immediately, quits on close):
+Delegate to a specific mode/tab (opens existing daemon if running, otherwise starts daemon and opens that mode):
 
 ```bash
-./cofi --no-daemon
+./cofi --command
+./cofi --windows
 ```
 
 ### Autostart
@@ -77,18 +78,18 @@ Install for automatic startup at login:
 
 ![Command Line Options](doc/cofi-options.png)
 
-- `--no-daemon` - Show window immediately, quit on close, no hotkey registration
+- `--windows` (`-W`) - Delegate to Windows tab
 - `--log-level LEVEL` (-l) - Set log level: trace, debug, info (default), warn, error, fatal
 - `--log-file FILE` (-f) - Write logs to file
 - `--no-log` (-n) - Disable logging
 - `--align POSITION` (-a) - Window position: center (default), top, top_left, top_right, left, right, bottom, bottom_left, bottom_right
 - `--no-auto-close` (-C) - Don't close window when focus is lost
-- `--workspaces` (-w) - Start with the Workspaces tab active
-- `--harpoon` - Start with the Harpoon tab active
-- `--names` - Start with the Names tab active
-- `--command` (-c) - Start directly in command mode with `:` prompt active
-- `--run` - Start directly in run mode with `!` prompt active
-- `--applications` - Start with the Apps tab active
+- `--workspaces` (-w) - Delegate to Workspaces tab
+- `--harpoon` - Delegate to Harpoon tab
+- `--names` - Delegate to Names tab
+- `--command` (-c) - Delegate to command mode (`:` prompt)
+- `--run` - Delegate to run mode (`!` prompt)
+- `--applications` - Delegate to Apps tab
 - `--assign-slots` - Assign workspace window slots and exit
 - `--version` (-v) - Show version
 - `--help` (-h) - Show help

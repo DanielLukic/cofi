@@ -123,7 +123,12 @@ int main(void) {
     int argc = 0;
     char **argv = NULL;
 
-    gtk_init(&argc, &argv);
+    if (!gtk_init_check(&argc, &argv)) {
+        printf("Main split regression tests\n");
+        printf("===========================\n\n");
+        printf("SKIP: GTK display unavailable\n");
+        return 0;
+    }
 
     printf("Main split regression tests\n");
     printf("===========================\n\n");

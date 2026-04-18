@@ -2,11 +2,22 @@
 #include "run_mode.h"
 
 #include <gdk/gdkx.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#if defined(G_OS_UNIX)
+#include <glib-unix.h>
+#endif
 
 #include "app_init.h"
 #include "cli_args.h"
 #include "command_mode.h"
+#include "daemon_socket.h"
+#include "daemon_socket_runtime.h"
 #include "display.h"
 #include "dynamic_display.h"
 #include "gtk_window.h"
@@ -24,6 +35,90 @@
 #include "workspace_slots.h"
 #include "x11_events.h"
 #include "x11_utils.h"
+
+static char g_daemon_socket_cleanup_path[COFI_SOCKET_PATH_MAX] = {0};
+static int g_daemon_socket_cleanup_armed = 0;
+static int g_daemon_socket_cleanup_registered = 0;
+static guint g_daemon_sigterm_source_id = 0;
+static guint g_daemon_sigint_source_id = 0;
+
+static void cleanup_daemon_socket_on_exit(void) {
+    if (!g_daemon_socket_cleanup_armed || g_daemon_socket_cleanup_path[0] == '\0') {
+        return;
+    }
+
+    unlink(g_daemon_socket_cleanup_path);
+    g_daemon_socket_cleanup_path[0] = '\0';
+    g_daemon_socket_cleanup_armed = 0;
+}
+
+static void arm_daemon_socket_exit_cleanup(const char *socket_path) {
+    if (!socket_path || socket_path[0] == '\0') {
+        return;
+    }
+
+    if (!g_daemon_socket_cleanup_registered) {
+        atexit(cleanup_daemon_socket_on_exit);
+        g_daemon_socket_cleanup_registered = 1;
+    }
+
+    strncpy(g_daemon_socket_cleanup_path, socket_path,
+            sizeof(g_daemon_socket_cleanup_path) - 1);
+    g_daemon_socket_cleanup_path[sizeof(g_daemon_socket_cleanup_path) - 1] = '\0';
+    g_daemon_socket_cleanup_armed = 1;
+}
+
+static void disarm_daemon_socket_exit_cleanup(void) {
+    g_daemon_socket_cleanup_path[0] = '\0';
+    g_daemon_socket_cleanup_armed = 0;
+}
+
+static gboolean on_daemon_shutdown_signal(gpointer user_data) {
+    AppData *app = (AppData *)user_data;
+
+    log_info("Received shutdown signal; stopping daemon socket monitor");
+    daemon_socket_stop_monitor(app);
+    disarm_daemon_socket_exit_cleanup();
+
+    g_daemon_sigterm_source_id = 0;
+    g_daemon_sigint_source_id = 0;
+
+    gtk_main_quit();
+    return G_SOURCE_REMOVE;
+}
+
+static void register_daemon_signal_handlers(AppData *app) {
+#if defined(G_OS_UNIX) && GLIB_CHECK_VERSION(2, 30, 0)
+    if (g_daemon_sigterm_source_id == 0) {
+        g_daemon_sigterm_source_id = g_unix_signal_add(SIGTERM, on_daemon_shutdown_signal, app);
+        if (g_daemon_sigterm_source_id == 0) {
+            log_warn("Failed to register SIGTERM handler for daemon socket cleanup");
+        }
+    }
+
+    if (g_daemon_sigint_source_id == 0) {
+        g_daemon_sigint_source_id = g_unix_signal_add(SIGINT, on_daemon_shutdown_signal, app);
+        if (g_daemon_sigint_source_id == 0) {
+            log_warn("Failed to register SIGINT handler for daemon socket cleanup");
+        }
+    }
+#else
+    (void)app;
+    log_warn("g_unix_signal_add unavailable; daemon shutdown signal cleanup disabled");
+#endif
+}
+
+static void unregister_daemon_signal_handlers(void) {
+    if (g_daemon_sigterm_source_id > 0) {
+        g_source_remove(g_daemon_sigterm_source_id);
+        g_daemon_sigterm_source_id = 0;
+    }
+
+    if (g_daemon_sigint_source_id > 0) {
+        g_source_remove(g_daemon_sigint_source_id);
+        g_daemon_sigint_source_id = 0;
+    }
+}
 
 void setup_application(AppData *app, WindowAlignment alignment) {
     app->config.alignment = alignment;
@@ -200,6 +295,45 @@ int run_cofi(int argc, char *argv[]) {
 
     log_debug("Starting cofi...");
 
+    if (!app.assign_slots_and_exit) {
+        char socket_path[COFI_SOCKET_PATH_MAX] = {0};
+        if (daemon_socket_get_path(socket_path, sizeof(socket_path)) != 0) {
+            fprintf(stderr, "Failed to derive daemon socket path\n");
+            return 1;
+        }
+
+        int existing_fd = daemon_socket_connect(socket_path);
+        if (existing_fd >= 0) {
+            if (app.startup_delegate_opcode != COFI_OPCODE_RESERVED) {
+                int send_rc = daemon_socket_send_opcode(existing_fd, app.startup_delegate_opcode);
+                int saved_errno = errno;
+                close(existing_fd);
+                if (send_rc != 0) {
+                    fprintf(stderr, "Failed to delegate mode to running daemon: %s\n",
+                            strerror(saved_errno));
+                    return 1;
+                }
+                return 0;
+            }
+
+            close(existing_fd);
+            fprintf(stderr, "cofi: already running\n");
+            return 1;
+        }
+
+        int listener_fd = daemon_socket_bind_listener(socket_path);
+        if (listener_fd < 0) {
+            fprintf(stderr, "cofi: failed to bind daemon socket: %s\n", strerror(errno));
+            return 1;
+        }
+
+        app.daemon_socket_fd = listener_fd;
+        strncpy(app.daemon_socket_path, socket_path, sizeof(app.daemon_socket_path) - 1);
+        app.daemon_socket_path[sizeof(app.daemon_socket_path) - 1] = '\0';
+        arm_daemon_socket_exit_cleanup(app.daemon_socket_path);
+        register_daemon_signal_handlers(&app);
+    }
+
     gint64 start_time = g_get_monotonic_time();
     g_set_prgname("cofi");
     gtk_init(&argc, &argv);
@@ -258,24 +392,30 @@ int run_cofi(int argc, char *argv[]) {
         log_warn("Could not get own window ID");
     }
 
-    if (!app.no_daemon) {
-        setup_hotkeys(&app);
+    setup_hotkeys(&app);
+
+    if (!app.assign_slots_and_exit) {
+        if (daemon_socket_start_monitor(&app) != 0) {
+            fprintf(stderr, "cofi: failed to start daemon socket watcher\n");
+            cleanup_hotkeys(&app);
+            daemon_socket_stop_monitor(&app);
+            disarm_daemon_socket_exit_cleanup();
+            unregister_daemon_signal_handlers();
+            cleanup_window_highlight(&app);
+            cleanup_x11_event_monitoring();
+            XCloseDisplay(app.display);
+            if (log_file) {
+                fclose(log_file);
+            }
+            return 1;
+        }
     }
 
-    if (app.no_daemon || app.start_in_run_mode) {
-        if (app.start_in_command_mode) {
-            app.command_target_id = (Window)get_active_window_id(app.display);
-        }
-        show_window(&app);
-        if (app.start_in_command_mode) {
-            app.command_mode.close_on_exit = TRUE;
-            enter_command_mode(&app);
-        } else if (app.start_in_run_mode) {
-            app.run_mode.close_on_exit = TRUE;
-            enter_run_mode(&app, NULL);
-        }
-        log_info("Started with immediate UI mode");
-    } else if (!app.no_daemon) {
+    if (app.startup_delegate_opcode != COFI_OPCODE_RESERVED) {
+        daemon_socket_dispatch_opcode(&app, app.startup_delegate_opcode);
+        log_info("Started daemon with delegated startup mode: %s",
+                 daemon_socket_opcode_name(app.startup_delegate_opcode));
+    } else {
         log_info("Daemon started, waiting for hotkeys");
     }
 
@@ -284,9 +424,10 @@ int run_cofi(int argc, char *argv[]) {
 
     gtk_main();
 
-    if (!app.no_daemon) {
-        cleanup_hotkeys(&app);
-    }
+    cleanup_hotkeys(&app);
+    daemon_socket_stop_monitor(&app);
+    disarm_daemon_socket_exit_cleanup();
+    unregister_daemon_signal_handlers();
     cleanup_window_highlight(&app);
     cleanup_x11_event_monitoring();
     XCloseDisplay(app.display);
