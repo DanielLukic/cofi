@@ -297,12 +297,37 @@ void apps_launch(const AppEntry *entry) {
         return;
     }
 
-    GError *err = NULL;
-    if (!g_app_info_launch(entry->info, NULL, NULL, &err)) {
-        log_error("Failed to launch '%s': %s",
-                  entry->name, err ? err->message : "unknown error");
-        if (err) g_error_free(err);
-    } else {
-        log_info("Launched app: %s", entry->name);
+    // Use proper detachment (not g_app_info_launch) so the launched app is
+    // not in cofi's cgroup. Honour Terminal=true for TUI apps.
+    const char *raw_cmd = g_app_info_get_commandline(entry->info);
+    if (!raw_cmd || raw_cmd[0] == '\0') {
+        log_error("No command line for desktop entry '%s'", entry->name);
+        return;
     }
+    gchar *cmd = detach_strip_field_codes(raw_cmd);
+    if (cmd[0] == '\0') {
+        log_error("Empty command after field-code strip for '%s'", entry->name);
+        g_free(cmd);
+        return;
+    }
+
+    gboolean needs_terminal = FALSE;
+    if (G_IS_DESKTOP_APP_INFO(entry->info)) {
+        needs_terminal = g_desktop_app_info_get_boolean(
+            G_DESKTOP_APP_INFO(entry->info), "Terminal");
+    }
+
+    gboolean ok;
+    if (needs_terminal) {
+        ok = detach_launch_in_terminal(cmd);
+    } else {
+        ok = detach_launch_shell(cmd);
+    }
+
+    if (!ok) {
+        log_error("Failed to launch desktop app '%s'", entry->name);
+    } else {
+        log_info("Launched %sapp: %s", needs_terminal ? "terminal " : "", entry->name);
+    }
+    g_free(cmd);
 }
