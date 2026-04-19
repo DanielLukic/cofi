@@ -1,10 +1,10 @@
 #include "run_mode.h"
 
-#include <gio/gio.h>
 #include <string.h>
 
 #include "display.h"
 #include "log.h"
+#include "detach_launch.h"
 
 extern void hide_window(AppData *app);
 
@@ -19,33 +19,6 @@ static void set_run_entry_text(AppData *app, const char *text) {
     app->run_mode.suppress_entry_change = FALSE;
 }
 
-static gboolean launch_detached_shell_command(const char *command) {
-    const char *shell = g_getenv("SHELL");
-    if (!shell || shell[0] == '\0') {
-        shell = "/bin/sh";
-    }
-
-    const char *argv[] = { shell, "-c", command, NULL };
-    GError *error = NULL;
-    GSubprocessLauncher *launcher = g_subprocess_launcher_new(
-        (GSubprocessFlags)(G_SUBPROCESS_FLAGS_STDIN_INHERIT |
-                           G_SUBPROCESS_FLAGS_STDOUT_SILENCE |
-                           G_SUBPROCESS_FLAGS_STDERR_SILENCE));
-
-    GSubprocess *process = g_subprocess_launcher_spawnv(launcher, argv, &error);
-    g_object_unref(launcher);
-
-    if (!process) {
-        log_error("Failed to launch run command '%s': %s",
-                  command, error ? error->message : "unknown error");
-        g_clear_error(&error);
-        return FALSE;
-    }
-
-    g_object_unref(process);
-    log_info("USER: Launched run command '%s'", command);
-    return TRUE;
-}
 
 void init_run_mode(RunMode *run_mode) {
     if (!run_mode) {
@@ -214,7 +187,7 @@ gboolean handle_run_key(GdkEventKey *event, AppData *app) {
                 return TRUE;
             }
 
-            if (launch_detached_shell_command(command)) {
+            if (detach_launch_shell(command)) {
                 add_run_history_entry(&app->run_mode, command);
                 hide_window(app);
             }

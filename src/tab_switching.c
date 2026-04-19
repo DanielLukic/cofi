@@ -11,6 +11,7 @@
 #include "match.h"
 #include "log.h"
 #include "selection.h"
+#include "path_binaries.h"
 
 static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
     for (int i = 1; i <= 7; i++) {
@@ -234,5 +235,13 @@ void filter_hotkeys(AppData *app, const char *filter) {
 }
 
 void filter_apps(AppData *app, const char *filter) {
-    apps_filter(filter, app->filtered_apps, &app->filtered_apps_count);
+    const char *query = filter ? filter : "";
+
+    if (query[0] == '$') {
+        path_binaries_ensure_loaded(app);
+        path_binaries_filter(query + 1, app->filtered_apps, &app->filtered_apps_count);
+        return;
+    }
+
+    apps_filter(query, app->filtered_apps, &app->filtered_apps_count);
 }

@@ -42,6 +42,8 @@ SOURCES = src/main.c \
           src/run_mode.c \
           src/apps.c \
           src/system_actions.c \
+          src/path_binaries.c \
+          src/detach_launch.c \
           src/command_handlers.c \
           src/command_handlers_window.c \
           src/command_handlers_workspace.c \
@@ -162,7 +164,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -276,8 +278,8 @@ test_repeat_action: test/test_repeat_action.c src/log.o
 	$(CC) $(CFLAGS) -o test/test_repeat_action test/test_repeat_action.c src/log.o $(LDFLAGS)
 
 # Build run-mode behavioral tests
-test_run_mode: test/test_run_mode.c src/log.o
-	$(CC) $(CFLAGS) -o test/test_run_mode test/test_run_mode.c src/log.o $(LDFLAGS)
+test_run_mode: test/test_run_mode.c src/log.o src/detach_launch.o
+	$(CC) $(CFLAGS) -o test/test_run_mode test/test_run_mode.c src/log.o src/detach_launch.o $(LDFLAGS)
 
 # Build command mode targeting tests
 test_command_mode_targeting: test/test_command_mode_targeting.c src/log.o
@@ -314,8 +316,13 @@ test_filter_ranking: test/test_filter_ranking.c src/fzf_algo.o src/log.o
 
 # Build apps tab behavioral tests
 # (includes apps.c directly; tests filter/sort logic with synthetic data, not GIO launch)
-test_apps: test/test_apps.c src/match.o src/log.o src/system_actions.o
-	$(CC) $(CFLAGS) -o test/test_apps test/test_apps.c src/match.o src/log.o src/system_actions.o $(LDFLAGS)
+test_apps: test/test_apps.c src/match.o src/log.o src/system_actions.o src/detach_launch.o
+	$(CC) $(CFLAGS) -o test/test_apps test/test_apps.c src/match.o src/log.o src/system_actions.o src/detach_launch.o $(LDFLAGS)
+
+# Build PATH binaries tests
+# (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)
+test_path_binaries: test/test_path_binaries.c src/path_binaries.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_path_binaries test/test_path_binaries.c src/path_binaries.o src/log.o $(LDFLAGS)
 
 # Build system actions tests
 # (tests load semantics and deterministic metadata for logind-backed actions)
