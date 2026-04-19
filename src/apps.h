@@ -9,6 +9,7 @@
 typedef enum {
     APP_SOURCE_DESKTOP = 0,
     APP_SOURCE_SYSTEM = 1,
+    APP_SOURCE_PATH = 2,
 } AppSourceKind;
 
 typedef enum {
@@ -27,6 +28,7 @@ typedef struct {
     char keywords[512];
     AppSourceKind source_kind;
     SystemActionId action_id;
+    char exec_path[512];
     GAppInfo *info;  /* owned by GIO list; valid until apps_unload() */
 } AppEntry;
 

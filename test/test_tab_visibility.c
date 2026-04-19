@@ -92,6 +92,22 @@ void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *
 void apps_load(void) {
 }
 
+void path_binaries_ensure_loaded(AppData *app) {
+    (void)app;
+}
+
+void path_binaries_filter(const char *query, AppEntry *out, int *out_count) {
+    (void)query;
+    (void)out;
+    if (out_count) {
+        *out_count = 0;
+    }
+}
+
+gboolean path_binaries_is_scanning(void) {
+    return FALSE;
+}
+
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
     (void)app;
     (void)mode;

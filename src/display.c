@@ -16,6 +16,7 @@
 #include "named_window.h"
 #include "display_pipeline.h"
 #include "tab_switching.h"
+#include "path_binaries.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -595,6 +596,10 @@ static void render_apps_item(gpointer context, gint index,
 }
 
 static void format_apps_display(AppData *app, GString *text, gint selected_idx) {
+    if (path_binaries_is_scanning()) {
+        g_string_append(text, "  Scanning PATH...\n");
+    }
+
     if (app->filtered_apps_count == 0) {
         g_string_append(text, "No matching applications found\n");
         return;

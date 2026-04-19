@@ -53,6 +53,10 @@ CofiResult get_x11_property(Display *display, Window window, Atom property, Atom
     return COFI_ERROR;
 }
 
+gboolean path_binaries_is_scanning(void) {
+    return FALSE;
+}
+
 #include "../src/command_parser.c"
 #include "../src/command_mode.c"
 #include "../src/display.c"

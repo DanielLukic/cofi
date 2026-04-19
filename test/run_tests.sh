@@ -323,6 +323,16 @@ if [ -f test_system_actions ]; then
     fi
 fi
 
+# Run PATH binaries tests if they exist
+if [ -f test_path_binaries ]; then
+    echo ""
+    echo "Running PATH binaries tests..."
+    ./test_path_binaries
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_command_mode_targeting ]; then
     echo ""
     echo "Running command mode targeting tests..."
