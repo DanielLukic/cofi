@@ -2,10 +2,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "app_data.h"
 #include "display.h"
 #include "log.h"
+#include "match.h"
 #include "tab_switching.h"
 
 typedef struct {
@@ -40,22 +42,49 @@ static void sort_path_entries(void) {
     qsort(s_path_entries, (size_t)s_path_count, sizeof(AppEntry), path_entry_cmp);
 }
 
-static void filter_path_entries(const char *query, AppEntry *out, int *out_count) {
-    int count = 0;
+typedef struct {
+    AppEntry entry;
+    score_t score;
+} ScoredPathEntry;
 
-    if (!out || !out_count) {
+static int scored_path_entry_cmp(const void *a, const void *b) {
+    const ScoredPathEntry *left = (const ScoredPathEntry *)a;
+    const ScoredPathEntry *right = (const ScoredPathEntry *)b;
+    if (left->score > right->score) return -1;
+    if (left->score < right->score) return 1;
+    return g_utf8_collate(left->entry.name, right->entry.name);
+}
+
+static void filter_path_entries(const char *query, AppEntry *out, int *out_count) {
+    if (!out || !out_count) return;
+
+    if (!query || query[0] == '\0') {
+        int count = s_path_count < MAX_APPS ? s_path_count : MAX_APPS;
+        memcpy(out, s_path_entries, (size_t)count * sizeof(AppEntry));
+        *out_count = count;
         return;
     }
 
-    for (int i = 0; i < s_path_count && count < MAX_APPS; i++) {
-        if (query && query[0] != '\0' && !has_match(query, s_path_entries[i].name)) {
+    ScoredPathEntry scored[MAX_APPS];
+    int scored_count = 0;
+
+    for (int i = 0; i < s_path_count && scored_count < MAX_APPS; i++) {
+        /* Substring pre-filter (case-insensitive): eliminates loose-subsequence noise */
+        if (!strcasestr(s_path_entries[i].name, query)) {
             continue;
         }
-
-        out[count++] = s_path_entries[i];
+        score_t score = match(query, s_path_entries[i].name);
+        scored[scored_count].entry = s_path_entries[i];
+        scored[scored_count].score = score;
+        scored_count++;
     }
 
-    *out_count = count;
+    qsort(scored, (size_t)scored_count, sizeof(ScoredPathEntry), scored_path_entry_cmp);
+
+    for (int i = 0; i < scored_count; i++) {
+        out[i] = scored[i].entry;
+    }
+    *out_count = scored_count;
 }
 
 static void warn_path_cache_cap_once(void) {
