@@ -22,6 +22,24 @@ static gboolean should_swap_instance_class(const char *instance) {
     return (instance && strlen(instance) > 0 && instance[0] >= 'A' && instance[0] <= 'Z');
 }
 
+static void format_candidate_strip(AppData *app, GString *output) {
+    if (!app || !output || app->command_mode.candidate_count == 0) {
+        return;
+    }
+
+    for (int i = 0; i < app->command_mode.candidate_count; i++) {
+        if (i > 0) {
+            g_string_append(output, "  ");
+        }
+
+        if (i == app->command_mode.candidate_highlight) {
+            g_string_append_printf(output, "[ %s ]", app->command_mode.candidates[i]);
+        } else {
+            g_string_append_printf(output, "  %s  ", app->command_mode.candidates[i]);
+        }
+    }
+}
+
 // Format tab header with active tab indication
 static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
     static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
@@ -648,6 +666,8 @@ void update_display(AppData *app) {
     
     // Add tab header at the bottom
     format_tab_header(app, app->current_tab, text);
+
+    format_candidate_strip(app, text);
     
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);

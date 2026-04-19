@@ -5,10 +5,12 @@
 #include "run_mode.h"
 #include "selection.h"
 #include "dynamic_display.h"
+#include "command_parse_defs.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <ctype.h>
 
 extern void hide_window(AppData *app);
 
@@ -69,6 +71,108 @@ static void clear_command_line(AppData *app) {
 
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
     app->command_mode.history_index = -1;
+}
+
+static int is_verb_prefix(const char *text) {
+    if (!text || text[0] == '\0') {
+        return 0;
+    }
+
+    if (text[0] < 'a' || text[0] > 'z') {
+        return 0;
+    }
+
+    for (int i = 1; text[i] != '\0'; i++) {
+        if ((text[i] >= 'a' && text[i] <= 'z') || text[i] == '-') {
+            continue;
+        }
+        return 0;
+    }
+
+    return 1;
+}
+
+static int candidate_cmp(const void *lhs, const void *rhs) {
+    const char *left = *(const char * const *)lhs;
+    const char *right = *(const char * const *)rhs;
+    size_t left_len = strlen(left);
+    size_t right_len = strlen(right);
+
+    if (left_len < right_len) {
+        return -1;
+    }
+    if (left_len > right_len) {
+        return 1;
+    }
+    return strcmp(left, right);
+}
+
+static gboolean has_candidate(const char *candidates[], int count, const char *value) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(candidates[i], value) == 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+void command_update_candidates(CommandMode *cmd, const char *text) {
+    if (!cmd) {
+        return;
+    }
+
+    cmd->candidate_count = 0;
+    cmd->candidate_highlight = 0;
+
+    if (!is_verb_prefix(text)) {
+        return;
+    }
+
+    const char *matches[64] = {0};
+    int match_count = 0;
+
+    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
+        const char *names[6] = {0};
+        int name_count = 0;
+
+        names[name_count++] = COMMAND_PARSE_DEFS[i].primary;
+        for (int alias = 0; alias < 5 && COMMAND_PARSE_DEFS[i].aliases[alias]; alias++) {
+            names[name_count++] = COMMAND_PARSE_DEFS[i].aliases[alias];
+        }
+
+        for (int n = 0; n < name_count; n++) {
+            const char *name = names[n];
+            if (strncmp(name, text, strlen(text)) != 0) {
+                continue;
+            }
+            if (strlen(name) > 12) {
+                continue;
+            }
+            if (has_candidate(matches, match_count, name)) {
+                continue;
+            }
+
+            matches[match_count++] = name;
+            if (match_count == 64) {
+                break;
+            }
+        }
+
+        if (match_count == 64) {
+            break;
+        }
+    }
+
+    qsort(matches, match_count, sizeof(matches[0]), candidate_cmp);
+
+    int visible_count = (match_count < 16) ? match_count : 16;
+    for (int i = 0; i < visible_count; i++) {
+        cmd->candidates[i] = matches[i];
+    }
+    for (int i = visible_count; i < 16; i++) {
+        cmd->candidates[i] = NULL;
+    }
+    cmd->candidate_count = visible_count;
 }
 
 static int clamp_int(int value, int min, int max) {
@@ -213,6 +317,11 @@ void init_command_mode(CommandMode *cmd) {
     cmd->showing_help = FALSE;
     cmd->help_scroll_offset = 0;
     cmd->history_index = -1;
+    cmd->candidate_count = 0;
+    cmd->candidate_highlight = 0;
+    for (int i = 0; i < 16; i++) {
+        cmd->candidates[i] = NULL;
+    }
     cmd->close_on_exit = FALSE;
 
     initialize_global_history();
@@ -276,6 +385,8 @@ void exit_command_mode(AppData *app) {
     app->command_mode.showing_help = FALSE;
     app->command_mode.help_scroll_offset = 0;
     app->command_mode.history_index = -1;
+    app->command_mode.candidate_count = 0;
+    app->command_mode.candidate_highlight = 0;
     app->command_mode.close_on_exit = FALSE;
     app->command_target_id = 0;
 
@@ -310,7 +421,18 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
 
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter: {
-            const char *command = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            const char *entry_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            const char *command = entry_text;
+
+            if (app->command_mode.candidate_count > 0 &&
+                entry_text &&
+                strchr(entry_text, ' ') == NULL) {
+                int idx = app->command_mode.candidate_highlight;
+                if (idx >= 0 && idx < app->command_mode.candidate_count) {
+                    command = app->command_mode.candidates[idx];
+                }
+            }
+
             if (command && command[0] != '\0') {
                 add_to_history(&app->command_mode, command);
             }
@@ -381,6 +503,28 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
         case GDK_KEY_Tab:
         case GDK_KEY_ISO_Left_Tab:
             return FALSE;
+
+        case GDK_KEY_Left:
+            if (app->command_mode.candidate_count == 0) {
+                return FALSE;
+            }
+            app->command_mode.candidate_highlight--;
+            if (app->command_mode.candidate_highlight < 0) {
+                app->command_mode.candidate_highlight = app->command_mode.candidate_count - 1;
+            }
+            update_display(app);
+            return TRUE;
+
+        case GDK_KEY_Right:
+            if (app->command_mode.candidate_count == 0) {
+                return FALSE;
+            }
+            app->command_mode.candidate_highlight++;
+            if (app->command_mode.candidate_highlight >= app->command_mode.candidate_count) {
+                app->command_mode.candidate_highlight = 0;
+            }
+            update_display(app);
+            return TRUE;
 
         default:
             return FALSE;
