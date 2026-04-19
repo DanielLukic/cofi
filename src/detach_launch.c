@@ -60,3 +60,65 @@ gboolean detach_launch_argv(const char *exec_path) {
 
     return ok;
 }
+
+typedef const char *(*ProgramResolver)(const char *program);
+
+static const char *resolve_via_glib(const char *program) {
+    gchar *path = g_find_program_in_path(program);
+    if (path) {
+        g_free(path);
+        return program;
+    }
+    return NULL;
+}
+
+static const char *detect_terminal_with_resolver(ProgramResolver resolver) {
+    const char *env_term = g_getenv("TERMINAL");
+    if (env_term && env_term[0] != '\0' && resolver(env_term)) {
+        return env_term;
+    }
+
+    static const char *const CANDIDATES[] = {
+        "x-terminal-emulator",
+        "mate-terminal",
+        "gnome-terminal",
+        "konsole",
+        "alacritty",
+        "kitty",
+        "foot",
+        "wezterm",
+        "urxvt",
+        "xterm",
+        NULL
+    };
+
+    for (int i = 0; CANDIDATES[i]; i++) {
+        if (resolver(CANDIDATES[i])) {
+            return CANDIDATES[i];
+        }
+    }
+
+    return "xterm";
+}
+
+gboolean detach_launch_in_terminal(const char *exec_path) {
+    if (!exec_path || exec_path[0] == '\0') {
+        return FALSE;
+    }
+
+    const char *term = detect_terminal_with_resolver(resolve_via_glib);
+    const char *argv[] = {term, "-e", exec_path, NULL};
+    gboolean ok = spawn_detachedv(argv, exec_path);
+
+    if (ok) {
+        log_info("Launched PATH binary in terminal '%s': %s", term, exec_path);
+    }
+
+    return ok;
+}
+
+#ifdef COFI_TESTING
+const char *detect_terminal_for_test(ProgramResolver resolver) {
+    return detect_terminal_with_resolver(resolver);
+}
+#endif

@@ -287,7 +287,7 @@ void apps_launch(const AppEntry *entry) {
     }
 
     if (entry->source_kind == APP_SOURCE_PATH) {
-        if (!detach_launch_argv(entry->exec_path)) {
+        if (!detach_launch_in_terminal(entry->exec_path)) {
             log_error("Failed to launch PATH binary '%s'", entry->exec_path);
         }
         return;
