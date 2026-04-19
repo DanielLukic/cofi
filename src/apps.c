@@ -1,5 +1,6 @@
 #include "apps.h"
 #include "log.h"
+#include "system_actions.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -215,6 +216,8 @@ static void populate_entry(AppEntry *e, GAppInfo *info) {
         }
     }
 
+    e->source_kind = APP_SOURCE_DESKTOP;
+    e->action_id = SYSTEM_ACTION_NONE;
     e->info = info;
 }
 
@@ -227,10 +230,13 @@ void apps_unload(void) {
 }
 
 void apps_load(void) {
+    const gint64 total_start_us = g_get_monotonic_time();
     apps_unload();
 
+    const gint64 desktop_start_us = g_get_monotonic_time();
     s_app_list = g_app_info_get_all();
 
+    int desktop_count = 0;
     for (GList *l = s_app_list; l && s_count < MAX_APPS; l = l->next) {
         GAppInfo *info = G_APP_INFO(l->data);
 
@@ -240,10 +246,28 @@ void apps_load(void) {
         if (!name || !*name) continue;
 
         populate_entry(&s_entries[s_count++], info);
+        desktop_count++;
     }
+    const double desktop_ms = (double)(g_get_monotonic_time() - desktop_start_us) / 1000.0;
+
+    const gint64 system_start_us = g_get_monotonic_time();
+    int system_count = 0;
+    if (s_count < MAX_APPS) {
+        system_actions_load(&s_entries[s_count], &system_count, MAX_APPS - s_count);
+        s_count += system_count;
+    }
+    const double system_ms = (double)(g_get_monotonic_time() - system_start_us) / 1000.0;
 
     apps_sort_entries(s_entries, s_count);
-    log_info("Apps: loaded %d desktop applications", s_count);
+
+    const double total_ms = (double)(g_get_monotonic_time() - total_start_us) / 1000.0;
+    log_info("Apps: loaded %d entries in %.2fms (desktop=%d in %.2fms, system=%d in %.2fms)",
+             s_count,
+             total_ms,
+             desktop_count,
+             desktop_ms,
+             system_count,
+             system_ms);
 }
 
 void apps_filter(const char *query, AppEntry *out, int *out_count) {
@@ -251,7 +275,19 @@ void apps_filter(const char *query, AppEntry *out, int *out_count) {
 }
 
 void apps_launch(const AppEntry *entry) {
-    if (!entry || !entry->info) return;
+    if (!entry) {
+        return;
+    }
+
+    if (entry->source_kind == APP_SOURCE_SYSTEM) {
+        system_actions_invoke(entry);
+        return;
+    }
+
+    if (!entry->info) {
+        return;
+    }
+
     GError *err = NULL;
     if (!g_app_info_launch(entry->info, NULL, NULL, &err)) {
         log_error("Failed to launch '%s': %s",

@@ -6,10 +6,27 @@
 
 #define MAX_APPS 512
 
+typedef enum {
+    APP_SOURCE_DESKTOP = 0,
+    APP_SOURCE_SYSTEM = 1,
+} AppSourceKind;
+
+typedef enum {
+    SYSTEM_ACTION_NONE = 0,
+    SYSTEM_ACTION_LOCK,
+    SYSTEM_ACTION_SUSPEND,
+    SYSTEM_ACTION_HIBERNATE,
+    SYSTEM_ACTION_LOGOUT,
+    SYSTEM_ACTION_REBOOT,
+    SYSTEM_ACTION_SHUTDOWN,
+} SystemActionId;
+
 typedef struct {
     char name[256];
     char generic_name[256];
     char keywords[512];
+    AppSourceKind source_kind;
+    SystemActionId action_id;
     GAppInfo *info;  /* owned by GIO list; valid until apps_unload() */
 } AppEntry;
 
