@@ -33,6 +33,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
 void exit_command_mode(AppData *app) { (void)app; }
 void show_help_commands(AppData *app) { (void)app; }
 void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_tab; }
+void surface_tab(AppData *app, TabMode tab) { (void)app; (void)tab; }
 
 int get_current_desktop(Display *display) { (void)display; return 0; }
 int resolve_workspace_from_arg(Display *display, const char *arg, int workspaces_per_row) {

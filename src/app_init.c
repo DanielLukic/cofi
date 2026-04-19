@@ -17,6 +17,19 @@
 #include "rules_config.h"
 #include "rules.h"
 
+void init_tab_visibility(AppData *app) {
+    if (!app) {
+        return;
+    }
+
+    for (int i = 0; i < 7; i++) {
+        app->tab_visibility[i] = TAB_VIS_HIDDEN;
+    }
+
+    app->tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
+    app->tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+}
+
 void init_app_data(AppData *app) {
     // Initialize history and active window tracking
     app->history_count = 0;
@@ -28,6 +41,8 @@ void init_app_data(AppData *app) {
         app->current_tab != TAB_NAMES && app->current_tab != TAB_APPS) {
         app->current_tab = TAB_WINDOWS;
     }
+
+    init_tab_visibility(app);
 
     // Initialize selection state (will be properly set by init_selection later)
     init_selection(app);

@@ -104,7 +104,7 @@ static void show_tab_for_opcode(AppData *app, TabMode tab) {
     show_window(app);
 
     if (tab != TAB_WINDOWS) {
-        switch_to_tab(app, tab);
+        surface_tab(app, tab);
     } else {
         gtk_entry_set_text(GTK_ENTRY(app->entry), "");
         reset_selection(app);

@@ -4,6 +4,7 @@
 #include "app_data.h"
 
 // Application initialization functions
+void init_tab_visibility(AppData *app);
 void init_app_data(AppData *app);
 void init_x11_connection(AppData *app);
 void init_workspaces(AppData *app);

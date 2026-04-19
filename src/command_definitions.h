@@ -87,6 +87,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
+        .primary = "harpoon",
+        .aliases = {"hp", NULL},
+        .handler = cmd_harpoon,
+        .description = "Switch to Harpoon tab",
+        .help_format = "harpoon, hp",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
         .handler = cmd_horizontal_maximize,
@@ -108,6 +116,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_jump_workspace,
         .description = "Jump to different workspace (N = workspace number)",
         .help_format = "jw, jump-workspace, j [N]"
+    },
+    {
+        .primary = "names",
+        .aliases = {"nm", NULL},
+        .handler = cmd_names,
+        .description = "Switch to Names tab",
+        .help_format = "names, nm",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "maw",
@@ -208,6 +224,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .description = "Toggle vertical maximize",
         .help_format = "vm, vertical-maximize-window, vmw",
         .activates = 1
+    },
+    {
+        .primary = "workspaces",
+        .aliases = {"ws", NULL},
+        .handler = cmd_workspaces,
+        .description = "Switch to Workspaces tab",
+        .help_format = "workspaces, ws",
+        .keeps_open_on_hotkey_auto = 1
     },
     {
         .primary = "help",
