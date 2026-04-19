@@ -387,4 +387,22 @@ if [ -f test_command_candidates ]; then
     fi
 fi
 
+if [ -f test_detach_launch ]; then
+    echo ""
+    echo "Running detach launch tests..."
+    ./test_detach_launch
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_detach_survival.sh ]; then
+    echo ""
+    echo "Running process-group survival test..."
+    bash ./test_detach_survival.sh
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
