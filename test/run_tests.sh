@@ -313,6 +313,16 @@ if [ -f test_apps ]; then
     fi
 fi
 
+# Run system actions tests if they exist
+if [ -f test_system_actions ]; then
+    echo ""
+    echo "Running system actions tests..."
+    ./test_system_actions
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_command_mode_targeting ]; then
     echo ""
     echo "Running command mode targeting tests..."
