@@ -31,6 +31,12 @@ typedef enum {
     TAB_APPS
 } TabMode;
 
+typedef enum {
+    TAB_VIS_PINNED,
+    TAB_VIS_SURFACED,
+    TAB_VIS_HIDDEN
+} TabVisibility;
+
 // Overlay types for dialog management
 typedef enum {
     OVERLAY_NONE,
@@ -128,6 +134,7 @@ typedef struct AppData {
     int workspace_count;
     int filtered_workspace_count;
     TabMode current_tab;                    // Current active tab
+    TabVisibility tab_visibility[7];        // Tab bar visibility state for each TabMode
 
     // Harpoon tab data
     HarpoonSlot filtered_harpoon[MAX_HARPOON_SLOTS];

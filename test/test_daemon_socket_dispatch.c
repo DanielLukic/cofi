@@ -45,6 +45,11 @@ void switch_to_tab(AppData *app, TabMode tab) {
     app->current_tab = tab;
 }
 
+void surface_tab(AppData *app, TabMode tab) {
+    switch_tab_calls++;
+    app->current_tab = tab;
+}
+
 void enter_command_mode(AppData *app) {
     enter_command_mode_calls++;
     enter_command_mode_sequence = ++call_sequence;

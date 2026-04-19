@@ -234,6 +234,18 @@ static AppData make_app(void) {
     return app;
 }
 
+static AppData make_default_visibility_app(void) {
+    AppData app = make_app();
+
+    for (int i = TAB_WINDOWS; i <= TAB_APPS; i++) {
+        app.tab_visibility[i] = TAB_VIS_HIDDEN;
+    }
+    app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
+    app.tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+
+    return app;
+}
+
 static void test_tab_switching_forward_cycles_all_tabs(void) {
     AppData app = make_app();
     GdkEventKey event;
@@ -326,6 +338,48 @@ static void test_daemon_opcode_harpoon_switches_to_harpoon_tab(void) {
     ASSERT_TRUE("daemon opcode harpoon switches tab", app.current_tab == TAB_HARPOON);
 }
 
+static void test_surface_tab_surfaces_hidden_tab(void) {
+    AppData app = make_default_visibility_app();
+
+    ASSERT_TRUE("workspaces starts hidden", tab_is_visible(&app, TAB_WORKSPACES) == FALSE);
+
+    surface_tab(&app, TAB_WORKSPACES);
+
+    ASSERT_TRUE("surface_tab marks tab visible", tab_is_visible(&app, TAB_WORKSPACES) == TRUE);
+    ASSERT_TRUE("surface_tab switches current tab", app.current_tab == TAB_WORKSPACES);
+}
+
+static void test_tab_switching_skips_hidden_tabs(void) {
+    AppData app = make_default_visibility_app();
+    GdkEventKey event;
+    memset(&event, 0, sizeof(event));
+    event.keyval = GDK_KEY_Tab;
+
+    gboolean handled = handle_tab_switching(&event, &app);
+    ASSERT_TRUE("tab switch handled with hidden tabs", handled == TRUE);
+    ASSERT_TRUE("forward skips hidden to apps", app.current_tab == TAB_APPS);
+
+    handled = handle_tab_switching(&event, &app);
+    ASSERT_TRUE("tab switch wraps pinned tabs", handled == TRUE);
+    ASSERT_TRUE("forward wraps back to windows", app.current_tab == TAB_WINDOWS);
+}
+
+static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
+    AppData app = make_default_visibility_app();
+    GdkEventKey event;
+    memset(&event, 0, sizeof(event));
+    event.keyval = GDK_KEY_Tab;
+    event.state = GDK_SHIFT_MASK;
+
+    surface_tab(&app, TAB_WORKSPACES);
+    ASSERT_TRUE("workspaces surfaced before cycling", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_SURFACED);
+
+    gboolean handled = handle_tab_switching(&event, &app);
+    ASSERT_TRUE("shift-tab handled from surfaced tab", handled == TRUE);
+    ASSERT_TRUE("shift-tab moved to pinned windows", app.current_tab == TAB_WINDOWS);
+    ASSERT_TRUE("surfaced tab hidden again after leaving", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_HIDDEN);
+}
+
 int main(void) {
     printf("Tab visibility safety-net tests\n");
     printf("===============================\n\n");
@@ -335,6 +389,9 @@ int main(void) {
     test_switch_to_tab_updates_state_and_clears_entry();
     test_cmd_show_names_switches_to_names_tab();
     test_daemon_opcode_harpoon_switches_to_harpoon_tab();
+    test_surface_tab_surfaces_hidden_tab();
+    test_tab_switching_skips_hidden_tabs();
+    test_tab_switching_clears_surfaced_tabs_on_pinned_return();
 
     printf("\n===============================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

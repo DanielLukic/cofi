@@ -123,6 +123,7 @@ void hide_window(AppData *app) {
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
     }
 
+    clear_surfaced_tabs(app);
     app->current_tab = TAB_WINDOWS;
 
     if (app->overlay_active) {

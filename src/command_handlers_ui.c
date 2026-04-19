@@ -8,6 +8,7 @@
 #include "hotkeys.h"
 #include "log.h"
 #include "run_mode.h"
+#include "tab_switching.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +55,7 @@ static void handle_set_success(AppData *app, const char *key, const char *value)
     save_config(&app->config);
     log_info("Config: %s = %s", key, value);
     exit_command_mode(app);
-    switch_to_tab(app, TAB_CONFIG);
+    surface_tab(app, TAB_CONFIG);
 }
 
 static void handle_set_error(AppData *app, const char *error_text) {
@@ -92,7 +93,28 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
 gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)),
                          const char *args __attribute__((unused))) {
     exit_command_mode(app);
-    switch_to_tab(app, TAB_CONFIG);
+    surface_tab(app, TAB_CONFIG);
+    return FALSE;
+}
+
+gboolean cmd_workspaces(AppData *app, WindowInfo *window __attribute__((unused)),
+                        const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    surface_tab(app, TAB_WORKSPACES);
+    return FALSE;
+}
+
+gboolean cmd_harpoon(AppData *app, WindowInfo *window __attribute__((unused)),
+                     const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    surface_tab(app, TAB_HARPOON);
+    return FALSE;
+}
+
+gboolean cmd_names(AppData *app, WindowInfo *window __attribute__((unused)),
+                   const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    surface_tab(app, TAB_NAMES);
     return FALSE;
 }
 
@@ -107,15 +129,15 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
         else if (strcmp(args, "harpoon") == 0) mode = SHOW_MODE_HARPOON;
         else if (strcmp(args, "names") == 0) {
             exit_command_mode(app);
-            switch_to_tab(app, TAB_NAMES);
+            surface_tab(app, TAB_NAMES);
             return FALSE;
         } else if (strcmp(args, "config") == 0) {
             exit_command_mode(app);
-            switch_to_tab(app, TAB_CONFIG);
+            surface_tab(app, TAB_CONFIG);
             return FALSE;
         } else if (strcmp(args, "apps") == 0) {
             exit_command_mode(app);
-            switch_to_tab(app, TAB_APPS);
+            surface_tab(app, TAB_APPS);
             return FALSE;
         } else {
             show_error_in_display(app, "Usage: show [windows|command|run|workspaces|harpoon|names|config|apps]");

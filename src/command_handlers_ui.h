@@ -10,6 +10,9 @@ typedef struct WindowInfo WindowInfo;
 
 gboolean cmd_show(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_show_config(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_workspaces(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_harpoon(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_names(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_set_config(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_hotkeys(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);

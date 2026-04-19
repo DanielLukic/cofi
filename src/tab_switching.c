@@ -12,6 +12,17 @@
 #include "log.h"
 #include "selection.h"
 
+static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
+    for (int i = 1; i <= 7; i++) {
+        int candidate = ((int)start_tab + (direction * i) + 7) % 7;
+        if (tab_is_visible(app, (TabMode)candidate)) {
+            return (TabMode)candidate;
+        }
+    }
+
+    return start_tab;
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == target_tab) {
         return;
@@ -51,62 +62,67 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
+void surface_tab(AppData *app, TabMode tab) {
+    if (!app) {
+        return;
+    }
+
+    if (app->tab_visibility[tab] == TAB_VIS_HIDDEN) {
+        app->tab_visibility[tab] = TAB_VIS_SURFACED;
+    }
+
+    switch_to_tab(app, tab);
+}
+
+void clear_surfaced_tabs(AppData *app) {
+    if (!app) {
+        return;
+    }
+
+    for (int i = 0; i < 7; i++) {
+        if (app->tab_visibility[i] == TAB_VIS_SURFACED) {
+            app->tab_visibility[i] = TAB_VIS_HIDDEN;
+        }
+    }
+}
+
+gboolean tab_is_visible(AppData *app, TabMode tab) {
+    if (!app) {
+        return FALSE;
+    }
+
+    return app->tab_visibility[tab] == TAB_VIS_PINNED ||
+           app->tab_visibility[tab] == TAB_VIS_SURFACED;
+}
+
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
-    if (event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) {
-        TabMode next_tab;
+    int direction = 0;
 
-        if (event->state & GDK_SHIFT_MASK) {
-            switch (app->current_tab) {
-                case TAB_WINDOWS: next_tab = TAB_APPS; break;
-                case TAB_WORKSPACES: next_tab = TAB_WINDOWS; break;
-                case TAB_HARPOON: next_tab = TAB_WORKSPACES; break;
-                case TAB_NAMES: next_tab = TAB_HARPOON; break;
-                case TAB_CONFIG: next_tab = TAB_NAMES; break;
-                case TAB_HOTKEYS: next_tab = TAB_CONFIG; break;
-                case TAB_APPS: next_tab = TAB_HOTKEYS; break;
-                default: next_tab = TAB_WINDOWS; break;
-            }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
-            log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
-        } else {
-            switch (app->current_tab) {
-                case TAB_WINDOWS: next_tab = TAB_WORKSPACES; break;
-                case TAB_WORKSPACES: next_tab = TAB_HARPOON; break;
-                case TAB_HARPOON: next_tab = TAB_NAMES; break;
-                case TAB_NAMES: next_tab = TAB_CONFIG; break;
-                case TAB_CONFIG: next_tab = TAB_HOTKEYS; break;
-                case TAB_HOTKEYS: next_tab = TAB_APPS; break;
-                case TAB_APPS: next_tab = TAB_WINDOWS; break;
-                default: next_tab = TAB_WINDOWS; break;
-            }
-            const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
-            log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
-        }
-
-        switch_to_tab(app, next_tab);
-        return TRUE;
+    if ((event->keyval == GDK_KEY_Tab && !(event->state & GDK_CONTROL_MASK)) ||
+        event->keyval == GDK_KEY_ISO_Left_Tab) {
+        direction = ((event->state & GDK_SHIFT_MASK) || event->keyval == GDK_KEY_ISO_Left_Tab) ? -1 : 1;
     }
 
-    if (event->keyval == GDK_KEY_ISO_Left_Tab) {
-        TabMode next_tab;
-        switch (app->current_tab) {
-            case TAB_WINDOWS: next_tab = TAB_APPS; break;
-            case TAB_WORKSPACES: next_tab = TAB_WINDOWS; break;
-            case TAB_HARPOON: next_tab = TAB_WORKSPACES; break;
-            case TAB_NAMES: next_tab = TAB_HARPOON; break;
-            case TAB_CONFIG: next_tab = TAB_NAMES; break;
-            case TAB_HOTKEYS: next_tab = TAB_CONFIG; break;
-            case TAB_APPS: next_tab = TAB_HOTKEYS; break;
-            default: next_tab = TAB_WINDOWS; break;
-        }
+    if (direction == 0) {
+        return FALSE;
+    }
 
-        const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
+    TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
+
+    if (direction < 0) {
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
-        switch_to_tab(app, next_tab);
-        return TRUE;
+    } else {
+        log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
     }
 
-    return FALSE;
+    if (app->tab_visibility[app->current_tab] == TAB_VIS_SURFACED &&
+        app->tab_visibility[next_tab] == TAB_VIS_PINNED) {
+        clear_surfaced_tabs(app);
+    }
+
+    switch_to_tab(app, next_tab);
+    return TRUE;
 }
 
 void filter_workspaces(AppData *app, const char *filter) {

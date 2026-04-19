@@ -15,6 +15,7 @@
 #include "dynamic_display.h"
 #include "named_window.h"
 #include "display_pipeline.h"
+#include "tab_switching.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -22,62 +23,30 @@ static gboolean should_swap_instance_class(const char *instance) {
 }
 
 // Format tab header with active tab indication
-static void format_tab_header(TabMode current_tab, GString *output) {
+static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
+    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
+    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "APPS"};
+
     g_string_append(output, "\n");
     g_string_append(output, "  ");
-    
-    if (current_tab == TAB_WINDOWS) {
-        g_string_append(output, "[ WINDOWS ]");
-    } else {
-        g_string_append(output, "  Windows  ");
-    }
-    
-    g_string_append(output, "    ");
-    
-    if (current_tab == TAB_WORKSPACES) {
-        g_string_append(output, "[ WORKSPACES ]");
-    } else {
-        g_string_append(output, "  Workspaces  ");
-    }
-    
-    g_string_append(output, "    ");
-    
-    if (current_tab == TAB_HARPOON) {
-        g_string_append(output, "[ HARPOON ]");
-    } else {
-        g_string_append(output, "  Harpoon  ");
-    }
-    
-    g_string_append(output, "    ");
-    
-    if (current_tab == TAB_NAMES) {
-        g_string_append(output, "[ NAMES ]");
-    } else {
-        g_string_append(output, "  Names  ");
-    }
 
-    g_string_append(output, "    ");
+    gboolean first = TRUE;
+    for (int tab = TAB_WINDOWS; tab <= TAB_APPS; tab++) {
+        if (!tab_is_visible(app, (TabMode)tab)) {
+            continue;
+        }
 
-    if (current_tab == TAB_CONFIG) {
-        g_string_append(output, "[ CONFIG ]");
-    } else {
-        g_string_append(output, "  Config  ");
-    }
+        if (!first) {
+            g_string_append(output, "    ");
+        }
 
-    g_string_append(output, "    ");
+        if (current_tab == tab) {
+            g_string_append_printf(output, "[ %s ]", active_tab_names[tab]);
+        } else {
+            g_string_append_printf(output, "  %s  ", tab_names[tab]);
+        }
 
-    if (current_tab == TAB_HOTKEYS) {
-        g_string_append(output, "[ HOTKEYS ]");
-    } else {
-        g_string_append(output, "  Hotkeys  ");
-    }
-
-    g_string_append(output, "    ");
-
-    if (current_tab == TAB_APPS) {
-        g_string_append(output, "[ APPS ]");
-    } else {
-        g_string_append(output, "  Apps  ");
+        first = FALSE;
     }
 
     g_string_append(output, "\n");
@@ -678,7 +647,7 @@ void update_display(AppData *app) {
     }
     
     // Add tab header at the bottom
-    format_tab_header(app->current_tab, text);
+    format_tab_header(app, app->current_tab, text);
     
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);

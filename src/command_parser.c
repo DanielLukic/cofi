@@ -19,11 +19,13 @@ static const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "config",  {"conf", "cfg", NULL},                        NULL },
     { "cw",      {"change-workspace", NULL},                     "0123456789hjkl" },
     { "ew",      {"every-workspace", NULL},                      NULL },
+    { "harpoon", {"hp", NULL},                                   NULL },
     { "help",    {"h", "?", NULL},                             NULL },
     { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL },
     { "hotkeys", {"hotkey", "hk", NULL},                       NULL },
     { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl" },
     { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl" },
+    { "names",   {"nm", NULL},                                   NULL },
     { "miw",     {"min", "minimize-window", NULL},             NULL },
     { "mouse",   {"m", "ma", "ms", "mh", NULL},            "ash" },
     { "mw",      {"max", "maximize-window", NULL},             NULL },
@@ -36,6 +38,7 @@ static const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "tm",      {"toggle-monitor", NULL},                       NULL },
     { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc" },
     { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL },
+    { "workspaces", {"ws", NULL},                                NULL },
     { NULL,        {NULL},                                           NULL }
 };
 
