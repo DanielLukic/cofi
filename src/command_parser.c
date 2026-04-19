@@ -1,16 +1,11 @@
 #include "command_parser.h"
 #include "command_api.h"
+#include "command_parse_defs.h"
 
 #include <ctype.h>
 #include <string.h>
 
-typedef struct {
-    const char *primary;
-    const char *aliases[5];
-    const char *compact_suffix;
-} CommandParseDef;
-
-static const CommandParseDef COMMAND_PARSE_DEFS[] = {
+const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "ab",      {"always-below", NULL},                         NULL },
     { "an",      {"assign-name", "n", NULL},                   NULL },
     { "as",      {"assign-slots", NULL},                         NULL },

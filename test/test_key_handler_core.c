@@ -98,6 +98,11 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
     return g_command_handler_returns;
 }
 
+void command_update_candidates(CommandMode *cmd, const char *text) {
+    (void)cmd;
+    (void)text;
+}
+
 gboolean handle_run_key(GdkEventKey *event, AppData *app) {
     (void)event;
     (void)app;

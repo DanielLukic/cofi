@@ -54,6 +54,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
 gboolean is_overlay_active(AppData *app) { (void)app; return FALSE; }
 gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 gboolean handle_command_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
+void command_update_candidates(CommandMode *cmd, const char *text) { (void)cmd; (void)text; }
 gboolean handle_run_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 
