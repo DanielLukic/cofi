@@ -349,4 +349,13 @@ if [ -f test_cli_args_delegate ]; then
     fi
 fi
 
+if [ -f test_tab_visibility ]; then
+    echo ""
+    echo "Running tab visibility safety-net tests..."
+    ./test_tab_visibility
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
