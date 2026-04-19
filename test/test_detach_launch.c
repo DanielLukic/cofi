@@ -188,6 +188,65 @@ static void test_terminal_flag_false_for_gui_app(void) {
     }
 }
 
+// ---- Desktop terminal getter stubs ----
+
+static const char *desktop_getter_mate(const char *desktop, ProgramResolver resolver) {
+    if (strstr(desktop, "MATE")) {
+        const char *term = "mate-terminal";
+        return resolver(term) ? term : NULL;
+    }
+    return NULL;
+}
+
+static const char *desktop_getter_returns_null(const char *desktop, ProgramResolver resolver) {
+    (void)desktop; (void)resolver;
+    return NULL;
+}
+
+static void test_mate_desktop_returns_mate_terminal(void) {
+    g_setenv("XDG_CURRENT_DESKTOP", "MATE", TRUE);
+    g_unsetenv("TERMINAL");
+    const char *term = detect_terminal_with_desktop_for_test(resolve_all, desktop_getter_mate);
+    ASSERT_STR_EQ("MATE desktop returns mate-terminal", "mate-terminal", term);
+    g_unsetenv("XDG_CURRENT_DESKTOP");
+}
+
+static void test_terminal_env_wins_over_desktop_getter(void) {
+    g_setenv("XDG_CURRENT_DESKTOP", "MATE", TRUE);
+    g_setenv("TERMINAL", "alacritty", TRUE);
+    const char *term = detect_terminal_with_desktop_for_test(resolve_all, desktop_getter_mate);
+    ASSERT_STR_EQ("$TERMINAL wins over desktop getter", "alacritty", term);
+    g_unsetenv("TERMINAL");
+    g_unsetenv("XDG_CURRENT_DESKTOP");
+}
+
+static void test_unknown_desktop_falls_through_to_chain(void) {
+    g_setenv("XDG_CURRENT_DESKTOP", "ObscureWM", TRUE);
+    g_unsetenv("TERMINAL");
+    // desktop_getter_returns_null simulates unknown desktop; resolve_only_xterm means xterm wins
+    const char *term = detect_terminal_with_desktop_for_test(resolve_only_xterm, desktop_getter_returns_null);
+    ASSERT_STR_EQ("unknown desktop falls through to chain", "xterm", term);
+    g_unsetenv("XDG_CURRENT_DESKTOP");
+}
+
+static void test_null_desktop_getter_skips_desktop_step(void) {
+    g_setenv("XDG_CURRENT_DESKTOP", "MATE", TRUE);
+    g_unsetenv("TERMINAL");
+    // NULL getter → skip desktop step; resolve_only_xterm means xterm from candidate list
+    const char *term = detect_terminal_with_desktop_for_test(resolve_only_xterm, NULL);
+    ASSERT_STR_EQ("NULL getter skips desktop step", "xterm", term);
+    g_unsetenv("XDG_CURRENT_DESKTOP");
+}
+
+static void test_desktop_getter_empty_result_falls_through(void) {
+    g_setenv("XDG_CURRENT_DESKTOP", "MATE", TRUE);
+    g_unsetenv("TERMINAL");
+    // desktop_getter_returns_null returns NULL → fall through to chain
+    const char *term = detect_terminal_with_desktop_for_test(resolve_only_kitty, desktop_getter_returns_null);
+    ASSERT_STR_EQ("empty desktop result falls through", "kitty", term);
+    g_unsetenv("XDG_CURRENT_DESKTOP");
+}
+
 int main(void) {
     test_fallback_to_xterm_when_nothing_found();
     test_prefer_alacritty_over_xterm();
@@ -203,6 +262,11 @@ int main(void) {
     test_strip_field_codes_percent_percent_only();
     test_terminal_flag_detected_via_desktop_file();
     test_terminal_flag_false_for_gui_app();
+    test_mate_desktop_returns_mate_terminal();
+    test_terminal_env_wins_over_desktop_getter();
+    test_unknown_desktop_falls_through_to_chain();
+    test_null_desktop_getter_skips_desktop_step();
+    test_desktop_getter_empty_result_falls_through();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;
