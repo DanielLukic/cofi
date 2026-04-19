@@ -31,10 +31,6 @@ void reset_selection(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; }
 void apps_load(void) {}
 
-gboolean has_match(const char *query, const char *text) {
-    return (query && text && strstr(text, query) != NULL) ? TRUE : FALSE;
-}
-
 void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *count) {
     (void)config;
     (void)entries;
@@ -281,6 +277,60 @@ static void test_global_cap_overflow_sets_warned(void) {
     free(entries);
 }
 
+static void test_tig_ranked_above_loose_matches(void) {
+    path_binaries_reset_for_tests();
+
+    AppEntry chunk[] = {
+        make_path_entry("activate-global-python-argcomplete",
+                        "/usr/bin/activate-global-python-argcomplete"),
+        make_path_entry("apt-config",           "/usr/bin/apt-config"),
+        make_path_entry("aptitude-changelog-parser",
+                        "/usr/bin/aptitude-changelog-parser"),
+        make_path_entry("ayatana-settings",     "/usr/bin/ayatana-settings"),
+        make_path_entry("btrfs-image",          "/usr/bin/btrfs-image"),
+        make_path_entry("caja-actions-config-tool",
+                        "/usr/bin/caja-actions-config-tool"),
+        make_path_entry("create-ocs-tmp-img",   "/usr/bin/create-ocs-tmp-img"),
+        make_path_entry("dh_auto_configure",    "/usr/bin/dh_auto_configure"),
+        make_path_entry("tig",                  "/usr/bin/tig"),
+        make_path_entry("tigris",               "/usr/bin/tigris"),
+    };
+    int count = (int)(sizeof(chunk) / sizeof(chunk[0]));
+
+    path_binaries_merge_entries_test_hook(NULL, chunk, count, TRUE);
+
+    AppEntry out[MAX_PATH_BINS];
+    int out_count = 0;
+    path_binaries_filter("tig", out, &out_count);
+
+    ASSERT_TRUE("tig query returns at least one result", out_count >= 1);
+    if (out_count < 1) return;
+
+    ASSERT_STR_EQ("tig is first result", "tig", out[0].name);
+
+    /* None of the loose-subsequence false positives should appear */
+    const char *false_positives[] = {
+        "activate-global-python-argcomplete",
+        "apt-config",
+        "aptitude-changelog-parser",
+        "ayatana-settings",
+        "btrfs-image",
+        "caja-actions-config-tool",
+        "create-ocs-tmp-img",
+        "dh_auto_configure",
+        NULL,
+    };
+    for (int i = 0; i < out_count; i++) {
+        for (int j = 0; false_positives[j]; j++) {
+            if (strcmp(out[i].name, false_positives[j]) == 0) {
+                ASSERT_TRUE("no false positive in tig results", FALSE);
+                return;
+            }
+        }
+    }
+    ASSERT_TRUE("no false positives in tig results", TRUE);
+}
+
 static void test_cap_warning_emits_once(void) {
     path_binaries_reset_for_tests();
 
@@ -319,6 +369,7 @@ int main(void) {
     test_monitor_create_updates_cache();
     test_global_cap_overflow_sets_warned();
     test_cap_warning_emits_once();
+    test_tig_ranked_above_loose_matches();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;
