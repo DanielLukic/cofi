@@ -20,14 +20,16 @@
 #include "../src/match.h"
 
 /* Stub log_* so apps.c compiles cleanly without the log subsystem. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmacro-redefined"
+#undef log_trace
 #define log_trace(...)  do {} while (0)
+#undef log_debug
 #define log_debug(...)  do {} while (0)
+#undef log_info
 #define log_info(...)   do {} while (0)
+#undef log_warn
 #define log_warn(...)   do {} while (0)
+#undef log_error
 #define log_error(...)  do {} while (0)
-#pragma GCC diagnostic pop
 
 /*
  * Provide a minimal GLib stub so apps.c can be included without a live GIO
