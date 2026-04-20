@@ -161,3 +161,35 @@ See also:
 
 - Prefer current code plus recent commits over older prose.
   When docs disagree, trust the implementation, `SPEC.md`, and the newest relevant commits first.
+
+## PATH Binary Launcher
+
+- **Basename dedupe: first in $PATH wins.** When the same binary name appears in multiple PATH directories, only the first (highest-priority) entry is kept. No `.desktop`-style shadow or merge is applied.
+
+- **Cache cap is MAX_PATH_BINS (4096).** A single overflow warning is emitted per scan; later PATH entries are silently dropped. Tested by `test_global_cap_overflow_sets_warned`.
+
+- **Filter output cap is MAX_APPS (512), applied at copy-out — NOT during scoring.** Score ALL substring-matching entries first (into `scored[MAX_PATH_BINS]`), sort by score descending, then truncate to MAX_APPS. Applying the cap during the scoring loop drops high-score entries that appear late in the alphabetically-sorted cache when more than 512 entries match. (Was the audit-batch-b bug; regression-tested by `test_large_match_set_prefers_high_score`.)
+
+- **GFileMonitor cap is hardcoded 64 PATH directories.** There is no named constant yet (`s_path_monitors[64]`, checked at `s_path_monitor_count >= 64`). If this needs to become configurable, extract it as MAX_PATH_MONITORS first.
+
+- **`$` routing lives in `src/tab_switching.c:filter_apps`.** The check `if (query[0] == '$')` redirects to `path_binaries_filter`. Do not add a second copy of this check elsewhere; PATH binaries would silently receive both the raw query and the stripped query.
+
+## Process Detachment
+
+- **`detach_launch_properly` tries systemd-run first.** It probes for `systemd-run`, builds `["systemd-run", "--user", "--scope", "--", ...]` and spawns. If unavailable or spawn fails, it falls back to fork + setsid + double-fork + execvp.
+
+- **The errno-pipe is the correct exec-failure propagation mechanism.** The double-fork makes the grandchild's exit status invisible to the original parent. The errno-pipe (`pipe()` + `FD_CLOEXEC` on the write end) solves this: a successful `execvp` closes the write end automatically; failure writes errno bytes that the parent reads. An empty read is success.
+
+- **Terminal launches are always `{term, -e, sh, -c, cmd}`.** The explicit `sh -c` wrapper is intentional: argv-split terminals (xterm, kitty, alacritty, foot) and string-accept terminals (mate-terminal, gnome-terminal) behave consistently. Without the shell wrapper, multi-word commands are mishandled on argv-split terminals.
+
+- **GUI desktop entries must not go through a shell.** `Exec=` is argv-like, not shell syntax. The correct path is `g_shell_parse_argv` (handles quoting/escaping only) followed by `detach_launch_argv_array` (direct execvp). Shell metacharacters in `Exec=` must not execute.
+
+- **Do not use `GSubprocessLauncher` for app launches.** It inherits cofi's cgroup. Launched apps then die when cofi's cgroup is cleaned up (e.g. `systemctl --user stop cofi`). This is the root cause of TFD-557.
+
+## Terminal Detection
+
+- **Detection priority chain:** `$TERMINAL` (if resolvable in PATH) → desktop-env configured terminal → `x-terminal-emulator` → hardcoded candidates → `xterm` fallback.
+
+- **`x-terminal-emulator` is NOT always the right answer.** It is the Debian alternatives-system pointer and may point to an unexpected terminal. On MATE/GNOME/Cinnamon sessions the correct approach is `gsettings get org.gnome.desktop.default-applications.terminal exec`. On XFCE use `xfconf-query`. On KDE fall back to `konsole` directly.
+
+- **The desktop-env step is injectable for tests.** The `DesktopTerminalGetter` typedef allows test stubs to simulate specific desktop sessions without needing a live `gsettings` or `xfconf-query`. Tests use `detect_terminal_with_desktop_for_test(resolver, getter)`. Keep the getter parameter in any refactor of `detect_terminal_with_resolver`.

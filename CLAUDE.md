@@ -150,4 +150,7 @@ When reporting progress or handing work back for testing, always state:
 - `src/key_handler_tabs.c` — tab-specific key handlers (Names/Harpoon/Config/Hotkeys)
 - `src/run_mode.c` — run mode state, history, and detached shell launch
 - `src/apps.c` — desktop app loading, Apps-local matching/ranking, and detached launch
+- `src/system_actions.c` — logind D-Bus wrappers for Lock/Suspend/Hibernate/Logout/Reboot/Shutdown with shell fallback chain for Lock
+- `src/path_binaries.c` — async $PATH scan cache with basename dedupe, GFileMonitor watchers, and score-ranked filter
+- `src/detach_launch.c` — shared detached-launch helpers (shell, argv, argv-array, in-terminal) with systemd-run primary and fork+setsid fallback
 - `src/log.c` — rxi/log.c logging library
