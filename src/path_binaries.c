@@ -590,3 +590,7 @@ gboolean path_binaries_cap_warned_for_tests(void) {
 int path_binaries_cap_warn_count_for_tests(void) {
     return s_cap_warn_count;
 }
+
+int path_binaries_count_for_tests(void) {
+    return s_path_count;
+}

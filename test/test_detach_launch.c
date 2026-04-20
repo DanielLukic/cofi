@@ -247,6 +247,36 @@ static void test_desktop_getter_empty_result_falls_through(void) {
     g_unsetenv("XDG_CURRENT_DESKTOP");
 }
 
+#include <glib.h>  // already included above; harmless duplicate guard
+
+static void test_fork_setsid_exec_nonexistent_binary_returns_false(void) {
+    // Exercises the errno-pipe path: execvp fails → grandchild writes errno →
+    // parent reads it and returns FALSE instead of silently reporting success.
+    const char *argv[] = {"/nonexistent/cofi-test-binary-xyzzy-404", NULL};
+    gboolean result = fork_setsid_exec_for_test(argv);
+    tests_run++;
+    if (!result) {
+        tests_passed++;
+        printf("PASS: fork_setsid_exec returns FALSE for nonexistent binary\n");
+    } else {
+        printf("FAIL: fork_setsid_exec returned TRUE for nonexistent binary (line %d)\n",
+               __LINE__);
+    }
+}
+
+static void test_fork_setsid_exec_real_binary_returns_true(void) {
+    // Sanity check: a real binary should still return TRUE.
+    const char *argv[] = {"true", NULL};
+    gboolean result = fork_setsid_exec_for_test(argv);
+    tests_run++;
+    if (result) {
+        tests_passed++;
+        printf("PASS: fork_setsid_exec returns TRUE for real binary\n");
+    } else {
+        printf("FAIL: fork_setsid_exec returned FALSE for 'true' (line %d)\n", __LINE__);
+    }
+}
+
 int main(void) {
     test_fallback_to_xterm_when_nothing_found();
     test_prefer_alacritty_over_xterm();
@@ -267,6 +297,8 @@ int main(void) {
     test_unknown_desktop_falls_through_to_chain();
     test_null_desktop_getter_skips_desktop_step();
     test_desktop_getter_empty_result_falls_through();
+    test_fork_setsid_exec_nonexistent_binary_returns_false();
+    test_fork_setsid_exec_real_binary_returns_true();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

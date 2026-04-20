@@ -24,5 +24,6 @@ void path_binaries_on_monitor_event_test_hook(GFile *file,
 void path_binaries_reset_for_tests(void);
 gboolean path_binaries_cap_warned_for_tests(void);
 int path_binaries_cap_warn_count_for_tests(void);
+int path_binaries_count_for_tests(void);
 
 #endif // PATH_BINARIES_H
