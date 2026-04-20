@@ -359,6 +359,38 @@ static void test_cap_warning_emits_once(void) {
     free(entries);
 }
 
+static void test_large_match_set_prefers_high_score(void) {
+    path_binaries_reset_for_tests();
+
+    /* 599 low-score entries all containing 'e', plus one exact-match 'e' */
+    int total = 600;
+    AppEntry *entries = calloc((size_t)total, sizeof(AppEntry));
+    ASSERT_TRUE("large match set alloc", entries != NULL);
+    if (!entries) return;
+
+    /* 599 low-score entries named a_match_NNNN_e — all start with 'a', so they
+     * sort alphabetically BEFORE 'e', filling the first 512+ cache slots. */
+    for (int i = 0; i < total - 1; i++) {
+        char name[64];
+        char exec_path[128];
+        snprintf(name, sizeof(name), "a_match_%04d_e", i);
+        snprintf(exec_path, sizeof(exec_path), "/usr/bin/a_match_%04d_e", i);
+        entries[i] = make_path_entry(name, exec_path);
+    }
+    /* exact-match entry: 'e' sorts after all 'a_*' entries alphabetically */
+    entries[total - 1] = make_path_entry("e", "/usr/bin/e");
+
+    path_binaries_merge_entries_test_hook(NULL, entries, total, TRUE);
+    free(entries);
+
+    AppEntry out[MAX_PATH_BINS + 16];
+    int out_count = 0;
+    path_binaries_filter("e", out, &out_count);
+
+    ASSERT_EQ_INT("large match set returns MAX_APPS", MAX_APPS, out_count);
+    ASSERT_STR_EQ("exact match 'e' tops the sorted list", "e", out[0].name);
+}
+
 int main(void) {
     test_dedupe_first_in_path_wins();
     test_filter_by_query();
@@ -371,6 +403,7 @@ int main(void) {
     test_global_cap_overflow_sets_warned();
     test_cap_warning_emits_once();
     test_tig_ranked_above_loose_matches();
+    test_large_match_set_prefers_high_score();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;
