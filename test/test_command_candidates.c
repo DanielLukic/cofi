@@ -172,6 +172,28 @@ static void test_format_candidate_strip_highlight(void) {
     g_string_free(out, TRUE);
 }
 
+static void test_format_candidate_strip_appended_after_prior_content(void) {
+    /* format_candidate_strip appends — verify strip lands after existing content.
+     * In the real display pipeline, the tab header line is written before the
+     * strip (display.c: format_tab_header then format_candidate_strip). */
+    AppData app = {0};
+    GString *out = g_string_new("TAB_HEADER\n");
+
+    app.command_mode.candidates[0] = "h";
+    app.command_mode.candidates[1] = "hm";
+    app.command_mode.candidate_count = 2;
+    app.command_mode.candidate_highlight = 1;
+
+    format_candidate_strip(&app, out);
+
+    const char *newline = strchr(out->str, '\n');
+    const char *strip   = strstr(out->str, "[ hm ]");
+    ASSERT_TRUE("strip is present", strip != NULL);
+    ASSERT_TRUE("strip appears after first newline (after tab header)",
+                newline != NULL && strip != NULL && strip > newline);
+    g_string_free(out, TRUE);
+}
+
 int main(void) {
     printf("Command candidate tests\n");
     printf("=======================\n\n");
@@ -185,6 +207,7 @@ int main(void) {
     test_zzzz_hides();
     test_format_candidate_strip_count_zero();
     test_format_candidate_strip_highlight();
+    test_format_candidate_strip_appended_after_prior_content();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
     return tests_failed == 0 ? 0 : 1;

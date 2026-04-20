@@ -518,19 +518,6 @@ void path_binaries_ensure_loaded(AppData *app) {
     g_object_unref(task);
 }
 
-void path_binaries_invalidate(void) {
-    s_loaded = FALSE;
-    s_cap_warned = FALSE;
-    s_cap_warn_count = 0;
-
-    if (s_scanning) {
-        s_rescan_requested = TRUE;
-        return;
-    }
-
-    path_binaries_ensure_loaded(s_last_app);
-}
-
 void path_binaries_filter(const char *query, AppEntry *out, int *out_count) {
     const gint64 start_us = g_get_monotonic_time();
     const char *safe_query = query ? query : "";
@@ -548,6 +535,15 @@ gboolean path_binaries_is_scanning(void) {
     return s_scanning;
 }
 
+void path_binaries_shutdown(void) {
+    clear_monitors();
+    if (s_seen_by_name) {
+        g_hash_table_destroy(s_seen_by_name);
+        s_seen_by_name = NULL;
+    }
+}
+
+#ifdef COFI_TESTING
 void path_binaries_merge_entries_test_hook(AppData *app,
                                            const AppEntry *entries,
                                            int count,
@@ -598,3 +594,4 @@ int path_binaries_cap_warn_count_for_tests(void) {
 int path_binaries_count_for_tests(void) {
     return s_path_count;
 }
+#endif
