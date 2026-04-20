@@ -65,11 +65,14 @@ static void filter_path_entries(const char *query, AppEntry *out, int *out_count
         return;
     }
 
-    ScoredPathEntry scored[MAX_APPS];
+    /* Score ALL substring-matching entries (up to cache cap MAX_PATH_BINS),
+     * then sort, then copy at most MAX_APPS into out[]. Capping during the
+     * scoring loop would drop high-score entries that appear late in the
+     * alphabetically-sorted cache when >MAX_APPS entries match. */
+    ScoredPathEntry scored[MAX_PATH_BINS];
     int scored_count = 0;
 
-    for (int i = 0; i < s_path_count && scored_count < MAX_APPS; i++) {
-        /* Substring pre-filter (case-insensitive): eliminates loose-subsequence noise */
+    for (int i = 0; i < s_path_count; i++) {
         if (!strcasestr(s_path_entries[i].name, query)) {
             continue;
         }
@@ -81,10 +84,11 @@ static void filter_path_entries(const char *query, AppEntry *out, int *out_count
 
     qsort(scored, (size_t)scored_count, sizeof(ScoredPathEntry), scored_path_entry_cmp);
 
-    for (int i = 0; i < scored_count; i++) {
+    int copy_count = scored_count < MAX_APPS ? scored_count : MAX_APPS;
+    for (int i = 0; i < copy_count; i++) {
         out[i] = scored[i].entry;
     }
-    *out_count = scored_count;
+    *out_count = copy_count;
 }
 
 static void warn_path_cache_cap_once(void) {
