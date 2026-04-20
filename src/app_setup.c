@@ -1,4 +1,5 @@
 #include "app_setup.h"
+#include "path_binaries.h"
 #include "run_mode.h"
 
 #include <gdk/gdkx.h>
@@ -79,6 +80,7 @@ static gboolean on_daemon_shutdown_signal(gpointer user_data) {
     log_info("Received shutdown signal; stopping daemon socket monitor");
     daemon_socket_stop_monitor(app);
     disarm_daemon_socket_exit_cleanup();
+    path_binaries_shutdown();
 
     g_daemon_sigterm_source_id = 0;
     g_daemon_sigint_source_id = 0;
