@@ -133,7 +133,8 @@ install: $(TARGET)
 	install -d $(SYSTEMD_USER_DIR)
 	sed "s|@BINDIR@|$(BINDIR)|g" scripts/cofi.service > $(SYSTEMD_USER_DIR)/cofi.service
 	systemctl --user daemon-reload
-	systemctl --user enable --now cofi
+	systemctl --user reenable cofi
+	systemctl --user restart cofi
 	@echo "Installed to $(BINDIR)/cofi and enabled systemd user service"
 
 # Uninstall binary + systemd service
