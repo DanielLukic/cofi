@@ -12,6 +12,9 @@
 #include <limits.h>
 #include <ctype.h>
 
+#define COMMAND_CANDIDATE_SCAN_MAX    64
+#define COMMAND_CANDIDATE_DISPLAY_MAX 16
+
 extern void hide_window(AppData *app);
 
 static struct {
@@ -128,7 +131,7 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
         return;
     }
 
-    const char *matches[64] = {0};
+    const char *matches[COMMAND_CANDIDATE_SCAN_MAX] = {0};
     int match_count = 0;
 
     for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
@@ -153,23 +156,23 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
             }
 
             matches[match_count++] = name;
-            if (match_count == 64) {
+            if (match_count == COMMAND_CANDIDATE_SCAN_MAX) {
                 break;
             }
         }
 
-        if (match_count == 64) {
+        if (match_count == COMMAND_CANDIDATE_SCAN_MAX) {
             break;
         }
     }
 
     qsort(matches, match_count, sizeof(matches[0]), candidate_cmp);
 
-    int visible_count = (match_count < 16) ? match_count : 16;
+    int visible_count = (match_count < COMMAND_CANDIDATE_DISPLAY_MAX) ? match_count : COMMAND_CANDIDATE_DISPLAY_MAX;
     for (int i = 0; i < visible_count; i++) {
         cmd->candidates[i] = matches[i];
     }
-    for (int i = visible_count; i < 16; i++) {
+    for (int i = visible_count; i < COMMAND_CANDIDATE_DISPLAY_MAX; i++) {
         cmd->candidates[i] = NULL;
     }
     cmd->candidate_count = visible_count;
