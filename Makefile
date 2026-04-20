@@ -320,8 +320,9 @@ test_apps: test/test_apps.c src/match.o src/log.o src/system_actions.o src/detac
 
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)
-test_path_binaries: test/test_path_binaries.c src/path_binaries.o src/match.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_path_binaries test/test_path_binaries.c src/path_binaries.o src/match.o src/log.o $(LDFLAGS)
+# Note: path_binaries.c compiled inline with -DCOFI_TESTING to expose test hooks
+test_path_binaries: test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_path_binaries test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o $(LDFLAGS)
 
 # Build system actions tests
 # (tests load semantics and deterministic metadata for logind-backed actions)
