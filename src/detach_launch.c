@@ -40,19 +40,45 @@ gchar *detach_strip_field_codes(const char *cmd) {
 // ---------------------------------------------------------------------------
 
 static gboolean fork_setsid_exec(const char *const *argv) {
+    // Errno pipe: grandchild writes errno if execvp fails; FD_CLOEXEC means
+    // successful exec auto-closes the write end → parent reads EOF = success.
+    int err_pipe[2];
+    if (pipe(err_pipe) != 0) {
+        log_error("pipe() failed: %s", strerror(errno));
+        return FALSE;
+    }
+    // Set close-on-exec on the write end so successful execvp closes it automatically
+    fcntl(err_pipe[1], F_SETFD, FD_CLOEXEC);
+
     pid_t pid = fork();
     if (pid < 0) {
         log_error("fork() failed: %s", strerror(errno));
+        close(err_pipe[0]);
+        close(err_pipe[1]);
         return FALSE;
     }
+
     if (pid > 0) {
-        // parent: reap intermediate child
+        // parent: close write end, wait for intermediate child, then read pipe
+        close(err_pipe[1]);
         int status;
         waitpid(pid, &status, 0);
-        return TRUE;
+
+        int exec_errno = 0;
+        ssize_t n = read(err_pipe[0], &exec_errno, sizeof(exec_errno));
+        close(err_pipe[0]);
+
+        if (n == sizeof(exec_errno)) {
+            log_error("fork_setsid_exec: execvp failed for '%s': %s",
+                      argv[0], strerror(exec_errno));
+            return FALSE;
+        }
+        return TRUE;  // EOF → exec succeeded
     }
 
-    // intermediate child: create new session
+    // intermediate child: close read end (write end stays open, inherited by grandchild)
+    close(err_pipe[0]);
+
     setsid();
 
     int devnull = open("/dev/null", O_RDWR);
@@ -68,8 +94,10 @@ static gboolean fork_setsid_exec(const char *const *argv) {
     if (gpid < 0) _exit(1);
     if (gpid > 0) _exit(0);  // intermediate exits; grandchild continues
 
-    // grandchild: exec target program
+    // grandchild: exec target program; write errno to pipe on failure
     execvp(argv[0], (char *const *)argv);
+    int saved_errno = errno;
+    (void)!write(err_pipe[1], &saved_errno, sizeof(saved_errno));
     _exit(127);
 }
 
@@ -361,5 +389,11 @@ const char *detect_terminal_with_desktop_for_test(ProgramResolver resolver,
 
 char **build_systemd_run_argv_for_test(const char *const *inner_argv) {
     return build_systemd_run_argv(inner_argv);
+}
+
+// Directly exercises fork_setsid_exec so the errno-pipe path can be tested
+// without going through the systemd-run probe.
+gboolean fork_setsid_exec_for_test(const char *const *argv) {
+    return fork_setsid_exec(argv);
 }
 #endif

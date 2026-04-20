@@ -17,6 +17,7 @@ typedef const char *(*DesktopTerminalGetter)(const char *desktop, ProgramResolve
 const char *detect_terminal_for_test(ProgramResolver resolver);
 const char *detect_terminal_with_desktop_for_test(ProgramResolver resolver, DesktopTerminalGetter dt_getter);
 char **build_systemd_run_argv_for_test(const char *const *inner_argv);
+gboolean fork_setsid_exec_for_test(const char *const *argv);
 #endif
 
 #endif // DETACH_LAUNCH_H

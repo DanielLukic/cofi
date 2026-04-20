@@ -271,6 +271,7 @@ static void test_global_cap_overflow_sets_warned(void) {
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
+    ASSERT_EQ_INT("cache fills to MAX_PATH_BINS", MAX_PATH_BINS, path_binaries_count_for_tests());
     ASSERT_EQ_INT("cap overflow clamps count to MAX_APPS", MAX_APPS, out_count);
     ASSERT_TRUE("cap overflow sets warned", path_binaries_cap_warned_for_tests());
 

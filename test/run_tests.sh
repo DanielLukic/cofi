@@ -405,4 +405,31 @@ if [ -f test_detach_survival.sh ]; then
     fi
 fi
 
+if [ -f test_scrollbar ]; then
+    echo ""
+    echo "Running scrollbar tests..."
+    ./test_scrollbar
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_run_mode ]; then
+    echo ""
+    echo "Running run_mode tests..."
+    ./test_run_mode
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_cli_args_run ]; then
+    echo ""
+    echo "Running cli_args_run tests..."
+    ./test_cli_args_run
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
