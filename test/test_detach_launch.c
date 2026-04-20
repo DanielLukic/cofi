@@ -277,6 +277,90 @@ static void test_fork_setsid_exec_real_binary_returns_true(void) {
     }
 }
 
+// ---- C1: terminal cmd argv shape tests ----
+
+static void test_terminal_cmd_argv_has_sh_wrapper(void) {
+    // Terminal=true with args: verify {term, "-e", sh, "-c", cmd, NULL}
+    g_unsetenv("TERMINAL");
+    char **argv = build_terminal_cmd_argv_for_test("htop --delay 10", resolve_only_xterm);
+    tests_run++;
+    if (!argv) {
+        printf("FAIL: build_terminal_cmd_argv_for_test returned NULL (line %d)\n", __LINE__);
+        return;
+    }
+    // expected: {xterm, -e, /bin/sh, -c, htop --delay 10, NULL}
+    gboolean shape_ok = (strcmp(argv[0], "xterm") == 0 &&
+                         strcmp(argv[1], "-e")    == 0 &&
+                         strcmp(argv[3], "-c")    == 0 &&
+                         strcmp(argv[4], "htop --delay 10") == 0 &&
+                         argv[5] == NULL);
+    if (shape_ok) {
+        tests_passed++;
+        printf("PASS: terminal cmd argv has sh wrapper\n");
+    } else {
+        printf("FAIL: terminal cmd argv shape wrong: [%s][%s][%s][%s][%s] (line %d)\n",
+               argv[0], argv[1], argv[2], argv[3], argv[4], __LINE__);
+    }
+    g_strfreev(argv);
+}
+
+static void test_terminal_cmd_bare_path_still_works(void) {
+    // Bare path (no args) also goes through sh -c — shape unchanged from caller's perspective
+    g_unsetenv("TERMINAL");
+    char **argv = build_terminal_cmd_argv_for_test("/usr/bin/htop", resolve_only_xterm);
+    tests_run++;
+    if (!argv) {
+        printf("FAIL: build_terminal_cmd_argv_for_test returned NULL for bare path (line %d)\n",
+               __LINE__);
+        return;
+    }
+    gboolean has_sh = (strcmp(argv[3], "-c") == 0 &&
+                       strcmp(argv[4], "/usr/bin/htop") == 0);
+    if (has_sh) {
+        tests_passed++;
+        printf("PASS: terminal cmd bare path has sh wrapper\n");
+    } else {
+        printf("FAIL: terminal cmd bare path shape wrong (line %d)\n", __LINE__);
+    }
+    g_strfreev(argv);
+}
+
+// ---- C2: argv-not-shell parse tests ----
+
+static void test_shell_parse_no_variable_expansion(void) {
+    // g_shell_parse_argv does NOT expand $FOO — it stays literal.
+    // This documents the expected behaviour of the GUI desktop entry path.
+    int argc = 0;
+    char **argv = NULL;
+    gboolean ok = g_shell_parse_argv("echo $FOO", &argc, &argv, NULL);
+    tests_run++;
+    if (!ok || argc != 2 || strcmp(argv[1], "$FOO") != 0) {
+        printf("FAIL: expected argv[1]==$FOO, got %s (line %d)\n",
+               (argv && argc > 1) ? argv[1] : "(null)", __LINE__);
+        g_strfreev(argv);
+        return;
+    }
+    tests_passed++;
+    printf("PASS: g_shell_parse_argv keeps $FOO literal (no expansion)\n");
+    g_strfreev(argv);
+}
+
+static void test_shell_parse_malformed_returns_false(void) {
+    int argc = 0;
+    char **argv = NULL;
+    GError *err = NULL;
+    gboolean ok = g_shell_parse_argv("echo 'unbalanced", &argc, &argv, &err);
+    tests_run++;
+    if (!ok) {
+        tests_passed++;
+        printf("PASS: malformed Exec parse returns FALSE\n");
+    } else {
+        printf("FAIL: malformed Exec parse should return FALSE (line %d)\n", __LINE__);
+    }
+    if (err) g_error_free(err);
+    g_strfreev(argv);
+}
+
 int main(void) {
     test_fallback_to_xterm_when_nothing_found();
     test_prefer_alacritty_over_xterm();
@@ -299,6 +383,10 @@ int main(void) {
     test_desktop_getter_empty_result_falls_through();
     test_fork_setsid_exec_nonexistent_binary_returns_false();
     test_fork_setsid_exec_real_binary_returns_true();
+    test_terminal_cmd_argv_has_sh_wrapper();
+    test_terminal_cmd_bare_path_still_works();
+    test_shell_parse_no_variable_expansion();
+    test_shell_parse_malformed_returns_false();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

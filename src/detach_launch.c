@@ -355,17 +355,29 @@ static const char *detect_terminal_with_resolver(ProgramResolver resolver,
     return "xterm";
 }
 
-gboolean detach_launch_in_terminal(const char *exec_path) {
-    if (!exec_path || exec_path[0] == '\0') {
+gboolean detach_launch_argv_array(const char *const *argv) {
+    if (!argv || !argv[0] || argv[0][0] == '\0') {
+        return FALSE;
+    }
+    return detach_launch_properly(argv, argv[0]);
+}
+
+gboolean detach_launch_in_terminal_cmd(const char *cmd) {
+    if (!cmd || cmd[0] == '\0') {
         return FALSE;
     }
 
+    const char *shell = g_getenv("SHELL");
+    if (!shell || shell[0] == '\0') {
+        shell = "/bin/sh";
+    }
+
     const char *term = detect_terminal_with_resolver(resolve_via_glib, get_desktop_terminal);
-    const char *argv[] = {term, "-e", exec_path, NULL};
-    gboolean ok = detach_launch_properly(argv, exec_path);
+    const char *argv[] = {term, "-e", shell, "-c", cmd, NULL};
+    gboolean ok = detach_launch_properly(argv, cmd);
 
     if (ok) {
-        log_info("Launched PATH binary in terminal '%s': %s", term, exec_path);
+        log_info("Launched command in terminal '%s': %s", term, cmd);
     }
 
     return ok;
@@ -395,5 +407,15 @@ char **build_systemd_run_argv_for_test(const char *const *inner_argv) {
 // without going through the systemd-run probe.
 gboolean fork_setsid_exec_for_test(const char *const *argv) {
     return fork_setsid_exec(argv);
+}
+
+// Returns heap-allocated argv that detach_launch_in_terminal_cmd would pass to
+// the terminal. Uses the given resolver so tests don't need a real PATH.
+// Caller frees with g_strfreev.
+char **build_terminal_cmd_argv_for_test(const char *cmd, ProgramResolver resolver) {
+    const char *shell = "/bin/sh";
+    const char *term = detect_terminal_with_resolver(resolver, NULL);
+    const char *argv[] = {term, "-e", shell, "-c", cmd, NULL};
+    return g_strdupv((gchar **)argv);
 }
 #endif

@@ -287,7 +287,7 @@ void apps_launch(const AppEntry *entry) {
     }
 
     if (entry->source_kind == APP_SOURCE_PATH) {
-        if (!detach_launch_in_terminal(entry->exec_path)) {
+        if (!detach_launch_in_terminal_cmd(entry->exec_path)) {
             log_error("Failed to launch PATH binary '%s'", entry->exec_path);
         }
         return;
@@ -319,9 +319,20 @@ void apps_launch(const AppEntry *entry) {
 
     gboolean ok;
     if (needs_terminal) {
-        ok = detach_launch_in_terminal(cmd);
+        ok = detach_launch_in_terminal_cmd(cmd);
     } else {
-        ok = detach_launch_shell(cmd);
+        int argc = 0;
+        char **exec_argv = NULL;
+        GError *parse_err = NULL;
+        if (!g_shell_parse_argv(cmd, &argc, &exec_argv, &parse_err)) {
+            log_error("Failed to parse desktop Exec '%s': %s",
+                      cmd, parse_err ? parse_err->message : "unknown");
+            g_clear_error(&parse_err);
+            g_free(cmd);
+            return;
+        }
+        ok = detach_launch_argv_array((const char *const *)exec_argv);
+        g_strfreev(exec_argv);
     }
 
     if (!ok) {
