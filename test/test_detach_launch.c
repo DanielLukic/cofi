@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <string.h>
+#include <glib/gstdio.h>
 #include "../src/detach_launch.h"
 
 // Must be compiled with -DCOFI_TESTING
 
 static int tests_run = 0;
 static int tests_passed = 0;
+static int tests_skipped = 0;
 
 #define ASSERT_STR_EQ(msg, expected, actual) \
     do { \
@@ -29,6 +31,8 @@ static int tests_passed = 0;
             printf("FAIL: %s — expected NULL, got '%s' (line %d)\n", msg, (actual), __LINE__); \
         } \
     } while(0)
+
+#define SKIP_TEST(msg) do { tests_skipped++; printf("SKIP: %s\n", msg); return; } while(0)
 
 // Resolver stubs
 static const char *resolve_nothing(const char *p) { (void)p; return NULL; }
@@ -133,11 +137,9 @@ static void test_terminal_flag_detected_via_desktop_file(void) {
     gchar *tmp_path = NULL;
     GError *err = NULL;
     int fd = g_file_open_tmp("cofi-test-XXXXXX.desktop", &tmp_path, &err);
-    tests_run++;
     if (fd < 0 || !tmp_path) {
-        printf("SKIP: terminal flag test — could not create temp file\n");
         if (err) g_error_free(err);
-        return;
+        SKIP_TEST("terminal flag test — could not create temp file");
     }
     close(fd);
 
@@ -149,14 +151,13 @@ static void test_terminal_flag_detected_via_desktop_file(void) {
     g_remove(tmp_path);
     g_free(tmp_path);
 
-    if (!di) {
-        printf("SKIP: terminal flag test — GDesktopAppInfo not loadable\n");
-        return;
-    }
+    if (!di)
+        SKIP_TEST("terminal flag test — GDesktopAppInfo not loadable");
 
     gboolean terminal = g_desktop_app_info_get_boolean(di, "Terminal");
     g_object_unref(di);
 
+    tests_run++;
     if (terminal) {
         tests_passed++;
         printf("PASS: Terminal=true detected via GDesktopAppInfo\n");
@@ -169,11 +170,9 @@ static void test_terminal_flag_false_for_gui_app(void) {
     gchar *tmp_path = NULL;
     GError *err = NULL;
     int fd = g_file_open_tmp("cofi-test-XXXXXX.desktop", &tmp_path, &err);
-    tests_run++;
     if (fd < 0 || !tmp_path) {
-        printf("SKIP: terminal=false flag test — could not create temp file\n");
         if (err) g_error_free(err);
-        return;
+        SKIP_TEST("terminal=false flag test — could not create temp file");
     }
     close(fd);
 
@@ -185,14 +184,13 @@ static void test_terminal_flag_false_for_gui_app(void) {
     g_remove(tmp_path);
     g_free(tmp_path);
 
-    if (!di) {
-        printf("SKIP: terminal=false flag test — GDesktopAppInfo not loadable\n");
-        return;
-    }
+    if (!di)
+        SKIP_TEST("terminal=false flag test — GDesktopAppInfo not loadable");
 
     gboolean terminal = g_desktop_app_info_get_boolean(di, "Terminal");
     g_object_unref(di);
 
+    tests_run++;
     if (!terminal) {
         tests_passed++;
         printf("PASS: Terminal=false not set for GUI app\n");
@@ -401,6 +399,9 @@ int main(void) {
     test_shell_parse_no_variable_expansion();
     test_shell_parse_malformed_returns_false();
 
-    printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
+    printf("\nResults: %d/%d tests passed", tests_passed, tests_run);
+    if (tests_skipped > 0)
+        printf(" (%d skipped)", tests_skipped);
+    printf("\n");
     return (tests_passed == tests_run) ? 0 : 1;
 }
