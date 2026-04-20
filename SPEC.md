@@ -70,7 +70,11 @@ The search matches against the full displayed row as the user sees it — deskto
 - **Up/Down** (or **Ctrl+k/j**) — move selection through the window list
 - **Enter** — activate the selected window
 - **Escape** — close cofi without switching
-- **Tab / Shift+Tab** — switch between tabs (Windows, Workspaces, Harpoon, Names, Config, Hotkeys, Apps)
+- **Tab / Shift+Tab** — cycle through visible tabs. Since TFD-545, tabs have three visibility states:
+  - **PINNED** — always visible: Windows, Apps
+  - **SURFACED** — shown once Tab-cycled into (e.g. via `:show <tab>` command), then dismissed on hide
+  - **HIDDEN** — secondary tabs (Workspaces, Harpoon, Names, Config, Hotkeys) not reached by Tab unless surfaced
+  Tabs are surfaced programmatically by `:show <verb>` commands or explicit prefix flows; Tab/Shift+Tab only cycles PINNED + currently-SURFACED tabs.
 - Typing any character starts filtering immediately (no mode switch needed)
 
 ## Window Appearance
@@ -250,6 +254,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 - Command history: last 10 commands, navigable with Up/Down
 - Help available via `:help` with paged output
 - Help/config display persists while typing (dismissed on Esc)
+- **Prefix candidate strip (TFD-546):** while typing a command verb prefix, the second display header line shows up to 16 matching candidate verbs sorted by length then alphabetically. The current best match is wrapped in `[...]`. Candidates update live and disappear once the prefix resolves to a unique verb.
 - When entered from hidden/delegated flows, target selection is pinned by `command_target_id`: capture active window ID before `show_window()`, then `enter_command_mode()` resolves that ID in the current filtered list
 
 ### Window Commands
@@ -343,6 +348,25 @@ Launch installed desktop applications from a dedicated Apps tab.
 - `--applications` starts directly on the Apps tab
 - `:show apps` switches to the Apps tab
 
+### System Actions (TFD-544 Phase 1)
+
+Six system actions are available as fixed entries in the Apps tab:
+
+- **Lock** — screen lock via shell fallback chain: `xdg-screensaver` → `mate-screensaver-command` → `xscreensaver-command` → `loginctl` → logind D-Bus `Session.Lock`
+- **Suspend / Hibernate / Logout / Reboot / Shutdown** — via logind D-Bus (`org.freedesktop.login1`)
+
+### $PATH Mode (TFD-544 Phase 2)
+
+Typing `$` as the first character in the Apps search entry switches to `$PATH` binary mode:
+
+- Query after `$` filters the cached PATH binary list by substring (case-insensitive pre-filter), then ranks surviving matches by fzf score descending.
+- Cache cap: 4096 entries (MAX_PATH_BINS). On overflow a single warning is logged; later PATH entries are dropped.
+- Filter output cap: 512 entries (MAX_APPS). Scoring runs across ALL substring-matched entries first; the cap is applied at copy-out after sorting, not during scoring.
+- All PATH directories are watched via GFileMonitor (cap: 64 directories). File creates/deletes in PATH dirs update the cache incrementally.
+- **Basename dedupe:** when the same binary name appears in multiple PATH dirs, the first occurrence (highest-priority PATH dir) wins.
+- PATH binaries are launched in a terminal by default (TFD-564).
+- `$` routing lives in `src/tab_switching.c:filter_apps`. Do not add a second `$` check elsewhere.
+
 ### Apps Matching And Ranking
 
 Apps tab matching is local to the Apps launcher and does not reuse Windows-tab MRU/fuzzy ranking.
@@ -350,6 +374,32 @@ Apps tab matching is local to the Apps launcher and does not reuse Windows-tab M
 - Ranking priority: `name` > `generic_name` > `keywords`
 - `generic_name` and `keywords` are token-matched to avoid cross-token false positives
 - Alphabetical order is only used as a tie-breaker within the same ranking tier
+
+### Terminal Detection (TFD-566)
+
+When launching a terminal app or PATH binary, the terminal is detected via this priority chain:
+
+1. `$TERMINAL` env var (if the named binary resolves in PATH)
+2. Desktop-environment configured terminal:
+   - MATE, GNOME, Cinnamon → `gsettings get org.gnome.desktop.default-applications.terminal exec`
+   - KDE → `konsole` (hardcoded)
+   - XFCE → `xfconf-query -c xfce4-terminal -p /default-terminal` (falls back to `xfce4-terminal` binary if the query returns nothing)
+3. `x-terminal-emulator` (Debian alternatives system), then hardcoded candidate list: mate-terminal, gnome-terminal, konsole, alacritty, kitty, foot, wezterm, urxvt, xterm
+4. Final fallback: `xterm`
+
+### Process Detachment (TFD-557)
+
+All Apps-tab launches (desktop entries and PATH binaries) use `detach_launch_properly`:
+
+- Primary: `systemd-run --user --scope -- <argv>` — places the launched process in its own transient systemd scope, completely outside cofi's cgroup.
+- Fallback: fork + setsid + double-fork + execvp. An errno-pipe (`pipe()` + `FD_CLOEXEC` on write end) propagates exec failure back to the parent — a non-empty pipe read means execvp failed.
+- All launched apps survive cofi stop/restart.
+
+### Desktop Entry Launch Behavior (audit-batch-c)
+
+- **Terminal=true** entries (htop, vim, etc.) are launched as `{term, -e, sh, -c, cmd}`. The explicit `sh -c` wrapper ensures consistent behavior across all terminals regardless of how they split the `-e` argument.
+- **Terminal=false (GUI) entries** are parsed with `g_shell_parse_argv` and spawned directly via `detach_launch_argv_array` — no shell is involved. Shell metacharacters (`$()`, backticks, `;`) in `Exec=` do not execute.
+- Malformed `Exec=` strings (unbalanced quotes) are logged and rejected without crashing.
 
 ## Workspace Management
 
@@ -363,15 +413,20 @@ View and interact with workspaces via the Workspaces tab.
 
 ## Tabs
 
-Seven tabs accessible via Tab/Shift+Tab:
+Seven tabs exist; visibility is controlled per-tab (TFD-545):
 
-1. **Windows** — main window list with search and MRU ordering
-2. **Workspaces** — workspace list and management
-3. **Harpoon** — harpoon slot assignments (Ctrl+E edit, Ctrl+D delete)
-4. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete)
-5. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit)
-6. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete)
-7. **Apps** — installed desktop application launcher
+- **PINNED** (always shown, always Tab-reachable): Windows, Apps
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Workspaces, Harpoon, Names, Config, Hotkeys
+
+Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
+
+1. **Windows** — main window list with search and MRU ordering *(PINNED)*
+2. **Apps** — installed desktop application launcher + system actions + `$PATH` binaries *(PINNED)*
+3. **Workspaces** — workspace list and management *(HIDDEN by default)*
+4. **Harpoon** — harpoon slot assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+5. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+6. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
+7. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 
