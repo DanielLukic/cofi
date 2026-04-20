@@ -29,7 +29,7 @@ static int s_cap_warn_count = 0;
 static AppData *s_last_app = NULL;
 
 static GHashTable *s_seen_by_name = NULL;  // basename -> full path (first winner)
-static GFileMonitor *s_path_monitors[64];
+static GFileMonitor *s_path_monitors[MAX_PATH_MONITORS];
 static int s_path_monitor_count = 0;
 
 static int path_entry_cmp(const void *a, const void *b) {
@@ -266,7 +266,7 @@ static void setup_path_monitors(void) {
         }
 
         total_dirs++;
-        if (s_path_monitor_count >= 64) {
+        if (s_path_monitor_count >= MAX_PATH_MONITORS) {
             continue;
         }
 
@@ -291,8 +291,9 @@ static void setup_path_monitors(void) {
         s_path_monitors[s_path_monitor_count++] = monitor;
     }
 
-    if (total_dirs > 64) {
-        log_warn("PATH monitor: %d PATH dirs exceed cap 64; monitoring first 64", total_dirs);
+    if (total_dirs > MAX_PATH_MONITORS) {
+        log_warn("PATH monitor: %d PATH dirs exceed cap %d; monitoring first %d",
+                 total_dirs, MAX_PATH_MONITORS, MAX_PATH_MONITORS);
     }
 
     g_strfreev(dirs);

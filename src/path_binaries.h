@@ -5,7 +5,8 @@
 
 #include "apps.h"
 
-#define MAX_PATH_BINS 4096
+#define MAX_PATH_BINS     4096
+#define MAX_PATH_MONITORS   64
 
 typedef struct AppData AppData;
 

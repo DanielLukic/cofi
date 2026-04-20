@@ -79,7 +79,9 @@ static gboolean fork_setsid_exec(const char *const *argv) {
     // intermediate child: close read end (write end stays open, inherited by grandchild)
     close(err_pipe[0]);
 
-    setsid();
+    if (setsid() < 0) {
+        log_warn("setsid() failed: %s", strerror(errno));
+    }
 
     int devnull = open("/dev/null", O_RDWR);
     if (devnull >= 0) {
@@ -151,7 +153,13 @@ static gboolean detach_launch_properly(const char *const *argv, const char *labe
             return TRUE;
         }
     }
-    return fork_setsid_exec(argv);
+    gboolean ok = fork_setsid_exec(argv);
+    if (ok) {
+        log_info("Launched via fork+setsid: %s", label);
+    } else {
+        log_error("fork+setsid also failed for '%s'", label);
+    }
+    return ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +360,11 @@ static const char *detect_terminal_with_resolver(ProgramResolver resolver,
         }
     }
 
-    return "xterm";
+    if (resolver("xterm")) {
+        return "xterm";
+    }
+    log_error("no terminal emulator found on PATH");
+    return NULL;
 }
 
 gboolean detach_launch_argv_array(const char *const *argv) {
@@ -373,6 +385,11 @@ gboolean detach_launch_in_terminal_cmd(const char *cmd) {
     }
 
     const char *term = detect_terminal_with_resolver(resolve_via_glib, get_desktop_terminal);
+    if (!term) {
+        log_error("no terminal emulator found; cannot launch '%s' in terminal", cmd);
+        return FALSE;
+    }
+
     const char *argv[] = {term, "-e", shell, "-c", cmd, NULL};
     gboolean ok = detach_launch_properly(argv, cmd);
 
