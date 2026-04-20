@@ -230,8 +230,22 @@ fi
 if [ -f test_key_handler_core ]; then
     echo ""
     echo "Running key-handler core behavioral tests..."
-    ./test_key_handler_core
-    if [ $? -ne 0 ]; then
+
+    test_exit=0
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_key_handler_core
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_key_handler_core
+            test_exit=$?
+        fi
+    else
+        ./test_key_handler_core
+        test_exit=$?
+    fi
+
+    if [ $test_exit -ne 0 ]; then
         overall_exit=1
     fi
 fi
@@ -329,8 +343,22 @@ fi
 if [ -f test_command_mode_targeting ]; then
     echo ""
     echo "Running command mode targeting tests..."
-    ./test_command_mode_targeting
-    if [ $? -ne 0 ]; then
+
+    test_exit=0
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_command_mode_targeting
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_command_mode_targeting
+            test_exit=$?
+        fi
+    else
+        ./test_command_mode_targeting
+        test_exit=$?
+    fi
+
+    if [ $test_exit -ne 0 ]; then
         overall_exit=1
     fi
 fi
@@ -410,8 +438,22 @@ fi
 if [ -f test_run_mode ]; then
     echo ""
     echo "Running run_mode tests..."
-    ./test_run_mode
-    if [ $? -ne 0 ]; then
+
+    test_exit=0
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_run_mode
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_run_mode
+            test_exit=$?
+        fi
+    else
+        ./test_run_mode
+        test_exit=$?
+    fi
+
+    if [ $test_exit -ne 0 ]; then
         overall_exit=1
     fi
 fi

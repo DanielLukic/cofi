@@ -68,8 +68,10 @@ static void filter_path_entries(const char *query, AppEntry *out, int *out_count
     /* Score ALL substring-matching entries (up to cache cap MAX_PATH_BINS),
      * then sort, then copy at most MAX_APPS into out[]. Capping during the
      * scoring loop would drop high-score entries that appear late in the
-     * alphabetically-sorted cache when >MAX_APPS entries match. */
-    ScoredPathEntry scored[MAX_PATH_BINS];
+     * alphabetically-sorted cache when >MAX_APPS entries match.
+     * Heap-allocated: MAX_PATH_BINS entries at ~1.5 KB each would be ~6 MB
+     * on the stack, uncomfortably close to the default 8 MB thread limit. */
+    ScoredPathEntry *scored = g_new(ScoredPathEntry, MAX_PATH_BINS);
     int scored_count = 0;
 
     for (int i = 0; i < s_path_count; i++) {
@@ -89,6 +91,7 @@ static void filter_path_entries(const char *query, AppEntry *out, int *out_count
         out[i] = scored[i].entry;
     }
     *out_count = copy_count;
+    g_free(scored);
 }
 
 static void warn_path_cache_cap_once(void) {
