@@ -13,8 +13,13 @@ static int fail = 0;
     else { printf("FAIL: %s\n", name); fail++; } \
 } while (0)
 
+static int g_update_display_calls = 0;
+
 void hide_window(AppData *app) { (void)app; }
-void update_display(AppData *app) { (void)app; }
+void update_display(AppData *app) {
+    (void)app;
+    g_update_display_calls++;
+}
 void enter_run_mode(AppData *app, const char *cmd) { (void)app; (void)cmd; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
@@ -97,6 +102,38 @@ static void test_exit_command_mode_resets_command_target_id(void) {
                 app.command_target_id == 0);
 }
 
+static void test_exit_command_mode_is_noop_when_already_normal(void) {
+    AppData app = make_app_with_windows(4);
+    int before_filtered_count;
+    int before_window_index;
+    Window before_selected_window_id;
+
+    app.command_mode.state = CMD_MODE_NORMAL;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "obs");
+    app.selection.window_index = 2;
+    app.selection.selected_window_id = app.filtered[2].id;
+
+    before_filtered_count = app.filtered_count;
+    before_window_index = app.selection.window_index;
+    before_selected_window_id = app.selection.selected_window_id;
+    g_update_display_calls = 0;
+
+    exit_command_mode(&app);
+
+    ASSERT_TRUE("exit command mode keeps entry text in normal mode",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "obs") == 0);
+    ASSERT_TRUE("exit command mode keeps filtered_count in normal mode",
+                app.filtered_count == before_filtered_count);
+    ASSERT_TRUE("exit command mode keeps selection index in normal mode",
+                app.selection.window_index == before_window_index);
+    ASSERT_TRUE("exit command mode keeps selected window id in normal mode",
+                app.selection.selected_window_id == before_selected_window_id);
+    ASSERT_TRUE("exit command mode keeps mode NORMAL",
+                app.command_mode.state == CMD_MODE_NORMAL);
+    ASSERT_TRUE("exit command mode does not update display in normal mode",
+                g_update_display_calls == 0);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Command mode targeting tests\n");
@@ -111,6 +148,7 @@ int main(int argc, char **argv) {
     test_zero_command_target_id_leaves_selection_unchanged();
     test_unmatched_command_target_id_leaves_selection_unchanged();
     test_exit_command_mode_resets_command_target_id();
+    test_exit_command_mode_is_noop_when_already_normal();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

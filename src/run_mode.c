@@ -136,6 +136,10 @@ void exit_run_mode(AppData *app) {
         return;
     }
 
+    if (app->command_mode.state == CMD_MODE_NORMAL) {
+        return;
+    }
+
     gboolean should_close = app->run_mode.close_on_exit;
 
     app->command_mode.state = CMD_MODE_NORMAL;
