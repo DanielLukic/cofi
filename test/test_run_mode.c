@@ -12,12 +12,15 @@ static int fail = 0;
     else { printf("FAIL: %s\n", name); fail++; } \
 } while (0)
 
+static int g_update_display_calls = 0;
+
 void hide_window(AppData *app) {
     (void)app;
 }
 
 void update_display(AppData *app) {
     (void)app;
+    g_update_display_calls++;
 }
 
 #include "../src/run_mode.c"
@@ -92,6 +95,44 @@ static void test_enter_run_mode_keeps_entry_without_prefix(void) {
                 strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "echo hi") == 0);
 }
 
+static void test_exit_run_mode_is_noop_when_already_normal(void) {
+    AppData app = {0};
+    int before_filtered_count;
+    int before_window_index;
+    Window before_selected_window_id;
+
+    app.entry = gtk_entry_new();
+    app.mode_indicator = gtk_label_new("> ");
+    app.filtered_count = 4;
+    for (int i = 0; i < app.filtered_count; i++) {
+        app.filtered[i].id = (Window)(0x200 + i);
+    }
+    app.selection.window_index = 2;
+    app.selection.selected_window_id = app.filtered[2].id;
+    app.command_mode.state = CMD_MODE_NORMAL;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "obs");
+
+    before_filtered_count = app.filtered_count;
+    before_window_index = app.selection.window_index;
+    before_selected_window_id = app.selection.selected_window_id;
+    g_update_display_calls = 0;
+
+    exit_run_mode(&app);
+
+    ASSERT_TRUE("exit run mode keeps entry text in normal mode",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "obs") == 0);
+    ASSERT_TRUE("exit run mode keeps filtered_count in normal mode",
+                app.filtered_count == before_filtered_count);
+    ASSERT_TRUE("exit run mode keeps selection index in normal mode",
+                app.selection.window_index == before_window_index);
+    ASSERT_TRUE("exit run mode keeps selected window id in normal mode",
+                app.selection.selected_window_id == before_selected_window_id);
+    ASSERT_TRUE("exit run mode keeps mode NORMAL",
+                app.command_mode.state == CMD_MODE_NORMAL);
+    ASSERT_TRUE("exit run mode does not update display in normal mode",
+                g_update_display_calls == 0);
+}
+
 int main(void) {
     int argc = 0;
     char **argv = NULL;
@@ -108,6 +149,7 @@ int main(void) {
     test_extract_run_command_rejects_empty_and_whitespace_only();
     test_run_history_is_session_only_ring_with_dedup_of_latest();
     test_enter_run_mode_keeps_entry_without_prefix();
+    test_exit_run_mode_is_noop_when_already_normal();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
