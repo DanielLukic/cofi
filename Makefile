@@ -154,7 +154,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -224,6 +224,11 @@ test_display_pipeline: test/test_display_pipeline.c src/display_pipeline.o
 # Build overlay dispatch tests
 test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o
 	$(CC) $(CFLAGS) -o test/test_overlay_dispatch test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o $(LDFLAGS)
+
+# Build overlay delete-flow behavior tests
+# (tests harpoon delete confirm/cancel lifecycle with stubs)
+test_overlay_delete_flow: test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o
+	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o $(LDFLAGS)
 
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o

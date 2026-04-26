@@ -97,36 +97,32 @@ void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
 }
 
+static void clear_harpoon_delete_state(AppData *app) {
+    app->harpoon_delete.pending_delete = FALSE;
+    app->harpoon_delete.delete_slot = -1;
+}
+
 gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
         ((event->state & GDK_CONTROL_MASK) &&
          (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D))) {
         int slot_index = app->harpoon_delete.delete_slot;
 
-        log_debug("=== EXECUTING HARPOON DELETE ===");
-        log_debug("Deleting harpoon assignment for slot %d", slot_index);
-
         unassign_slot(&app->harpoon, slot_index);
         save_harpoon_slots(&app->harpoon);
 
         log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
 
-        app->harpoon_delete.pending_delete = FALSE;
-        app->harpoon_delete.delete_slot = -1;
-
-        if (app->current_tab == TAB_HARPOON) {
-            const char *current_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            gtk_entry_set_text(GTK_ENTRY(app->entry), current_text);
-        }
-
+        clear_harpoon_delete_state(app);
+        hide_overlay(app);
+        update_display(app);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        log_debug("User cancelled harpoon delete");
-        app->harpoon_delete.pending_delete = FALSE;
-        app->harpoon_delete.delete_slot = -1;
+        clear_harpoon_delete_state(app);
+        hide_overlay(app);
+        update_display(app);
         return TRUE;
     }
 

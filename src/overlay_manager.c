@@ -23,6 +23,25 @@ static void set_main_focusability(AppData *app, gboolean can_focus) {
         gtk_widget_set_can_focus(app->textview, can_focus);
     }
 }
+
+static void clear_overlay_state(AppData *app, OverlayType type) {
+    if (type == OVERLAY_HARPOON_DELETE) {
+        app->harpoon_delete.pending_delete = FALSE;
+        app->harpoon_delete.delete_slot = -1;
+        return;
+    }
+
+    if (type == OVERLAY_NAME_DELETE) {
+        app->name_delete.pending_delete = FALSE;
+        app->name_delete.manager_index = -1;
+        app->name_delete.custom_name[0] = '\0';
+        return;
+    }
+
+    if (type == OVERLAY_HARPOON_EDIT) {
+        app->harpoon_edit.editing = FALSE;
+    }
+}
 void init_overlay_system(AppData *app) {
     app->overlay_active = FALSE;
     app->current_overlay = OVERLAY_NONE;
@@ -93,12 +112,15 @@ void hide_overlay(AppData *app) {
         return;
     }
 
+    OverlayType overlay_type = app->current_overlay;
+
     gtk_widget_hide(app->modal_background);
     gtk_widget_hide(app->dialog_container);
     gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(app->main_overlay),
                                          app->modal_background, TRUE);
     clear_dialog_container(app);
 
+    clear_overlay_state(app, overlay_type);
     app->overlay_active = FALSE;
     app->current_overlay = OVERLAY_NONE;
 

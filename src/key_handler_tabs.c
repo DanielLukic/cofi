@@ -13,33 +13,52 @@
 #include "named_window_config.h"
 #include "overlay_manager.h"
 
+static gboolean clamp_names_selection(AppData *app) {
+    if (app->filtered_names_count <= 0) {
+        return FALSE;
+    }
+
+    if (app->selection.names_index < 0) {
+        app->selection.names_index = 0;
+    }
+    if (app->selection.names_index >= app->filtered_names_count) {
+        app->selection.names_index = app->filtered_names_count - 1;
+    }
+    return TRUE;
+}
+
 gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
     if (app->current_tab != TAB_NAMES) {
         return FALSE;
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.names_index < app->filtered_names_count) {
-            show_name_edit_overlay(app);
-            return TRUE;
+        if (!clamp_names_selection(app)) {
+            return FALSE;
         }
+        show_name_edit_overlay(app);
+        return TRUE;
     }
 
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.names_index < app->filtered_names_count) {
-            NamedWindow *named = &app->filtered_names[app->selection.names_index];
-            int manager_index = find_named_window_by_name(&app->names, named->custom_name);
-            if (manager_index >= 0) {
-                delete_custom_name(&app->names, manager_index);
-                save_named_windows(&app->names);
-
-                const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-                filter_names(app, current_filter);
-                update_display(app);
-
-                log_info("USER: Deleted custom name '%s'", named->custom_name);
-            }
+        if (!clamp_names_selection(app)) {
+            log_debug("Names Ctrl+D ignored: no rows to delete");
+            return FALSE;
         }
+
+        NamedWindow *named = &app->filtered_names[app->selection.names_index];
+        int manager_index = -1;
+        if (named->id != 0) {
+            manager_index = find_named_window_index(&app->names, named->id);
+        }
+        if (manager_index < 0) {
+            manager_index = find_named_window_by_name(&app->names, named->custom_name);
+        }
+
+        log_info("Names Ctrl+D: showing delete confirm for '%s' (mgr_idx=%d, sel=%d/%d)",
+                 named->custom_name, manager_index,
+                 app->selection.names_index, app->filtered_names_count);
+        show_name_delete_overlay(app, named->custom_name, manager_index);
         return TRUE;
     }
 

@@ -49,6 +49,7 @@ typedef enum {
     OVERLAY_HARPOON_EDIT,
     OVERLAY_NAME_ASSIGN,
     OVERLAY_NAME_EDIT,
+    OVERLAY_NAME_DELETE,
     OVERLAY_CONFIG_EDIT,
     OVERLAY_HOTKEY_ADD,
     OVERLAY_HOTKEY_EDIT
@@ -168,11 +169,18 @@ typedef struct AppData {
         char edit_buffer[MAX_TITLE_LEN];
     } harpoon_edit;
 
-    // Delete confirmation state
+    // Delete confirmation state (Harpoon tab)
     struct {
         gboolean pending_delete;
         int delete_slot;
     } harpoon_delete;
+
+    // Delete confirmation state (Names tab)
+    struct {
+        gboolean pending_delete;
+        int manager_index;
+        char custom_name[MAX_TITLE_LEN];
+    } name_delete;
 
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms

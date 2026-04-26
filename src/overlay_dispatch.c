@@ -43,6 +43,9 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_NAME_EDIT:
             create_name_edit_overlay_content(app->dialog_container, app);
             return;
+        case OVERLAY_NAME_DELETE:
+            create_name_delete_overlay_content(app->dialog_container, app);
+            return;
         case OVERLAY_CONFIG_EDIT:
             create_config_edit_overlay_content(app->dialog_container, app);
             return;
@@ -79,6 +82,8 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_assign_key_press(app, event);
         case OVERLAY_NAME_EDIT:
             return handle_name_edit_key_press(app, event);
+        case OVERLAY_NAME_DELETE:
+            return handle_name_delete_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
             return handle_config_edit_key_press(app, event);
         case OVERLAY_HOTKEY_ADD:
@@ -129,4 +134,15 @@ void show_name_assign_overlay(AppData *app) {
 
 void show_name_edit_overlay(AppData *app) {
     show_overlay(app, OVERLAY_NAME_EDIT, NULL);
+}
+
+void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
+    app->name_delete.pending_delete = TRUE;
+    app->name_delete.manager_index = manager_index;
+    g_strlcpy(app->name_delete.custom_name,
+              custom_name ? custom_name : "",
+              sizeof(app->name_delete.custom_name));
+    log_info("Name delete overlay: pending '%s' (mgr_idx=%d)",
+             app->name_delete.custom_name, app->name_delete.manager_index);
+    show_overlay(app, OVERLAY_NAME_DELETE, NULL);
 }
