@@ -30,3 +30,4 @@ src/*.d
 .worktrees/
 .pi/messenger/feed.jsonl
 .pi/messenger/sessions/
+/.agents/skills
