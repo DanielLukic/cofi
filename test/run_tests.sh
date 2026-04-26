@@ -172,6 +172,16 @@ if [ -f test_overlay_dispatch ]; then
     fi
 fi
 
+# Run overlay delete-flow tests if they exist
+if [ -f test_overlay_delete_flow ]; then
+    echo ""
+    echo "Running overlay delete-flow tests..."
+    ./test_overlay_delete_flow
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run hotkey grab state tests if they exist
 if [ -f test_hotkey_grab_state ]; then
     echo ""

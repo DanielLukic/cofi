@@ -23,6 +23,10 @@ static int g_show_name_edit_calls;
 static int g_last_name_edit_index;
 static NamedWindow g_last_name_edit_named;
 
+static int g_show_name_delete_calls;
+static int g_last_name_delete_manager_index;
+static char g_last_name_delete_custom_name[MAX_TITLE_LEN];
+
 static int g_show_harpoon_delete_calls;
 static int g_last_harpoon_delete_slot;
 
@@ -94,6 +98,26 @@ void show_name_edit_overlay(AppData *app) {
     } else {
         memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
     }
+}
+
+void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
+    (void)app;
+    g_show_name_delete_calls++;
+    g_last_name_delete_manager_index = manager_index;
+    strncpy(g_last_name_delete_custom_name,
+            custom_name ? custom_name : "",
+            sizeof(g_last_name_delete_custom_name) - 1);
+    g_last_name_delete_custom_name[sizeof(g_last_name_delete_custom_name) - 1] = '\0';
+}
+
+int find_named_window_index(const NamedWindowManager *manager, Window id) {
+    if (!manager) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) {
@@ -268,6 +292,10 @@ static void reset_captures(void) {
     g_last_name_edit_index = -1;
     memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
 
+    g_show_name_delete_calls = 0;
+    g_last_name_delete_manager_index = -1;
+    g_last_name_delete_custom_name[0] = '\0';
+
     g_show_harpoon_delete_calls = 0;
     g_last_harpoon_delete_slot = -1;
     g_show_harpoon_edit_calls = 0;
@@ -343,7 +371,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
                 g_last_name_edit_named.id == (Window)0xBEEF);
 }
 
-static void test_ctrl_d_names_tab_deletes_custom_name(void) {
+static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     AppData app;
     init_app(&app);
     reset_captures();
@@ -360,9 +388,34 @@ static void test_ctrl_d_names_tab_deletes_custom_name(void) {
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("Ctrl+d on Names handled", handled == TRUE);
-    ASSERT_TRUE("Ctrl+d on Names removes target custom name",
-                app.names.count == 1 && strcmp(app.names.entries[0].custom_name, "alpha") == 0);
-    ASSERT_TRUE("Ctrl+d on Names persists names", g_save_named_windows_calls == 1);
+    ASSERT_TRUE("Ctrl+d on Names shows delete-confirm overlay",
+                g_show_name_delete_calls == 1 &&
+                strcmp(g_last_name_delete_custom_name, "beta") == 0 &&
+                g_last_name_delete_manager_index == 1);
+    ASSERT_TRUE("Ctrl+d on Names does not delete immediately",
+                app.names.count == 2 && g_save_named_windows_calls == 0);
+}
+
+static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_NAMES;
+    app.names.count = 0;
+    app.filtered_names_count = 1;
+    app.selection.names_index = 0;
+    app.filtered_names[0].id = (Window)0xDEAD;
+    strcpy(app.filtered_names[0].custom_name, "orphan");
+
+    GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+d on unresolved Names row still handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+d on unresolved Names row still shows overlay",
+                g_show_name_delete_calls == 1 &&
+                strcmp(g_last_name_delete_custom_name, "orphan") == 0 &&
+                g_last_name_delete_manager_index == -1);
 }
 
 static void test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot(void) {
@@ -566,7 +619,8 @@ int main(int argc, char **argv) {
     printf("==============================\n\n");
 
     test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named();
-    test_ctrl_d_names_tab_deletes_custom_name();
+    test_ctrl_d_names_tab_shows_delete_confirm_overlay();
+    test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index();
     test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot();
     test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot();
     test_ctrl_t_config_tab_cycles_bool_and_saves();

@@ -139,6 +139,10 @@ void save_config(const CofiConfig *config) { (void)config; g_save_config_calls++
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 
 void show_name_edit_overlay(AppData *app) { (void)app; }
+void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
+    (void)app; (void)custom_name; (void)manager_index;
+}
+int find_named_window_index(const NamedWindowManager *manager, Window id) { (void)manager; (void)id; return -1; }
 int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
 void delete_custom_name(NamedWindowManager *manager, int index) { (void)manager; (void)index; }
 void save_named_windows(const NamedWindowManager *manager) { (void)manager; }

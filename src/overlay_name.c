@@ -115,6 +115,41 @@ void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app)
     log_info("Name edit overlay created for window: %s", selected->original_title);
 }
 
+void create_name_delete_overlay_content(GtkWidget *parent_container, AppData *app) {
+    log_info("Name delete overlay content created (pending=%d, mgr_idx=%d, name='%s')",
+             app->name_delete.pending_delete,
+             app->name_delete.manager_index,
+             app->name_delete.custom_name);
+
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Delete Custom Name?");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    char info[512];
+    snprintf(info, sizeof(info), "Name: %s", app->name_delete.custom_name);
+    GtkWidget *info_label = gtk_label_new(info);
+    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *inst_label = gtk_label_new("Press Y or Ctrl+D to confirm, N or Esc to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+}
+
+static void clear_name_delete_state(AppData *app) {
+    app->name_delete.pending_delete = FALSE;
+    app->name_delete.manager_index = -1;
+    app->name_delete.custom_name[0] = '\0';
+}
+
 gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
         return FALSE;
@@ -205,4 +240,51 @@ gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
 
     log_info("USER: Updated custom name to '%s'", new_name);
     return TRUE;
+}
+
+gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
+    gboolean is_confirm =
+        event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
+        ((event->state & GDK_CONTROL_MASK) &&
+         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
+
+    if (is_confirm) {
+        int manager_index = app->name_delete.manager_index;
+        if (manager_index < 0 || manager_index >= app->names.count) {
+            manager_index = find_named_window_by_name(
+                &app->names, app->name_delete.custom_name);
+        }
+
+        if (manager_index < 0 || manager_index >= app->names.count) {
+            log_warn("Delete target unresolved for '%s'", app->name_delete.custom_name);
+        } else {
+            delete_custom_name(&app->names, manager_index);
+            save_named_windows(&app->names);
+            log_info("USER: Deleted custom name '%s'", app->name_delete.custom_name);
+        }
+
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        filter_names(app, current_filter);
+        if (app->selection.names_index >= app->filtered_names_count && app->filtered_names_count > 0) {
+            app->selection.names_index = app->filtered_names_count - 1;
+        }
+        clear_name_delete_state(app);
+        hide_overlay(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
+        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+        filter_names(app, current_filter);
+        if (app->selection.names_index >= app->filtered_names_count && app->filtered_names_count > 0) {
+            app->selection.names_index = app->filtered_names_count - 1;
+        }
+        clear_name_delete_state(app);
+        hide_overlay(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    return FALSE;
 }
