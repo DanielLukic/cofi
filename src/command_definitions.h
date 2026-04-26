@@ -28,8 +28,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .primary = "ab",
         .aliases = {"always-below", NULL},
         .handler = cmd_always_below,
-        .description = "Toggle always below for selected window",
-        .help_format = "ab, always-below",
+        .description = "Set always below for selected window (default: toggle)",
+        .help_format = "ab, always-below [toggle|on|off]",
         .activates = 1
     },
     {
@@ -51,8 +51,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .primary = "aot",
         .aliases = {"at", "always-on-top", NULL},
         .handler = cmd_always_on_top,
-        .description = "Toggle always on top for selected window",
-        .help_format = "at, always-on-top, aot",
+        .description = "Set always on top for selected window (default: toggle)",
+        .help_format = "at, always-on-top, aot [toggle|on|off]",
         .activates = 1
     },
     {
@@ -82,8 +82,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .primary = "ew",
         .aliases = {"every-workspace", NULL},
         .handler = cmd_every_workspace,
-        .description = "Toggle show on every workspace for selected window",
-        .help_format = "ew, every-workspace",
+        .description = "Set show on every workspace for selected window (default: toggle)",
+        .help_format = "ew, every-workspace [toggle|on|off]",
         .activates = 1
     },
     {

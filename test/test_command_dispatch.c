@@ -200,8 +200,8 @@ static void test_command_chain_semantics(void) {
     }
 }
 
-static void test_skip_taskbar_alias_arg_resolution(void) {
-    printf("\n--- skip-taskbar alias arg resolution ---\n");
+static void test_window_state_alias_arg_resolution(void) {
+    printf("\n--- window-state alias arg resolution ---\n");
 
     char primary[64] = {0};
     char arg[64] = {0};
@@ -222,6 +222,39 @@ static void test_skip_taskbar_alias_arg_resolution(void) {
         tests_passed++;
     } else {
         printf("FAIL: sb off resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
+        tests_failed++;
+    }
+
+    memset(primary, 0, sizeof(primary));
+    memset(arg, 0, sizeof(arg));
+    ok = parse_command_for_execution("ab+", primary, arg, sizeof(primary), sizeof(arg));
+    if (ok && strcmp(primary, "ab") == 0 && strcmp(arg, "+") == 0) {
+        printf("PASS: ab+ resolves to ab + +\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: ab+ resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
+        tests_failed++;
+    }
+
+    memset(primary, 0, sizeof(primary));
+    memset(arg, 0, sizeof(arg));
+    ok = parse_command_for_execution("at-", primary, arg, sizeof(primary), sizeof(arg));
+    if (ok && strcmp(primary, "aot") == 0 && strcmp(arg, "-") == 0) {
+        printf("PASS: at- resolves to aot + -\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: at- resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
+        tests_failed++;
+    }
+
+    memset(primary, 0, sizeof(primary));
+    memset(arg, 0, sizeof(arg));
+    ok = parse_command_for_execution("every-workspace+", primary, arg, sizeof(primary), sizeof(arg));
+    if (ok && strcmp(primary, "ew") == 0 && strcmp(arg, "+") == 0) {
+        printf("PASS: every-workspace+ resolves to ew + +\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: every-workspace+ resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
         tests_failed++;
     }
 }
@@ -274,7 +307,7 @@ int main(void) {
     test_keep_open_on_hotkey_auto_field();
     test_should_keep_open_runtime_policy();
     test_command_chain_semantics();
-    test_skip_taskbar_alias_arg_resolution();
+    test_window_state_alias_arg_resolution();
     test_alias_drift_guard();
     test_all_commands_covered();
 

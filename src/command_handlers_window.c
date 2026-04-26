@@ -35,6 +35,29 @@ gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args _
     return TRUE;
 }
 
+static gboolean parse_state_action_arg(const char *args, const char *usage,
+                                       WindowStateAction *action_out) {
+    if (!action_out) {
+        return FALSE;
+    }
+
+    *action_out = WINDOW_STATE_TOGGLE;
+    if (!args || args[0] == '\0' || strcmp(args, "toggle") == 0) {
+        return TRUE;
+    }
+    if (strcmp(args, "on") == 0 || strcmp(args, "+") == 0) {
+        *action_out = WINDOW_STATE_SET;
+        return TRUE;
+    }
+    if (strcmp(args, "off") == 0 || strcmp(args, "-") == 0) {
+        *action_out = WINDOW_STATE_UNSET;
+        return TRUE;
+    }
+
+    log_warn("Usage: %s (got '%s')", usage, args);
+    return FALSE;
+}
+
 gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for skip taskbar toggle");
@@ -42,50 +65,56 @@ gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args) {
     }
 
     WindowStateAction action = WINDOW_STATE_TOGGLE;
-    if (args && args[0] != '\0') {
-        if (strcmp(args, "toggle") == 0) {
-            action = WINDOW_STATE_TOGGLE;
-        } else if (strcmp(args, "on") == 0) {
-            action = WINDOW_STATE_SET;
-        } else if (strcmp(args, "off") == 0) {
-            action = WINDOW_STATE_UNSET;
-        } else {
-            log_warn("Usage: sb [toggle|on|off] (got '%s')", args);
-            return FALSE;
-        }
+    if (!parse_state_action_arg(args, "sb [toggle|on|off]", &action)) {
+        return FALSE;
     }
 
     set_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR", action);
     return TRUE;
 }
 
-gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for always on top toggle");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_ABOVE");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "aot [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_ABOVE", action);
     return TRUE;
 }
 
-gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for always below toggle");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_BELOW");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "ab [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_BELOW", action);
     return TRUE;
 }
 
-gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for every workspace toggle");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_STICKY");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "ew [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_STICKY", action);
     return TRUE;
 }
 
