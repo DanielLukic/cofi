@@ -35,13 +35,27 @@ gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args _
     return TRUE;
 }
 
-gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for skip taskbar toggle");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (args && args[0] != '\0') {
+        if (strcmp(args, "toggle") == 0) {
+            action = WINDOW_STATE_TOGGLE;
+        } else if (strcmp(args, "on") == 0) {
+            action = WINDOW_STATE_SET;
+        } else if (strcmp(args, "off") == 0) {
+            action = WINDOW_STATE_UNSET;
+        } else {
+            log_warn("Usage: sb [toggle|on|off] (got '%s')", args);
+            return FALSE;
+        }
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR", action);
     return TRUE;
 }
 

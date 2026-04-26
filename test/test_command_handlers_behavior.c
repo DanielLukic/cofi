@@ -4,6 +4,7 @@
 #include "../src/app_data.h"
 #include "../src/command_definitions.h"
 #include "../src/tiling.h"
+#include "../src/x11_utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -22,6 +23,10 @@ static int tests_passed = 0;
 static int show_name_assign_overlay_calls = 0;
 static int dispatch_hotkey_mode_calls = 0;
 static ShowMode last_show_mode = SHOW_MODE_WINDOWS;
+static int set_window_state_calls = 0;
+static WindowStateAction last_window_state_action = WINDOW_STATE_TOGGLE;
+static Window last_window_state_window = 0;
+static char last_window_state_name[64] = {0};
 
 // --- shared stubs for handler dependencies ---
 void hide_window(AppData *app) { (void)app; }
@@ -62,8 +67,18 @@ void assign_workspace_slots(AppData *app) { (void)app; }
 void apply_tiling(Display *display, Window window, TileOption option, int columns) {
     (void)display; (void)window; (void)option; (void)columns;
 }
+void set_window_state(Display *display, Window window, const char *state,
+                      WindowStateAction action) {
+    (void)display;
+    set_window_state_calls++;
+    last_window_state_action = action;
+    last_window_state_window = window;
+    strncpy(last_window_state_name, state ? state : "", sizeof(last_window_state_name) - 1);
+    last_window_state_name[sizeof(last_window_state_name) - 1] = '\0';
+}
+
 void toggle_window_state(Display *display, Window window, const char *state) {
-    (void)display; (void)window; (void)state;
+    set_window_state(display, window, state, WINDOW_STATE_TOGGLE);
 }
 void close_window(Display *display, Window window) { (void)display; (void)window; }
 void minimize_window(Display *display, Window window) { (void)display; (void)window; }
@@ -142,6 +157,51 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an opens name assign overlay", show_name_assign_overlay_calls == 1);
 }
 
+static void test_skip_taskbar_handler_behavior(void) {
+    AppData app;
+    WindowInfo window;
+    memset(&app, 0, sizeof(app));
+    memset(&window, 0, sizeof(window));
+    window.id = 0xBEEF;
+
+    const CommandDef *cmd = find_command("sb");
+    ASSERT_TRUE("window command 'sb' exists", cmd != NULL);
+    if (!cmd) return;
+
+    set_window_state_calls = 0;
+    gboolean missing_window = cmd->handler(&app, NULL, "on");
+    ASSERT_TRUE("sb rejects missing window", missing_window == FALSE);
+    ASSERT_TRUE("sb missing window does not touch state", set_window_state_calls == 0);
+
+    set_window_state_calls = 0;
+    gboolean toggle_default = cmd->handler(&app, &window, "");
+    ASSERT_TRUE("sb no-arg succeeds", toggle_default == TRUE);
+    ASSERT_TRUE("sb no-arg uses toggle", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+
+    set_window_state_calls = 0;
+    gboolean toggle_explicit = cmd->handler(&app, &window, "toggle");
+    ASSERT_TRUE("sb toggle succeeds", toggle_explicit == TRUE);
+    ASSERT_TRUE("sb toggle uses toggle action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+
+    set_window_state_calls = 0;
+    gboolean on_result = cmd->handler(&app, &window, "on");
+    ASSERT_TRUE("sb on succeeds", on_result == TRUE);
+    ASSERT_TRUE("sb on uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+
+    set_window_state_calls = 0;
+    gboolean off_result = cmd->handler(&app, &window, "off");
+    ASSERT_TRUE("sb off succeeds", off_result == TRUE);
+    ASSERT_TRUE("sb off uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+
+    set_window_state_calls = 0;
+    gboolean invalid_result = cmd->handler(&app, &window, "wat");
+    ASSERT_TRUE("sb invalid arg fails", invalid_result == FALSE);
+    ASSERT_TRUE("sb invalid arg is no-op", set_window_state_calls == 0);
+
+    ASSERT_TRUE("sb targets skip-taskbar atom", strcmp(last_window_state_name, "_NET_WM_STATE_SKIP_TASKBAR") == 0);
+    ASSERT_TRUE("sb targets selected window", last_window_state_window == window.id);
+}
+
 static void test_workspace_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
@@ -191,6 +251,7 @@ int main(void) {
     printf("========================================\n\n");
 
     test_window_handler_behavior();
+    test_skip_taskbar_handler_behavior();
     test_workspace_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();

@@ -429,8 +429,8 @@ gboolean get_window_state(Display *display, Window window, const char *state_ato
     return FALSE;
 }
 
-// Toggle window state (add or remove a specific state atom)
-void toggle_window_state(Display *display, Window window, const char *state_atom_name) {
+void set_window_state(Display *display, Window window, const char *state_atom_name,
+                      WindowStateAction action) {
     Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
     Atom state_atom = XInternAtom(display, state_atom_name, False);
 
@@ -439,10 +439,13 @@ void toggle_window_state(Display *display, Window window, const char *state_atom
         return;
     }
 
-    // Check current state
-    gboolean is_set = get_window_state(display, window, state_atom_name);
+    if (action != WINDOW_STATE_UNSET &&
+        action != WINDOW_STATE_SET &&
+        action != WINDOW_STATE_TOGGLE) {
+        log_error("Invalid window state action: %d", action);
+        return;
+    }
 
-    // Send client message to toggle the state
     XEvent event;
     memset(&event, 0, sizeof(event));
     event.type = ClientMessage;
@@ -452,20 +455,25 @@ void toggle_window_state(Display *display, Window window, const char *state_atom
     event.xclient.window = window;
     event.xclient.message_type = net_wm_state;
     event.xclient.format = 32;
-    event.xclient.data.l[0] = is_set ? 0 : 1; // 0 = remove, 1 = add, 2 = toggle
+    event.xclient.data.l[0] = action;
     event.xclient.data.l[1] = state_atom;
-    event.xclient.data.l[2] = 0; // Second property (unused for single state)
-    event.xclient.data.l[3] = 1; // Source indication (1 = application)
-    event.xclient.data.l[4] = 0; // Unused
+    event.xclient.data.l[2] = 0;
+    event.xclient.data.l[3] = 1;
+    event.xclient.data.l[4] = 0;
 
     XSendEvent(display, DefaultRootWindow(display), False,
                SubstructureRedirectMask | SubstructureNotifyMask, &event);
     XFlush(display);
 
-    log_debug("Toggled window state %s for window %lu (was %s, now %s)",
-              state_atom_name, window,
-              is_set ? "set" : "unset",
-              is_set ? "unset" : "set");
+    const char *action_name = action == WINDOW_STATE_SET ? "set" :
+                              action == WINDOW_STATE_UNSET ? "unset" : "toggle";
+    log_debug("Window state %s %s for window %lu",
+              state_atom_name, action_name, window);
+}
+
+// Toggle window state (add or remove a specific state atom)
+void toggle_window_state(Display *display, Window window, const char *state_atom_name) {
+    set_window_state(display, window, state_atom_name, WINDOW_STATE_TOGGLE);
 }
 
 // Close window by sending WM_DELETE_WINDOW message

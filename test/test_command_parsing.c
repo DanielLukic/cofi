@@ -93,6 +93,8 @@ int main() {
         // Commands without arguments
         {"tm", "tm", "", "Toggle monitor (no arg)"},
         {"sb", "sb", "", "Skip taskbar (no arg)"},
+        {"sb on", "sb", "on", "Skip taskbar explicit on"},
+        {"skip-taskbar off", "skip-taskbar", "off", "Skip taskbar alias explicit off"},
         {"help", "help", "", "Help command (no arg)"},
         {"c", "c", "", "Close window (no arg)"},
         {"mouse away", "mouse", "away", "Multi-word command with spaced arg"},
