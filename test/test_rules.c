@@ -139,17 +139,17 @@ static void test_load_missing_file(void) {
 
 // ========== Rule matching state machine tests ==========
 
-static void test_match_fires_with_explicit_sb_arg(void) {
+static void test_match_fires_with_explicit_state_args(void) {
     RulesConfig config;
     init_rules_config(&config);
-    add_rule(&config, "*htop*Terminal", "sb on,ab,ew");
+    add_rule(&config, "*htop*Terminal", "sb on,ab on,ew off,aot on");
 
     RuleState state;
     init_rule_state(&state);
 
     RuleMatch match = check_rule_match(&config.rules[0], &state, 0x3344, "root@host htop - Terminal");
-    ASSERT_TRUE("matching title with sb on fires", match.should_fire);
-    ASSERT_STR("explicit sb arg preserved", "sb on,ab,ew", match.commands);
+    ASSERT_TRUE("matching title with explicit state args fires", match.should_fire);
+    ASSERT_STR("explicit state args preserved", "sb on,ab on,ew off,aot on", match.commands);
 }
 
 static void test_match_fires_on_matching_title(void) {
@@ -310,7 +310,7 @@ int main(void) {
 
     // Matching state machine tests
     printf("\n--- Matching ---\n");
-    test_match_fires_with_explicit_sb_arg();
+    test_match_fires_with_explicit_state_args();
     test_match_fires_on_matching_title();
     test_no_fire_on_non_matching_title();
     test_no_refire_same_title();

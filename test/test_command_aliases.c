@@ -287,6 +287,24 @@ static void test_small_buffers(void) {
     }
 }
 
+static void test_window_state_compact_forms(void) {
+    printf("\n--- Window-state compact +/- forms ---\n");
+
+    check("sb compact +", "sb+", "sb", "+");
+    check("sb compact -", "sb-", "sb", "-");
+    check("skip-taskbar compact +", "skip-taskbar+", "sb", "+");
+    check("ab compact +", "ab+", "ab", "+");
+    check("ab compact -", "ab-", "ab", "-");
+    check("always-below compact +", "always-below+", "ab", "+");
+    check("aot compact +", "aot+", "aot", "+");
+    check("aot compact -", "aot-", "aot", "-");
+    check("at compact +", "at+", "aot", "+");
+    check("always-on-top compact -", "always-on-top-", "aot", "-");
+    check("ew compact +", "ew+", "ew", "+");
+    check("ew compact -", "ew-", "ew", "-");
+    check("every-workspace compact +", "every-workspace+", "ew", "+");
+}
+
 static void test_commands_without_compact_form(void) {
     printf("\n--- Commands without compact form ---\n");
 
@@ -345,6 +363,7 @@ int main(void) {
     test_null_and_empty();
     test_trim_whitespace();
     test_small_buffers();
+    test_window_state_compact_forms();
     test_commands_without_compact_form();
     test_multi_digit_args();
 

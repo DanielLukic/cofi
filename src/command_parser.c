@@ -6,14 +6,14 @@
 #include <string.h>
 
 const CommandParseDef COMMAND_PARSE_DEFS[] = {
-    { "ab",      {"always-below", NULL},                         NULL },
+    { "ab",      {"always-below", NULL},                         "+-" },
     { "an",      {"assign-name", "n", NULL},                   NULL },
     { "as",      {"assign-slots", NULL},                         NULL },
-    { "aot",     {"at", "always-on-top", NULL},                NULL },
+    { "aot",     {"at", "always-on-top", NULL},                "+-" },
     { "cl",      {"c", "close", "close-window", NULL},       NULL },
     { "config",  {"conf", "cfg", NULL},                        NULL },
     { "cw",      {"change-workspace", NULL},                     "0123456789hjkl" },
-    { "ew",      {"every-workspace", NULL},                      NULL },
+    { "ew",      {"every-workspace", NULL},                      "+-" },
     { "harpoon", {"hp", NULL},                                   NULL },
     { "help",    {"h", "?", NULL},                             NULL },
     { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL },
@@ -26,7 +26,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "mw",      {"max", "maximize-window", NULL},             NULL },
     { "pw",      {"pull-window", "p", NULL},                   NULL },
     { "rw",      {"rename-workspace", NULL},                     NULL },
-    { "sb",      {"skip-taskbar", NULL},                         NULL },
+    { "sb",      {"skip-taskbar", NULL},                         "+-" },
     { "set",     {NULL},                                           NULL },
     { "show",    {"s", NULL},                                    NULL },
     { "sw",      {"swap-windows", NULL},                         NULL },

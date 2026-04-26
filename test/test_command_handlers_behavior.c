@@ -157,49 +157,59 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an opens name assign overlay", show_name_assign_overlay_calls == 1);
 }
 
-static void test_skip_taskbar_handler_behavior(void) {
+static void test_window_state_handler(const char *cmd_name, const char *atom_name) {
     AppData app;
     WindowInfo window;
     memset(&app, 0, sizeof(app));
     memset(&window, 0, sizeof(window));
     window.id = 0xBEEF;
 
-    const CommandDef *cmd = find_command("sb");
-    ASSERT_TRUE("window command 'sb' exists", cmd != NULL);
+    const CommandDef *cmd = find_command(cmd_name);
+    ASSERT_TRUE("window state command exists", cmd != NULL);
     if (!cmd) return;
 
     set_window_state_calls = 0;
     gboolean missing_window = cmd->handler(&app, NULL, "on");
-    ASSERT_TRUE("sb rejects missing window", missing_window == FALSE);
-    ASSERT_TRUE("sb missing window does not touch state", set_window_state_calls == 0);
+    ASSERT_TRUE("state command rejects missing window", missing_window == FALSE);
+    ASSERT_TRUE("missing window does not touch state", set_window_state_calls == 0);
 
     set_window_state_calls = 0;
-    gboolean toggle_default = cmd->handler(&app, &window, "");
-    ASSERT_TRUE("sb no-arg succeeds", toggle_default == TRUE);
-    ASSERT_TRUE("sb no-arg uses toggle", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("no-arg succeeds", cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("no-arg uses toggle", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
 
     set_window_state_calls = 0;
-    gboolean toggle_explicit = cmd->handler(&app, &window, "toggle");
-    ASSERT_TRUE("sb toggle succeeds", toggle_explicit == TRUE);
-    ASSERT_TRUE("sb toggle uses toggle action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("toggle succeeds", cmd->handler(&app, &window, "toggle") == TRUE);
+    ASSERT_TRUE("toggle uses toggle action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
 
     set_window_state_calls = 0;
-    gboolean on_result = cmd->handler(&app, &window, "on");
-    ASSERT_TRUE("sb on succeeds", on_result == TRUE);
-    ASSERT_TRUE("sb on uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+    ASSERT_TRUE("on succeeds", cmd->handler(&app, &window, "on") == TRUE);
+    ASSERT_TRUE("on uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
 
     set_window_state_calls = 0;
-    gboolean off_result = cmd->handler(&app, &window, "off");
-    ASSERT_TRUE("sb off succeeds", off_result == TRUE);
-    ASSERT_TRUE("sb off uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+    ASSERT_TRUE("off succeeds", cmd->handler(&app, &window, "off") == TRUE);
+    ASSERT_TRUE("off uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
 
     set_window_state_calls = 0;
-    gboolean invalid_result = cmd->handler(&app, &window, "wat");
-    ASSERT_TRUE("sb invalid arg fails", invalid_result == FALSE);
-    ASSERT_TRUE("sb invalid arg is no-op", set_window_state_calls == 0);
+    ASSERT_TRUE("compact + succeeds", cmd->handler(&app, &window, "+") == TRUE);
+    ASSERT_TRUE("compact + uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
 
-    ASSERT_TRUE("sb targets skip-taskbar atom", strcmp(last_window_state_name, "_NET_WM_STATE_SKIP_TASKBAR") == 0);
-    ASSERT_TRUE("sb targets selected window", last_window_state_window == window.id);
+    set_window_state_calls = 0;
+    ASSERT_TRUE("compact - succeeds", cmd->handler(&app, &window, "-") == TRUE);
+    ASSERT_TRUE("compact - uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+
+    set_window_state_calls = 0;
+    ASSERT_TRUE("invalid arg fails", cmd->handler(&app, &window, "wat") == FALSE);
+    ASSERT_TRUE("invalid arg is no-op", set_window_state_calls == 0);
+
+    ASSERT_TRUE("targets expected atom", strcmp(last_window_state_name, atom_name) == 0);
+    ASSERT_TRUE("targets selected window", last_window_state_window == window.id);
+}
+
+static void test_window_state_handlers_behavior(void) {
+    test_window_state_handler("sb", "_NET_WM_STATE_SKIP_TASKBAR");
+    test_window_state_handler("ab", "_NET_WM_STATE_BELOW");
+    test_window_state_handler("aot", "_NET_WM_STATE_ABOVE");
+    test_window_state_handler("ew", "_NET_WM_STATE_STICKY");
 }
 
 static void test_workspace_handler_behavior(void) {
@@ -251,7 +261,7 @@ int main(void) {
     printf("========================================\n\n");
 
     test_window_handler_behavior();
-    test_skip_taskbar_handler_behavior();
+    test_window_state_handlers_behavior();
     test_workspace_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();

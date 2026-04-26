@@ -285,9 +285,9 @@ Vim-style command entry triggered by typing `:` in the search field.
 ### Window Property Commands
 
 - `:sb [toggle|on|off]` (`:skip-taskbar [toggle|on|off]`) — set skip taskbar (default `toggle`)
-- `:aot` (`:at`, `:always-on-top`) — toggle always on top
-- `:ab` (`:always-below`) — toggle always below
-- `:ew` (`:every-workspace`) — toggle sticky (all desktops)
+- `:aot [toggle|on|off]` (`:at`, `:always-on-top`) — set always on top (default `toggle`)
+- `:ab [toggle|on|off]` (`:always-below`) — set always below (default `toggle`)
+- `:ew [toggle|on|off]` (`:every-workspace`) — set sticky (all desktops, default `toggle`)
 
 ### Monitor Commands
 
@@ -486,6 +486,7 @@ When a window is activated (via Alt-Tab, harpoon, workspace switch), a visual ri
 ## Compact Command Syntax
 
 Commands support no-space compact form: `:cw2` = `:cw 2`, `:mawk` = `:maw k`.
+For window-state commands (`sb`, `ab`, `aot`/`at`, `ew`), compact `+`/`-` are supported: `:sb+` = `:sb on`, `:ew-` = `:ew off`.
 
 - Compact forms defined in a data-driven table (COMPACT_FORMS) mapping command names to accepted suffix characters
 - Parser picks the longest matching command name to resolve prefix ambiguity
