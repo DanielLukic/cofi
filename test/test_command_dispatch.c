@@ -19,7 +19,7 @@ STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_help)
+STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -107,6 +107,7 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
     ASSERT_ACTIVATES("names",   0);   // names: surfaces tab
     ASSERT_ACTIVATES("rw",      0);   // rename-workspace: shows overlay
+    ASSERT_ACTIVATES("rules",   0);   // rules: surfaces tab
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("show",    0);   // show: switches view
     ASSERT_ACTIVATES("sw",      0);   // swap-windows: swaps geometry only
@@ -125,6 +126,7 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("hotkeys", 1);
     ASSERT_KEEP_OPEN("harpoon", 1);
     ASSERT_KEEP_OPEN("names", 1);
+    ASSERT_KEEP_OPEN("rules", 1);
     ASSERT_KEEP_OPEN("workspaces", 1);
 
     ASSERT_KEEP_OPEN("jw", 0);
@@ -289,12 +291,12 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 17 non-activating = 28 commands
-    if (table_count == 28) {
+    // 11 activating + 18 non-activating = 29 commands
+    if (table_count == 29) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 28 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 29 — update test!\n", table_count);
         tests_failed++;
     }
 }

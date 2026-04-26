@@ -108,6 +108,9 @@ int main() {
         {"c", "c", "", "Close window (no arg)"},
         {"mouse away", "mouse", "away", "Multi-word command with spaced arg"},
         {"m show", "m", "show", "Alias command with spaced arg"},
+        {"rules", "rules", "", "Rules command"},
+        {"rl", "rl", "", "Rules alias"},
+        {"show rules", "show", "rules", "Show rules tab"},
         
         // Edge cases
         {"  cw 3  ", "cw", "3", "Command with leading/trailing spaces"},

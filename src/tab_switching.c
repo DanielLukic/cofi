@@ -14,8 +14,8 @@
 #include "path_binaries.h"
 
 static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
-    for (int i = 1; i <= 7; i++) {
-        int candidate = ((int)start_tab + (direction * i) + 7) % 7;
+    for (int i = 1; i <= TAB_COUNT; i++) {
+        int candidate = ((int)start_tab + (direction * i) + TAB_COUNT) % TAB_COUNT;
         if (tab_is_visible(app, (TabMode)candidate)) {
             return (TabMode)candidate;
         }
@@ -50,6 +50,9 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_HOTKEYS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter hotkey bindings...");
         filter_hotkeys(app, "");
+    } else if (target_tab == TAB_RULES) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter rules...");
+        filter_rules(app, "");
     } else if (target_tab == TAB_APPS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
@@ -59,7 +62,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -80,7 +83,7 @@ void clear_surfaced_tabs(AppData *app) {
         return;
     }
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < TAB_COUNT; i++) {
         if (app->tab_visibility[i] == TAB_VIS_SURFACED) {
             app->tab_visibility[i] = TAB_VIS_HIDDEN;
         }
@@ -109,7 +112,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     }
 
     TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Apps"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps"};
 
     if (direction < 0) {
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
@@ -230,6 +233,31 @@ void filter_hotkeys(AppData *app, const char *filter) {
             app->filtered_hotkeys[app->filtered_hotkeys_count] = app->hotkey_config.bindings[i];
             app->filtered_hotkeys_indices[app->filtered_hotkeys_count] = i;
             app->filtered_hotkeys_count++;
+        }
+    }
+}
+
+void filter_rules(AppData *app, const char *filter) {
+    app->filtered_rules_count = 0;
+
+    if (!filter || !*filter) {
+        for (int i = 0; i < app->rules_config.count; i++) {
+            app->filtered_rules[app->filtered_rules_count] = app->rules_config.rules[i];
+            app->filtered_rule_indices[app->filtered_rules_count] = i;
+            app->filtered_rules_count++;
+        }
+        return;
+    }
+
+    for (int i = 0; i < app->rules_config.count; i++) {
+        char searchable[600];
+        snprintf(searchable, sizeof(searchable), "%s %s",
+                 app->rules_config.rules[i].pattern,
+                 app->rules_config.rules[i].commands);
+        if (has_match(filter, searchable)) {
+            app->filtered_rules[app->filtered_rules_count] = app->rules_config.rules[i];
+            app->filtered_rule_indices[app->filtered_rules_count] = i;
+            app->filtered_rules_count++;
         }
     }
 }

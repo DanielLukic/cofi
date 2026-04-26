@@ -38,7 +38,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
 void exit_command_mode(AppData *app) { (void)app; }
 void show_help_commands(AppData *app) { (void)app; }
 void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_tab; }
-void surface_tab(AppData *app, TabMode tab) { (void)app; (void)tab; }
+void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 
 int get_current_desktop(Display *display) { (void)display; return 0; }
 int resolve_workspace_from_arg(Display *display, const char *arg, int workspaces_per_row) {
@@ -254,6 +254,17 @@ static void test_ui_handler_behavior(void) {
     ASSERT_TRUE("show run is accepted", result == FALSE);
     ASSERT_TRUE("show run dispatches exactly once", dispatch_hotkey_mode_calls == 1);
     ASSERT_TRUE("show run dispatches run mode", last_show_mode == SHOW_MODE_RUN);
+
+    result = cmd->handler(&app, NULL, "rules");
+    ASSERT_TRUE("show rules is accepted", result == FALSE);
+    ASSERT_TRUE("show rules surfaces rules tab", app.current_tab == TAB_RULES);
+
+    cmd = find_command("rules");
+    ASSERT_TRUE("rules command exists", cmd != NULL);
+    if (cmd) {
+        result = cmd->handler(&app, NULL, "");
+        ASSERT_TRUE("rules command surfaces rules tab", result == FALSE && app.current_tab == TAB_RULES);
+    }
 }
 
 int main(void) {

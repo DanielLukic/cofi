@@ -39,6 +39,8 @@ static int g_save_hotkey_config_calls;
 static int g_update_display_calls;
 static int g_save_named_windows_calls;
 static int g_cleanup_hotkeys_calls;
+static int g_replay_selected_rule_calls;
+static int g_replay_all_rules_calls;
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -269,6 +271,8 @@ int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
 
 int save_hotkey_config(const HotkeyConfig *config) { (void)config; g_save_hotkey_config_calls++; return 1; }
 void regrab_hotkeys(AppData *app) { (void)app; g_regrab_hotkeys_calls++; }
+int replay_all_rules_against_open_windows(AppData *app) { (void)app; g_replay_all_rules_calls++; return 0; }
+gboolean replay_selected_filtered_rule(AppData *app) { (void)app; g_replay_selected_rule_calls++; return TRUE; }
 
 void filter_hotkeys(AppData *app, const char *filter) {
     (void)filter;
@@ -281,6 +285,7 @@ void filter_hotkeys(AppData *app, const char *filter) {
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }
+void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
@@ -307,6 +312,8 @@ static void reset_captures(void) {
     g_update_display_calls = 0;
     g_save_named_windows_calls = 0;
     g_cleanup_hotkeys_calls = 0;
+    g_replay_selected_rule_calls = 0;
+    g_replay_all_rules_calls = 0;
 
     g_show_overlay_calls = 0;
     g_last_overlay_type = OVERLAY_NONE;
@@ -607,6 +614,47 @@ static void test_ctrl_d_hotkeys_last_row_clamps_selection(void) {
     ASSERT_TRUE("Ctrl+d on Hotkeys last row clamps selection index", app.selection.hotkeys_index == 1);
 }
 
+static void test_rules_tab_shortcuts_crud_and_replay(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_RULES;
+    app.filtered_rules_count = 2;
+    app.selection.rules_index = 1;
+    app.filtered_rule_indices[0] = 3;
+    app.filtered_rule_indices[1] = 7;
+
+    GdkEventKey add_ev = make_key(GDK_KEY_a, GDK_CONTROL_MASK);
+    gboolean add_handled = on_key_press(NULL, &add_ev, &app);
+    ASSERT_TRUE("Ctrl+a on Rules handled", add_handled == TRUE);
+    ASSERT_TRUE("Ctrl+a on Rules opens add overlay",
+                g_show_overlay_calls == 1 && g_last_overlay_type == OVERLAY_RULE_ADD);
+
+    GdkEventKey edit_ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
+    gboolean edit_handled = on_key_press(NULL, &edit_ev, &app);
+    ASSERT_TRUE("Ctrl+e on Rules handled", edit_handled == TRUE);
+    ASSERT_TRUE("Ctrl+e on Rules opens edit overlay",
+                g_show_overlay_calls == 2 && g_last_overlay_type == OVERLAY_RULE_EDIT);
+
+    GdkEventKey del_ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
+    gboolean del_handled = on_key_press(NULL, &del_ev, &app);
+    ASSERT_TRUE("Ctrl+d on Rules handled", del_handled == TRUE);
+    ASSERT_TRUE("Ctrl+d on Rules opens delete overlay",
+                g_show_overlay_calls == 3 && g_last_overlay_type == OVERLAY_RULE_DELETE);
+    ASSERT_TRUE("Ctrl+d on Rules stores selected rule index", app.rules_delete.rule_index == 7);
+
+    GdkEventKey replay_sel = make_key(GDK_KEY_x, GDK_CONTROL_MASK);
+    gboolean replay_sel_handled = on_key_press(NULL, &replay_sel, &app);
+    ASSERT_TRUE("Ctrl+x on Rules handled", replay_sel_handled == TRUE);
+    ASSERT_TRUE("Ctrl+x on Rules replays selected", g_replay_selected_rule_calls == 1);
+
+    GdkEventKey replay_all = make_key(GDK_KEY_X, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+    gboolean replay_all_handled = on_key_press(NULL, &replay_all, &app);
+    ASSERT_TRUE("Ctrl+Shift+x on Rules handled", replay_all_handled == TRUE);
+    ASSERT_TRUE("Ctrl+Shift+x on Rules replays all", g_replay_all_rules_calls == 1);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Key handler tab-specific tests\n");
@@ -630,6 +678,7 @@ int main(int argc, char **argv) {
     test_ctrl_e_hotkeys_tab_opens_edit_for_selected_binding();
     test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs();
     test_ctrl_d_hotkeys_last_row_clamps_selection();
+    test_rules_tab_shortcuts_crud_and_replay();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

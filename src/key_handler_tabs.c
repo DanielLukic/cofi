@@ -12,6 +12,7 @@
 #include "named_window.h"
 #include "named_window_config.h"
 #include "overlay_manager.h"
+#include "rules_replay.h"
 
 static gboolean clamp_names_selection(AppData *app) {
     if (app->filtered_names_count <= 0) {
@@ -136,6 +137,20 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
+static gboolean clamp_rules_selection(AppData *app) {
+    if (app->filtered_rules_count <= 0) {
+        return FALSE;
+    }
+
+    if (app->selection.rules_index < 0) {
+        app->selection.rules_index = 0;
+    }
+    if (app->selection.rules_index >= app->filtered_rules_count) {
+        app->selection.rules_index = app->filtered_rules_count - 1;
+    }
+    return TRUE;
+}
+
 gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
     if (app->current_tab != TAB_HOTKEYS) {
         return FALSE;
@@ -173,6 +188,56 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
             show_overlay(app, OVERLAY_HOTKEY_EDIT, NULL);
             return TRUE;
         }
+    }
+
+    return FALSE;
+}
+
+gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_RULES) {
+        return FALSE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_a || event->keyval == GDK_KEY_A)) {
+        show_overlay(app, OVERLAY_RULE_ADD, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E)) {
+        if (!clamp_rules_selection(app)) {
+            return FALSE;
+        }
+        show_overlay(app, OVERLAY_RULE_EDIT, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D)) {
+        if (!clamp_rules_selection(app)) {
+            return FALSE;
+        }
+        app->rules_delete.pending_delete = TRUE;
+        app->rules_delete.rule_index = app->filtered_rule_indices[app->selection.rules_index];
+        show_overlay(app, OVERLAY_RULE_DELETE, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
+        replay_all_rules_against_open_windows(app);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
+        if (!clamp_rules_selection(app)) {
+            return FALSE;
+        }
+        replay_selected_filtered_rule(app);
+        return TRUE;
     }
 
     return FALSE;

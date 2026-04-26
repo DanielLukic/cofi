@@ -76,9 +76,9 @@ void apps_filter(const char *query, AppEntry *results, int *count) {
 }
 
 gboolean has_match(const char *query, const char *text) {
-    (void)query;
-    (void)text;
-    return FALSE;
+    if (!query || !*query) return TRUE;
+    if (!text) return FALSE;
+    return strstr(text, query) != NULL;
 }
 
 void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *count) {
@@ -253,7 +253,7 @@ static AppData make_app(void) {
 static AppData make_default_visibility_app(void) {
     AppData app = make_app();
 
-    for (int i = TAB_WINDOWS; i <= TAB_APPS; i++) {
+    for (int i = TAB_WINDOWS; i < TAB_COUNT; i++) {
         app.tab_visibility[i] = TAB_VIS_HIDDEN;
     }
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
@@ -274,11 +274,12 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_NAMES,
         TAB_CONFIG,
         TAB_HOTKEYS,
+        TAB_RULES,
         TAB_APPS,
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("forward tab switch handled", handled == TRUE);
 
@@ -297,6 +298,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
 
     TabMode expected[] = {
         TAB_APPS,
+        TAB_RULES,
         TAB_HOTKEYS,
         TAB_CONFIG,
         TAB_NAMES,
@@ -305,7 +307,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("backward tab switch handled", handled == TRUE);
 
@@ -318,7 +320,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
 static void test_switch_to_tab_updates_state_and_clears_entry(void) {
     AppData app = make_app();
 
-    for (int tab = TAB_WINDOWS; tab <= TAB_APPS; tab++) {
+    for (int tab = TAB_WINDOWS; tab < TAB_COUNT; tab++) {
         reset_counters();
         app.current_tab = (tab == TAB_WINDOWS) ? TAB_APPS : TAB_WINDOWS;
 
@@ -341,6 +343,37 @@ static void test_cmd_show_names_switches_to_names_tab(void) {
     ASSERT_TRUE("cmd_show names returns FALSE", result == FALSE);
     ASSERT_TRUE("cmd_show names exits command mode", exit_command_mode_calls == 1);
     ASSERT_TRUE("cmd_show names switches tab", app.current_tab == TAB_NAMES);
+}
+
+static void test_cmd_show_rules_switches_to_rules_tab(void) {
+    AppData app = make_app();
+    app.current_tab = TAB_WINDOWS;
+
+    reset_counters();
+    gboolean result = cmd_show(&app, NULL, "rules");
+
+    ASSERT_TRUE("cmd_show rules returns FALSE", result == FALSE);
+    ASSERT_TRUE("cmd_show rules exits command mode", exit_command_mode_calls == 1);
+    ASSERT_TRUE("cmd_show rules switches tab", app.current_tab == TAB_RULES);
+}
+
+static void test_filter_rules_matches_pattern_and_commands(void) {
+    AppData app = make_app();
+    app.rules_config.count = 3;
+    strcpy(app.rules_config.rules[0].pattern, "*term*");
+    strcpy(app.rules_config.rules[0].commands, "sb on");
+    strcpy(app.rules_config.rules[1].pattern, "*firefox*");
+    strcpy(app.rules_config.rules[1].commands, "ew off");
+    strcpy(app.rules_config.rules[2].pattern, "*mail*");
+    strcpy(app.rules_config.rules[2].commands, "aot on");
+
+    filter_rules(&app, "fire");
+    ASSERT_TRUE("filter rules by pattern", app.filtered_rules_count == 1);
+    ASSERT_TRUE("filter rules keeps index mapping", app.filtered_rule_indices[0] == 1);
+
+    filter_rules(&app, "aot");
+    ASSERT_TRUE("filter rules by commands", app.filtered_rules_count == 1);
+    ASSERT_TRUE("filter rules command match uses same entry", app.filtered_rule_indices[0] == 2);
 }
 
 static void test_daemon_opcode_harpoon_switches_to_harpoon_tab(void) {
@@ -404,6 +437,8 @@ int main(void) {
     test_tab_switching_backward_cycles_all_tabs();
     test_switch_to_tab_updates_state_and_clears_entry();
     test_cmd_show_names_switches_to_names_tab();
+    test_cmd_show_rules_switches_to_rules_tab();
+    test_filter_rules_matches_pattern_and_commands();
     test_daemon_opcode_harpoon_switches_to_harpoon_tab();
     test_surface_tab_surfaces_hidden_tab();
     test_tab_switching_skips_hidden_tabs();

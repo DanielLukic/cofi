@@ -28,7 +28,9 @@ typedef enum {
     TAB_NAMES,
     TAB_CONFIG,
     TAB_HOTKEYS,
-    TAB_APPS
+    TAB_RULES,
+    TAB_APPS,
+    TAB_COUNT
 } TabMode;
 
 typedef enum {
@@ -52,7 +54,10 @@ typedef enum {
     OVERLAY_NAME_DELETE,
     OVERLAY_CONFIG_EDIT,
     OVERLAY_HOTKEY_ADD,
-    OVERLAY_HOTKEY_EDIT
+    OVERLAY_HOTKEY_EDIT,
+    OVERLAY_RULE_ADD,
+    OVERLAY_RULE_EDIT,
+    OVERLAY_RULE_DELETE
 } OverlayType;
 
 // Entry mode definitions
@@ -96,6 +101,7 @@ typedef struct {
 
     int config_index;                       // Selected index in config tab
     int hotkeys_index;                      // Selected index in hotkeys tab
+    int rules_index;                        // Selected index in rules tab
     int apps_index;                         // Selected index in apps tab
 
     // Scroll state for each tab
@@ -105,6 +111,7 @@ typedef struct {
     int names_scroll_offset;               // First visible item index for names tab
     int config_scroll_offset;              // First visible item index for config tab
     int hotkeys_scroll_offset;             // First visible item index for hotkeys tab
+    int rules_scroll_offset;               // First visible item index for rules tab
     int apps_scroll_offset;                // First visible item index for apps tab
 } SelectionState;
 
@@ -138,7 +145,7 @@ typedef struct AppData {
     int workspace_count;
     int filtered_workspace_count;
     TabMode current_tab;                    // Current active tab
-    TabVisibility tab_visibility[7];        // Tab bar visibility state for each TabMode
+    TabVisibility tab_visibility[TAB_COUNT]; // Tab bar visibility state for each TabMode
 
     // Harpoon tab data
     HarpoonSlot filtered_harpoon[MAX_HARPOON_SLOTS];
@@ -157,6 +164,11 @@ typedef struct AppData {
     HotkeyBinding filtered_hotkeys[MAX_HOTKEY_BINDINGS];
     int filtered_hotkeys_indices[MAX_HOTKEY_BINDINGS];  // Actual indices in hotkey_config.bindings
     int filtered_hotkeys_count;
+
+    // Rules tab data
+    Rule filtered_rules[MAX_RULES];
+    int filtered_rule_indices[MAX_RULES];
+    int filtered_rules_count;
 
     // Apps tab data
     AppEntry filtered_apps[MAX_APPS];
@@ -181,6 +193,12 @@ typedef struct AppData {
         int manager_index;
         char custom_name[MAX_TITLE_LEN];
     } name_delete;
+
+    // Delete confirmation state (Rules tab)
+    struct {
+        gboolean pending_delete;
+        int rule_index;
+    } rules_delete;
 
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms

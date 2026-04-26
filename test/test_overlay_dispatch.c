@@ -31,10 +31,13 @@ static void test_overlay_should_focus_name_entry(void) {
     ASSERT_TRUE("config edit focuses entry", overlay_should_focus_name_entry(OVERLAY_CONFIG_EDIT));
     ASSERT_TRUE("hotkey add focuses entry", overlay_should_focus_name_entry(OVERLAY_HOTKEY_ADD));
     ASSERT_TRUE("hotkey edit focuses entry", overlay_should_focus_name_entry(OVERLAY_HOTKEY_EDIT));
+    ASSERT_TRUE("rule add focuses entry", overlay_should_focus_name_entry(OVERLAY_RULE_ADD));
+    ASSERT_TRUE("rule edit focuses entry", overlay_should_focus_name_entry(OVERLAY_RULE_EDIT));
 
     ASSERT_TRUE("tiling does not focus entry", !overlay_should_focus_name_entry(OVERLAY_TILING));
     ASSERT_TRUE("harpoon edit does not focus entry", !overlay_should_focus_name_entry(OVERLAY_HARPOON_EDIT));
     ASSERT_TRUE("workspace rename does not focus entry", !overlay_should_focus_name_entry(OVERLAY_WORKSPACE_RENAME));
+    ASSERT_TRUE("rule delete does not focus entry", !overlay_should_focus_name_entry(OVERLAY_RULE_DELETE));
 }
 
 static void test_hotkey_add_capture_policy(void) {

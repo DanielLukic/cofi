@@ -22,7 +22,7 @@ void init_tab_visibility(AppData *app) {
         return;
     }
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < TAB_COUNT; i++) {
         app->tab_visibility[i] = TAB_VIS_HIDDEN;
     }
 
@@ -38,7 +38,8 @@ void init_app_data(AppData *app) {
 
     // Initialize tab mode - always reset to windows unless explicitly set by startup delegate flags
     if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON &&
-        app->current_tab != TAB_NAMES && app->current_tab != TAB_APPS) {
+        app->current_tab != TAB_NAMES && app->current_tab != TAB_RULES &&
+        app->current_tab != TAB_APPS) {
         app->current_tab = TAB_WINDOWS;
     }
 
@@ -74,6 +75,8 @@ void init_app_data(AppData *app) {
     app->name_delete.pending_delete = FALSE;
     app->name_delete.manager_index = -1;
     app->name_delete.custom_name[0] = '\0';
+    app->rules_delete.pending_delete = FALSE;
+    app->rules_delete.rule_index = -1;
 
     // Initialize named windows manager
     init_named_window_manager(&app->names);
@@ -85,6 +88,7 @@ void init_app_data(AppData *app) {
     // Initialize rules
     init_rules_config(&app->rules_config);
     load_rules_config(&app->rules_config);
+    app->filtered_rules_count = 0;
     init_rule_state(&app->rule_state);
 
     // Initialize command mode

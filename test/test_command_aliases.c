@@ -335,6 +335,8 @@ static void test_commands_without_compact_form(void) {
     check("rw with arg", "rw 3", "rw", "3");
     check("set with args", "set close_on_focus_loss true", "set", "close_on_focus_loss true");
     check("config bare", "config", "config", "");
+    check("rules bare", "rules", "rules", "");
+    check("rules alias bare", "rl", "rl", "");
     check("show bare", "show", "show", "");
     check("show windows", "show windows", "show", "windows");
     check("show command", "show command", "show", "command");

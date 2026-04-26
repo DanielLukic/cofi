@@ -106,7 +106,8 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         handle_harpoon_tab_keys(event, app) ||
         handle_names_tab_keys(event, app) ||
         handle_config_tab_keys(event, app) ||
-        handle_hotkeys_tab_keys(event, app)) {
+        handle_hotkeys_tab_keys(event, app) ||
+        handle_rules_tab_keys(event, app)) {
         return TRUE;
     }
     if (app->current_tab == TAB_WINDOWS && (event->state & GDK_MOD1_MASK)) {
@@ -160,6 +161,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_config(app, text);
     } else if (app->current_tab == TAB_HOTKEYS) {
         filter_hotkeys(app, text);
+    } else if (app->current_tab == TAB_RULES) {
+        filter_rules(app, text);
     } else if (app->current_tab == TAB_APPS) {
         filter_apps(app, text);
     }

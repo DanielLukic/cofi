@@ -118,6 +118,13 @@ gboolean cmd_names(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
+                   const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    surface_tab(app, TAB_RULES);
+    return FALSE;
+}
+
 gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     ShowMode mode = SHOW_MODE_WINDOWS;
 
@@ -135,12 +142,16 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             exit_command_mode(app);
             surface_tab(app, TAB_CONFIG);
             return FALSE;
+        } else if (strcmp(args, "rules") == 0) {
+            exit_command_mode(app);
+            surface_tab(app, TAB_RULES);
+            return FALSE;
         } else if (strcmp(args, "apps") == 0) {
             exit_command_mode(app);
             surface_tab(app, TAB_APPS);
             return FALSE;
         } else {
-            show_error_in_display(app, "Usage: show [windows|command|run|workspaces|harpoon|names|config|apps]");
+            show_error_in_display(app, "Usage: show [windows|command|run|workspaces|harpoon|names|config|rules|apps]");
             return FALSE;
         }
     }

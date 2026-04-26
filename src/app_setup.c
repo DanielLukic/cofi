@@ -182,6 +182,8 @@ void setup_application(AppData *app, WindowAlignment alignment) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
     } else if (app->current_tab == TAB_HARPOON) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
+    } else if (app->current_tab == TAB_RULES) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter rules...");
     } else {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
     }

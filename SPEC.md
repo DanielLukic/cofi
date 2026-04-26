@@ -73,7 +73,7 @@ The search matches against the full displayed row as the user sees it — deskto
 - **Tab / Shift+Tab** — cycle through visible tabs. Since TFD-545, tabs have three visibility states:
   - **PINNED** — always visible: Windows, Apps
   - **SURFACED** — shown once Tab-cycled into (e.g. via `:show <tab>` command), then dismissed on hide
-  - **HIDDEN** — secondary tabs (Workspaces, Harpoon, Names, Config, Hotkeys) not reached by Tab unless surfaced
+  - **HIDDEN** — secondary tabs (Workspaces, Harpoon, Names, Config, Hotkeys, Rules) not reached by Tab unless surfaced
   Tabs are surfaced programmatically by `:show <verb>` commands or explicit prefix flows; Tab/Shift+Tab only cycles PINNED + currently-SURFACED tabs.
 - Typing any character starts filtering immediately (no mode switch needed)
 
@@ -307,7 +307,8 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `hotkeys`, `apps`/`applications`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `rules`, `apps`/`applications`
+- `:rules` (`:rl`) — switch to the interactive Rules tab
 
 ### Hotkey Management Commands
 
@@ -413,10 +414,10 @@ View and interact with workspaces via the Workspaces tab.
 
 ## Tabs
 
-Seven tabs exist; visibility is controlled per-tab (TFD-545):
+Eight tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Workspaces, Harpoon, Names, Config, Hotkeys
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Workspaces, Harpoon, Names, Config, Hotkeys, Rules
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
@@ -427,6 +428,7 @@ Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tab
 5. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
 6. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
 7. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+8. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 
@@ -447,6 +449,7 @@ Stored in `~/.config/cofi/`:
   - Auto-generated with default show-mode bindings on first run
 - `harpoon.json` — harpoon slot assignments with match patterns
 - `names.json` — custom window names
+- `rules.json` — window-title rules (`pattern`, `commands`) in stored order
 
 Runtime config changes via `:set <key> <value>` are saved to `options.json` immediately. View current config with `:config`.
 
@@ -487,6 +490,8 @@ When a window is activated (via Alt-Tab, harpoon, workspace switch), a visual ri
 
 Commands support no-space compact form: `:cw2` = `:cw 2`, `:mawk` = `:maw k`.
 For window-state commands (`sb`, `ab`, `aot`/`at`, `ew`), compact `+`/`-` are supported: `:sb+` = `:sb on`, `:ew-` = `:ew off`.
+
+Rules tab save/edit/delete are persistence-only (`rules.json`): saving a rule does not immediately replay it. Automatic runtime rule behavior remains transition-based. Manual replay actions are explicit and stateless: Ctrl+X replays selected rule against all currently open matching windows; Ctrl+Shift+X replays all stored rules in stored order against current open windows.
 
 - Compact forms defined in a data-driven table (COMPACT_FORMS) mapping command names to accepted suffix characters
 - Parser picks the longest matching command name to resolve prefix ambiguity

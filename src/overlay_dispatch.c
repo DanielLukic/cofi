@@ -7,6 +7,7 @@
 #include "overlay_hotkey_edit.h"
 #include "overlay_manager.h"
 #include "overlay_name.h"
+#include "overlay_rules.h"
 #include "overlay_workspace.h"
 #include "tiling_overlay.h"
 #include "workspace_overlay.h"
@@ -55,6 +56,15 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_HOTKEY_EDIT:
             create_hotkey_edit_overlay_content(app->dialog_container, app);
             return;
+        case OVERLAY_RULE_ADD:
+            create_rule_add_overlay_content(app->dialog_container, app);
+            return;
+        case OVERLAY_RULE_EDIT:
+            create_rule_edit_overlay_content(app->dialog_container, app);
+            return;
+        case OVERLAY_RULE_DELETE:
+            create_rule_delete_overlay_content(app->dialog_container, app);
+            return;
         case OVERLAY_NONE:
         default:
             log_error("Invalid overlay type: %d", type);
@@ -90,6 +100,12 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_hotkey_add_key_press(app, event);
         case OVERLAY_HOTKEY_EDIT:
             return handle_hotkey_edit_key_press(app, event);
+        case OVERLAY_RULE_ADD:
+            return handle_rule_add_key_press(app, event);
+        case OVERLAY_RULE_EDIT:
+            return handle_rule_edit_key_press(app, event);
+        case OVERLAY_RULE_DELETE:
+            return handle_rule_delete_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -145,4 +161,18 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     log_info("Name delete overlay: pending '%s' (mgr_idx=%d)",
              app->name_delete.custom_name, app->name_delete.manager_index);
     show_overlay(app, OVERLAY_NAME_DELETE, NULL);
+}
+
+void show_rule_add_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_RULE_ADD, NULL);
+}
+
+void show_rule_edit_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_RULE_EDIT, NULL);
+}
+
+void show_rule_delete_overlay(AppData *app, int rule_index) {
+    app->rules_delete.pending_delete = TRUE;
+    app->rules_delete.rule_index = rule_index;
+    show_overlay(app, OVERLAY_RULE_DELETE, NULL);
 }

@@ -40,6 +40,12 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
 
     if (type == OVERLAY_HARPOON_EDIT) {
         app->harpoon_edit.editing = FALSE;
+        return;
+    }
+
+    if (type == OVERLAY_RULE_DELETE) {
+        app->rules_delete.pending_delete = FALSE;
+        app->rules_delete.rule_index = -1;
     }
 }
 void init_overlay_system(AppData *app) {

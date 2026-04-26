@@ -61,6 +61,7 @@ SOURCES = src/main.c \
           src/overlay_hotkey_edit.c \
           src/overlay_harpoon.c \
           src/overlay_name.c \
+          src/overlay_rules.c \
           src/overlay_config.c \
           src/overlay_workspace.c \
           src/tiling_overlay.c \
@@ -80,6 +81,7 @@ SOURCES = src/main.c \
           src/hotkey_config.c \
           src/rules_config.c \
           src/rules.c \
+          src/rules_replay.c \
           src/display_pipeline.c \
           src/repeat_action.c \
           src/daemon_socket.c \
@@ -154,7 +156,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -209,6 +211,11 @@ test_command_dispatch: test/test_command_dispatch.c src/command_parser.o
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_rules test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o $(LDFLAGS)
 
+# Build rules replay test
+# (tests stateless replay executor over currently open windows)
+test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/window_matcher.o
+	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/window_matcher.o $(LDFLAGS)
+
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c
 	$(CC) $(CFLAGS) -DSCROLLBAR_TEST_STANDALONE -o test/test_scrollbar test/test_scrollbar.c $(LDFLAGS)
@@ -229,6 +236,11 @@ test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_polic
 # (tests harpoon delete confirm/cancel lifecycle with stubs)
 test_overlay_delete_flow: test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o
 	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o $(LDFLAGS)
+
+# Build rules overlay behavior tests
+# (tests rules CRUD persistence-only behavior and clamp)
+test_overlay_rules: test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o
+	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o $(LDFLAGS)
 
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o

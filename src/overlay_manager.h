@@ -26,6 +26,9 @@ void show_harpoon_edit_overlay(AppData *app, int slot_index);
 void show_name_assign_overlay(AppData *app);
 void show_name_edit_overlay(AppData *app);
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index);
+void show_rule_add_overlay(AppData *app);
+void show_rule_edit_overlay(AppData *app);
+void show_rule_delete_overlay(AppData *app, int rule_index);
 
 // Note: Content creation functions are now static within overlay_manager.c
 // following the new overlay pattern where content is added directly to parent_container
@@ -34,7 +37,8 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
     return type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
            type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
-           type == OVERLAY_HOTKEY_EDIT;
+           type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
+           type == OVERLAY_RULE_EDIT;
 }
 
 #endif // OVERLAY_MANAGER_H

@@ -39,6 +39,7 @@ STUB_HANDLER(cmd_show_config)
 STUB_HANDLER(cmd_workspaces)
 STUB_HANDLER(cmd_harpoon)
 STUB_HANDLER(cmd_names)
+STUB_HANDLER(cmd_rules)
 STUB_HANDLER(cmd_show)
 STUB_HANDLER(cmd_hotkeys)
 

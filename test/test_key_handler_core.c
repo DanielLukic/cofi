@@ -60,6 +60,7 @@ static int g_filter_harpoon_calls;
 static int g_filter_names_calls;
 static int g_filter_config_calls;
 static int g_filter_hotkeys_calls;
+static int g_filter_rules_calls;
 static int g_filter_apps_calls;
 
 static char g_last_filter_windows[64];
@@ -68,6 +69,7 @@ static char g_last_filter_harpoon[64];
 static char g_last_filter_names[64];
 static char g_last_filter_config[64];
 static char g_last_filter_hotkeys[64];
+static char g_last_filter_rules[64];
 static char g_last_filter_apps[64];
 
 static int g_reset_selection_calls;
@@ -244,6 +246,8 @@ void cleanup_hotkeys(AppData *app) { (void)app; }
 int remove_hotkey_binding(HotkeyConfig *config, const char *key) { (void)config; (void)key; return 0; }
 int save_hotkey_config(const HotkeyConfig *config) { (void)config; return 0; }
 void regrab_hotkeys(AppData *app) { (void)app; }
+int replay_all_rules_against_open_windows(AppData *app) { (void)app; return 0; }
+gboolean replay_selected_filtered_rule(AppData *app) { (void)app; return TRUE; }
 
 void filter_windows(AppData *app, const char *query) {
     (void)app;
@@ -274,6 +278,11 @@ void filter_hotkeys(AppData *app, const char *filter) {
     (void)app;
     g_filter_hotkeys_calls++;
     strncpy(g_last_filter_hotkeys, filter ? filter : "", sizeof(g_last_filter_hotkeys) - 1);
+}
+void filter_rules(AppData *app, const char *filter) {
+    (void)app;
+    g_filter_rules_calls++;
+    strncpy(g_last_filter_rules, filter ? filter : "", sizeof(g_last_filter_rules) - 1);
 }
 void filter_apps(AppData *app, const char *query) {
     (void)app;
@@ -321,6 +330,7 @@ static void reset_captures(void) {
     g_filter_names_calls = 0;
     g_filter_config_calls = 0;
     g_filter_hotkeys_calls = 0;
+    g_filter_rules_calls = 0;
     g_filter_apps_calls = 0;
     g_last_filter_windows[0] = '\0';
     g_last_filter_workspaces[0] = '\0';
@@ -328,6 +338,7 @@ static void reset_captures(void) {
     g_last_filter_names[0] = '\0';
     g_last_filter_config[0] = '\0';
     g_last_filter_hotkeys[0] = '\0';
+    g_last_filter_rules[0] = '\0';
     g_last_filter_apps[0] = '\0';
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
@@ -639,13 +650,13 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
     TabMode tabs[] = {
         TAB_WINDOWS, TAB_WORKSPACES, TAB_HARPOON,
-        TAB_NAMES, TAB_CONFIG, TAB_HOTKEYS, TAB_APPS
+        TAB_NAMES, TAB_CONFIG, TAB_HOTKEYS, TAB_RULES, TAB_APPS
     };
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         g_filter_windows_calls = g_filter_workspaces_calls = g_filter_harpoon_calls = 0;
         g_filter_names_calls = g_filter_config_calls = g_filter_hotkeys_calls = 0;
-        g_filter_apps_calls = 0;
+        g_filter_rules_calls = g_filter_apps_calls = 0;
         g_reset_selection_calls = 0;
         g_update_display_calls = 0;
 
@@ -654,7 +665,8 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         on_entry_changed(GTK_ENTRY(app.entry), &app);
 
         int sum = g_filter_windows_calls + g_filter_workspaces_calls + g_filter_harpoon_calls +
-                  g_filter_names_calls + g_filter_config_calls + g_filter_hotkeys_calls + g_filter_apps_calls;
+                  g_filter_names_calls + g_filter_config_calls + g_filter_hotkeys_calls +
+                  g_filter_rules_calls + g_filter_apps_calls;
 
         ASSERT_TRUE("on_entry_changed calls exactly one tab filter", sum == 1);
         ASSERT_TRUE("on_entry_changed calls reset_selection", g_reset_selection_calls == 1);
@@ -672,6 +684,8 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
                     tabs[i] != TAB_CONFIG || (g_filter_config_calls == 1 && strcmp(g_last_filter_config, "query") == 0));
         ASSERT_TRUE("HOTKEYS filter routing",
                     tabs[i] != TAB_HOTKEYS || (g_filter_hotkeys_calls == 1 && strcmp(g_last_filter_hotkeys, "query") == 0));
+        ASSERT_TRUE("RULES filter routing",
+                    tabs[i] != TAB_RULES || (g_filter_rules_calls == 1 && strcmp(g_last_filter_rules, "query") == 0));
         ASSERT_TRUE("APPS filter routing",
                     tabs[i] != TAB_APPS || (g_filter_apps_calls == 1 && strcmp(g_last_filter_apps, "query") == 0));
     }

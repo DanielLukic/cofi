@@ -159,10 +159,13 @@ void cleanup_hotkeys(AppData *app) { (void)app; }
 int remove_hotkey_binding(HotkeyConfig *config, const char *key) { (void)config; (void)key; return 0; }
 int save_hotkey_config(const HotkeyConfig *config) { (void)config; return 0; }
 void regrab_hotkeys(AppData *app) { (void)app; }
+int replay_all_rules_against_open_windows(AppData *app) { (void)app; return 0; }
+gboolean replay_selected_filtered_rule(AppData *app) { (void)app; return TRUE; }
 void filter_hotkeys(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }
+void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }

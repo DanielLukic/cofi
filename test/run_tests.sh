@@ -142,6 +142,16 @@ if [ -f test_rules ]; then
     fi
 fi
 
+# Run rules replay tests if they exist
+if [ -f test_rules_replay ]; then
+    echo ""
+    echo "Running rules replay tests..."
+    ./test_rules_replay
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run fixed dynamic display sizing tests if they exist
 if [ -f test_dynamic_display_fixed ]; then
     echo ""
@@ -177,6 +187,16 @@ if [ -f test_overlay_delete_flow ]; then
     echo ""
     echo "Running overlay delete-flow tests..."
     ./test_overlay_delete_flow
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+# Run rules overlay tests if they exist
+if [ -f test_overlay_rules ]; then
+    echo ""
+    echo "Running rules overlay tests..."
+    ./test_overlay_rules
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi
