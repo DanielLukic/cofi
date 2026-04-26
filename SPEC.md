@@ -284,7 +284,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 ### Window Property Commands
 
-- `:sb` (`:skip-taskbar`) — toggle skip taskbar
+- `:sb [toggle|on|off]` (`:skip-taskbar [toggle|on|off]`) — set skip taskbar (default `toggle`)
 - `:aot` (`:at`, `:always-on-top`) — toggle always on top
 - `:ab` (`:always-below`) — toggle always below
 - `:ew` (`:every-workspace`) — toggle sticky (all desktops)

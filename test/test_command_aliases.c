@@ -300,6 +300,8 @@ static void test_commands_without_compact_form(void) {
     check("close bare", "close", "close", "");
     check("tm bare", "tm", "tm", "");
     check("sb bare", "sb", "sb", "");
+    check("sb on", "sb on", "sb", "on");
+    check("skip-taskbar off", "skip-taskbar off", "skip-taskbar", "off");
     check("pw bare", "pw", "pw", "");
     check("mw bare", "mw", "mw", "");
     check("miw bare", "miw", "miw", "");

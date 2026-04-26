@@ -200,6 +200,32 @@ static void test_command_chain_semantics(void) {
     }
 }
 
+static void test_skip_taskbar_alias_arg_resolution(void) {
+    printf("\n--- skip-taskbar alias arg resolution ---\n");
+
+    char primary[64] = {0};
+    char arg[64] = {0};
+    gboolean ok = parse_command_for_execution("skip-taskbar on", primary, arg, sizeof(primary), sizeof(arg));
+    if (ok && strcmp(primary, "sb") == 0 && strcmp(arg, "on") == 0) {
+        printf("PASS: skip-taskbar on resolves to sb + on\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: skip-taskbar on resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
+        tests_failed++;
+    }
+
+    memset(primary, 0, sizeof(primary));
+    memset(arg, 0, sizeof(arg));
+    ok = parse_command_for_execution("sb off", primary, arg, sizeof(primary), sizeof(arg));
+    if (ok && strcmp(primary, "sb") == 0 && strcmp(arg, "off") == 0) {
+        printf("PASS: sb off keeps arg off\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: sb off resolve mismatch (ok=%d primary='%s' arg='%s')\n", ok, primary, arg);
+        tests_failed++;
+    }
+}
+
 static void test_alias_drift_guard(void) {
     printf("\n--- Alias drift guard (definitions vs parser) ---\n");
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
@@ -248,6 +274,7 @@ int main(void) {
     test_keep_open_on_hotkey_auto_field();
     test_should_keep_open_runtime_policy();
     test_command_chain_semantics();
+    test_skip_taskbar_alias_arg_resolution();
     test_alias_drift_guard();
     test_all_commands_covered();
 

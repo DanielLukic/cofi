@@ -190,8 +190,8 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .primary = "sb",
         .aliases = {"skip-taskbar", NULL},
         .handler = cmd_skip_taskbar,
-        .description = "Toggle skip taskbar for selected window",
-        .help_format = "sb, skip-taskbar",
+        .description = "Set skip taskbar for selected window (default: toggle)",
+        .help_format = "sb, skip-taskbar [toggle|on|off]",
         .activates = 1
     },
     {

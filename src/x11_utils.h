@@ -51,6 +51,14 @@ void switch_to_desktop(Display *display, int desktop);
 void move_window_to_desktop(Display *display, Window window, int desktop_index);
 
 // Window state manipulation functions
+typedef enum {
+    WINDOW_STATE_UNSET = 0,
+    WINDOW_STATE_SET = 1,
+    WINDOW_STATE_TOGGLE = 2,
+} WindowStateAction;
+
+void set_window_state(Display *display, Window window, const char *state_atom_name,
+                      WindowStateAction action);
 void toggle_window_state(Display *display, Window window, const char *state_atom_name);
 gboolean get_window_state(Display *display, Window window, const char *state_atom_name);
 
