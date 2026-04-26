@@ -27,6 +27,7 @@ static int set_window_state_calls = 0;
 static WindowStateAction last_window_state_action = WINDOW_STATE_TOGGLE;
 static Window last_window_state_window = 0;
 static char last_window_state_name[64] = {0};
+static int parse_hotkey_action = 0;
 
 // --- shared stubs for handler dependencies ---
 void hide_window(AppData *app) { (void)app; }
@@ -105,7 +106,7 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
 int parse_hotkey_command(const char *args, char *key, size_t key_size,
                          char *cmd, size_t cmd_size) {
     (void)args; (void)key; (void)key_size; (void)cmd; (void)cmd_size;
-    return 0;
+    return parse_hotkey_action;
 }
 int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command) {
     (void)config; (void)key; (void)command;
@@ -264,6 +265,25 @@ static void test_ui_handler_behavior(void) {
     if (cmd) {
         result = cmd->handler(&app, NULL, "");
         ASSERT_TRUE("rules command surfaces rules tab", result == FALSE && app.current_tab == TAB_RULES);
+    }
+
+    cmd = find_command("hotkeys");
+    ASSERT_TRUE("hotkeys command exists", cmd != NULL);
+    if (cmd) {
+        parse_hotkey_action = 0;
+        app.current_tab = TAB_WINDOWS;
+        result = cmd->handler(&app, NULL, "");
+        ASSERT_TRUE("hotkeys bare surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
+
+        parse_hotkey_action = 1;
+        app.current_tab = TAB_WINDOWS;
+        result = cmd->handler(&app, NULL, "bind");
+        ASSERT_TRUE("hotkeys mutation surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
+
+        parse_hotkey_action = 2;
+        app.current_tab = TAB_WINDOWS;
+        result = cmd->handler(&app, NULL, "unbind");
+        ASSERT_TRUE("hotkeys remove surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
     }
 }
 

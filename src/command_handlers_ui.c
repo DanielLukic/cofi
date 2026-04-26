@@ -181,10 +181,8 @@ gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), c
         }
     }
 
-    char buf[4096] = {0};
-    format_hotkey_display(&app->hotkey_config, buf, sizeof(buf));
-    gtk_text_buffer_set_text(app->textbuffer, buf, -1);
-    app->command_mode.showing_help = TRUE;
+    exit_command_mode(app);
+    surface_tab(app, TAB_HOTKEYS);
     return FALSE;
 }
 
