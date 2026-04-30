@@ -1314,7 +1314,7 @@ static void test_missing_stack_entry_still_clipped(void) {
     ASSERT_TRUE("clip missing stack: onscreen survives", slot_contains(&app.workspace_slots, 0xB4));
 }
 
-static void test_below_window_ignores_occluders_but_stays_clipped(void) {
+static void test_below_window_fully_covered_by_normal_occluder_is_excluded(void) {
     AppData app = {0};
     app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
@@ -1342,12 +1342,12 @@ static void test_below_window_ignores_occluders_but_stays_clipped(void) {
 
     assign_workspace_slots(&app);
 
-    ASSERT_TRUE("below exempt: 2 slots", app.workspace_slots.count == 2);
-    ASSERT_TRUE("below exempt: below window survives", slot_contains(&app.workspace_slots, 0xB10));
-    ASSERT_TRUE("below exempt: top occluder survives", slot_contains(&app.workspace_slots, 0xB11));
+    ASSERT_TRUE("below covered: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("below covered: below window excluded", !slot_contains(&app.workspace_slots, 0xB10));
+    ASSERT_TRUE("below covered: top occluder survives", slot_contains(&app.workspace_slots, 0xB11));
 }
 
-static void test_below_window_offscreen_still_excluded_by_clip(void) {
+static void test_below_window_without_occluders_is_included(void) {
     AppData app = {0};
     app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
@@ -1362,12 +1362,13 @@ static void test_below_window_offscreen_still_excluded_by_clip(void) {
     app.windows[0].id = 0xB12;
     app.windows[0].desktop = 0;
     strcpy(app.windows[0].type, "Normal");
-    add_geometry(0xB12, 1000, 100, 400, 400);
+    add_geometry(0xB12, 3100, 100, 400, 400);
     add_below(0xB12);
 
     assign_workspace_slots(&app);
 
-    ASSERT_TRUE("below clip: offscreen excluded", app.workspace_slots.count == 0);
+    ASSERT_TRUE("below clear: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("below clear: candidate survives", slot_contains(&app.workspace_slots, 0xB12));
 }
 
 static void test_dead_monitor_seam_pixels_do_not_count(void) {
@@ -1462,8 +1463,8 @@ int main(void) {
     test_negative_y_without_occluder_is_excluded_by_monitor_clip();
     test_slight_negative_y_without_occluder_still_survives();
     test_missing_stack_entry_still_clipped();
-    test_below_window_ignores_occluders_but_stays_clipped();
-    test_below_window_offscreen_still_excluded_by_clip();
+    test_below_window_fully_covered_by_normal_occluder_is_excluded();
+    test_below_window_without_occluders_is_included();
     test_dead_monitor_seam_pixels_do_not_count();
     test_overlay_center_comes_from_clipped_fragment();
     test_physical_dual_monitor_candidate_stays_visible();
