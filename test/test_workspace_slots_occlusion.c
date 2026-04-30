@@ -49,8 +49,15 @@ typedef struct {
     int left, right, top, bottom;
 } TestFrameExtents;
 
+typedef struct {
+    GdkRectangle geometry;
+    GdkRectangle workarea;
+} TestMonitor;
+
 static TestFrameExtents test_fe_table[MAX_WINDOWS];
 static int test_fe_count = 0;
+static TestMonitor test_monitors[MAX_WINDOWS];
+static int test_monitor_count = 0;
 
 static void reset_test_state(void) {
     memset(test_geometries, 0, sizeof(test_geometries));
@@ -62,6 +69,8 @@ static void reset_test_state(void) {
     test_hidden_count = 0;
     memset(test_fe_table, 0, sizeof(test_fe_table));
     test_fe_count = 0;
+    memset(test_monitors, 0, sizeof(test_monitors));
+    test_monitor_count = 0;
 }
 
 static void add_geometry(Window id, int x, int y, int w, int h) {
@@ -89,6 +98,13 @@ static void add_frame_extents(Window id, int left, int top, int right, int botto
     test_fe_table[test_fe_count].top    = top;
     test_fe_table[test_fe_count].bottom = bottom;
     test_fe_count++;
+}
+
+static void add_monitor(int x, int y, int w, int h,
+                        int wx, int wy, int ww, int wh) {
+    test_monitors[test_monitor_count].geometry = (GdkRectangle){ x, y, w, h };
+    test_monitors[test_monitor_count].workarea = (GdkRectangle){ wx, wy, ww, wh };
+    test_monitor_count++;
 }
 
 /* Helper: check if slot manager contains a specific window */
@@ -169,6 +185,31 @@ int XGetWindowProperty(Display *display, Window window, Atom property,
 }
 
 int XFree(void *data) { free(data); return 0; }
+
+GdkDisplay *gdk_display_get_default(void) {
+    return test_monitor_count > 0 ? (GdkDisplay *)0x1 : NULL;
+}
+
+gint gdk_display_get_n_monitors(GdkDisplay *display) {
+    (void)display;
+    return test_monitor_count;
+}
+
+GdkMonitor *gdk_display_get_monitor(GdkDisplay *display, gint monitor_num) {
+    (void)display;
+    if (monitor_num < 0 || monitor_num >= test_monitor_count) return NULL;
+    return (GdkMonitor *)&test_monitors[monitor_num];
+}
+
+void gdk_monitor_get_geometry(GdkMonitor *monitor, GdkRectangle *geometry) {
+    TestMonitor *test_monitor = (TestMonitor *)monitor;
+    if (geometry) *geometry = test_monitor->geometry;
+}
+
+void gdk_monitor_get_workarea(GdkMonitor *monitor, GdkRectangle *workarea) {
+    TestMonitor *test_monitor = (TestMonitor *)monitor;
+    if (workarea) *workarea = test_monitor->workarea;
+}
 
 #undef DefaultRootWindow
 #define DefaultRootWindow(dpy) ((Window)0)
@@ -1118,6 +1159,137 @@ static void test_workspace1_thunderbird_behind_two_terminals_is_excluded(void) {
     ASSERT_TRUE("ws1 tb: thunderbird excluded", !slot_contains(&app.workspace_slots, 0xA1));
 }
 
+static void test_no_monitor_clips_keeps_full_visibility(void) {
+    WindowPosition win = {
+        .id = 0x1, .x = 10, .y = -30, .w = 200, .h = 100,
+        .frame = {0}
+    };
+    int overlay_x = 0, overlay_y = 0, largest_w = 0, largest_h = 0;
+    double largest_fraction = 0.0;
+    double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
+        &win, -1, &win, 1, NULL, 0, NULL, 0,
+        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+
+    ASSERT_TRUE("no clip fallback: full visible", visible_fraction == 1.0);
+    ASSERT_TRUE("no clip fallback: full fragment", largest_fraction == 1.0);
+    ASSERT_TRUE("no clip fallback: center kept", overlay_x == 110 && overlay_y == 20);
+    ASSERT_TRUE("no clip fallback: size kept", largest_w == 200 && largest_h == 100);
+}
+
+static void test_negative_y_without_occluder_is_excluded_by_monitor_clip(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 1;
+
+    reset_test_state();
+    add_monitor(0, 0, 1000, 1000, 0, 0, 1000, 1000);
+
+    app.windows[0].id = 0xA2;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA2, 0, -970, 1000, 1000);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("clip neg-y: excluded", app.workspace_slots.count == 0);
+}
+
+static void test_slight_negative_y_without_occluder_still_survives(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 1;
+
+    reset_test_state();
+    add_monitor(0, 0, 1000, 1000, 0, 0, 1000, 1000);
+
+    app.windows[0].id = 0xA3;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA3, 0, -20, 1000, 1000);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("clip slight neg-y: survives", app.workspace_slots.count == 1);
+    ASSERT_TRUE("clip slight neg-y: window present", slot_contains(&app.workspace_slots, 0xA3));
+}
+
+static void test_missing_stack_entry_still_clipped(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+    add_monitor(0, 0, 1000, 1000, 0, 0, 1000, 1000);
+
+    app.windows[0].id = 0xA4;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA4, 0, -970, 1000, 1000);
+
+    app.windows[1].id = 0xB4;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB4, 0, 0, 1000, 1000);
+
+    Window stack[] = { 0xB4 };
+    set_stack(stack, 1);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("clip missing stack: 1 slot", app.workspace_slots.count == 1);
+    ASSERT_TRUE("clip missing stack: offscreen excluded", !slot_contains(&app.workspace_slots, 0xA4));
+    ASSERT_TRUE("clip missing stack: onscreen survives", slot_contains(&app.workspace_slots, 0xB4));
+}
+
+static void test_dead_monitor_seam_pixels_do_not_count(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 1;
+
+    reset_test_state();
+    add_monitor(0, 0, 1000, 1000, 0, 0, 1000, 1000);
+    add_monitor(1200, 0, 1000, 1000, 1200, 0, 1000, 1000);
+
+    app.windows[0].id = 0xA5;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xA5, 1020, 0, 160, 1000);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("clip seam gap: excluded", app.workspace_slots.count == 0);
+}
+
+static void test_overlay_center_comes_from_clipped_fragment(void) {
+    WindowPosition win = {
+        .id = 0xA6, .x = 0, .y = -300, .w = 100, .h = 400,
+        .frame = {0}
+    };
+    Rect clip_rects[] = { { 0, 0, 100, 100 } };
+    int overlay_x = 0, overlay_y = 0, largest_w = 0, largest_h = 0;
+    double largest_fraction = 0.0;
+    double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
+        &win, -1, &win, 1, NULL, 0, clip_rects, 1,
+        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+
+    ASSERT_TRUE("clip overlay: fraction clipped", visible_fraction == 0.25);
+    ASSERT_TRUE("clip overlay: center in fragment", overlay_x == 50 && overlay_y == 50);
+    ASSERT_TRUE("clip overlay: fragment dims clipped", largest_w == 100 && largest_h == 100);
+    ASSERT_TRUE("clip overlay: fragment fraction clipped", largest_fraction == 0.25);
+}
+
 int main(void) {
     printf("Workspace slot occlusion behavioral tests\n");
     printf("==========================================\n\n");
@@ -1144,6 +1316,12 @@ int main(void) {
     test_frame_extents_titlebar_strip_excluded();
     test_frame_extents_partial_content_survives();
     test_workspace1_thunderbird_behind_two_terminals_is_excluded();
+    test_no_monitor_clips_keeps_full_visibility();
+    test_negative_y_without_occluder_is_excluded_by_monitor_clip();
+    test_slight_negative_y_without_occluder_still_survives();
+    test_missing_stack_entry_still_clipped();
+    test_dead_monitor_seam_pixels_do_not_count();
+    test_overlay_center_comes_from_clipped_fragment();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

@@ -7,6 +7,7 @@
 #include "frame_extents.h"
 #include "log.h"
 #include <X11/Xatom.h>
+#include <gdk/gdk.h>
 
 // Some isolated test binaries compile workspace_slots.c without linking
 // frame_extents.c; weak-link this symbol and fall back when unavailable.
@@ -29,6 +30,7 @@ extern int get_frame_extents(Display *display, Window window, FrameExtents *exte
 
 // Max occluding rects for visible-area subtraction
 #define MAX_OCCLUDERS 32
+#define MAX_MONITOR_CLIPS 16
 
 typedef struct {
     Window id;
@@ -48,6 +50,66 @@ typedef struct {
 
 // Forward declaration (compute_visible_fraction uses this helper)
 static int get_stack_position(Window id, Window *stack, unsigned long stack_count);
+
+static Rect rect_intersect(Rect a, Rect b) {
+    Rect out = {
+        a.x1 > b.x1 ? a.x1 : b.x1,
+        a.y1 > b.y1 ? a.y1 : b.y1,
+        a.x2 < b.x2 ? a.x2 : b.x2,
+        a.y2 < b.y2 ? a.y2 : b.y2
+    };
+    if (out.x2 <= out.x1 || out.y2 <= out.y1) {
+        return (Rect){0, 0, 0, 0};
+    }
+    return out;
+}
+
+static int rect_area(Rect rect) {
+    int w = rect.x2 - rect.x1;
+    int h = rect.y2 - rect.y1;
+    return (w > 0 && h > 0) ? w * h : 0;
+}
+
+static int collect_monitor_clip_rects(Rect *clip_rects, int max_clip_rects) {
+    GdkDisplay *display = gdk_display_get_default();
+    if (!display) return 0;
+
+    int monitor_count = gdk_display_get_n_monitors(display);
+    if (monitor_count <= 0) return 0;
+
+    int clip_count = 0;
+    for (int i = 0; i < monitor_count && clip_count < max_clip_rects; i++) {
+        GdkMonitor *monitor = gdk_display_get_monitor(display, i);
+        if (!monitor) continue;
+
+        GdkRectangle geometry = {0};
+        GdkRectangle workarea = {0};
+        gdk_monitor_get_geometry(monitor, &geometry);
+        gdk_monitor_get_workarea(monitor, &workarea);
+
+        Rect monitor_rect = {
+            geometry.x,
+            geometry.y,
+            geometry.x + geometry.width,
+            geometry.y + geometry.height
+        };
+        Rect workarea_rect = {
+            workarea.x,
+            workarea.y,
+            workarea.x + workarea.width,
+            workarea.y + workarea.height
+        };
+        Rect clip_rect = rect_intersect(monitor_rect, workarea_rect);
+        if (rect_area(clip_rect) == 0) {
+            clip_rect = monitor_rect;
+        }
+        if (rect_area(clip_rect) == 0) continue;
+
+        clip_rects[clip_count++] = clip_rect;
+    }
+
+    return clip_count;
+}
 
 // Subtract rect B from rect A, producing up to 4 remaining rects.
 // Returns the number of resulting rects written to `out`.
@@ -86,13 +148,14 @@ static int rect_subtract(Rect a, Rect b, Rect *out) {
 // (windows above it in the stacking order) using rectangle subtraction.
 // Also returns the centroid of the largest remaining visible rect fragment.
 // This avoids double-counting overlapping occluders.
-static double compute_visible_fraction_and_overlay_center(const WindowPosition *win,
-                                                          int win_stack_pos,
-                                                          const WindowPosition *all, int count,
-                                                          Window *stack, unsigned long stack_count,
-                                                          int *overlay_x, int *overlay_y,
-                                                          int *largest_w, int *largest_h,
-                                                          double *largest_fraction) {
+static double compute_visible_fraction_and_overlay_center_for_clips(
+    const WindowPosition *win, int win_stack_pos,
+    const WindowPosition *all, int count,
+    Window *stack, unsigned long stack_count,
+    const Rect *clip_rects, int clip_count,
+    int *overlay_x, int *overlay_y,
+    int *largest_w, int *largest_h,
+    double *largest_fraction) {
     // Content rect: outer rect inset by frame extents.
     // Rectangle subtraction uses outer geometry (stacking order handles who
     // occludes whom). Frame extents are only applied when measuring the result:
@@ -132,8 +195,9 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
     // Collect occluding rects (windows above us in the stack)
     Rect occluders[MAX_OCCLUDERS];
     int occ_count = 0;
+    int use_stack_occlusion = stack && win_stack_pos >= 0;
 
-    for (int i = 0; i < count && occ_count < MAX_OCCLUDERS; i++) {
+    for (int i = 0; use_stack_occlusion && i < count && occ_count < MAX_OCCLUDERS; i++) {
         if (all[i].id == win->id) continue;
         int other_pos = get_stack_position(all[i].id, stack, stack_count);
         if (other_pos <= win_stack_pos) continue;  // Below us in stack
@@ -147,18 +211,6 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
         if (ix2 > ix1 && iy2 > iy1) {
             occluders[occ_count++] = (Rect){ix1, iy1, ix2, iy2};
         }
-    }
-
-    if (occ_count == 0) {
-        // Nothing occluding: full content area is visible.
-        int cw = content_rect.x2 - content_rect.x1;
-        int ch = content_rect.y2 - content_rect.y1;
-        if (overlay_x) *overlay_x = content_rect.x1 + cw / 2;
-        if (overlay_y) *overlay_y = content_rect.y1 + ch / 2;
-        if (largest_w) *largest_w = cw;
-        if (largest_h) *largest_h = ch;
-        if (largest_fraction) *largest_fraction = 1.0;
-        return 1.0;
     }
 
     // Start with the full window rect as the visible region
@@ -190,27 +242,34 @@ static double compute_visible_fraction_and_overlay_center(const WindowPosition *
         if (vis_count == 0) return 0.0;
     }
 
-    // Sum remaining visible area (clipped to content) and track largest fragment.
+    // Sum remaining visible area (clipped to content and monitor/workarea union)
+    // and track largest fragment.
     double visible_area = 0.0;
     int largest_area = 0;
     Rect largest = {0};
     for (int v = 0; v < vis_count; v++) {
-        // Clip fragment to content rect
-        Rect clipped = {
-            visible[v].x1 > content_rect.x1 ? visible[v].x1 : content_rect.x1,
-            visible[v].y1 > content_rect.y1 ? visible[v].y1 : content_rect.y1,
-            visible[v].x2 < content_rect.x2 ? visible[v].x2 : content_rect.x2,
-            visible[v].y2 < content_rect.y2 ? visible[v].y2 : content_rect.y2
-        };
-        int rw = clipped.x2 - clipped.x1;
-        int rh = clipped.y2 - clipped.y1;
-        if (rw <= 0 || rh <= 0) continue;  // fragment entirely in decoration zone
-        int area = rw * rh;
-        visible_area += (double)area;
+        Rect content_fragment = rect_intersect(visible[v], content_rect);
+        if (rect_area(content_fragment) == 0) continue;
 
-        if (area > largest_area) {
-            largest_area = area;
-            largest = clipped;
+        if (clip_count <= 0) {
+            int area = rect_area(content_fragment);
+            visible_area += (double)area;
+            if (area > largest_area) {
+                largest_area = area;
+                largest = content_fragment;
+            }
+            continue;
+        }
+
+        for (int c = 0; c < clip_count; c++) {
+            Rect clipped = rect_intersect(content_fragment, clip_rects[c]);
+            int area = rect_area(clipped);
+            if (area == 0) continue;
+            visible_area += (double)area;
+            if (area > largest_area) {
+                largest_area = area;
+                largest = clipped;
+            }
         }
     }
 
@@ -385,42 +444,43 @@ void assign_workspace_slots(AppData *app) {
     // Get stacking order and filter occluded windows
     unsigned long stack_count = 0;
     Window *stack = get_stacking_order(app->display, &stack_count);
+    Rect clip_rects[MAX_MONITOR_CLIPS];
+    int clip_count = collect_monitor_clip_rects(clip_rects, MAX_MONITOR_CLIPS);
 
     WindowPosition visible[MAX_WINDOWS];
     int vis_count = 0;
 
     for (int i = 0; i < cand_count; i++) {
         int stack_pos = stack ? get_stack_position(candidates[i].id, stack, stack_count) : -1;
-        if (stack && stack_pos >= 0) {
-            int overlay_x = 0;
-            int overlay_y = 0;
-            int largest_w = 0;
-            int largest_h = 0;
-            double largest_fraction = 0.0;
-            double visible_fraction = compute_visible_fraction_and_overlay_center(
-                &candidates[i], stack_pos, candidates, cand_count, stack, stack_count,
-                &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+        int overlay_x = 0;
+        int overlay_y = 0;
+        int largest_w = 0;
+        int largest_h = 0;
+        double largest_fraction = 0.0;
+        double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
+            &candidates[i], stack_pos, candidates, cand_count, stack, stack_count,
+            clip_rects, clip_count,
+            &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
 
-            if (visible_fraction < occlusion_threshold) {
-                log_debug("Window 0x%lx excluded: %.1f%% visible (threshold %d%%)",
-                          candidates[i].id, visible_fraction * 100, occlusion_threshold_pct);
-                continue;
-            }
-            if (largest_fraction < occlusion_threshold) {
-                log_debug("Window 0x%lx excluded: largest fragment %.1f%% visible (threshold %d%%)",
-                          candidates[i].id, largest_fraction * 100, occlusion_threshold_pct);
-                continue;
-            }
-            if (largest_w < MIN_VISIBLE_DIM_PX || largest_h < MIN_VISIBLE_DIM_PX) {
-                log_debug("Window 0x%lx excluded: largest fragment %dx%d below min %dpx",
-                          candidates[i].id, largest_w, largest_h, MIN_VISIBLE_DIM_PX);
-                continue;
-            }
-
-            // Use centroid of largest visible fragment for overlay placement.
-            candidates[i].overlay_x = overlay_x;
-            candidates[i].overlay_y = overlay_y;
+        if (visible_fraction < occlusion_threshold) {
+            log_debug("Window 0x%lx excluded: %.1f%% visible (threshold %d%%)",
+                      candidates[i].id, visible_fraction * 100, occlusion_threshold_pct);
+            continue;
         }
+        if (largest_fraction < occlusion_threshold) {
+            log_debug("Window 0x%lx excluded: largest fragment %.1f%% visible (threshold %d%%)",
+                      candidates[i].id, largest_fraction * 100, occlusion_threshold_pct);
+            continue;
+        }
+        if (largest_w < MIN_VISIBLE_DIM_PX || largest_h < MIN_VISIBLE_DIM_PX) {
+            log_debug("Window 0x%lx excluded: largest fragment %dx%d below min %dpx",
+                      candidates[i].id, largest_w, largest_h, MIN_VISIBLE_DIM_PX);
+            continue;
+        }
+
+        // Use centroid of largest visible fragment for overlay placement.
+        candidates[i].overlay_x = overlay_x;
+        candidates[i].overlay_y = overlay_y;
         visible[vis_count++] = candidates[i];
     }
 
