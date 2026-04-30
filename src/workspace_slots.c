@@ -5,9 +5,10 @@
 #include "monitor_move.h"
 #include "slot_overlay.h"
 #include "frame_extents.h"
+#include "workarea.h"
 #include "log.h"
 #include <X11/Xatom.h>
-#include <gdk/gdk.h>
+#include <X11/extensions/Xrandr.h>
 
 // Some isolated test binaries compile workspace_slots.c without linking
 // frame_extents.c; weak-link this symbol and fall back when unavailable.
@@ -71,44 +72,64 @@ static int rect_area(Rect rect) {
     return (w > 0 && h > 0) ? w * h : 0;
 }
 
-static int collect_monitor_clip_rects(Rect *clip_rects, int max_clip_rects) {
-    GdkDisplay *display = gdk_display_get_default();
-    if (!display) return 0;
-
-    int monitor_count = gdk_display_get_n_monitors(display);
-    if (monitor_count <= 0) return 0;
-
-    int clip_count = 0;
-    for (int i = 0; i < monitor_count && clip_count < max_clip_rects; i++) {
-        GdkMonitor *monitor = gdk_display_get_monitor(display, i);
-        if (!monitor) continue;
-
-        GdkRectangle geometry = {0};
-        GdkRectangle workarea = {0};
-        gdk_monitor_get_geometry(monitor, &geometry);
-        gdk_monitor_get_workarea(monitor, &workarea);
-
-        Rect monitor_rect = {
-            geometry.x,
-            geometry.y,
-            geometry.x + geometry.width,
-            geometry.y + geometry.height
-        };
-        Rect workarea_rect = {
-            workarea.x,
-            workarea.y,
-            workarea.x + workarea.width,
-            workarea.y + workarea.height
-        };
-        Rect clip_rect = rect_intersect(monitor_rect, workarea_rect);
-        if (rect_area(clip_rect) == 0) {
-            clip_rect = monitor_rect;
-        }
-        if (rect_area(clip_rect) == 0) continue;
-
-        clip_rects[clip_count++] = clip_rect;
+static int collect_monitor_clip_rects(Display *display,
+                                      Rect *clip_rects,
+                                      int max_clip_rects) {
+    int xrandr_event_base = 0;
+    int xrandr_error_base = 0;
+    if (!display || !XRRQueryExtension(display, &xrandr_event_base, &xrandr_error_base)) {
+        return 0;
     }
 
+    Window root = DefaultRootWindow(display);
+    XRRScreenResources *screen_resources = XRRGetScreenResources(display, root);
+    if (!screen_resources) return 0;
+
+    WorkArea work_area = {0};
+    int have_work_area = get_current_work_area(display, &work_area);
+    Rect workarea_rect = {
+        work_area.x,
+        work_area.y,
+        work_area.x + work_area.width,
+        work_area.y + work_area.height
+    };
+
+    int clip_count = 0;
+    for (int i = 0; i < screen_resources->noutput && clip_count < max_clip_rects; i++) {
+        XRROutputInfo *output_info =
+            XRRGetOutputInfo(display, screen_resources, screen_resources->outputs[i]);
+        if (!output_info) continue;
+        if (output_info->connection != RR_Connected || output_info->crtc == None) {
+            XRRFreeOutputInfo(output_info);
+            continue;
+        }
+
+        XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen_resources, output_info->crtc);
+        XRRFreeOutputInfo(output_info);
+        if (!crtc_info) continue;
+
+        Rect monitor_rect = {
+            crtc_info->x,
+            crtc_info->y,
+            crtc_info->x + crtc_info->width,
+            crtc_info->y + crtc_info->height
+        };
+        XRRFreeCrtcInfo(crtc_info);
+
+        Rect clip_rect = monitor_rect;
+        if (have_work_area) {
+            Rect clipped = rect_intersect(monitor_rect, workarea_rect);
+            if (rect_area(clipped) > 0) {
+                clip_rect = clipped;
+            }
+        }
+
+        if (rect_area(clip_rect) > 0) {
+            clip_rects[clip_count++] = clip_rect;
+        }
+    }
+
+    XRRFreeScreenResources(screen_resources);
     return clip_count;
 }
 
@@ -448,7 +469,8 @@ void assign_workspace_slots(AppData *app) {
     unsigned long stack_count = 0;
     Window *stack = get_stacking_order(app->display, &stack_count);
     Rect clip_rects[MAX_MONITOR_CLIPS];
-    int clip_count = collect_monitor_clip_rects(clip_rects, MAX_MONITOR_CLIPS);
+    int clip_count = collect_monitor_clip_rects(app->display, clip_rects,
+                                                MAX_MONITOR_CLIPS);
 
     WindowPosition visible[MAX_WINDOWS];
     int vis_count = 0;

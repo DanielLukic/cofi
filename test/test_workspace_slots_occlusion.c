@@ -15,10 +15,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/Xrandr.h>
 
 #include "../src/app_data.h"
+#include "../src/workarea.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -52,14 +55,15 @@ typedef struct {
 } TestFrameExtents;
 
 typedef struct {
-    GdkRectangle geometry;
-    GdkRectangle workarea;
+    int x, y, w, h;
 } TestMonitor;
 
 static TestFrameExtents test_fe_table[MAX_WINDOWS];
 static int test_fe_count = 0;
 static TestMonitor test_monitors[MAX_WINDOWS];
 static int test_monitor_count = 0;
+static WorkArea test_work_area = {0};
+static int test_have_work_area = 0;
 
 static void reset_test_state(void) {
     memset(test_geometries, 0, sizeof(test_geometries));
@@ -75,6 +79,8 @@ static void reset_test_state(void) {
     test_fe_count = 0;
     memset(test_monitors, 0, sizeof(test_monitors));
     test_monitor_count = 0;
+    test_work_area = (WorkArea){0};
+    test_have_work_area = 0;
 }
 
 static void add_geometry(Window id, int x, int y, int w, int h) {
@@ -110,9 +116,9 @@ static void add_frame_extents(Window id, int left, int top, int right, int botto
 
 static void add_monitor(int x, int y, int w, int h,
                         int wx, int wy, int ww, int wh) {
-    test_monitors[test_monitor_count].geometry = (GdkRectangle){ x, y, w, h };
-    test_monitors[test_monitor_count].workarea = (GdkRectangle){ wx, wy, ww, wh };
-    test_monitor_count++;
+    test_monitors[test_monitor_count++] = (TestMonitor){ x, y, w, h };
+    test_work_area = (WorkArea){ wx, wy, ww, wh };
+    test_have_work_area = 1;
 }
 
 /* Helper: check if slot manager contains a specific window */
@@ -203,30 +209,68 @@ int XGetWindowProperty(Display *display, Window window, Atom property,
 
 int XFree(void *data) { free(data); return 0; }
 
-GdkDisplay *gdk_display_get_default(void) {
-    return test_monitor_count > 0 ? (GdkDisplay *)0x1 : NULL;
-}
-
-gint gdk_display_get_n_monitors(GdkDisplay *display) {
+int get_current_work_area(Display *display, WorkArea *work_area) {
     (void)display;
-    return test_monitor_count;
+    if (!test_have_work_area) return 0;
+    if (work_area) *work_area = test_work_area;
+    return 1;
 }
 
-GdkMonitor *gdk_display_get_monitor(GdkDisplay *display, gint monitor_num) {
+int XRRQueryExtension(Display *display, int *event_base_return, int *error_base_return) {
     (void)display;
-    if (monitor_num < 0 || monitor_num >= test_monitor_count) return NULL;
-    return (GdkMonitor *)&test_monitors[monitor_num];
+    if (event_base_return) *event_base_return = 0;
+    if (error_base_return) *error_base_return = 0;
+    return test_monitor_count > 0;
 }
 
-void gdk_monitor_get_geometry(GdkMonitor *monitor, GdkRectangle *geometry) {
-    TestMonitor *test_monitor = (TestMonitor *)monitor;
-    if (geometry) *geometry = test_monitor->geometry;
+XRRScreenResources *XRRGetScreenResources(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    if (test_monitor_count <= 0) return NULL;
+
+    XRRScreenResources *resources = calloc(1, sizeof(*resources));
+    resources->noutput = test_monitor_count;
+    resources->outputs = calloc(test_monitor_count, sizeof(RROutput));
+    for (int i = 0; i < test_monitor_count; i++) {
+        resources->outputs[i] = (RROutput)(i + 1);
+    }
+    return resources;
 }
 
-void gdk_monitor_get_workarea(GdkMonitor *monitor, GdkRectangle *workarea) {
-    TestMonitor *test_monitor = (TestMonitor *)monitor;
-    if (workarea) *workarea = test_monitor->workarea;
+XRROutputInfo *XRRGetOutputInfo(Display *display, XRRScreenResources *resources, RROutput output) {
+    (void)display;
+    (void)resources;
+    int index = (int)output - 1;
+    if (index < 0 || index >= test_monitor_count) return NULL;
+
+    XRROutputInfo *info = calloc(1, sizeof(*info));
+    info->connection = RR_Connected;
+    info->crtc = (RRCrtc)output;
+    return info;
 }
+
+XRRCrtcInfo *XRRGetCrtcInfo(Display *display, XRRScreenResources *resources, RRCrtc crtc) {
+    (void)display;
+    (void)resources;
+    int index = (int)crtc - 1;
+    if (index < 0 || index >= test_monitor_count) return NULL;
+
+    XRRCrtcInfo *info = calloc(1, sizeof(*info));
+    info->x = test_monitors[index].x;
+    info->y = test_monitors[index].y;
+    info->width = test_monitors[index].w;
+    info->height = test_monitors[index].h;
+    return info;
+}
+
+void XRRFreeScreenResources(XRRScreenResources *resources) {
+    if (!resources) return;
+    free(resources->outputs);
+    free(resources);
+}
+
+void XRRFreeOutputInfo(XRROutputInfo *output_info) { free(output_info); }
+void XRRFreeCrtcInfo(XRRCrtcInfo *crtc_info) { free(crtc_info); }
 
 #undef DefaultRootWindow
 #define DefaultRootWindow(dpy) ((Window)0)
@@ -1195,6 +1239,7 @@ static void test_no_monitor_clips_keeps_full_visibility(void) {
 
 static void test_negative_y_without_occluder_is_excluded_by_monitor_clip(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1216,6 +1261,7 @@ static void test_negative_y_without_occluder_is_excluded_by_monitor_clip(void) {
 
 static void test_slight_negative_y_without_occluder_still_survives(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1238,6 +1284,7 @@ static void test_slight_negative_y_without_occluder_still_survives(void) {
 
 static void test_missing_stack_entry_still_clipped(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1269,6 +1316,7 @@ static void test_missing_stack_entry_still_clipped(void) {
 
 static void test_below_window_ignores_occluders_but_stays_clipped(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1301,6 +1349,7 @@ static void test_below_window_ignores_occluders_but_stays_clipped(void) {
 
 static void test_below_window_offscreen_still_excluded_by_clip(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1323,6 +1372,7 @@ static void test_below_window_offscreen_still_excluded_by_clip(void) {
 
 static void test_dead_monitor_seam_pixels_do_not_count(void) {
     AppData app = {0};
+    app.display = (Display *)0x1;
     init_workspace_slots(&app.workspace_slots);
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
@@ -1361,6 +1411,27 @@ static void test_overlay_center_comes_from_clipped_fragment(void) {
     ASSERT_TRUE("clip overlay: fragment fraction clipped", largest_fraction == 0.25);
 }
 
+static void test_physical_dual_monitor_candidate_stays_visible(void) {
+    WindowPosition win = {
+        .id = 0xA7, .x = 3840, .y = 6, .w = 3840, .h = 2104,
+        .frame = {0}
+    };
+    Rect clip_rects[] = {
+        { 0, 0, 3840, 2160 },
+        { 3840, 0, 7680, 2160 }
+    };
+    int overlay_x = 0, overlay_y = 0, largest_w = 0, largest_h = 0;
+    double largest_fraction = 0.0;
+    double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
+        &win, -1, &win, 1, NULL, 0, clip_rects, 2,
+        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+
+    ASSERT_TRUE("physical dual-monitor clip: >=95% visible", visible_fraction >= 0.95);
+    ASSERT_TRUE("physical dual-monitor clip: full fragment", largest_fraction >= 0.95);
+    ASSERT_TRUE("physical dual-monitor clip: overlay centered", overlay_x == 5760 && overlay_y == 1058);
+    ASSERT_TRUE("physical dual-monitor clip: fragment dims", largest_w == 3840 && largest_h == 2104);
+}
+
 int main(void) {
     printf("Workspace slot occlusion behavioral tests\n");
     printf("==========================================\n\n");
@@ -1395,6 +1466,7 @@ int main(void) {
     test_below_window_offscreen_still_excluded_by_clip();
     test_dead_monitor_seam_pixels_do_not_count();
     test_overlay_center_comes_from_clipped_fragment();
+    test_physical_dual_monitor_candidate_stays_visible();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

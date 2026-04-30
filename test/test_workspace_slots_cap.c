@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/Xrandr.h>
 
 #include "../src/app_data.h"
+#include "../src/workarea.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -108,6 +110,19 @@ int XGetWindowProperty(Display *display, Window window, Atom property,
 
 int XFree(void *data) {
     (void)data;
+    return 0;
+}
+
+int get_current_work_area(Display *display, WorkArea *work_area) {
+    (void)display;
+    (void)work_area;
+    return 0;
+}
+
+int XRRQueryExtension(Display *display, int *event_base_return, int *error_base_return) {
+    (void)display;
+    if (event_base_return) *event_base_return = 0;
+    if (error_base_return) *error_base_return = 0;
     return 0;
 }
 
