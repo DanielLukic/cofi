@@ -40,6 +40,7 @@ typedef struct {
     int h;
     int overlay_x;  // centroid of largest visible fragment (screen coords)
     int overlay_y;
+    int is_below;
     FrameExtents frame;  // decoration insets for post-subtraction filtering
 } WindowPosition;
 
@@ -195,7 +196,7 @@ static double compute_visible_fraction_and_overlay_center_for_clips(
     // Collect occluding rects (windows above us in the stack)
     Rect occluders[MAX_OCCLUDERS];
     int occ_count = 0;
-    int use_stack_occlusion = stack && win_stack_pos >= 0;
+    int use_stack_occlusion = stack && win_stack_pos >= 0 && !win->is_below;
 
     for (int i = 0; use_stack_occlusion && i < count && occ_count < MAX_OCCLUDERS; i++) {
         if (all[i].id == win->id) continue;
@@ -422,6 +423,7 @@ void assign_workspace_slots(AppData *app) {
         if (win->id == app->own_window_id) continue;
         if (get_window_state(app->display, win->id, "_NET_WM_STATE_HIDDEN")) continue;
         if (get_window_state(app->display, win->id, "_NET_WM_STATE_SHADED")) continue;
+        int is_below = get_window_state(app->display, win->id, "_NET_WM_STATE_BELOW");
 
         int x, y, w, h;
         if (!get_window_geometry(app->display, win->id, &x, &y, &w, &h)) continue;
@@ -433,6 +435,7 @@ void assign_workspace_slots(AppData *app) {
         candidates[cand_count].h = h;
         candidates[cand_count].overlay_x = x + w / 2;
         candidates[cand_count].overlay_y = y + h / 2;
+        candidates[cand_count].is_below = is_below;
         // Store frame extents for post-subtraction decoration filtering
         memset(&candidates[cand_count].frame, 0, sizeof(FrameExtents));
         if (get_frame_extents && get_frame_extents(app->display, win->id, &candidates[cand_count].frame)) {

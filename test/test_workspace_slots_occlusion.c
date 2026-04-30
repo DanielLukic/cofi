@@ -43,6 +43,8 @@ static Window test_stack[MAX_WINDOWS];
 static unsigned long test_stack_count = 0;
 static Window test_hidden[MAX_WINDOWS];
 static int test_hidden_count = 0;
+static Window test_below[MAX_WINDOWS];
+static int test_below_count = 0;
 
 typedef struct {
     Window id;
@@ -67,6 +69,8 @@ static void reset_test_state(void) {
     test_stack_count = 0;
     memset(test_hidden, 0, sizeof(test_hidden));
     test_hidden_count = 0;
+    memset(test_below, 0, sizeof(test_below));
+    test_below_count = 0;
     memset(test_fe_table, 0, sizeof(test_fe_table));
     test_fe_count = 0;
     memset(test_monitors, 0, sizeof(test_monitors));
@@ -89,6 +93,10 @@ static void set_stack(Window *stack, int count) {
 
 static void add_hidden(Window id) {
     test_hidden[test_hidden_count++] = id;
+}
+
+static void add_below(Window id) {
+    test_below[test_below_count++] = id;
 }
 
 static void add_frame_extents(Window id, int left, int top, int right, int bottom) {
@@ -124,10 +132,19 @@ int get_current_desktop(Display *display) {
 
 int get_window_state(Display *display, Window window, const char *state_name) {
     (void)display;
-    if (strcmp(state_name, "_NET_WM_STATE_HIDDEN") != 0) return 0;
-    for (int i = 0; i < test_hidden_count; i++) {
-        if (test_hidden[i] == window) return 1;
+    if (strcmp(state_name, "_NET_WM_STATE_HIDDEN") == 0) {
+        for (int i = 0; i < test_hidden_count; i++) {
+            if (test_hidden[i] == window) return 1;
+        }
+        return 0;
     }
+    if (strcmp(state_name, "_NET_WM_STATE_BELOW") == 0) {
+        for (int i = 0; i < test_below_count; i++) {
+            if (test_below[i] == window) return 1;
+        }
+        return 0;
+    }
+    if (strcmp(state_name, "_NET_WM_STATE_SHADED") == 0) return 0;
     return 0;
 }
 
@@ -1250,6 +1267,60 @@ static void test_missing_stack_entry_still_clipped(void) {
     ASSERT_TRUE("clip missing stack: onscreen survives", slot_contains(&app.workspace_slots, 0xB4));
 }
 
+static void test_below_window_ignores_occluders_but_stays_clipped(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 2;
+
+    reset_test_state();
+    add_monitor(3000, 0, 1000, 1000, 3000, 0, 1000, 1000);
+
+    app.windows[0].id = 0xB10;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xB10, 3100, 100, 400, 400);
+    add_below(0xB10);
+
+    app.windows[1].id = 0xB11;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xB11, 3100, 100, 400, 400);
+
+    Window stack[] = { 0xB10, 0xB11 };
+    set_stack(stack, 2);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("below exempt: 2 slots", app.workspace_slots.count == 2);
+    ASSERT_TRUE("below exempt: below window survives", slot_contains(&app.workspace_slots, 0xB10));
+    ASSERT_TRUE("below exempt: top occluder survives", slot_contains(&app.workspace_slots, 0xB11));
+}
+
+static void test_below_window_offscreen_still_excluded_by_clip(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 1;
+
+    reset_test_state();
+    add_monitor(3000, 0, 1000, 1000, 3000, 0, 1000, 1000);
+
+    app.windows[0].id = 0xB12;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xB12, 1000, 100, 400, 400);
+    add_below(0xB12);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("below clip: offscreen excluded", app.workspace_slots.count == 0);
+}
+
 static void test_dead_monitor_seam_pixels_do_not_count(void) {
     AppData app = {0};
     init_workspace_slots(&app.workspace_slots);
@@ -1320,6 +1391,8 @@ int main(void) {
     test_negative_y_without_occluder_is_excluded_by_monitor_clip();
     test_slight_negative_y_without_occluder_still_survives();
     test_missing_stack_entry_still_clipped();
+    test_below_window_ignores_occluders_but_stays_clipped();
+    test_below_window_offscreen_still_excluded_by_clip();
     test_dead_monitor_seam_pixels_do_not_count();
     test_overlay_center_comes_from_clipped_fragment();
 
