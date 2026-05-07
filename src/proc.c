@@ -120,6 +120,43 @@ static int compare_filter_hits(const void *a, const void *b) {
     return 0;
 }
 
+static const char *find_case_insensitive_substr(const char *haystack, const char *needle) {
+    if (!haystack || !needle) {
+        return NULL;
+    }
+    if (needle[0] == '\0') {
+        return haystack;
+    }
+
+    for (const char *h = haystack; *h; h++) {
+        const char *hp = h;
+        const char *np = needle;
+        while (*hp && *np &&
+               g_ascii_tolower((guchar)*hp) == g_ascii_tolower((guchar)*np)) {
+            hp++;
+            np++;
+        }
+        if (*np == '\0') {
+            return h;
+        }
+    }
+    return NULL;
+}
+
+static gboolean equals_case_insensitive(const char *a, const char *b) {
+    if (!a || !b) {
+        return FALSE;
+    }
+    while (*a && *b) {
+        if (g_ascii_tolower((guchar)*a) != g_ascii_tolower((guchar)*b)) {
+            return FALSE;
+        }
+        a++;
+        b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
 static void build_snapshot(const ProcEntry *procs, int count,
                            char *out, size_t out_size) {
     if (!out || out_size == 0) {
@@ -293,9 +330,27 @@ void proc_filter(AppData *app, const char *filter) {
     ProcFilterHit hits[MAX_PROCS];
     int hit_count = 0;
 
+    gboolean strict_mode = FALSE;
+    char strict_filter[256];
+    strict_filter[0] = '\0';
+    const char *active_filter = filter;
+
+    if (filter) {
+        size_t len = strlen(filter);
+        if (len > 0 && filter[len - 1] == '!') {
+            strict_mode = TRUE;
+            if (len - 1 >= sizeof(strict_filter)) {
+                len = sizeof(strict_filter);
+            }
+            memcpy(strict_filter, filter, len - 1);
+            strict_filter[len - 1] = '\0';
+            active_filter = strict_filter;
+        }
+    }
+
     for (int i = 0; i < mode->proc_count; i++) {
         if (hit_count >= MAX_PROCS) break;
-        if (!filter || filter[0] == '\0') {
+        if (!strict_mode && (!active_filter || active_filter[0] == '\0')) {
             hits[hit_count++] = (ProcFilterHit){
                 .raw_index = i,
                 .final_score = 0,
@@ -305,17 +360,32 @@ void proc_filter(AppData *app, const char *filter) {
             continue;
         }
 
-        int basename_score = (int)fzf_fuzzy_match(filter, mode->procs[i].basename);
-        int cmdline_score = (int)fzf_fuzzy_match(filter, mode->procs[i].cmdline);
         int final_score = 0;
 
-        if (basename_score > 0) {
-            if (cmdline_score < 0) {
-                cmdline_score = 0;
+        if (strict_mode) {
+            if (!active_filter || active_filter[0] == '\0') {
+                final_score = 0;
+            } else if (equals_case_insensitive(mode->procs[i].basename, active_filter)) {
+                final_score = 10000;
+            } else if (find_case_insensitive_substr(mode->procs[i].basename, active_filter)) {
+                int basename_len = (int)strlen(mode->procs[i].basename);
+                int filter_len = (int)strlen(active_filter);
+                final_score = 5000 - (basename_len - filter_len);
+            } else if (find_case_insensitive_substr(mode->procs[i].cmdline, active_filter)) {
+                final_score = 1000;
             }
-            final_score = basename_score * 10 + cmdline_score;
-        } else if (cmdline_score > 0) {
-            final_score = cmdline_score;
+        } else {
+            int basename_score = (int)fzf_fuzzy_match(active_filter, mode->procs[i].basename);
+            int cmdline_score = (int)fzf_fuzzy_match(active_filter, mode->procs[i].cmdline);
+
+            if (basename_score > 0) {
+                if (cmdline_score < 0) {
+                    cmdline_score = 0;
+                }
+                final_score = basename_score * 10 + cmdline_score;
+            } else if (cmdline_score > 0) {
+                final_score = cmdline_score;
+            }
         }
 
         if (final_score > 0) {
@@ -328,7 +398,7 @@ void proc_filter(AppData *app, const char *filter) {
         }
     }
 
-    if (filter && filter[0] != '\0' && hit_count > 1) {
+    if ((strict_mode || (active_filter && active_filter[0] != '\0')) && hit_count > 1) {
         qsort(hits, (size_t)hit_count, sizeof(hits[0]), compare_filter_hits);
     }
 
