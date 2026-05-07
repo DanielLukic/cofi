@@ -725,11 +725,11 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     cofi_set_filtered_map(provider_id, raw_map, map_count);
 
     int max_lines = get_max_display_lines_dynamic(app);
-    int scroll = get_scroll_offset(app);
-    int end = scroll + max_lines;
+    int start = get_scroll_offset(app);
+    int end = start + max_lines;
     if (end > count) end = count;
 
-    for (int i = scroll; i < end; i++) {
+    for (int i = end - 1; i >= start; i--) {
         CofiRowCells row;
         memset(&row, 0, sizeof(row));
         p->format_row(app, i, &row);

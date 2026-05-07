@@ -65,6 +65,7 @@ typedef struct CofiTabProvider {
 
     int hidden_by_default;
     CofiModalPolicy modal_policy;
+    int initial_selection_index;
 
     int  (*row_count)(AppData *);
     void (*format_row)(AppData *, int raw_idx, CofiRowCells *out);

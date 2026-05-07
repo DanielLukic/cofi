@@ -23,7 +23,7 @@ typedef struct {
  * result_out receives the formatted result or error string. */
 gboolean calc_eval(CalcMode *calc, const char *raw_expr, char *result_out);
 
-/* Append a new entry (oldest-first, newest-last) onto the history ring. */
+/* Prepend a new entry (newest-first) onto the history ring. */
 void calc_push(CalcMode *calc, const char *expr, const char *result, gboolean is_error);
 
 /* Format double to string, trimming trailing zeros; integers shown as integers. */

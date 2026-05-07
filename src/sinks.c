@@ -91,26 +91,9 @@ static int parse_inventory(const char *inventory,
 
     g_strfreev(lines);
 
-    gboolean default_found = FALSE;
     for (int i = 0; i < count; i++) {
         out[i].is_default = default_name[0] != '\0' &&
             strcmp(out[i].name, default_name) == 0;
-        if (!out[i].is_default) {
-            continue;
-        }
-
-        SinkEntry default_sink_entry = out[i];
-        memmove(&out[i], &out[i + 1], sizeof(SinkEntry) * (count - i - 1));
-        out[count - 1] = default_sink_entry;
-        default_found = TRUE;
-        break;
-    }
-
-    int non_default_count = default_found ? count - 1 : count;
-    for (int left = 0, right = non_default_count - 1; left < right; left++, right--) {
-        SinkEntry temp = out[left];
-        out[left] = out[right];
-        out[right] = temp;
     }
 
     if (count == 0 && error_out && error_size > 0) {
@@ -118,25 +101,6 @@ static int parse_inventory(const char *inventory,
     }
 
     return count;
-}
-
-static int preferred_filtered_index(const SinkEntry *sinks,
-                                    int sink_count,
-                                    const int *filtered_indices,
-                                    int filtered_count) {
-    if (!sinks || !filtered_indices || filtered_count <= 0) {
-        return 0;
-    }
-
-    for (int i = 0; i < filtered_count; i++) {
-        int raw_index = filtered_indices[i];
-        if (raw_index >= 0 && raw_index < sink_count &&
-            sinks[raw_index].is_default) {
-            return i;
-        }
-    }
-
-    return filtered_count - 1;
 }
 
 static void build_snapshot(const SinkEntry *sinks,
@@ -172,13 +136,6 @@ void sinks_snapshot_test_hook(const SinkEntry *sinks,
     build_snapshot(sinks, count, out, out_size);
 }
 
-int sinks_preferred_filtered_index_test_hook(const SinkEntry *sinks,
-                                             int sink_count,
-                                             const int *filtered_indices,
-                                             int filtered_count) {
-    return preferred_filtered_index(sinks, sink_count, filtered_indices,
-                                    filtered_count);
-}
 #endif
 
 #ifndef COFI_SINKS_PARSER_TEST
@@ -256,9 +213,7 @@ static void apply_refresh_result(AppData *app,
     }
 
     sinks_filter(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
-    app->selection.provider_index =
-        preferred_filtered_index(mode->sinks, mode->sink_count,
-                                 mode->filtered_indices, mode->filtered_count);
+    app->selection.provider_index = 0;
     app->selection.provider_scroll_offset = 0;
     if (selected_name[0] != '\0') {
         for (int i = 0; i < mode->filtered_count; i++) {

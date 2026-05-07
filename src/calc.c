@@ -42,18 +42,17 @@ void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len) 
 void calc_push(CalcMode *calc, const char *expr, const char *result, gboolean is_error) {
     if (!calc || !expr || !result) return;
 
-    int idx;
-    if (calc->count < CALC_HISTORY_CAP) {
-        idx = calc->count++;
-    } else {
-        for (int i = 0; i < CALC_HISTORY_CAP - 1; i++)
-            calc->entries[i] = calc->entries[i + 1];
-        idx = CALC_HISTORY_CAP - 1;
+    if (calc->count < CALC_HISTORY_CAP)
+        calc->count++;
+
+    for (int i = calc->count - 1; i > 0; i--) {
+        calc->entries[i] = calc->entries[i - 1];
     }
-    strncpy(calc->entries[idx].expr, expr, CALC_EXPR_LEN - 1);
-    calc->entries[idx].expr[CALC_EXPR_LEN - 1] = '\0';
-    strncpy(calc->entries[idx].result, result, CALC_RESULT_LEN - 1);
-    calc->entries[idx].result[CALC_RESULT_LEN - 1] = '\0';
+
+    strncpy(calc->entries[0].expr, expr, CALC_EXPR_LEN - 1);
+    calc->entries[0].expr[CALC_EXPR_LEN - 1] = '\0';
+    strncpy(calc->entries[0].result, result, CALC_RESULT_LEN - 1);
+    calc->entries[0].result[CALC_RESULT_LEN - 1] = '\0';
 
     if (!is_error) {
         strncpy(calc->last_result, result, CALC_RESULT_LEN - 1);
