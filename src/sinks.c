@@ -99,8 +99,8 @@ static int parse_inventory(const char *inventory,
         }
 
         SinkEntry default_sink_entry = out[i];
-        memmove(&out[1], &out[0], sizeof(SinkEntry) * i);
-        out[0] = default_sink_entry;
+        memmove(&out[i], &out[i + 1], sizeof(SinkEntry) * (count - i - 1));
+        out[count - 1] = default_sink_entry;
         break;
     }
 
