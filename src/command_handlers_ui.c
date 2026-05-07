@@ -4,6 +4,7 @@
 #include "calc_mode.h"
 #include "command_definitions.h"
 #include "config.h"
+#include "detach_launch.h"
 #include "display.h"
 #include "hotkey_config.h"
 #include "hotkeys.h"
@@ -17,6 +18,7 @@
 
 extern void dispatch_hotkey_mode(AppData *app, ShowMode mode);
 extern void exit_command_mode(AppData *app);
+extern void hide_window(AppData *app);
 extern void show_help_commands(AppData *app);
 
 static void show_error_in_display(AppData *app, const char *msg) {
@@ -141,7 +143,18 @@ gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
 }
 
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
-                 const char *args __attribute__((unused))) {
+                 const char *args) {
+    if (args && args[0] != '\0') {
+        char command[256];
+        if (extract_run_command(args, command, sizeof(command))) {
+            if (detach_launch_shell(command)) {
+                add_run_history_entry(&app->run_mode, command);
+                hide_window(app);
+            }
+        }
+        exit_command_mode(app);
+        return FALSE;
+    }
     exit_command_mode(app);
     enter_run_mode(app, NULL);
     return FALSE;

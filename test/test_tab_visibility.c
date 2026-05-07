@@ -242,6 +242,18 @@ void exit_run_mode(AppData *app) {
     (void)app;
 }
 
+void hide_window(AppData *app) { (void)app; }
+
+gboolean detach_launch_shell(const char *command) { (void)command; return TRUE; }
+void add_run_history_entry(RunMode *run_mode, const char *command) {
+    (void)run_mode; (void)command;
+}
+gboolean extract_run_command(const char *entry_text, char *command_out, size_t command_size) {
+    if (!entry_text || !command_out || command_size == 0) return FALSE;
+    g_strlcpy(command_out, entry_text, command_size);
+    return command_out[0] != '\0';
+}
+
 int get_active_window_id(Display *display) {
     (void)display;
     return 0;
