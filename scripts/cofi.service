@@ -1,7 +1,5 @@
 [Unit]
 Description=cofi window switcher
-After=graphical-session.target
-PartOf=graphical-session.target
 
 [Service]
 Type=simple
@@ -13,4 +11,4 @@ StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target
