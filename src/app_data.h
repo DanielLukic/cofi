@@ -72,7 +72,7 @@ typedef enum {
     CMD_MODE_NORMAL,    // Regular window switching mode
     CMD_MODE_COMMAND,   // Command entry mode (after pressing ':')
     CMD_MODE_RUN,       // Run entry mode (after pressing '!')
-    CMD_MODE_CALC       // Calculator mode (after pressing '=')
+    CMD_MODE_MODAL      // Modal provider tab (after pressing a provider prefix char, e.g. '=')
 } CommandModeState;
 
 typedef struct {
@@ -113,7 +113,7 @@ typedef struct {
     int hotkeys_index;                      // Selected index in hotkeys tab
     int rules_index;                        // Selected index in rules tab
     int apps_index;                         // Selected index in apps tab
-    int calc_index;                         // Selected index in calc history
+    int provider_index;                     // Selected index for any registered provider tab
     int sinks_index;                        // Selected index in sinks tab
     int run_index;                          // Selected index in run history
     int proc_index;                         // Selected index in proc tab
@@ -127,7 +127,7 @@ typedef struct {
     int hotkeys_scroll_offset;             // First visible item index for hotkeys tab
     int rules_scroll_offset;               // First visible item index for rules tab
     int apps_scroll_offset;                // First visible item index for apps tab
-    int calc_scroll_offset;                // First visible item index for calc tab
+    int provider_scroll_offset;            // First visible item index for any registered provider tab
     int sinks_scroll_offset;               // First visible item index for sinks tab
     int run_scroll_offset;                 // First visible item index for run tab
     int proc_scroll_offset;                // First visible item index for proc tab

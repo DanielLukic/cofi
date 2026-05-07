@@ -56,7 +56,7 @@ CofiResult get_x11_property(Display *display, Window window, Atom property, Atom
                             unsigned long *n_items, unsigned char **prop_return) {
     (void)display; (void)window; (void)property; (void)expected_type;
     (void)max_items; (void)actual_type; (void)actual_format; (void)n_items; (void)prop_return;
-    return COFI_ERROR;
+    return COFI_ERROR; /* CofiResult X11 error code, not CofiActionStatus */
 }
 
 gboolean path_binaries_is_scanning(void) {

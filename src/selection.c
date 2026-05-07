@@ -72,9 +72,9 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_APPS) {
         app->selection.apps_index = 0;
         app->selection.apps_scroll_offset = 0;
-    } else if (app->current_tab == TAB_CALC) {
-        app->selection.calc_index = 0;
-        app->selection.calc_scroll_offset = 0;
+    } else if (cofi_get_provider_for_tab(app->current_tab)) {
+        app->selection.provider_index = 0;
+        app->selection.provider_scroll_offset = 0;
     } else if (app->current_tab == TAB_SINKS) {
         app->selection.sinks_index = 0;
         app->selection.sinks_scroll_offset = 0;
@@ -132,8 +132,8 @@ int get_selected_index(AppData *app) {
         return app->selection.rules_index;
     } else if (app->current_tab == TAB_APPS) {
         return app->selection.apps_index;
-    } else if (app->current_tab == TAB_CALC) {
-        return app->selection.calc_index;
+    } else if (cofi_get_provider_for_tab(app->current_tab)) {
+        return app->selection.provider_index;
     } else if (app->current_tab == TAB_SINKS) {
         return app->selection.sinks_index;
     } else if (app->current_tab == TAB_RUN) {
@@ -258,20 +258,24 @@ void move_selection_up(AppData *app) {
                      app->selection.apps_index,
                      app->filtered_apps[app->selection.apps_index].name);
         }
-    } else if (app->current_tab == TAB_CALC) {
-        const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
-        int count = p && p->row_count ? p->row_count(app) : 0;
-        if (count > 0) {
-            if (app->selection.calc_index < count - 1) {
-                app->selection.calc_index++;
-            } else {
-                app->selection.calc_index = 0;
+    } else {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+        if (p) {
+            int count = p->row_count ? p->row_count(app) : 0;
+            if (count > 0) {
+                if (app->selection.provider_index < count - 1) {
+                    app->selection.provider_index++;
+                } else {
+                    app->selection.provider_index = 0;
+                }
+                update_scroll_position(app);
+                update_display(app);
+                log_info("USER: Selection UP -> provider[%d]", app->selection.provider_index);
             }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Calc[%d]", app->selection.calc_index);
+            return;
         }
-    } else if (app->current_tab == TAB_SINKS) {
+    }
+    if (app->current_tab == TAB_SINKS) {
         if (app->sinks_mode.filtered_count > 0) {
             if (app->selection.sinks_index < app->sinks_mode.filtered_count - 1) {
                 app->selection.sinks_index++;
@@ -424,20 +428,24 @@ void move_selection_down(AppData *app) {
                      app->selection.apps_index,
                      app->filtered_apps[app->selection.apps_index].name);
         }
-    } else if (app->current_tab == TAB_CALC) {
-        const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
-        int count = p && p->row_count ? p->row_count(app) : 0;
-        if (count > 0) {
-            if (app->selection.calc_index > 0) {
-                app->selection.calc_index--;
-            } else {
-                app->selection.calc_index = count - 1;
+    } else {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+        if (p) {
+            int count = p->row_count ? p->row_count(app) : 0;
+            if (count > 0) {
+                if (app->selection.provider_index > 0) {
+                    app->selection.provider_index--;
+                } else {
+                    app->selection.provider_index = count - 1;
+                }
+                update_scroll_position(app);
+                update_display(app);
+                log_info("USER: Selection DOWN -> provider[%d]", app->selection.provider_index);
             }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Calc[%d]", app->selection.calc_index);
+            return;
         }
-    } else if (app->current_tab == TAB_SINKS) {
+    }
+    if (app->current_tab == TAB_SINKS) {
         if (app->sinks_mode.filtered_count > 0) {
             if (app->selection.sinks_index > 0) {
                 app->selection.sinks_index--;
@@ -583,13 +591,13 @@ int get_scroll_offset(AppData *app) {
             return app->selection.rules_scroll_offset;
         case TAB_APPS:
             return app->selection.apps_scroll_offset;
-        case TAB_CALC:
-            return app->selection.calc_scroll_offset;
         case TAB_SINKS:
             return app->selection.sinks_scroll_offset;
         case TAB_PROC:
             return app->selection.proc_scroll_offset;
         default:
+            if (cofi_get_provider_for_tab(app->current_tab))
+                return app->selection.provider_scroll_offset;
             return 0;
     }
 }
@@ -623,14 +631,15 @@ void set_scroll_offset(AppData *app, int offset) {
         case TAB_APPS:
             app->selection.apps_scroll_offset = offset;
             break;
-        case TAB_CALC:
-            app->selection.calc_scroll_offset = offset;
-            break;
         case TAB_SINKS:
             app->selection.sinks_scroll_offset = offset;
             break;
         case TAB_PROC:
             app->selection.proc_scroll_offset = offset;
+            break;
+        default:
+            if (cofi_get_provider_for_tab(app->current_tab))
+                app->selection.provider_scroll_offset = offset;
             break;
     }
 }
@@ -669,17 +678,18 @@ void update_scroll_position(AppData *app) {
         case TAB_APPS:
             total_count = app->filtered_apps_count;
             break;
-        case TAB_CALC: {
-            const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
-            total_count = p && p->row_count ? p->row_count(app) : 0;
-            break;
-        }
         case TAB_SINKS:
             total_count = app->sinks_mode.filtered_count;
             break;
         case TAB_PROC:
             total_count = app->proc_mode.filtered_count;
             break;
+        default: {
+            const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+            if (p && p->row_count)
+                total_count = p->row_count(app);
+            break;
+        }
     }
 
     if (total_count <= max_lines) {

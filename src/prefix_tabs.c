@@ -1,6 +1,7 @@
 #include "prefix_tabs.h"
 
-#include "calc_mode.h"
+#include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "command_mode.h"
 #include "run_mode.h"
 
@@ -59,7 +60,7 @@ void apply_prefix_tab_claim(AppData *app, const char *entry_text) {
             app->prefix_origin_tab = app->current_tab;
             app->active_prefix_claim = '=';
         }
-        enter_calc_mode(app);
+        cofi_enter_modal(app, cofi_get_provider_for_prefix('='));
         return;
     }
 

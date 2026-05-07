@@ -5,6 +5,7 @@
 #include <glib/gstdio.h>
 
 #include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
 #include "../src/path_binaries.h"
 
 static int tests_run = 0;
@@ -24,7 +25,9 @@ static int tests_passed = 0;
 #define ASSERT_EQ_INT(msg, expected, actual) ASSERT_TRUE(msg, (expected) == (actual))
 #define ASSERT_STR_EQ(msg, expected, actual) ASSERT_TRUE(msg, strcmp((expected), (actual)) == 0)
 
-/* ---- stubs required by tab_switching.c (routing tests) ---- */
+/* ---- stubs required by tab_switching.c and cofi_modal.c (routing tests) ---- */
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
 void filter_windows(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
 void reset_selection(AppData *app) { (void)app; }

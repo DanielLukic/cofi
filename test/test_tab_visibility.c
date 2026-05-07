@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
 #include "../src/daemon_socket.h"
 #include "../src/tiling.h"
 
@@ -137,18 +138,25 @@ void exit_command_mode(AppData *app) {
     exit_command_mode_calls++;
 }
 
-void enter_calc_mode(AppData *app) {
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
+    (void)app; (void)provider;
+}
+
+void cofi_exit_modal(AppData *app) {
     (void)app;
 }
 
-void exit_calc_mode(AppData *app) {
-    (void)app;
-}
-
-gboolean handle_calc_key(GdkEventKey *event, AppData *app) {
-    (void)event;
-    (void)app;
+gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
+    (void)app; (void)event;
     return FALSE;
+}
+
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
+    (void)prefix; return NULL;
+}
+
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    (void)tab_mode; return NULL;
 }
 
 void show_help_commands(AppData *app) {

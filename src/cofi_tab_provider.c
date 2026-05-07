@@ -103,3 +103,11 @@ void cofi_registry_reset(void) {
     memset(s_registry, 0, sizeof(s_registry));
     s_count = 0;
 }
+
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
+    for (int i = 0; i < s_count; i++) {
+        if (s_registry[i].provider.prefix_char == prefix)
+            return &s_registry[i].provider;
+    }
+    return NULL;
+}

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "apps.h"
+#include "cofi_tab_provider.h"
 #include "config.h"
 #include "display.h"
 #include "filter.h"
@@ -67,8 +68,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
         filter_apps(app, "");
-    } else if (target_tab == TAB_CALC) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "expression");
     } else if (target_tab == TAB_SINKS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Audio sinks...");
         sinks_start_polling(app);
@@ -77,6 +76,10 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_PROC) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Processes...");
         proc_start_polling(app);
+    } else {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
+        if (p && p->on_enter)
+            p->on_enter(app);
     }
 
     reset_selection(app);
