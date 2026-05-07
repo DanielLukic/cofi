@@ -13,6 +13,8 @@ static int g_kill_calls = 0;
 static pid_t g_killed_pids[32];
 static int g_killed_sigs[32];
 static int g_kill_fail_for_pid = -1;
+static int g_activate_calls = 0;
+static Window g_activated_window = 0;
 
 #define ASSERT_TRUE(name, cond) do { \
     if (cond) { printf("PASS: %s\n", name); pass++; } \
@@ -78,6 +80,18 @@ void hide_window(AppData *app) {
     g_hide_calls++;
 }
 
+int get_window_pid(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    return 0;
+}
+
+void activate_window(Display *display, Window window_id) {
+    (void)display;
+    g_activate_calls++;
+    g_activated_window = window_id;
+}
+
 #define COFI_TESTING
 #include "../src/proc.c"
 
@@ -104,6 +118,41 @@ static ProcEntry make_proc(int pid, const char *name, const char *cmd, long rss_
     return p;
 }
 
+typedef struct {
+    pid_t pid;
+    Window win;
+} ShowMap;
+
+typedef struct {
+    pid_t pid;
+    pid_t ppid;
+} ParentMap;
+
+static ShowMap g_show_map[16];
+static int g_show_map_count = 0;
+static ParentMap g_parent_map[16];
+static int g_parent_map_count = 0;
+
+static int test_find_window_for_pid(AppData *app, pid_t pid, Window *window_out) {
+    (void)app;
+    for (int i = 0; i < g_show_map_count; i++) {
+        if (g_show_map[i].pid == pid) {
+            *window_out = g_show_map[i].win;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int test_parent_pid(pid_t pid) {
+    for (int i = 0; i < g_parent_map_count; i++) {
+        if (g_parent_map[i].pid == pid) {
+            return (int)g_parent_map[i].ppid;
+        }
+    }
+    return 1;
+}
+
 static void init_app(AppData *app) {
     memset(app, 0, sizeof(*app));
     app->current_tab = TAB_PROC;
@@ -113,6 +162,11 @@ static void init_app(AppData *app) {
     g_hide_calls = 0;
     g_kill_calls = 0;
     g_kill_fail_for_pid = -1;
+    g_activate_calls = 0;
+    g_activated_window = 0;
+    g_show_map_count = 0;
+    g_parent_map_count = 0;
+    proc_set_show_resolvers_test_hook(test_find_window_for_pid, test_parent_pid, 32);
 }
 
 static void test_stat_parsing_fields(void) {
@@ -419,6 +473,100 @@ static void test_pipe_action_candidates_prefix_filtering(void) {
     ASSERT_TRUE("candidate includes k", strcmp(app.proc_mode.action_candidates[0], "k") == 0);
 }
 
+static void test_mem_compact_formatting(void) {
+    char out[16];
+    proc_format_mem_compact_test_hook(512, out, sizeof(out));
+    ASSERT_TRUE("512KiB -> 0M", strcmp(out, "0M") == 0);
+    proc_format_mem_compact_test_hook(12 * 1024, out, sizeof(out));
+    ASSERT_TRUE("12MiB -> 12M", strcmp(out, "12M") == 0);
+    proc_format_mem_compact_test_hook(999 * 1024, out, sizeof(out));
+    ASSERT_TRUE("999MiB -> 999M", strcmp(out, "999M") == 0);
+    proc_format_mem_compact_test_hook(1024 * 1024, out, sizeof(out));
+    ASSERT_TRUE("1024MiB -> 1.0G", strcmp(out, "1.0G") == 0);
+    proc_format_mem_compact_test_hook(1700 * 1024, out, sizeof(out));
+    ASSERT_TRUE("1700MiB -> 1.7G", strcmp(out, "1.7G") == 0);
+    proc_format_mem_compact_test_hook(12L * 1024L * 1024L, out, sizeof(out));
+    ASSERT_TRUE("12GiB -> 12G", strcmp(out, "12G") == 0);
+}
+
+static void test_cpu_pct_formatting(void) {
+    char out[16];
+    proc_format_cpu_pct_test_hook(0.0, out, sizeof(out));
+    ASSERT_TRUE("cpu 0.0", strcmp(out, "0.0") == 0);
+    proc_format_cpu_pct_test_hook(1.5, out, sizeof(out));
+    ASSERT_TRUE("cpu 1.5", strcmp(out, "1.5") == 0);
+    proc_format_cpu_pct_test_hook(12.3, out, sizeof(out));
+    ASSERT_TRUE("cpu 12.3", strcmp(out, "12.3") == 0);
+    proc_format_cpu_pct_test_hook(100.0, out, sizeof(out));
+    ASSERT_TRUE("cpu 100.0", strcmp(out, "100.0") == 0);
+    proc_format_cpu_pct_test_hook(250.0, out, sizeof(out));
+    ASSERT_TRUE("cpu 250.0", strcmp(out, "250.0") == 0);
+}
+
+static void test_column_truncation_behavior(void) {
+    char name_col[32];
+    char cmd_col[32];
+    proc_format_name_column_test_hook("very-long-process-name", name_col, sizeof(name_col));
+    ASSERT_TRUE("name truncated with ellipsis", strstr(name_col, "...") != NULL);
+    proc_format_cmd_column_test_hook("this is an extremely long command line", 12, cmd_col, sizeof(cmd_col));
+    ASSERT_TRUE("cmd truncated with ellipsis", strcmp(cmd_col + 9, "...") == 0);
+}
+
+static void test_show_action_parent_walk_depths(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "alpha";
+    ProcEntry entries[1] = { make_proc(1000, "alpha", "alpha", 100) };
+    proc_apply_entries_test_hook(&app, entries, 1);
+
+    g_show_map[0] = (ShowMap){ .pid = 1000, .win = 0x1111 };
+    g_show_map_count = 1;
+    ASSERT_EQ_INT("show depth0 success", 1, proc_execute_action_test_hook(&app, "alpha | show", 0));
+    ASSERT_EQ_INT("show depth0 activate called", 1, g_activate_calls);
+
+    init_app(&app);
+    g_entry_text = "alpha";
+    proc_apply_entries_test_hook(&app, entries, 1);
+    g_parent_map[0] = (ParentMap){ .pid = 1000, .ppid = 900 };
+    g_show_map[0] = (ShowMap){ .pid = 900, .win = 0x2222 };
+    g_parent_map_count = 1;
+    g_show_map_count = 1;
+    ASSERT_EQ_INT("show depth1 success", 1, proc_execute_action_test_hook(&app, "alpha | show", 0));
+    ASSERT_EQ_INT("show depth1 target window", 0x2222, (int)g_activated_window);
+
+    init_app(&app);
+    g_entry_text = "alpha";
+    proc_apply_entries_test_hook(&app, entries, 1);
+    g_parent_map[0] = (ParentMap){ .pid = 1000, .ppid = 900 };
+    g_parent_map[1] = (ParentMap){ .pid = 900, .ppid = 800 };
+    g_show_map[0] = (ShowMap){ .pid = 800, .win = 0x3333 };
+    g_parent_map_count = 2;
+    g_show_map_count = 1;
+    ASSERT_EQ_INT("show depth2 success", 1, proc_execute_action_test_hook(&app, "alpha | show", 0));
+    ASSERT_EQ_INT("show depth2 target window", 0x3333, (int)g_activated_window);
+}
+
+static void test_show_action_giveups(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "alpha";
+    ProcEntry entries[1] = { make_proc(1000, "alpha", "alpha", 100) };
+    proc_apply_entries_test_hook(&app, entries, 1);
+
+    g_parent_map[0] = (ParentMap){ .pid = 1000, .ppid = 1 };
+    g_parent_map_count = 1;
+    ASSERT_EQ_INT("show gives up at init", 0, proc_execute_action_test_hook(&app, "alpha | show", 0));
+
+    init_app(&app);
+    g_entry_text = "alpha";
+    proc_apply_entries_test_hook(&app, entries, 1);
+    g_parent_map[0] = (ParentMap){ .pid = 1000, .ppid = 999 };
+    g_parent_map[1] = (ParentMap){ .pid = 999, .ppid = 998 };
+    g_parent_map_count = 2;
+    proc_set_show_resolvers_test_hook(test_find_window_for_pid, test_parent_pid, 2);
+    ASSERT_EQ_INT("show gives up at depth limit", 0, proc_execute_action_test_hook(&app, "alpha | show", 0));
+}
+
 int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
@@ -438,6 +586,11 @@ int main(void) {
     test_bad_action_token_no_kill();
     test_empty_filter_pipe_kill_selected();
     test_pipe_action_candidates_prefix_filtering();
+    test_mem_compact_formatting();
+    test_cpu_pct_formatting();
+    test_column_truncation_behavior();
+    test_show_action_parent_walk_depths();
+    test_show_action_giveups();
 
     printf("\nProc tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;

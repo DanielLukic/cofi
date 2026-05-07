@@ -18,6 +18,7 @@
 #include "match.h"
 #include "selection.h"
 #include "window_lifecycle.h"
+#include "x11_utils.h"
 #endif
 
 static void safe_copy(char *dest, size_t size, const char *src) {
@@ -96,6 +97,91 @@ static int compare_rss_desc(const void *a, const void *b) {
     if (pa->pid < pb->pid) return -1;
     if (pa->pid > pb->pid) return 1;
     return 0;
+}
+
+static unsigned long long read_system_total_jiffies(void) {
+    FILE *f = fopen("/proc/stat", "r");
+    if (!f) return 0;
+
+    char line[512];
+    if (!fgets(line, sizeof(line), f)) {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    if (!g_str_has_prefix(line, "cpu ")) {
+        return 0;
+    }
+
+    unsigned long long fields[10] = {0};
+    int count = sscanf(line,
+                       "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                       &fields[0], &fields[1], &fields[2], &fields[3], &fields[4],
+                       &fields[5], &fields[6], &fields[7], &fields[8], &fields[9]);
+    if (count < 7) return 0;
+
+    unsigned long long total = 0;
+    for (int i = 0; i < count; i++) total += fields[i];
+    return total;
+}
+
+void proc_format_mem_compact(long rss_kb, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (rss_kb < 1024) {
+        g_snprintf(out, out_size, "0M");
+        return;
+    }
+    double mib = (double)rss_kb / 1024.0;
+    if (mib < 1024.0) {
+        if (mib < 10.0) {
+            g_snprintf(out, out_size, "%.1fM", mib);
+        } else {
+            g_snprintf(out, out_size, "%.0fM", mib);
+        }
+        return;
+    }
+
+    double gib = mib / 1024.0;
+    if (gib < 10.0) {
+        g_snprintf(out, out_size, "%.1fG", gib);
+    } else {
+        g_snprintf(out, out_size, "%.0fG", gib);
+    }
+}
+
+void proc_format_cpu_pct(double cpu_pct, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (cpu_pct < 0.0) cpu_pct = 0.0;
+    g_snprintf(out, out_size, "%.1f", cpu_pct);
+}
+
+static void fit_text_ellipsis(const char *input, int width, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (width <= 0) {
+        out[0] = '\0';
+        return;
+    }
+    char buf[1024];
+    safe_copy(buf, sizeof(buf), input ? input : "");
+    g_strstrip(buf);
+    size_t len = strlen(buf);
+    if ((int)len <= width) {
+        g_snprintf(out, out_size, "%-*s", width, buf);
+        return;
+    }
+    if (width <= 3) {
+        g_snprintf(out, out_size, "%.*s", width, "...");
+        return;
+    }
+    g_snprintf(out, out_size, "%.*s...", width - 3, buf);
+}
+
+void proc_fit_name_column(const char *name, char *out, size_t out_size) {
+    fit_text_ellipsis(name, 16, out, out_size);
+}
+
+void proc_fit_cmd_column(const char *cmdline, int width, char *out, size_t out_size) {
+    fit_text_ellipsis(cmdline, width, out, out_size);
 }
 
 typedef struct {
@@ -245,6 +331,7 @@ static gboolean read_proc_entry(pid_t pid, ProcEntry *out) {
     safe_copy(out->basename, sizeof(out->basename), comm);
     safe_copy(out->cmdline, sizeof(out->cmdline), cmdraw);
     out->rss_kb = rss_kb;
+    out->cpu_pct = 0.0;
     return TRUE;
 }
 
@@ -290,6 +377,69 @@ static int load_proc_inventory(ProcEntry *out, int max_out,
     return count;
 }
 
+static unsigned long long get_prev_proc_jiffies(ProcMode *mode, pid_t pid) {
+    if (!mode || pid <= 0) return 0;
+    for (int i = 0; i < mode->cpu_sample_count; i++) {
+        if (mode->cpu_samples[i].pid == pid) {
+            return mode->cpu_samples[i].jiffies;
+        }
+    }
+    return 0;
+}
+
+static void update_cpu_percentages(ProcMode *mode, ProcEntry *entries, int count) {
+    if (!mode || !entries || count <= 0) return;
+
+    unsigned long long current_system_jiffies = read_system_total_jiffies();
+    unsigned long long system_delta = 0;
+    if (mode->prev_system_jiffies > 0 && current_system_jiffies > mode->prev_system_jiffies) {
+        system_delta = current_system_jiffies - mode->prev_system_jiffies;
+    }
+
+    long cpu_count_long = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpu_count_long < 1) cpu_count_long = 1;
+    double cpu_count = (double)cpu_count_long;
+
+    ProcCpuSample next_samples[MAX_PROCS];
+    int next_count = 0;
+
+    for (int i = 0; i < count; i++) {
+        char path[PATH_MAX];
+        char stat_line[2048];
+        unsigned long long utime = 0, stime = 0, vsize = 0;
+        unsigned long long proc_jiffies = 0;
+        FILE *f = NULL;
+
+        g_snprintf(path, sizeof(path), "/proc/%d/stat", (int)entries[i].pid);
+        f = fopen(path, "r");
+        if (f && fgets(stat_line, sizeof(stat_line), f) &&
+            parse_stat_fields(stat_line, &utime, &stime, &vsize)) {
+            proc_jiffies = utime + stime;
+        }
+        if (f) fclose(f);
+
+        unsigned long long prev = get_prev_proc_jiffies(mode, entries[i].pid);
+        if (prev > 0 && system_delta > 0 && proc_jiffies >= prev) {
+            double cpu_pct = 100.0 * ((double)(proc_jiffies - prev) / (double)system_delta) * cpu_count;
+            if (cpu_pct < 0.0) cpu_pct = 0.0;
+            if (cpu_pct > 100.0 * cpu_count) cpu_pct = 100.0 * cpu_count;
+            entries[i].cpu_pct = cpu_pct;
+        } else {
+            entries[i].cpu_pct = 0.0;
+        }
+
+        if (next_count < MAX_PROCS) {
+            next_samples[next_count].pid = entries[i].pid;
+            next_samples[next_count].jiffies = proc_jiffies;
+            next_count++;
+        }
+    }
+
+    memcpy(mode->cpu_samples, next_samples, sizeof(ProcCpuSample) * next_count);
+    mode->cpu_sample_count = next_count;
+    mode->prev_system_jiffies = current_system_jiffies;
+}
+
 static int proc_signal_from_modifiers(guint state) {
     if (state & GDK_SHIFT_MASK) return SIGKILL;
     if (state & GDK_CONTROL_MASK) return SIGHUP;
@@ -329,6 +479,7 @@ static void set_error(ProcMode *mode, const char *message) {
 }
 
 typedef struct {
+    int type;
     int signal;
     gboolean all;
     gboolean valid;
@@ -345,6 +496,12 @@ typedef enum {
     PROC_MATCH_STRICT = 1,
     PROC_MATCH_EXACT = 2,
 } ProcMatchMode;
+
+typedef enum {
+    PROC_ACTION_INVALID = 0,
+    PROC_ACTION_SIGNAL = 1,
+    PROC_ACTION_SHOW = 2,
+} ProcActionType;
 
 static int proc_kill_pid(pid_t pid, int sig) {
 #ifdef COFI_TESTING
@@ -435,39 +592,52 @@ static const char *proc_action_tokens[] = {
     "9", "kill9", "force",
     "h", "hup",
     "s", "stop",
-    "c", "cont"
+    "c", "cont",
+    "show", "w"
 };
 
-static gboolean resolve_action_token(const char *token, int *signal_out) {
+static gboolean resolve_action_token(const char *token, int *signal_out, int *type_out) {
     if (!token || token[0] == '\0') {
         return FALSE;
     }
+    if (type_out) *type_out = PROC_ACTION_INVALID;
     if (g_ascii_strcasecmp(token, "k") == 0 ||
         g_ascii_strcasecmp(token, "kill") == 0 ||
         g_ascii_strcasecmp(token, "term") == 0 ||
         g_ascii_strcasecmp(token, "t") == 0) {
         *signal_out = SIGTERM;
+        if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
     if (g_ascii_strcasecmp(token, "9") == 0 ||
         g_ascii_strcasecmp(token, "kill9") == 0 ||
         g_ascii_strcasecmp(token, "force") == 0) {
         *signal_out = SIGKILL;
+        if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
     if (g_ascii_strcasecmp(token, "h") == 0 ||
         g_ascii_strcasecmp(token, "hup") == 0) {
         *signal_out = SIGHUP;
+        if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
     if (g_ascii_strcasecmp(token, "s") == 0 ||
         g_ascii_strcasecmp(token, "stop") == 0) {
         *signal_out = SIGSTOP;
+        if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
     if (g_ascii_strcasecmp(token, "c") == 0 ||
         g_ascii_strcasecmp(token, "cont") == 0) {
         *signal_out = SIGCONT;
+        if (type_out) *type_out = PROC_ACTION_SIGNAL;
+        return TRUE;
+    }
+    if (g_ascii_strcasecmp(token, "show") == 0 ||
+        g_ascii_strcasecmp(token, "w") == 0) {
+        *signal_out = 0;
+        if (type_out) *type_out = PROC_ACTION_SHOW;
         return TRUE;
     }
     return FALSE;
@@ -503,8 +673,10 @@ static gboolean parse_action_spec(const char *spec, ProcActionSpec *out) {
         compact[action_len - 1] = '\0';
         if (compact[0] != '\0') {
             int sig_compact = 0;
-            if (resolve_action_token(compact, &sig_compact)) {
+            int type_compact = PROC_ACTION_INVALID;
+            if (resolve_action_token(compact, &sig_compact, &type_compact)) {
                 out->signal = sig_compact;
+                out->type = type_compact;
                 out->all = TRUE;
                 out->valid = TRUE;
                 return TRUE;
@@ -513,7 +685,8 @@ static gboolean parse_action_spec(const char *spec, ProcActionSpec *out) {
     }
 
     int sig = 0;
-    if (!resolve_action_token(action, &sig)) {
+    int type = PROC_ACTION_INVALID;
+    if (!resolve_action_token(action, &sig, &type)) {
         return FALSE;
     }
 
@@ -527,6 +700,7 @@ static gboolean parse_action_spec(const char *spec, ProcActionSpec *out) {
     }
 
     out->signal = sig;
+    out->type = type;
     out->all = all;
     out->valid = TRUE;
     return TRUE;
@@ -714,6 +888,7 @@ void proc_refresh(AppData *app) {
     ProcEntry parsed[MAX_PROCS];
     char error[256];
     int count = load_proc_inventory(parsed, MAX_PROCS, error, sizeof(error));
+    update_cpu_percentages(&app->proc_mode, parsed, count);
     apply_entries(app, parsed, count, error);
 }
 
@@ -767,6 +942,78 @@ static gboolean signal_single_target(AppData *app, int raw, int sig, gboolean up
     return TRUE;
 }
 
+static int default_find_window_for_pid(AppData *app, pid_t pid, Window *window_out) {
+    if (!app || pid <= 0 || !window_out) return 0;
+    for (int i = 0; i < app->window_count; i++) {
+        if (get_window_pid(app->display, app->windows[i].id) == (int)pid) {
+            *window_out = app->windows[i].id;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int read_parent_pid(pid_t pid) {
+    char path[PATH_MAX];
+    char line[256];
+    FILE *f = NULL;
+    int ppid = 0;
+
+    g_snprintf(path, sizeof(path), "/proc/%d/status", (int)pid);
+    f = fopen(path, "r");
+    if (!f) return 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (g_str_has_prefix(line, "PPid:")) {
+            char *ptr = line + 5;
+            while (*ptr == ' ' || *ptr == '\t') ptr++;
+            ppid = (int)strtol(ptr, NULL, 10);
+            break;
+        }
+    }
+    fclose(f);
+    return ppid;
+}
+
+static int (*find_window_for_pid_impl)(AppData *, pid_t, Window *) = default_find_window_for_pid;
+static int (*read_parent_pid_impl)(pid_t) = read_parent_pid;
+#ifdef COFI_TESTING
+static int show_max_depth = 32;
+#endif
+
+static gboolean show_single_target(AppData *app, int raw, gboolean update_ui_on_error) {
+    if (!app || raw < 0 || raw >= app->proc_mode.proc_count) {
+        return FALSE;
+    }
+
+    pid_t target_pid = app->proc_mode.procs[raw].pid;
+    int max_depth = 32;
+#ifdef COFI_TESTING
+    max_depth = show_max_depth;
+#endif
+
+    for (int depth = 0; depth < max_depth; depth++) {
+        Window win = 0;
+        if (find_window_for_pid_impl(app, target_pid, &win)) {
+            activate_window(app->display, win);
+            hide_window(app);
+            return TRUE;
+        }
+        int ppid = read_parent_pid_impl(target_pid);
+        if (ppid <= 1) {
+            set_error(&app->proc_mode, "No window found for process ancestry");
+            log_warn("proc: no window found for pid=%d", (int)app->proc_mode.procs[raw].pid);
+            if (update_ui_on_error) update_display(app);
+            return FALSE;
+        }
+        target_pid = (pid_t)ppid;
+    }
+
+    set_error(&app->proc_mode, "No window found (depth limit)");
+    log_warn("proc: show action depth limit for pid=%d", (int)app->proc_mode.procs[raw].pid);
+    if (update_ui_on_error) update_display(app);
+    return FALSE;
+}
+
 static gboolean execute_proc_action(AppData *app, const char *entry_text, guint state) {
     if (!app) {
         return FALSE;
@@ -784,7 +1031,13 @@ static gboolean execute_proc_action(AppData *app, const char *entry_text, guint 
 
     int sig = has_action ? action.signal : signal_from_modifiers(state);
     gboolean all = has_action ? action.all : FALSE;
+    int action_type = has_action ? action.type : PROC_ACTION_SIGNAL;
     int success_count = 0;
+
+    if (action_type == PROC_ACTION_SHOW && all) {
+        log_warn("proc: show all is not supported");
+        return FALSE;
+    }
 
     if (all) {
         if (app->proc_mode.filtered_count <= 0) {
@@ -806,17 +1059,27 @@ static gboolean execute_proc_action(AppData *app, const char *entry_text, guint 
             return FALSE;
         }
         int raw = app->proc_mode.filtered_indices[app->selection.proc_index];
-        if (signal_single_target(app, raw, sig, TRUE)) {
-            success_count = 1;
+        if (action_type == PROC_ACTION_SHOW) {
+            if (show_single_target(app, raw, TRUE)) {
+                success_count = 1;
+            } else {
+                return FALSE;
+            }
         } else {
-            return FALSE;
+            if (signal_single_target(app, raw, sig, TRUE)) {
+                success_count = 1;
+            } else {
+                return FALSE;
+            }
         }
     }
 
     if (success_count > 0) {
         app->proc_mode.last_error[0] = '\0';
         proc_refresh(app);
-        hide_window(app);
+        if (action_type == PROC_ACTION_SIGNAL) {
+            hide_window(app);
+        }
         return TRUE;
     }
     return FALSE;
@@ -869,6 +1132,30 @@ int proc_resolve_action_test_hook(const char *token, int *signal_out, int *all_o
 
 int proc_execute_action_test_hook(AppData *app, const char *input, guint state) {
     return execute_proc_action(app, input, state) ? 1 : 0;
+}
+
+void proc_format_mem_compact_test_hook(long rss_kb, char *out, size_t out_size) {
+    proc_format_mem_compact(rss_kb, out, out_size);
+}
+
+void proc_format_cpu_pct_test_hook(double cpu_pct, char *out, size_t out_size) {
+    proc_format_cpu_pct(cpu_pct, out, out_size);
+}
+
+void proc_format_name_column_test_hook(const char *name, char *out, size_t out_size) {
+    proc_fit_name_column(name, out, out_size);
+}
+
+void proc_format_cmd_column_test_hook(const char *cmdline, int width, char *out, size_t out_size) {
+    proc_fit_cmd_column(cmdline, width, out, out_size);
+}
+
+void proc_set_show_resolvers_test_hook(int (*window_for_pid)(AppData *, pid_t, Window *),
+                                       int (*parent_pid)(pid_t),
+                                       int max_depth) {
+    find_window_for_pid_impl = window_for_pid ? window_for_pid : default_find_window_for_pid;
+    read_parent_pid_impl = parent_pid ? parent_pid : read_parent_pid;
+    show_max_depth = (max_depth > 0) ? max_depth : 32;
 }
 #endif
 #endif
