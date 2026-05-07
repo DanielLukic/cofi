@@ -13,7 +13,7 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
 
     app->command_mode.state = CMD_MODE_MODAL;
     /* spike: suppress_entry_change lives in calc_mode; generic modal uses it as a shared mutex */
-    app->calc_mode.suppress_entry_change = TRUE;
+    app->suppress_entry_change = TRUE;
     surface_tab(app, (TabMode)provider->tab_mode);
 
     if (app->mode_indicator) {
@@ -22,7 +22,7 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     }
 
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-    app->calc_mode.suppress_entry_change = FALSE;
+    app->suppress_entry_change = FALSE;
 
     log_info("USER: Entered modal (%s)", provider->id ? provider->id : "?");
 }
@@ -42,9 +42,9 @@ void cofi_exit_modal(AppData *app) {
     if (app->mode_indicator)
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
 
-    app->calc_mode.suppress_entry_change = TRUE;
+    app->suppress_entry_change = TRUE;
     switch_to_tab(app, origin);
-    app->calc_mode.suppress_entry_change = FALSE;
+    app->suppress_entry_change = FALSE;
 
     log_info("USER: Exited modal");
 }
@@ -58,9 +58,9 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
         case GDK_KEY_Escape: {
             const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
             if (p->modal_policy == COFI_MODAL_CLEAR_THEN_RETURN && text[0] != '\0') {
-                app->calc_mode.suppress_entry_change = TRUE;
+                app->suppress_entry_change = TRUE;
                 gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                app->calc_mode.suppress_entry_change = FALSE;
+                app->suppress_entry_change = FALSE;
                 update_display(app);
                 return TRUE;
             }
@@ -73,9 +73,9 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
             if (!text || text[0] == '\0') return TRUE;
             if (p->on_enter_pressed)
                 p->on_enter_pressed(app, 0, 0, text);
-            app->calc_mode.suppress_entry_change = TRUE;
+            app->suppress_entry_change = TRUE;
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            app->calc_mode.suppress_entry_change = FALSE;
+            app->suppress_entry_change = FALSE;
             int count = p->row_count ? p->row_count(app) : 0;
             if (count > 0)
                 app->selection.provider_index = count - 1;

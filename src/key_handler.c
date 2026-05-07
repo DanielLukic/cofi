@@ -164,7 +164,7 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
 }
 
 void on_entry_changed(GtkEntry *entry, AppData *app) {
-    if (app->calc_mode.suppress_entry_change) return;
+    if (app->suppress_entry_change) return;
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         command_update_candidates(&app->command_mode, gtk_entry_get_text(entry));
         update_display(app);
