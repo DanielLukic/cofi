@@ -330,27 +330,33 @@ void proc_filter(AppData *app, const char *filter) {
     ProcFilterHit hits[MAX_PROCS];
     int hit_count = 0;
 
-    gboolean strict_mode = FALSE;
-    char strict_filter[256];
-    strict_filter[0] = '\0';
+    typedef enum {
+        PROC_MATCH_FUZZY = 0,
+        PROC_MATCH_STRICT = 1,
+        PROC_MATCH_EXACT = 2,
+    } ProcMatchMode;
+
+    ProcMatchMode match_mode = PROC_MATCH_FUZZY;
+    char suffix_filter[256];
+    suffix_filter[0] = '\0';
     const char *active_filter = filter;
 
     if (filter) {
         size_t len = strlen(filter);
-        if (len > 0 && filter[len - 1] == '!') {
-            strict_mode = TRUE;
-            if (len - 1 >= sizeof(strict_filter)) {
-                len = sizeof(strict_filter);
+        if (len > 0 && (filter[len - 1] == '!' || filter[len - 1] == '$')) {
+            match_mode = (filter[len - 1] == '$') ? PROC_MATCH_EXACT : PROC_MATCH_STRICT;
+            if (len - 1 >= sizeof(suffix_filter)) {
+                len = sizeof(suffix_filter);
             }
-            memcpy(strict_filter, filter, len - 1);
-            strict_filter[len - 1] = '\0';
-            active_filter = strict_filter;
+            memcpy(suffix_filter, filter, len - 1);
+            suffix_filter[len - 1] = '\0';
+            active_filter = suffix_filter;
         }
     }
 
     for (int i = 0; i < mode->proc_count; i++) {
         if (hit_count >= MAX_PROCS) break;
-        if (!strict_mode && (!active_filter || active_filter[0] == '\0')) {
+        if (match_mode == PROC_MATCH_FUZZY && (!active_filter || active_filter[0] == '\0')) {
             hits[hit_count++] = (ProcFilterHit){
                 .raw_index = i,
                 .final_score = 0,
@@ -362,7 +368,12 @@ void proc_filter(AppData *app, const char *filter) {
 
         int final_score = 0;
 
-        if (strict_mode) {
+        if (match_mode == PROC_MATCH_EXACT) {
+            if (active_filter && active_filter[0] != '\0' &&
+                equals_case_insensitive(mode->procs[i].basename, active_filter)) {
+                final_score = 1;
+            }
+        } else if (match_mode == PROC_MATCH_STRICT) {
             if (!active_filter || active_filter[0] == '\0') {
                 final_score = 0;
             } else if (equals_case_insensitive(mode->procs[i].basename, active_filter)) {
@@ -398,7 +409,8 @@ void proc_filter(AppData *app, const char *filter) {
         }
     }
 
-    if ((strict_mode || (active_filter && active_filter[0] != '\0')) && hit_count > 1) {
+    if ((match_mode != PROC_MATCH_FUZZY || (active_filter && active_filter[0] != '\0')) &&
+        hit_count > 1) {
         qsort(hits, (size_t)hit_count, sizeof(hits[0]), compare_filter_hits);
     }
 

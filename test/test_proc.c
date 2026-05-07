@@ -236,6 +236,61 @@ static void test_strict_empty_bang_shows_nothing(void) {
     ASSERT_EQ_INT("strict empty filter yields no rows", 0, app.proc_mode.filtered_count);
 }
 
+static void test_exact_basename_suffix_dollar(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "claude$";
+
+    ProcEntry entries[4] = {
+        make_proc(501, "claude", "claude --fast", 1024L * 300L),
+        make_proc(502, "claude-helper", "claude-helper --x", 1024L * 999L),
+        make_proc(503, "python", "python run claude", 1024L * 5000L),
+        make_proc(504, "CLAUDE", "CLAUDE --upper", 1024L * 200L),
+    };
+    proc_apply_entries_test_hook(&app, entries, 4);
+
+    ASSERT_EQ_INT("exact mode includes only basename equals", 2, app.proc_mode.filtered_count);
+    ASSERT_EQ_INT("exact sorted by rss desc first", 501,
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid);
+    ASSERT_EQ_INT("exact case-insensitive includes CLAUDE", 504,
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[1]].pid);
+}
+
+static void test_exact_empty_dollar_shows_nothing(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "$";
+
+    ProcEntry entries[2] = {
+        make_proc(601, "alpha", "alpha", 100),
+        make_proc(602, "beta", "beta", 200),
+    };
+    proc_apply_entries_test_hook(&app, entries, 2);
+    ASSERT_EQ_INT("exact empty filter yields no rows", 0, app.proc_mode.filtered_count);
+}
+
+static void test_suffix_last_char_wins_between_bang_and_dollar(void) {
+    AppData app;
+    init_app(&app);
+
+    ProcEntry entries[4] = {
+        make_proc(701, "foo", "foo run", 100),
+        make_proc(702, "foo-helper", "foo-helper run", 200),
+        make_proc(703, "python", "python foo wrapper", 300),
+        make_proc(704, "bar", "bar", 400),
+    };
+
+    g_entry_text = "foo$!";
+    proc_apply_entries_test_hook(&app, entries, 4);
+    ASSERT_EQ_INT("foo$! -> strict mode strips only ! and matches foo$ literally",
+                  0, app.proc_mode.filtered_count);
+
+    g_entry_text = "foo!$";
+    proc_filter(&app, g_entry_text);
+    ASSERT_EQ_INT("foo!$ -> exact mode strips only $ and matches foo! literally",
+                  0, app.proc_mode.filtered_count);
+}
+
 int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
@@ -245,6 +300,9 @@ int main(void) {
     test_strict_ranking_basename_then_cmdline();
     test_strict_excludes_fuzzy_only_hits();
     test_strict_empty_bang_shows_nothing();
+    test_exact_basename_suffix_dollar();
+    test_exact_empty_dollar_shows_nothing();
+    test_suffix_last_char_wins_between_bang_and_dollar();
 
     printf("\nProc tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
