@@ -111,6 +111,25 @@ static int parse_inventory(const char *inventory,
     return count;
 }
 
+static int preferred_filtered_index(const SinkEntry *sinks,
+                                    int sink_count,
+                                    const int *filtered_indices,
+                                    int filtered_count) {
+    if (!sinks || !filtered_indices || filtered_count <= 0) {
+        return 0;
+    }
+
+    for (int i = 0; i < filtered_count; i++) {
+        int raw_index = filtered_indices[i];
+        if (raw_index >= 0 && raw_index < sink_count &&
+            sinks[raw_index].is_default) {
+            return i;
+        }
+    }
+
+    return filtered_count - 1;
+}
+
 static void build_snapshot(const SinkEntry *sinks,
                            int count,
                            char *out,
@@ -142,6 +161,14 @@ void sinks_snapshot_test_hook(const SinkEntry *sinks,
                               char *out,
                               size_t out_size) {
     build_snapshot(sinks, count, out, out_size);
+}
+
+int sinks_preferred_filtered_index_test_hook(const SinkEntry *sinks,
+                                             int sink_count,
+                                             const int *filtered_indices,
+                                             int filtered_count) {
+    return preferred_filtered_index(sinks, sink_count, filtered_indices,
+                                    filtered_count);
 }
 #endif
 
@@ -220,7 +247,9 @@ static void apply_refresh_result(AppData *app,
     }
 
     sinks_filter(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
-    app->selection.provider_index = 0;
+    app->selection.provider_index =
+        preferred_filtered_index(mode->sinks, mode->sink_count,
+                                 mode->filtered_indices, mode->filtered_count);
     app->selection.provider_scroll_offset = 0;
     if (selected_name[0] != '\0') {
         for (int i = 0; i < mode->filtered_count; i++) {
