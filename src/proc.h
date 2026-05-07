@@ -25,6 +25,9 @@ typedef struct {
     int filtered_scores[MAX_PROCS];
     int proc_count;
     int filtered_count;
+    const char *action_candidates[16];
+    int action_candidate_count;
+    int action_candidate_highlight;
     char snapshot[MAX_PROCS * 24];
     char last_error[256];
     guint refresh_timer_id;
@@ -41,9 +44,18 @@ void proc_stop_polling(AppData *app);
 void proc_refresh(AppData *app);
 void proc_filter(AppData *app, const char *filter);
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state);
+void proc_update_action_candidates(ProcMode *mode, const char *action_spec);
 
 #ifdef COFI_TESTING
 int proc_signal_from_modifiers_test_hook(guint state);
+int proc_parse_pipe_test_hook(const char *input,
+                              char *filter_out,
+                              size_t filter_out_size,
+                              char *action_out,
+                              size_t action_out_size);
+int proc_resolve_action_test_hook(const char *token, int *signal_out, int *all_out);
+int proc_execute_action_test_hook(AppData *app, const char *input, guint state);
+void proc_set_kill_impl_test_hook(int (*impl)(pid_t, int));
 void proc_snapshot_test_hook(const ProcEntry *procs,
                              int count,
                              char *out,

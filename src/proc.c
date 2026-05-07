@@ -297,8 +297,14 @@ static int proc_signal_from_modifiers(guint state) {
 }
 
 #ifdef COFI_TESTING
+static int (*kill_impl)(pid_t, int) = kill;
+
 int proc_signal_from_modifiers_test_hook(guint state) {
     return proc_signal_from_modifiers(state);
+}
+
+void proc_set_kill_impl_test_hook(int (*impl)(pid_t, int)) {
+    kill_impl = impl ? impl : kill;
 }
 
 void proc_snapshot_test_hook(const ProcEntry *procs, int count,
@@ -322,6 +328,256 @@ static void set_error(ProcMode *mode, const char *message) {
     safe_copy(mode->last_error, sizeof(mode->last_error), message);
 }
 
+typedef struct {
+    int signal;
+    gboolean all;
+    gboolean valid;
+} ProcActionSpec;
+
+typedef struct {
+    char filter[256];
+    char action[128];
+    gboolean has_pipe;
+} ProcPipeParts;
+
+typedef enum {
+    PROC_MATCH_FUZZY = 0,
+    PROC_MATCH_STRICT = 1,
+    PROC_MATCH_EXACT = 2,
+} ProcMatchMode;
+
+static int proc_kill_pid(pid_t pid, int sig) {
+#ifdef COFI_TESTING
+    return kill_impl(pid, sig);
+#else
+    return kill(pid, sig);
+#endif
+}
+
+static void trim_whitespace_inplace(char *text) {
+    if (!text || text[0] == '\0') {
+        return;
+    }
+    char *start = text;
+    while (*start && g_ascii_isspace((guchar)*start)) {
+        start++;
+    }
+    char *end = text + strlen(text);
+    while (end > start && g_ascii_isspace((guchar)*(end - 1))) {
+        end--;
+    }
+    *end = '\0';
+    if (start != text) {
+        memmove(text, start, (size_t)(end - start) + 1);
+    }
+}
+
+static void split_filter_and_action(const char *input, ProcPipeParts *parts) {
+    if (!parts) {
+        return;
+    }
+    memset(parts, 0, sizeof(*parts));
+    if (!input) {
+        return;
+    }
+
+    const char *pipe = strrchr(input, '|');
+    if (!pipe) {
+        g_strlcpy(parts->filter, input, sizeof(parts->filter));
+        trim_whitespace_inplace(parts->filter);
+        return;
+    }
+
+    parts->has_pipe = TRUE;
+    size_t left_len = (size_t)(pipe - input);
+    if (left_len >= sizeof(parts->filter)) {
+        left_len = sizeof(parts->filter) - 1;
+    }
+    memcpy(parts->filter, input, left_len);
+    parts->filter[left_len] = '\0';
+    trim_whitespace_inplace(parts->filter);
+
+    g_strlcpy(parts->action, pipe + 1, sizeof(parts->action));
+    trim_whitespace_inplace(parts->action);
+}
+
+static void parse_filter_mode(const char *filter,
+                              ProcMatchMode *mode_out,
+                              char *normalized,
+                              size_t normalized_size) {
+    if (mode_out) {
+        *mode_out = PROC_MATCH_FUZZY;
+    }
+    if (!normalized || normalized_size == 0) {
+        return;
+    }
+    normalized[0] = '\0';
+    if (!filter) {
+        return;
+    }
+
+    g_strlcpy(normalized, filter, normalized_size);
+    size_t len = strlen(normalized);
+    if (len == 0) {
+        return;
+    }
+    char last = normalized[len - 1];
+    if (last == '$' || last == '!') {
+        if (mode_out) {
+            *mode_out = (last == '$') ? PROC_MATCH_EXACT : PROC_MATCH_STRICT;
+        }
+        normalized[len - 1] = '\0';
+    }
+}
+
+static const char *proc_action_tokens[] = {
+    "k", "kill", "term", "t",
+    "9", "kill9", "force",
+    "h", "hup",
+    "s", "stop",
+    "c", "cont"
+};
+
+static gboolean resolve_action_token(const char *token, int *signal_out) {
+    if (!token || token[0] == '\0') {
+        return FALSE;
+    }
+    if (g_ascii_strcasecmp(token, "k") == 0 ||
+        g_ascii_strcasecmp(token, "kill") == 0 ||
+        g_ascii_strcasecmp(token, "term") == 0 ||
+        g_ascii_strcasecmp(token, "t") == 0) {
+        *signal_out = SIGTERM;
+        return TRUE;
+    }
+    if (g_ascii_strcasecmp(token, "9") == 0 ||
+        g_ascii_strcasecmp(token, "kill9") == 0 ||
+        g_ascii_strcasecmp(token, "force") == 0) {
+        *signal_out = SIGKILL;
+        return TRUE;
+    }
+    if (g_ascii_strcasecmp(token, "h") == 0 ||
+        g_ascii_strcasecmp(token, "hup") == 0) {
+        *signal_out = SIGHUP;
+        return TRUE;
+    }
+    if (g_ascii_strcasecmp(token, "s") == 0 ||
+        g_ascii_strcasecmp(token, "stop") == 0) {
+        *signal_out = SIGSTOP;
+        return TRUE;
+    }
+    if (g_ascii_strcasecmp(token, "c") == 0 ||
+        g_ascii_strcasecmp(token, "cont") == 0) {
+        *signal_out = SIGCONT;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static gboolean parse_action_spec(const char *spec, ProcActionSpec *out) {
+    if (!out) {
+        return FALSE;
+    }
+    memset(out, 0, sizeof(*out));
+    if (!spec || spec[0] == '\0') {
+        return FALSE;
+    }
+
+    char buf[128];
+    g_strlcpy(buf, spec, sizeof(buf));
+    trim_whitespace_inplace(buf);
+    if (buf[0] == '\0') {
+        return FALSE;
+    }
+
+    char *saveptr = NULL;
+    char *action = strtok_r(buf, " \t", &saveptr);
+    if (!action) {
+        return FALSE;
+    }
+
+    gboolean all = FALSE;
+    size_t action_len = strlen(action);
+    if (action_len >= 1 && g_ascii_tolower((guchar)action[action_len - 1]) == 'a') {
+        char compact[64];
+        g_strlcpy(compact, action, sizeof(compact));
+        compact[action_len - 1] = '\0';
+        if (compact[0] != '\0') {
+            int sig_compact = 0;
+            if (resolve_action_token(compact, &sig_compact)) {
+                out->signal = sig_compact;
+                out->all = TRUE;
+                out->valid = TRUE;
+                return TRUE;
+            }
+        }
+    }
+
+    int sig = 0;
+    if (!resolve_action_token(action, &sig)) {
+        return FALSE;
+    }
+
+    char *next = strtok_r(NULL, " \t", &saveptr);
+    if (next && g_ascii_strcasecmp(next, "all") == 0) {
+        all = TRUE;
+        next = strtok_r(NULL, " \t", &saveptr);
+    }
+    if (next) {
+        return FALSE;
+    }
+
+    out->signal = sig;
+    out->all = all;
+    out->valid = TRUE;
+    return TRUE;
+}
+
+void proc_update_action_candidates(ProcMode *mode, const char *action_spec) {
+    if (!mode) {
+        return;
+    }
+    mode->action_candidate_count = 0;
+    mode->action_candidate_highlight = 0;
+    for (int i = 0; i < 16; i++) {
+        mode->action_candidates[i] = NULL;
+    }
+
+    if (!action_spec) {
+        return;
+    }
+
+    char prefix[64];
+    g_strlcpy(prefix, action_spec, sizeof(prefix));
+    trim_whitespace_inplace(prefix);
+
+    char *space = strpbrk(prefix, " \t");
+    if (space) {
+        *space = '\0';
+    }
+    gboolean want_all = FALSE;
+    size_t prefix_len = strlen(prefix);
+    if (prefix_len > 0 && g_ascii_tolower((guchar)prefix[prefix_len - 1]) == 'a') {
+        want_all = TRUE;
+        prefix[prefix_len - 1] = '\0';
+    }
+
+    for (int i = 0; i < (int)(sizeof(proc_action_tokens) / sizeof(proc_action_tokens[0])); i++) {
+        const char *token = proc_action_tokens[i];
+        if (prefix[0] == '\0' || g_str_has_prefix(token, prefix)) {
+            static char candidate_bufs[16][24];
+            int idx = mode->action_candidate_count;
+            if (idx >= 16) break;
+            if (want_all) {
+                g_snprintf(candidate_bufs[idx], sizeof(candidate_bufs[idx]), "%sa", token);
+            } else {
+                g_snprintf(candidate_bufs[idx], sizeof(candidate_bufs[idx]), "%s", token);
+            }
+            mode->action_candidates[idx] = candidate_bufs[idx];
+            mode->action_candidate_count++;
+        }
+    }
+}
+
 void proc_filter(AppData *app, const char *filter) {
     if (!app) return;
     ProcMode *mode = &app->proc_mode;
@@ -330,29 +586,14 @@ void proc_filter(AppData *app, const char *filter) {
     ProcFilterHit hits[MAX_PROCS];
     int hit_count = 0;
 
-    typedef enum {
-        PROC_MATCH_FUZZY = 0,
-        PROC_MATCH_STRICT = 1,
-        PROC_MATCH_EXACT = 2,
-    } ProcMatchMode;
+    ProcPipeParts parts;
+    split_filter_and_action(filter, &parts);
+    proc_update_action_candidates(mode, parts.has_pipe ? parts.action : NULL);
 
     ProcMatchMode match_mode = PROC_MATCH_FUZZY;
-    char suffix_filter[256];
-    suffix_filter[0] = '\0';
-    const char *active_filter = filter;
-
-    if (filter) {
-        size_t len = strlen(filter);
-        if (len > 0 && (filter[len - 1] == '!' || filter[len - 1] == '$')) {
-            match_mode = (filter[len - 1] == '$') ? PROC_MATCH_EXACT : PROC_MATCH_STRICT;
-            if (len - 1 >= sizeof(suffix_filter)) {
-                len = sizeof(suffix_filter);
-            }
-            memcpy(suffix_filter, filter, len - 1);
-            suffix_filter[len - 1] = '\0';
-            active_filter = suffix_filter;
-        }
-    }
+    char normalized_filter[256];
+    parse_filter_mode(parts.filter, &match_mode, normalized_filter, sizeof(normalized_filter));
+    const char *active_filter = normalized_filter;
 
     for (int i = 0; i < mode->proc_count; i++) {
         if (hit_count >= MAX_PROCS) break;
@@ -504,20 +745,12 @@ static int signal_from_modifiers(guint state) {
     return proc_signal_from_modifiers(state);
 }
 
-gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
-    if (!app || app->selection.proc_index < 0 ||
-        app->selection.proc_index >= app->proc_mode.filtered_count) {
+static gboolean signal_single_target(AppData *app, int raw, int sig, gboolean update_ui_on_error) {
+    if (!app || raw < 0 || raw >= app->proc_mode.proc_count) {
         return FALSE;
     }
-
-    int raw = app->proc_mode.filtered_indices[app->selection.proc_index];
-    if (raw < 0 || raw >= app->proc_mode.proc_count) {
-        return FALSE;
-    }
-
     ProcEntry *entry = &app->proc_mode.procs[raw];
-    int sig = signal_from_modifiers(state);
-    if (kill(entry->pid, sig) != 0) {
+    if (proc_kill_pid(entry->pid, sig) != 0) {
         if (errno == EPERM) {
             set_error(&app->proc_mode, "Permission denied sending signal");
         } else if (errno == ESRCH) {
@@ -526,14 +759,75 @@ gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
             set_error(&app->proc_mode, "Failed to signal process");
         }
         log_warn("proc: kill(%d, %d) failed: %s", (int)entry->pid, sig, strerror(errno));
-        update_display(app);
+        if (update_ui_on_error) {
+            update_display(app);
+        }
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static gboolean execute_proc_action(AppData *app, const char *entry_text, guint state) {
+    if (!app) {
         return FALSE;
     }
 
-    app->proc_mode.last_error[0] = '\0';
-    proc_refresh(app);
-    hide_window(app);
-    return TRUE;
+    ProcPipeParts parts;
+    split_filter_and_action(entry_text, &parts);
+
+    ProcActionSpec action = {0};
+    gboolean has_action = parts.has_pipe && parse_action_spec(parts.action, &action);
+    if (parts.has_pipe && !has_action) {
+        log_warn("proc: unknown action token '%s'", parts.action);
+        return FALSE;
+    }
+
+    int sig = has_action ? action.signal : signal_from_modifiers(state);
+    gboolean all = has_action ? action.all : FALSE;
+    int success_count = 0;
+
+    if (all) {
+        if (app->proc_mode.filtered_count <= 0) {
+            log_warn("proc: action '%s' all with empty result set", parts.action);
+            return FALSE;
+        }
+        for (int i = 0; i < app->proc_mode.filtered_count; i++) {
+            int raw = app->proc_mode.filtered_indices[i];
+            if (signal_single_target(app, raw, sig, FALSE)) {
+                success_count++;
+            }
+        }
+        if (success_count == 0) {
+            update_display(app);
+        }
+    } else {
+        if (app->selection.proc_index < 0 ||
+            app->selection.proc_index >= app->proc_mode.filtered_count) {
+            return FALSE;
+        }
+        int raw = app->proc_mode.filtered_indices[app->selection.proc_index];
+        if (signal_single_target(app, raw, sig, TRUE)) {
+            success_count = 1;
+        } else {
+            return FALSE;
+        }
+    }
+
+    if (success_count > 0) {
+        app->proc_mode.last_error[0] = '\0';
+        proc_refresh(app);
+        hide_window(app);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
+    const char *entry_text = "";
+    if (app && app->entry) {
+        entry_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+    }
+    return execute_proc_action(app, entry_text, state);
 }
 
 #ifdef COFI_TESTING
@@ -541,6 +835,40 @@ void proc_apply_entries_test_hook(AppData *app,
                                   const ProcEntry *entries,
                                   int count) {
     apply_entries(app, entries, count, NULL);
+}
+
+int proc_parse_pipe_test_hook(const char *input,
+                              char *filter_out,
+                              size_t filter_out_size,
+                              char *action_out,
+                              size_t action_out_size) {
+    ProcPipeParts parts;
+    split_filter_and_action(input, &parts);
+    if (filter_out && filter_out_size > 0) {
+        g_strlcpy(filter_out, parts.filter, filter_out_size);
+    }
+    if (action_out && action_out_size > 0) {
+        g_strlcpy(action_out, parts.action, action_out_size);
+    }
+    return parts.has_pipe ? 1 : 0;
+}
+
+int proc_resolve_action_test_hook(const char *token, int *signal_out, int *all_out) {
+    ProcActionSpec spec;
+    if (!parse_action_spec(token, &spec)) {
+        return 0;
+    }
+    if (signal_out) {
+        *signal_out = spec.signal;
+    }
+    if (all_out) {
+        *all_out = spec.all ? 1 : 0;
+    }
+    return 1;
+}
+
+int proc_execute_action_test_hook(AppData *app, const char *input, guint state) {
+    return execute_proc_action(app, input, state) ? 1 : 0;
 }
 #endif
 #endif

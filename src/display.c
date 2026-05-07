@@ -25,19 +25,33 @@ static gboolean should_swap_instance_class(const char *instance) {
 }
 
 static void format_candidate_strip(AppData *app, GString *output) {
-    if (!app || !output || app->command_mode.candidate_count == 0) {
+    if (!app || !output) {
         return;
     }
 
-    for (int i = 0; i < app->command_mode.candidate_count; i++) {
+    const char **candidates = app->command_mode.candidates;
+    int candidate_count = app->command_mode.candidate_count;
+    int highlight = app->command_mode.candidate_highlight;
+
+    if (app->current_tab == TAB_PROC) {
+        candidates = app->proc_mode.action_candidates;
+        candidate_count = app->proc_mode.action_candidate_count;
+        highlight = app->proc_mode.action_candidate_highlight;
+    }
+
+    if (candidate_count == 0) {
+        return;
+    }
+
+    for (int i = 0; i < candidate_count; i++) {
         if (i > 0) {
             g_string_append(output, "  ");
         }
 
-        if (i == app->command_mode.candidate_highlight) {
-            g_string_append_printf(output, "[ %s ]", app->command_mode.candidates[i]);
+        if (i == highlight) {
+            g_string_append_printf(output, "[ %s ]", candidates[i]);
         } else {
-            g_string_append_printf(output, "  %s  ", app->command_mode.candidates[i]);
+            g_string_append_printf(output, "  %s  ", candidates[i]);
         }
     }
 }
