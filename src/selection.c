@@ -16,6 +16,7 @@ void init_selection(AppData *app) {
     app->selection.rules_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
+    app->selection.provider_index = 0;
     app->selection.sinks_index = 0;
     app->selection.run_index = 0;
     app->selection.proc_index = 0;
@@ -29,6 +30,7 @@ void init_selection(AppData *app) {
     app->selection.hotkeys_scroll_offset = 0;
     app->selection.rules_scroll_offset = 0;
     app->selection.apps_scroll_offset = 0;
+    app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
     app->selection.run_scroll_offset = 0;
     app->selection.proc_scroll_offset = 0;
@@ -36,7 +38,7 @@ void init_selection(AppData *app) {
     log_debug("Selection initialized");
 }
 
-// Reset selection to first item
+// Reset selection to the tab's default row.
 void reset_selection(AppData *app) {
     if (!app) return;
 
@@ -72,10 +74,16 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_APPS) {
         app->selection.apps_index = 0;
         app->selection.apps_scroll_offset = 0;
-    } else if (cofi_get_provider_for_tab(app->current_tab)) {
-        app->selection.provider_index = 0;
-        app->selection.provider_scroll_offset = 0;
-    } else if (app->current_tab == TAB_RUN) {
+    } else {
+        const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+        if (provider) {
+            int count = provider->row_count ? provider->row_count(app) : 0;
+            app->selection.provider_index = count > 0 ? count - 1 : 0;
+            app->selection.provider_scroll_offset = 0;
+        }
+    }
+
+    if (app->current_tab == TAB_RUN) {
         app->selection.run_index = 0;
         app->selection.run_scroll_offset = 0;
     } else if (app->current_tab == TAB_PROC) {

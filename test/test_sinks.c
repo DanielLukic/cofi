@@ -132,12 +132,38 @@ static void test_snapshot_tracks_order_and_default_only(void) {
     ASSERT_TRUE("snapshot detects default changes", strcmp(first, changed) != 0);
 }
 
+static void test_preferred_filtered_index_selects_default_or_bottom(void) {
+    SinkEntry sinks[3];
+    int all_indices[] = {0, 1, 2};
+    int no_default_indices[] = {0, 1};
+
+    memset(sinks, 0, sizeof(sinks));
+    strcpy(sinks[0].name, "first");
+    strcpy(sinks[1].name, "second");
+    strcpy(sinks[2].name, "default");
+    sinks[2].is_default = TRUE;
+
+    ASSERT_EQ_INT("preferred index chooses visible default",
+                  2,
+                  sinks_preferred_filtered_index_test_hook(sinks, 3,
+                                                           all_indices, 3));
+    ASSERT_EQ_INT("preferred index falls back to visible bottom",
+                  1,
+                  sinks_preferred_filtered_index_test_hook(sinks, 3,
+                                                           no_default_indices, 2));
+    ASSERT_EQ_INT("preferred index handles empty filtered list",
+                  0,
+                  sinks_preferred_filtered_index_test_hook(sinks, 3,
+                                                           all_indices, 0));
+}
+
 int main(void) {
     test_parse_long_sinks_and_marks_default_last();
     test_parse_sink_name_with_spaces_and_unicode_description();
     test_missing_description_falls_back_to_name();
     test_empty_inventory_reports_no_sinks();
     test_snapshot_tracks_order_and_default_only();
+    test_preferred_filtered_index_selects_default_or_bottom();
 
     printf("\nSinks parser tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
