@@ -37,9 +37,25 @@ gboolean has_match(const char *query, const char *text) {
 score_t fzf_fuzzy_match(const char *needle, const char *haystack) {
     if (!needle || needle[0] == '\0') return 0;
     if (!haystack) return SCORE_MIN;
-    const char *hit = strstr(haystack, needle);
-    if (!hit) return SCORE_MIN;
-    return (score_t)(1000 - (int)(hit - haystack));
+    int score = 1000;
+    const char *h = haystack;
+    for (const char *n = needle; *n; n++) {
+        char nc = (char)g_ascii_tolower((guchar)*n);
+        gboolean matched = FALSE;
+        while (*h) {
+            if (g_ascii_tolower((guchar)*h) == nc) {
+                matched = TRUE;
+                h++;
+                break;
+            }
+            score--;
+            h++;
+        }
+        if (!matched) {
+            return SCORE_MIN;
+        }
+    }
+    return score;
 }
 
 void update_display(AppData *app) {
@@ -165,12 +181,70 @@ static void test_weighted_basename_priority_sorting(void) {
                   101, app.proc_mode.procs[app.proc_mode.filtered_indices[3]].pid);
 }
 
+static void test_strict_ranking_basename_then_cmdline(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "qemu!";
+
+    ProcEntry entries[4] = {
+        make_proc(200, "qemu", "qemu-system-x86_64", 1024L * 800L),
+        make_proc(201, "qemu-helper", "qemu-helper --daemon", 1024L * 1200L),
+        make_proc(202, "python", "python /opt/tools/qemu-wrapper.py", 1024L * 5000L),
+        make_proc(203, "other", "no-hit", 1024L * 100L),
+    };
+    proc_apply_entries_test_hook(&app, entries, 4);
+
+    ASSERT_EQ_INT("strict includes 3 matches", 3, app.proc_mode.filtered_count);
+    ASSERT_EQ_INT("strict exact basename first",
+                  200, app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid);
+    ASSERT_EQ_INT("strict basename substring second",
+                  201, app.proc_mode.procs[app.proc_mode.filtered_indices[1]].pid);
+    ASSERT_EQ_INT("strict cmdline substring third",
+                  202, app.proc_mode.procs[app.proc_mode.filtered_indices[2]].pid);
+}
+
+static void test_strict_excludes_fuzzy_only_hits(void) {
+    AppData app;
+    init_app(&app);
+
+    ProcEntry entries[2] = {
+        make_proc(301, "dnsmasq", "dnsmasq resolv dnsmasq.d trust", 1024L * 400L),
+        make_proc(302, "qemu", "qemu-system-x86_64", 1024L * 200L),
+    };
+
+    g_entry_text = "qemu";
+    proc_apply_entries_test_hook(&app, entries, 2);
+    ASSERT_EQ_INT("fuzzy mode includes both rows", 2, app.proc_mode.filtered_count);
+
+    g_entry_text = "qemu!";
+    proc_filter(&app, g_entry_text);
+    ASSERT_EQ_INT("strict mode excludes fuzzy-only row", 1, app.proc_mode.filtered_count);
+    ASSERT_EQ_INT("strict keeps true substring row",
+                  302, app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid);
+}
+
+static void test_strict_empty_bang_shows_nothing(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "!";
+
+    ProcEntry entries[2] = {
+        make_proc(401, "alpha", "alpha", 100),
+        make_proc(402, "beta", "beta", 200),
+    };
+    proc_apply_entries_test_hook(&app, entries, 2);
+    ASSERT_EQ_INT("strict empty filter yields no rows", 0, app.proc_mode.filtered_count);
+}
+
 int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
     test_selection_preserve_on_refresh();
     test_snapshot_ignores_cmdline_and_rss();
     test_weighted_basename_priority_sorting();
+    test_strict_ranking_basename_then_cmdline();
+    test_strict_excludes_fuzzy_only_hits();
+    test_strict_empty_bang_shows_nothing();
 
     printf("\nProc tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
