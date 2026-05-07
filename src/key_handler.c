@@ -216,6 +216,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         proc_filter(app, text);
     }
 
-    reset_selection(app);
+    if (app->current_tab != TAB_PROC) {
+        reset_selection(app);
+    }
     update_display(app);
 }

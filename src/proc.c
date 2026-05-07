@@ -755,6 +755,16 @@ void proc_update_action_candidates(ProcMode *mode, const char *action_spec) {
 void proc_filter(AppData *app, const char *filter) {
     if (!app) return;
     ProcMode *mode = &app->proc_mode;
+    pid_t selected_pid = 0;
+
+    if (app->selection.proc_index >= 0 &&
+        app->selection.proc_index < mode->filtered_count) {
+        int selected_raw = mode->filtered_indices[app->selection.proc_index];
+        if (selected_raw >= 0 && selected_raw < mode->proc_count) {
+            selected_pid = mode->procs[selected_raw].pid;
+        }
+    }
+
     mode->filtered_count = 0;
 
     ProcFilterHit hits[MAX_PROCS];
@@ -834,6 +844,28 @@ void proc_filter(AppData *app, const char *filter) {
         mode->filtered_scores[i] = hits[i].final_score;
     }
     mode->filtered_count = hit_count;
+
+    if (selected_pid != 0) {
+        gboolean restored = FALSE;
+        for (int i = 0; i < mode->filtered_count; i++) {
+            int raw_index = mode->filtered_indices[i];
+            if (raw_index >= 0 && raw_index < mode->proc_count &&
+                mode->procs[raw_index].pid == selected_pid) {
+                app->selection.proc_index = i;
+                restored = TRUE;
+                break;
+            }
+        }
+        if (!restored) {
+            app->selection.proc_index = 0;
+            app->selection.proc_scroll_offset = 0;
+        }
+    } else {
+        app->selection.proc_index = 0;
+        app->selection.proc_scroll_offset = 0;
+    }
+
+    update_scroll_position(app);
 }
 
 static void apply_entries(AppData *app, const ProcEntry *entries, int count,
