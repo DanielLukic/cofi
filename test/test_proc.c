@@ -8,6 +8,11 @@ static int fail = 0;
 static const char *g_entry_text = "";
 static int g_update_display_calls = 0;
 static int g_update_scroll_calls = 0;
+static int g_hide_calls = 0;
+static int g_kill_calls = 0;
+static pid_t g_killed_pids[32];
+static int g_killed_sigs[32];
+static int g_kill_fail_for_pid = -1;
 
 #define ASSERT_TRUE(name, cond) do { \
     if (cond) { printf("PASS: %s\n", name); pass++; } \
@@ -70,10 +75,24 @@ void update_scroll_position(AppData *app) {
 
 void hide_window(AppData *app) {
     (void)app;
+    g_hide_calls++;
 }
 
 #define COFI_TESTING
 #include "../src/proc.c"
+
+static int fake_kill(pid_t pid, int sig) {
+    if (g_kill_fail_for_pid == (int)pid) {
+        errno = EPERM;
+        return -1;
+    }
+    if (g_kill_calls < 32) {
+        g_killed_pids[g_kill_calls] = pid;
+        g_killed_sigs[g_kill_calls] = sig;
+    }
+    g_kill_calls++;
+    return 0;
+}
 
 static ProcEntry make_proc(int pid, const char *name, const char *cmd, long rss_kb) {
     ProcEntry p;
@@ -90,6 +109,10 @@ static void init_app(AppData *app) {
     app->current_tab = TAB_PROC;
     app->selection.proc_index = 0;
     app->selection.proc_scroll_offset = 0;
+    proc_set_kill_impl_test_hook(fake_kill);
+    g_hide_calls = 0;
+    g_kill_calls = 0;
+    g_kill_fail_for_pid = -1;
 }
 
 static void test_stat_parsing_fields(void) {
@@ -291,6 +314,111 @@ static void test_suffix_last_char_wins_between_bang_and_dollar(void) {
                   0, app.proc_mode.filtered_count);
 }
 
+static void test_pipe_parser_extracts_filter_and_action(void) {
+    char filter[64];
+    char action[64];
+    int has_pipe = proc_parse_pipe_test_hook("claude$ | ka", filter, sizeof(filter), action, sizeof(action));
+    ASSERT_EQ_INT("pipe parser marks has_pipe", 1, has_pipe);
+    ASSERT_TRUE("pipe parser extracts filter", strcmp(filter, "claude$") == 0);
+    ASSERT_TRUE("pipe parser extracts action", strcmp(action, "ka") == 0);
+}
+
+static void test_action_alias_resolution(void) {
+    int sig = 0;
+    int all = 0;
+    ASSERT_EQ_INT("k -> SIGTERM", 1, proc_resolve_action_test_hook("k", &sig, &all));
+    ASSERT_EQ_INT("k signal", SIGTERM, sig);
+    ASSERT_EQ_INT("kill all flag false", 0, all);
+    ASSERT_EQ_INT("force -> SIGKILL", 1, proc_resolve_action_test_hook("force", &sig, &all));
+    ASSERT_EQ_INT("force signal", SIGKILL, sig);
+    ASSERT_EQ_INT("hup -> SIGHUP", 1, proc_resolve_action_test_hook("hup", &sig, &all));
+    ASSERT_EQ_INT("hup signal", SIGHUP, sig);
+    ASSERT_EQ_INT("stop -> SIGSTOP", 1, proc_resolve_action_test_hook("stop", &sig, &all));
+    ASSERT_EQ_INT("stop signal", SIGSTOP, sig);
+    ASSERT_EQ_INT("cont -> SIGCONT", 1, proc_resolve_action_test_hook("cont", &sig, &all));
+    ASSERT_EQ_INT("cont signal", SIGCONT, sig);
+}
+
+static void test_compact_all_and_long_all_equivalent(void) {
+    int sig = 0;
+    int all = 0;
+    ASSERT_EQ_INT("ka resolves", 1, proc_resolve_action_test_hook("ka", &sig, &all));
+    ASSERT_EQ_INT("ka signal", SIGTERM, sig);
+    ASSERT_EQ_INT("ka all", 1, all);
+    ASSERT_EQ_INT("kill all resolves", 1, proc_resolve_action_test_hook("kill all", &sig, &all));
+    ASSERT_EQ_INT("kill all signal", SIGTERM, sig);
+    ASSERT_EQ_INT("kill all all", 1, all);
+}
+
+static void test_selected_vs_all_scope(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "alpha";
+
+    ProcEntry entries[3] = {
+        make_proc(801, "alpha", "alpha one", 300),
+        make_proc(802, "alpha-helper", "alpha helper", 200),
+        make_proc(803, "beta", "beta", 100),
+    };
+    proc_apply_entries_test_hook(&app, entries, 3);
+    app.selection.proc_index = 1;
+
+    ASSERT_EQ_INT("selected action success", 1, proc_execute_action_test_hook(&app, "alpha | k", 0));
+    ASSERT_EQ_INT("selected action one kill", 1, g_kill_calls);
+    ASSERT_EQ_INT("selected action pid", 802, (int)g_killed_pids[0]);
+    ASSERT_EQ_INT("selected action signal", SIGTERM, g_killed_sigs[0]);
+    ASSERT_EQ_INT("selected action hides window", 1, g_hide_calls);
+
+    init_app(&app);
+    g_entry_text = "alpha";
+    proc_apply_entries_test_hook(&app, entries, 3);
+    ASSERT_EQ_INT("all action success", 1, proc_execute_action_test_hook(&app, "alpha | ka", 0));
+    ASSERT_EQ_INT("all action two kills", 2, g_kill_calls);
+    ASSERT_EQ_INT("all action hides window", 1, g_hide_calls);
+}
+
+static void test_bad_action_token_no_kill(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "alpha";
+
+    ProcEntry entries[1] = {
+        make_proc(901, "alpha", "alpha one", 300),
+    };
+    proc_apply_entries_test_hook(&app, entries, 1);
+    ASSERT_EQ_INT("bad action returns false", 0, proc_execute_action_test_hook(&app, "alpha | bogus", 0));
+    ASSERT_EQ_INT("bad action no kill", 0, g_kill_calls);
+    ASSERT_EQ_INT("bad action no hide", 0, g_hide_calls);
+}
+
+static void test_empty_filter_pipe_kill_selected(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "";
+
+    ProcEntry entries[2] = {
+        make_proc(910, "alpha", "alpha one", 300),
+        make_proc(911, "beta", "beta two", 200),
+    };
+    proc_apply_entries_test_hook(&app, entries, 2);
+    app.selection.proc_index = 0;
+    ASSERT_EQ_INT("empty filter pipe selected success", 1, proc_execute_action_test_hook(&app, " | k", 0));
+    ASSERT_EQ_INT("empty filter pipe selected pid", 910, (int)g_killed_pids[0]);
+}
+
+static void test_pipe_action_candidates_prefix_filtering(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "foo | k";
+
+    ProcEntry entries[1] = {
+        make_proc(920, "foo", "foo", 100),
+    };
+    proc_apply_entries_test_hook(&app, entries, 1);
+    ASSERT_TRUE("candidate strip shown for pipe action", app.proc_mode.action_candidate_count > 0);
+    ASSERT_TRUE("candidate includes k", strcmp(app.proc_mode.action_candidates[0], "k") == 0);
+}
+
 int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
@@ -303,6 +431,13 @@ int main(void) {
     test_exact_basename_suffix_dollar();
     test_exact_empty_dollar_shows_nothing();
     test_suffix_last_char_wins_between_bang_and_dollar();
+    test_pipe_parser_extracts_filter_and_action();
+    test_action_alias_resolution();
+    test_compact_all_and_long_all_equivalent();
+    test_selected_vs_all_scope();
+    test_bad_action_token_no_kill();
+    test_empty_filter_pipe_kill_selected();
+    test_pipe_action_candidates_prefix_filtering();
 
     printf("\nProc tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
