@@ -5,7 +5,7 @@
  *   - calc_format_double: integer result, floating, trailing zeros
  *   - calc_prepare_expr: operator-continuation prepends last_result
  *   - calc_eval: basic arithmetic, error case
- *   - history push: oldest-first (newest-last), cap, last_result tracking
+ *   - history push: newest-first, cap, last_result tracking
  *   - operator-continuation end-to-end through calc_eval
  */
 
@@ -101,12 +101,12 @@ static void test_prepare_leading_whitespace_stripped(void) {
 
 /* ---- calc_push / history ---- */
 
-static void test_push_newest_last(void) {
+static void test_push_newest_first(void) {
     CalcMode calc = {0};
     calc_push(&calc, "1+1", "2", FALSE);
     calc_push(&calc, "2*2", "4", FALSE);
-    ASSERT_STR("history[0] is oldest", calc.entries[0].result, "2");
-    ASSERT_STR("history[1] is newest", calc.entries[1].result, "4");
+    ASSERT_STR("history[0] is newest", calc.entries[0].result, "4");
+    ASSERT_STR("history[1] is oldest", calc.entries[1].result, "2");
     ASSERT_TRUE("count is 2", calc.count == 2);
 }
 
@@ -132,10 +132,12 @@ static void test_push_respects_history_cap(void) {
         calc_push(&calc, expr, result, FALSE);
     }
     ASSERT_TRUE("history capped at CALC_HISTORY_CAP", calc.count == CALC_HISTORY_CAP);
-    /* Newest entry should be the last one pushed, at the tail */
     char newest[16];
+    char oldest[16];
     snprintf(newest, sizeof(newest), "%d", CALC_HISTORY_CAP + 4);
-    ASSERT_STR("newest entry is last pushed", calc.entries[CALC_HISTORY_CAP - 1].result, newest);
+    snprintf(oldest, sizeof(oldest), "%d", 5);
+    ASSERT_STR("newest entry is first", calc.entries[0].result, newest);
+    ASSERT_STR("oldest retained entry is last", calc.entries[CALC_HISTORY_CAP - 1].result, oldest);
 }
 
 /* ---- calc_eval ---- */
@@ -184,8 +186,8 @@ static void test_eval_operator_continuation(void) {
     calc_eval(&calc, "17+4", result);  /* result = 21, last_result = "21" */
     calc_eval(&calc, "*2", result);    /* should prepend "21" → "21*2" = 42 */
     ASSERT_STR("operator continuation: *2 after 21 = 42", result, "42");
-    ASSERT_STR("history[0] result is 21 (oldest)", calc.entries[0].result, "21");
-    ASSERT_STR("history[1] result is 42 (newest)", calc.entries[1].result, "42");
+    ASSERT_STR("history[0] result is 42 (newest)", calc.entries[0].result, "42");
+    ASSERT_STR("history[1] result is 21 (oldest)", calc.entries[1].result, "21");
 }
 
 static void test_eval_empty_expr_returns_false(void) {
@@ -223,7 +225,7 @@ int main(void) {
     test_prepare_operator_without_last_result_unchanged();
     test_prepare_leading_whitespace_stripped();
 
-    test_push_newest_last();
+    test_push_newest_first();
     test_push_updates_last_result_on_success();
     test_push_error_does_not_update_last_result();
     test_push_respects_history_cap();

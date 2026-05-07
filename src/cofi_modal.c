@@ -77,8 +77,12 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
             app->suppress_entry_change = FALSE;
             int count = p->row_count ? p->row_count(app) : 0;
-            if (count > 0)
+            app->selection.provider_index = p->initial_selection_index;
+            if (count > 0 && app->selection.provider_index >= count) {
                 app->selection.provider_index = count - 1;
+            } else if (app->selection.provider_index < 0 || count <= 0) {
+                app->selection.provider_index = 0;
+            }
             update_scroll_position(app);
             update_display(app);
             return TRUE;

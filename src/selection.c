@@ -78,7 +78,12 @@ void reset_selection(AppData *app) {
         const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
         if (provider) {
             int count = provider->row_count ? provider->row_count(app) : 0;
-            app->selection.provider_index = count > 0 ? count - 1 : 0;
+            app->selection.provider_index = provider->initial_selection_index;
+            if (count > 0 && app->selection.provider_index >= count) {
+                app->selection.provider_index = count - 1;
+            } else if (app->selection.provider_index < 0 || count <= 0) {
+                app->selection.provider_index = 0;
+            }
             app->selection.provider_scroll_offset = 0;
         }
     }

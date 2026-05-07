@@ -24,7 +24,7 @@ static int fail = 0;
 #define ASSERT_STR_EQ(name, a, b) \
     ASSERT_TRUE(name, strcmp((a), (b)) == 0)
 
-static void test_parse_long_sinks_reverses_non_defaults_and_marks_default_last(void) {
+static void test_parse_long_sinks_preserves_pactl_order_and_marks_default(void) {
     const char *inventory =
         "Sink #41\n"
         "\tState: IDLE\n"
@@ -49,22 +49,22 @@ static void test_parse_long_sinks_reverses_non_defaults_and_marks_default_last(v
         sinks, MAX_SINKS, error, sizeof(error));
 
     ASSERT_EQ_INT("parse count", 3, count);
-    ASSERT_STR_EQ("non-defaults reverse pactl order for forward display",
-                  "alsa_output.pci-0000_0a_00.4.pro-output-7", sinks[0].name);
-    ASSERT_TRUE("first non-default unmarked", !sinks[0].is_default);
-    ASSERT_STR_EQ("first non-default description parsed",
-                  "Built-in Audio Pro 7", sinks[0].description);
-    ASSERT_STR_EQ("earlier non-default follows",
-                  "alsa_output.pci-0000_0a_00.4.analog-stereo", sinks[1].name);
-    ASSERT_TRUE("earlier non-default unmarked", !sinks[1].is_default);
-    ASSERT_STR_EQ("default moved last",
+    ASSERT_STR_EQ("first pactl sink preserved",
+                  "alsa_output.pci-0000_0a_00.4.analog-stereo", sinks[0].name);
+    ASSERT_TRUE("first sink unmarked", !sinks[0].is_default);
+    ASSERT_STR_EQ("first description parsed",
+                  "Built-in Audio Analog Stereo", sinks[0].description);
+    ASSERT_STR_EQ("second pactl sink preserved",
+                  "alsa_output.pci-0000_0a_00.4.pro-output-7", sinks[1].name);
+    ASSERT_TRUE("second sink unmarked", !sinks[1].is_default);
+    ASSERT_STR_EQ("default remains in pactl position",
                   "bluez_output.11_22_33_44_55_66.1", sinks[2].name);
     ASSERT_TRUE("default marked", sinks[2].is_default);
     ASSERT_STR_EQ("description parsed", "Headphones WH-1000XM5", sinks[2].description);
     ASSERT_STR_EQ("no parser error", "", error);
 }
 
-static void test_parse_pro_output_group_visual_order(void) {
+static void test_parse_pro_output_group_preserves_pactl_order(void) {
     const char *inventory =
         "Sink #10\n"
         "\tName: alsa_output.pci-0000_00_1f.3.pro-output-0\n"
@@ -95,13 +95,13 @@ static void test_parse_pro_output_group_visual_order(void) {
         sinks, MAX_SINKS, error, sizeof(error));
 
     ASSERT_EQ_INT("pro output count", 7, count);
-    ASSERT_STR_EQ("pro output 9 visible first", "Built-in Audio Pro 9", sinks[0].description);
-    ASSERT_STR_EQ("pro output 8 visible second", "Built-in Audio Pro 8", sinks[1].description);
-    ASSERT_STR_EQ("pro output 7 visible third", "Built-in Audio Pro 7", sinks[2].description);
-    ASSERT_STR_EQ("pro output 3 visible fourth", "Built-in Audio Pro 3", sinks[3].description);
-    ASSERT_STR_EQ("pro output 1 visible fifth", "Built-in Audio Pro 1", sinks[4].description);
-    ASSERT_STR_EQ("pro output 0 visible sixth", "Built-in Audio Pro", sinks[5].description);
-    ASSERT_STR_EQ("default remains bottom", "Built-in Audio Default", sinks[6].description);
+    ASSERT_STR_EQ("pro output 0 first", "Built-in Audio Pro", sinks[0].description);
+    ASSERT_STR_EQ("pro output 1 second", "Built-in Audio Pro 1", sinks[1].description);
+    ASSERT_STR_EQ("pro output 3 third", "Built-in Audio Pro 3", sinks[2].description);
+    ASSERT_STR_EQ("pro output 7 fourth", "Built-in Audio Pro 7", sinks[3].description);
+    ASSERT_STR_EQ("pro output 8 fifth", "Built-in Audio Pro 8", sinks[4].description);
+    ASSERT_STR_EQ("pro output 9 sixth", "Built-in Audio Pro 9", sinks[5].description);
+    ASSERT_STR_EQ("default remains in pactl position", "Built-in Audio Default", sinks[6].description);
     ASSERT_TRUE("bottom is default", sinks[6].is_default);
 }
 
@@ -181,39 +181,13 @@ static void test_snapshot_tracks_order_and_default_only(void) {
     ASSERT_TRUE("snapshot detects default changes", strcmp(first, changed) != 0);
 }
 
-static void test_preferred_filtered_index_selects_default_or_bottom(void) {
-    SinkEntry sinks[3];
-    int all_indices[] = {0, 1, 2};
-    int no_default_indices[] = {0, 1};
-
-    memset(sinks, 0, sizeof(sinks));
-    strcpy(sinks[0].name, "first");
-    strcpy(sinks[1].name, "second");
-    strcpy(sinks[2].name, "default");
-    sinks[2].is_default = TRUE;
-
-    ASSERT_EQ_INT("preferred index chooses visible default",
-                  2,
-                  sinks_preferred_filtered_index_test_hook(sinks, 3,
-                                                           all_indices, 3));
-    ASSERT_EQ_INT("preferred index falls back to visible bottom",
-                  1,
-                  sinks_preferred_filtered_index_test_hook(sinks, 3,
-                                                           no_default_indices, 2));
-    ASSERT_EQ_INT("preferred index handles empty filtered list",
-                  0,
-                  sinks_preferred_filtered_index_test_hook(sinks, 3,
-                                                           all_indices, 0));
-}
-
 int main(void) {
-    test_parse_long_sinks_reverses_non_defaults_and_marks_default_last();
-    test_parse_pro_output_group_visual_order();
+    test_parse_long_sinks_preserves_pactl_order_and_marks_default();
+    test_parse_pro_output_group_preserves_pactl_order();
     test_parse_sink_name_with_spaces_and_unicode_description();
     test_missing_description_falls_back_to_name();
     test_empty_inventory_reports_no_sinks();
     test_snapshot_tracks_order_and_default_only();
-    test_preferred_filtered_index_selects_default_or_bottom();
 
     printf("\nSinks parser tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
