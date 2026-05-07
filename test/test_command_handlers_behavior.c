@@ -42,7 +42,30 @@ void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_t
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 void enter_calc_mode(AppData *app) { (void)app; }
 void exit_calc_mode(AppData *app) { (void)app; }
-void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; }
+static int g_enter_run_mode_calls = 0;
+void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; g_enter_run_mode_calls++; }
+
+static int g_detach_launch_shell_calls = 0;
+static char g_last_launched_command[256] = {0};
+static gboolean g_detach_launch_shell_result = TRUE;
+
+gboolean detach_launch_shell(const char *command) {
+    g_detach_launch_shell_calls++;
+    if (command) g_strlcpy(g_last_launched_command, command, sizeof(g_last_launched_command));
+    return g_detach_launch_shell_result;
+}
+
+static int g_add_run_history_calls = 0;
+void add_run_history_entry(RunMode *run_mode, const char *command) {
+    (void)run_mode; (void)command;
+    g_add_run_history_calls++;
+}
+
+gboolean extract_run_command(const char *entry_text, char *command_out, size_t command_size) {
+    if (!entry_text || !command_out || command_size == 0) return FALSE;
+    g_strlcpy(command_out, entry_text, command_size);
+    return command_out[0] != '\0';
+}
 
 int get_current_desktop(Display *display) { (void)display; return 0; }
 int resolve_workspace_from_arg(Display *display, const char *arg, int workspaces_per_row) {
@@ -290,6 +313,32 @@ static void test_ui_handler_behavior(void) {
     }
 }
 
+static void test_cmd_run_behavior(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+
+    const CommandDef *cmd = find_command("run");
+    ASSERT_TRUE("run command exists", cmd != NULL);
+    if (!cmd) return;
+
+    g_detach_launch_shell_calls = 0;
+    g_add_run_history_calls = 0;
+    g_detach_launch_shell_result = TRUE;
+    gboolean result = cmd->handler(&app, NULL, "xterm");
+    ASSERT_TRUE("run with arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("run with arg launches shell command", g_detach_launch_shell_calls == 1);
+    ASSERT_TRUE("run with arg adds to history", g_add_run_history_calls == 1);
+    ASSERT_TRUE("run with arg uses the command string", strcmp(g_last_launched_command, "xterm") == 0);
+
+    g_detach_launch_shell_calls = 0;
+    g_add_run_history_calls = 0;
+    g_enter_run_mode_calls = 0;
+    result = cmd->handler(&app, NULL, "");
+    ASSERT_TRUE("run without arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("run without arg does not launch", g_detach_launch_shell_calls == 0);
+    ASSERT_TRUE("run without arg enters run mode", g_enter_run_mode_calls == 1);
+}
+
 int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
@@ -299,6 +348,7 @@ int main(void) {
     test_workspace_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
+    test_cmd_run_behavior();
 
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);
