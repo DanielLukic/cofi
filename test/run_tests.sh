@@ -497,4 +497,13 @@ if [ -f test_cli_args_run ]; then
     fi
 fi
 
+if [ -f test_calc ]; then
+    echo ""
+    echo "Running calculator behavioral tests..."
+    ./test_calc
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit

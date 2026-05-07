@@ -42,6 +42,7 @@ STUB_HANDLER(cmd_names)
 STUB_HANDLER(cmd_rules)
 STUB_HANDLER(cmd_show)
 STUB_HANDLER(cmd_hotkeys)
+STUB_HANDLER(cmd_calc)
 
 static int tests_run = 0;
 static int tests_passed = 0;

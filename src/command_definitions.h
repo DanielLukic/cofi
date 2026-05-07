@@ -134,6 +134,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
+        .primary = "calc",
+        .aliases = {"ca", NULL},
+        .handler = cmd_calc,
+        .description = "Switch to calculator",
+        .help_format = "calc, ca",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "maw",
         .aliases = {"move-all-to-workspace", NULL},
         .handler = cmd_move_all_to_workspace,

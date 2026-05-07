@@ -57,12 +57,14 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
         filter_apps(app, "");
+    } else if (target_tab == TAB_CALC) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "expression");
     }
 
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -112,7 +114,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     }
 
     TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc"};
 
     if (direction < 0) {
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);

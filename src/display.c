@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "app_data.h"
+#include "calc.h"
 #include "display.h"
 #include "window_info.h"
 #include "log.h"
@@ -43,8 +44,8 @@ static void format_candidate_strip(AppData *app, GString *output) {
 
 // Format tab header with active tab indication
 static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
-    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps"};
-    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "RULES", "APPS"};
+    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc"};
+    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "RULES", "APPS", "CALC"};
 
     g_string_append(output, "\n");
     g_string_append(output, "  ");
@@ -661,6 +662,29 @@ static void format_apps_display(AppData *app, GString *text, gint selected_idx) 
     render_display_pipeline(&request, text);
 }
 
+static void format_calc_display(AppData *app, GString *text, gint selected_idx) {
+    CalcMode *calc = &app->calc_mode;
+
+    if (calc->count == 0) {
+        g_string_append(text, "  Type =<expr> and press Enter\n");
+        return;
+    }
+
+    int max_lines = get_max_display_lines_dynamic(app);
+    int scroll = get_scroll_offset(app);
+    int visible = (calc->count - scroll < max_lines) ? (calc->count - scroll) : max_lines;
+
+    for (int i = scroll; i < scroll + visible && i < calc->count; i++) {
+        CalcEntry *e = &calc->entries[i];
+        char result_col[21], expr_col[51];
+        fit_column(e->result, 20, result_col);
+        fit_column(e->expr, 50, expr_col);
+        g_string_append_printf(text, "%s%-20s  = %s\n",
+                               (i == selected_idx) ? "> " : "  ",
+                               result_col, expr_col);
+    }
+}
+
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
     int selected_idx = get_selected_index(app);
@@ -711,6 +735,9 @@ void update_display(AppData *app) {
             break;
         case TAB_APPS:
             format_apps_display(app, text, selected_idx);
+            break;
+        case TAB_CALC:
+            format_calc_display(app, text, selected_idx);
             break;
     }
     

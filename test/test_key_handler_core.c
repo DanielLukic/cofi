@@ -47,11 +47,16 @@ static char g_last_command_candidates_text[64];
 static int g_handle_run_calls;
 static gboolean g_run_handler_returns;
 
+static int g_handle_calc_calls;
+static gboolean g_calc_handler_returns;
+
 static int g_handle_tab_switching_calls;
 static gboolean g_tab_switching_returns;
 
 static int g_enter_command_mode_calls;
 static int g_enter_run_mode_calls;
+static int g_enter_calc_mode_calls;
+static int g_exit_calc_mode_calls;
 
 static int g_move_selection_up_calls;
 static int g_move_selection_down_calls;
@@ -145,6 +150,35 @@ void handle_run_entry_changed(GtkEntry *entry, AppData *app) {
     (void)entry;
     (void)app;
     g_run_entry_changed_calls++;
+}
+
+void enter_calc_mode(AppData *app) {
+    g_enter_calc_mode_calls++;
+    if (app) {
+        app->current_tab = TAB_CALC;
+        app->command_mode.state = CMD_MODE_CALC;
+        if (app->mode_indicator) {
+            gtk_label_set_text(GTK_LABEL(app->mode_indicator), "=");
+        }
+    }
+}
+
+void exit_calc_mode(AppData *app) {
+    g_exit_calc_mode_calls++;
+    if (app) {
+        app->command_mode.state = CMD_MODE_NORMAL;
+        app->current_tab = app->prefix_origin_tab;
+        if (app->mode_indicator) {
+            gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
+        }
+    }
+}
+
+gboolean handle_calc_key(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    g_handle_calc_calls++;
+    return g_calc_handler_returns;
 }
 
 WindowInfo *get_selected_window(AppData *app) {
@@ -322,10 +356,14 @@ static void reset_captures(void) {
     g_last_command_candidates_text[0] = '\0';
     g_handle_run_calls = 0;
     g_run_handler_returns = FALSE;
+    g_handle_calc_calls = 0;
+    g_calc_handler_returns = FALSE;
     g_handle_tab_switching_calls = 0;
     g_tab_switching_returns = FALSE;
     g_enter_command_mode_calls = 0;
     g_enter_run_mode_calls = 0;
+    g_enter_calc_mode_calls = 0;
+    g_exit_calc_mode_calls = 0;
     g_move_selection_up_calls = 0;
     g_move_selection_down_calls = 0;
 
@@ -650,6 +688,21 @@ static void test_run_mode_dispatch_precedence(void) {
     ASSERT_TRUE("CMD_MODE_RUN does not hit navigation dispatch", g_activate_calls == 0 && g_hide_calls == 0);
 }
 
+static void test_calc_mode_dispatch_precedence(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.command_mode.state = CMD_MODE_CALC;
+    g_calc_handler_returns = TRUE;
+
+    GdkEventKey ev = make_key(GDK_KEY_Return, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("CMD_MODE_CALC routes to calc handler", handled == TRUE && g_handle_calc_calls == 1);
+    ASSERT_TRUE("CMD_MODE_CALC does not hit navigation dispatch", g_activate_calls == 0 && g_hide_calls == 0);
+}
+
 static void test_on_entry_changed_routes_per_tab_filters(void) {
     AppData app;
     init_app(&app);
@@ -754,12 +807,20 @@ static void test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty(
     gtk_entry_set_text(GTK_ENTRY(app.entry), "=abc");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
 
-    ASSERT_TRUE("Leading '=' claims Windows tab", app.current_tab == TAB_WINDOWS);
+    ASSERT_TRUE("Leading '=' calls enter_calc_mode", g_enter_calc_mode_calls == 1);
+    ASSERT_TRUE("Leading '=' switches to Calc tab", app.current_tab == TAB_CALC);
     ASSERT_TRUE("Leading '=' sets active claim", app.active_prefix_claim == '=');
-    gtk_entry_set_text(GTK_ENTRY(app.entry), "=");
+    ASSERT_TRUE("Leading '=' stores origin tab", app.prefix_origin_tab == TAB_CONFIG);
+    ASSERT_TRUE("Leading '=' enters CMD_MODE_CALC", app.command_mode.state == CMD_MODE_CALC);
+    /* In CMD_MODE_CALC, further entry changes do not re-trigger enter_calc_mode */
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "17+4");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
-    ASSERT_TRUE("Backspacing within '=abc' keeps claimed tab", app.current_tab == TAB_WINDOWS && app.active_prefix_claim == '=');
+    ASSERT_TRUE("In CMD_MODE_CALC, entry change does not re-enter calc mode",
+                g_enter_calc_mode_calls == 1 && app.command_mode.state == CMD_MODE_CALC);
 
+    /* Reset to NORMAL for independent '>' test */
+    app.command_mode.state = CMD_MODE_NORMAL;
+    app.active_prefix_claim = '\0';
     gtk_entry_set_text(GTK_ENTRY(app.entry), ">go");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
     ASSERT_TRUE("Leading '>' also claims Windows tab", app.current_tab == TAB_WINDOWS && app.active_prefix_claim == '>');
@@ -807,6 +868,7 @@ int main(int argc, char **argv) {
     test_overlay_dispatch_precedence();
     test_command_mode_dispatch_precedence();
     test_run_mode_dispatch_precedence();
+    test_calc_mode_dispatch_precedence();
     test_on_entry_changed_routes_per_tab_filters();
     test_on_entry_changed_leading_colon_claims_command_mode();
     test_on_entry_changed_leading_exclam_claims_run_mode();

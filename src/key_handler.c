@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "calc.h"
+#include "calc_mode.h"
 #include "command_mode.h"
 #include "display.h"
 #include "filter.h"
@@ -91,6 +93,10 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         if (handle_run_key(event, app)) {
             return TRUE;
         }
+    } else if (app->command_mode.state == CMD_MODE_CALC) {
+        if (handle_calc_key(event, app)) {
+            return TRUE;
+        }
     }
     if (app->command_mode.state == CMD_MODE_NORMAL && event->keyval == GDK_KEY_colon) {
         log_debug("USER: ':' pressed -> Entering command mode");
@@ -139,6 +145,7 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
 }
 
 void on_entry_changed(GtkEntry *entry, AppData *app) {
+    if (app->calc_mode.suppress_entry_change) return;
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         command_update_candidates(&app->command_mode, gtk_entry_get_text(entry));
         update_display(app);
@@ -162,8 +169,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
     if (app->command_mode.state != CMD_MODE_NORMAL) {
         if (app->command_mode.state == CMD_MODE_COMMAND) {
             command_update_candidates(&app->command_mode, gtk_entry_get_text(entry));
-            update_display(app);
         }
+        update_display(app);
         return;
     }
     text = gtk_entry_get_text(entry);

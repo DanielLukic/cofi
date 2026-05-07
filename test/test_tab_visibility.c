@@ -118,6 +118,20 @@ void exit_command_mode(AppData *app) {
     exit_command_mode_calls++;
 }
 
+void enter_calc_mode(AppData *app) {
+    (void)app;
+}
+
+void exit_calc_mode(AppData *app) {
+    (void)app;
+}
+
+gboolean handle_calc_key(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    return FALSE;
+}
+
 void show_help_commands(AppData *app) {
     (void)app;
 }
@@ -276,10 +290,11 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_HOTKEYS,
         TAB_RULES,
         TAB_APPS,
+        TAB_CALC,
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 9; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("forward tab switch handled", handled == TRUE);
 
@@ -297,6 +312,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
+        TAB_CALC,
         TAB_APPS,
         TAB_RULES,
         TAB_HOTKEYS,
@@ -307,7 +323,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 9; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("backward tab switch handled", handled == TRUE);
 

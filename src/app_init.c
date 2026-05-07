@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <X11/Xlib.h>
 #include "app_init.h"
 #include "window_list.h"
@@ -94,6 +95,9 @@ void init_app_data(AppData *app) {
     // Initialize command mode
     init_command_mode(&app->command_mode);
     init_run_mode(&app->run_mode);
+
+    // Initialize calc mode
+    memset(&app->calc_mode, 0, sizeof(app->calc_mode));
     
     // Initialize window visibility state
     app->window_visible = FALSE;

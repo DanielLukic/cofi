@@ -1,5 +1,6 @@
 #include "prefix_tabs.h"
 
+#include "calc_mode.h"
 #include "command_mode.h"
 #include "run_mode.h"
 
@@ -12,7 +13,6 @@ static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
         case '$':
             *target_tab = TAB_APPS;
             return TRUE;
-        case '=':
         case '>':
             *target_tab = TAB_WINDOWS;
             return TRUE;
@@ -51,6 +51,15 @@ void apply_prefix_tab_claim(AppData *app, const char *entry_text) {
         if (entry_text[1] != '\0') {
             gtk_entry_set_text(GTK_ENTRY(app->entry), entry_text + 1);
         }
+        return;
+    }
+
+    if (entry_text[0] == '=') {
+        if (app->active_prefix_claim == '\0') {
+            app->prefix_origin_tab = app->current_tab;
+            app->active_prefix_claim = '=';
+        }
+        enter_calc_mode(app);
         return;
     }
 
