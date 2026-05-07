@@ -252,6 +252,10 @@ typedef struct AppData {
     // Repeat last action (windows tab, session-only)
     char last_windows_query[256];           // Query from last successful windows-tab activation
     gboolean last_windows_query_valid;      // Whether a repeatable action has been stored
+
+    // Prefix-driven tab claim state
+    TabMode prefix_origin_tab;              // Tab active before the current prefix claim
+    char active_prefix_claim;               // Active leading prefix claim ('\0' when none)
 } AppData;
 
 #define APPDATA_TYPEDEF_DEFINED

@@ -41,6 +41,8 @@ static gboolean g_overlay_handler_returns;
 
 static int g_handle_command_calls;
 static gboolean g_command_handler_returns;
+static int g_command_update_candidates_calls;
+static char g_last_command_candidates_text[64];
 
 static int g_handle_run_calls;
 static gboolean g_run_handler_returns;
@@ -102,7 +104,8 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
 
 void command_update_candidates(CommandMode *cmd, const char *text) {
     (void)cmd;
-    (void)text;
+    g_command_update_candidates_calls++;
+    strncpy(g_last_command_candidates_text, text ? text : "", sizeof(g_last_command_candidates_text) - 1);
 }
 
 gboolean handle_run_key(GdkEventKey *event, AppData *app) {
@@ -315,6 +318,8 @@ static void reset_captures(void) {
     g_overlay_handler_returns = FALSE;
     g_handle_command_calls = 0;
     g_command_handler_returns = FALSE;
+    g_command_update_candidates_calls = 0;
+    g_last_command_candidates_text[0] = '\0';
     g_handle_run_calls = 0;
     g_run_handler_returns = FALSE;
     g_handle_tab_switching_calls = 0;
@@ -351,6 +356,8 @@ static void init_app(AppData *app) {
     app->mode_indicator = gtk_label_new(">");
     app->window_visible = TRUE;
     app->command_mode.state = CMD_MODE_NORMAL;
+    app->prefix_origin_tab = TAB_WINDOWS;
+    app->active_prefix_claim = '\0';
 }
 
 static GdkEventKey make_key(guint keyval, GdkModifierType state) {
@@ -691,6 +698,87 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
     }
 }
 
+static void test_on_entry_changed_leading_colon_claims_command_mode(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_HARPOON;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), ":set");
+
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading ':' enters command mode from entry change",
+                app.command_mode.state == CMD_MODE_COMMAND && g_enter_command_mode_calls == 1);
+    ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TAB_HARPOON);
+}
+
+static void test_on_entry_changed_leading_exclam_claims_run_mode(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_NAMES;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "!alacritty");
+
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading '!' enters run mode from entry change",
+                app.command_mode.state == CMD_MODE_RUN && g_enter_run_mode_calls == 1);
+    ASSERT_TRUE("Leading '!' stores origin tab", app.prefix_origin_tab == TAB_NAMES);
+    ASSERT_TRUE("Leading '!' keeps run prefix text",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "!alacritty") == 0);
+}
+
+static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_HOTKEYS;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "$term");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading '$' claims Apps tab", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("Leading '$' stores origin tab once", app.prefix_origin_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("Leading '$' marks active claim", app.active_prefix_claim == '$');
+
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+    ASSERT_TRUE("Backspace to empty restores origin tab", app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("Backspace to empty clears claim", app.active_prefix_claim == '\0');
+}
+
+static void test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_CONFIG;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "=abc");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading '=' claims Windows tab", app.current_tab == TAB_WINDOWS);
+    ASSERT_TRUE("Leading '=' sets active claim", app.active_prefix_claim == '=');
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "=");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+    ASSERT_TRUE("Backspacing within '=abc' keeps claimed tab", app.current_tab == TAB_WINDOWS && app.active_prefix_claim == '=');
+
+    gtk_entry_set_text(GTK_ENTRY(app.entry), ">go");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+    ASSERT_TRUE("Leading '>' also claims Windows tab", app.current_tab == TAB_WINDOWS && app.active_prefix_claim == '>');
+}
+
+static void test_tab_key_clears_prefix_claim_before_tab_switching(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.active_prefix_claim = '$';
+    app.current_tab = TAB_APPS;
+    g_tab_switching_returns = FALSE;
+
+    GdkEventKey ev = make_key(GDK_KEY_Tab, 0);
+    on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Manual Tab clears active prefix claim", app.active_prefix_claim == '\0');
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Key handler core tests\n");
@@ -720,6 +808,11 @@ int main(int argc, char **argv) {
     test_command_mode_dispatch_precedence();
     test_run_mode_dispatch_precedence();
     test_on_entry_changed_routes_per_tab_filters();
+    test_on_entry_changed_leading_colon_claims_command_mode();
+    test_on_entry_changed_leading_exclam_claims_run_mode();
+    test_on_entry_changed_prefix_tabs_claim_and_restore_origin();
+    test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty();
+    test_tab_key_clears_prefix_claim_before_tab_switching();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

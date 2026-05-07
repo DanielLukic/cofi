@@ -10,6 +10,7 @@
 #include "key_handler_tabs.h"
 #include "log.h"
 #include "overlay_manager.h"
+#include "prefix_tabs.h"
 #include "repeat_action.h"
 #include "run_mode.h"
 #include "selection.h"
@@ -121,6 +122,10 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
             return TRUE;
         }
     }
+    if ((event->keyval == GDK_KEY_Tab || event->keyval == GDK_KEY_ISO_Left_Tab) &&
+        app->active_prefix_claim != '\0') {
+        clear_prefix_tab_claim(app);
+    }
     if (handle_tab_switching(event, app)) {
         return TRUE;
     }
@@ -140,11 +145,28 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         return;
     }
     if (app->command_mode.state == CMD_MODE_RUN) {
+        CommandModeState previous_state = app->command_mode.state;
         handle_run_entry_changed(entry, app);
+        if (previous_state == CMD_MODE_RUN &&
+            app->command_mode.state == CMD_MODE_NORMAL &&
+            strlen(gtk_entry_get_text(entry)) == 0 &&
+            app->active_prefix_claim == '!') {
+            app->current_tab = app->prefix_origin_tab;
+            clear_prefix_tab_claim(app);
+        }
         return;
     }
 
     const char *text = gtk_entry_get_text(entry);
+    apply_prefix_tab_claim(app, text);
+    if (app->command_mode.state != CMD_MODE_NORMAL) {
+        if (app->command_mode.state == CMD_MODE_COMMAND) {
+            command_update_candidates(&app->command_mode, gtk_entry_get_text(entry));
+            update_display(app);
+        }
+        return;
+    }
+    text = gtk_entry_get_text(entry);
     if (strlen(text) > 0) {
         log_debug("USER: Filter text changed -> '%s'", text);
     }

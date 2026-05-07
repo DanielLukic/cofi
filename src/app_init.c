@@ -109,6 +109,8 @@ void init_app_data(AppData *app) {
     // Initialize timers
     app->focus_loss_timer = 0;
     app->focus_grab_timer = 0;
+    app->prefix_origin_tab = TAB_WINDOWS;
+    app->active_prefix_claim = '\0';
 
     if (app->daemon_socket_fd == 0) {
         app->daemon_socket_fd = -1;

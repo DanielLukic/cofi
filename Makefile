@@ -34,6 +34,7 @@ SOURCES = src/main.c \
           src/app_setup.c \
           src/tab_switching.c \
           src/key_handler.c \
+          src/prefix_tabs.c \
           src/key_handler_harpoon.c \
           src/key_handler_tabs.c \
           src/window_lifecycle.c \
@@ -260,14 +261,14 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o $(LDFLAGS)
 
 # Build workspace slot cap regression tests
 # (includes workspace_slots.c directly with X11/config stubs)
