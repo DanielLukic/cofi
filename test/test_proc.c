@@ -204,6 +204,8 @@ static void test_selection_preserve_on_refresh(void) {
     };
     proc_apply_entries_test_hook(&app, first, 3);
     app.selection.proc_index = 1; /* pid 20 */
+    int display_calls_before = g_update_display_calls;
+    int scroll_calls_before = g_update_scroll_calls;
 
     ProcEntry second[3] = {
         make_proc(10, "alpha", "alpha --x changed", 1100),
@@ -213,8 +215,67 @@ static void test_selection_preserve_on_refresh(void) {
     proc_apply_entries_test_hook(&app, second, 3);
 
     ASSERT_TRUE("refresh preserves selection by pid", app.selection.proc_index == 1);
-    ASSERT_TRUE("unchanged snapshot skips repaint", g_update_display_calls == 1);
-    ASSERT_TRUE("unchanged snapshot skips scroll update", g_update_scroll_calls == 1);
+    ASSERT_TRUE("unchanged snapshot skips repaint", g_update_display_calls == display_calls_before);
+    ASSERT_TRUE("unchanged snapshot skips scroll update", g_update_scroll_calls == scroll_calls_before);
+}
+
+static void test_selection_preserve_on_filter_narrowing(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "";
+
+    ProcEntry entries[3] = {
+        make_proc(111, "alpha", "alpha keep", 100),
+        make_proc(222, "bravo", "bravo keep", 200),
+        make_proc(333, "charlie", "charlie drop", 300),
+    };
+    proc_apply_entries_test_hook(&app, entries, 3);
+    app.selection.proc_index = 1; /* pid 222 */
+
+    proc_filter(&app, "br");
+    ASSERT_EQ_INT("narrowed filter keeps selected pid", 0, app.selection.proc_index);
+    ASSERT_EQ_INT("selected pid still 222", 222,
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.proc_index]].pid);
+}
+
+static void test_selection_resets_when_pid_filtered_out(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "";
+
+    ProcEntry entries[3] = {
+        make_proc(111, "alpha", "alpha keep", 100),
+        make_proc(222, "bravo", "bravo drop", 200),
+        make_proc(333, "charlie", "charlie keep", 300),
+    };
+    proc_apply_entries_test_hook(&app, entries, 3);
+    app.selection.proc_index = 1; /* pid 222 */
+
+    proc_filter(&app, "char");
+    ASSERT_EQ_INT("selection resets when previous pid gone", 0, app.selection.proc_index);
+    ASSERT_EQ_INT("scroll resets when previous pid gone", 0, app.selection.proc_scroll_offset);
+    ASSERT_EQ_INT("new first row is charlie", 333,
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid);
+}
+
+static void test_selection_preserve_while_typing_pipe_action(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "";
+
+    ProcEntry entries[3] = {
+        make_proc(5001, "claude", "claude", 100),
+        make_proc(5002, "claude", "claude --alt", 90),
+        make_proc(5003, "claude-helper", "claude-helper", 80),
+    };
+    proc_apply_entries_test_hook(&app, entries, 3);
+    proc_filter(&app, "claude$");
+    app.selection.proc_index = 1; /* second claude pid */
+
+    proc_filter(&app, "claude$ | w");
+    ASSERT_EQ_INT("pipe action typing keeps selected pid", 1, app.selection.proc_index);
+    ASSERT_EQ_INT("selected pid remains second claude", 5002,
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.proc_index]].pid);
 }
 
 static void test_snapshot_ignores_cmdline_and_rss(void) {
@@ -571,6 +632,9 @@ int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
     test_selection_preserve_on_refresh();
+    test_selection_preserve_on_filter_narrowing();
+    test_selection_resets_when_pid_filtered_out();
+    test_selection_preserve_while_typing_pipe_action();
     test_snapshot_ignores_cmdline_and_rss();
     test_weighted_basename_priority_sorting();
     test_strict_ranking_basename_then_cmdline();
