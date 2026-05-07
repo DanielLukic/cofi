@@ -24,12 +24,17 @@ static int fail = 0;
 #define ASSERT_STR_EQ(name, a, b) \
     ASSERT_TRUE(name, strcmp((a), (b)) == 0)
 
-static void test_parse_long_sinks_and_marks_default_last(void) {
+static void test_parse_long_sinks_reverses_non_defaults_and_marks_default_last(void) {
     const char *inventory =
         "Sink #41\n"
         "\tState: IDLE\n"
         "\tName: alsa_output.pci-0000_0a_00.4.analog-stereo\n"
         "\tDescription: Built-in Audio Analog Stereo\n"
+        "\tDriver: PipeWire\n"
+        "Sink #42\n"
+        "\tState: IDLE\n"
+        "\tName: alsa_output.pci-0000_0a_00.4.pro-output-7\n"
+        "\tDescription: Built-in Audio Pro 7\n"
         "\tDriver: PipeWire\n"
         "Sink #55\n"
         "\tState: RUNNING\n"
@@ -43,17 +48,61 @@ static void test_parse_long_sinks_and_marks_default_last(void) {
         inventory, "bluez_output.11_22_33_44_55_66.1",
         sinks, MAX_SINKS, error, sizeof(error));
 
-    ASSERT_EQ_INT("parse count", 2, count);
-    ASSERT_STR_EQ("non-default preserves pactl order",
-                  "alsa_output.pci-0000_0a_00.4.analog-stereo", sinks[0].name);
-    ASSERT_TRUE("non-default unmarked", !sinks[0].is_default);
-    ASSERT_STR_EQ("non-default description parsed",
-                  "Built-in Audio Analog Stereo", sinks[0].description);
+    ASSERT_EQ_INT("parse count", 3, count);
+    ASSERT_STR_EQ("non-defaults reverse pactl order for forward display",
+                  "alsa_output.pci-0000_0a_00.4.pro-output-7", sinks[0].name);
+    ASSERT_TRUE("first non-default unmarked", !sinks[0].is_default);
+    ASSERT_STR_EQ("first non-default description parsed",
+                  "Built-in Audio Pro 7", sinks[0].description);
+    ASSERT_STR_EQ("earlier non-default follows",
+                  "alsa_output.pci-0000_0a_00.4.analog-stereo", sinks[1].name);
+    ASSERT_TRUE("earlier non-default unmarked", !sinks[1].is_default);
     ASSERT_STR_EQ("default moved last",
-                  "bluez_output.11_22_33_44_55_66.1", sinks[1].name);
-    ASSERT_TRUE("default marked", sinks[1].is_default);
-    ASSERT_STR_EQ("description parsed", "Headphones WH-1000XM5", sinks[1].description);
+                  "bluez_output.11_22_33_44_55_66.1", sinks[2].name);
+    ASSERT_TRUE("default marked", sinks[2].is_default);
+    ASSERT_STR_EQ("description parsed", "Headphones WH-1000XM5", sinks[2].description);
     ASSERT_STR_EQ("no parser error", "", error);
+}
+
+static void test_parse_pro_output_group_visual_order(void) {
+    const char *inventory =
+        "Sink #10\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-0\n"
+        "\tDescription: Built-in Audio Pro\n"
+        "Sink #11\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-1\n"
+        "\tDescription: Built-in Audio Pro 1\n"
+        "Sink #13\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-3\n"
+        "\tDescription: Built-in Audio Pro 3\n"
+        "Sink #17\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-7\n"
+        "\tDescription: Built-in Audio Pro 7\n"
+        "Sink #18\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-8\n"
+        "\tDescription: Built-in Audio Pro 8\n"
+        "Sink #19\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-9\n"
+        "\tDescription: Built-in Audio Pro 9\n"
+        "Sink #20\n"
+        "\tName: alsa_output.pci-0000_00_1f.3.pro-output-default\n"
+        "\tDescription: Built-in Audio Default\n";
+    SinkEntry sinks[MAX_SINKS];
+    char error[256];
+
+    int count = sinks_parse_inventory_test_hook(
+        inventory, "alsa_output.pci-0000_00_1f.3.pro-output-default",
+        sinks, MAX_SINKS, error, sizeof(error));
+
+    ASSERT_EQ_INT("pro output count", 7, count);
+    ASSERT_STR_EQ("pro output 9 visible first", "Built-in Audio Pro 9", sinks[0].description);
+    ASSERT_STR_EQ("pro output 8 visible second", "Built-in Audio Pro 8", sinks[1].description);
+    ASSERT_STR_EQ("pro output 7 visible third", "Built-in Audio Pro 7", sinks[2].description);
+    ASSERT_STR_EQ("pro output 3 visible fourth", "Built-in Audio Pro 3", sinks[3].description);
+    ASSERT_STR_EQ("pro output 1 visible fifth", "Built-in Audio Pro 1", sinks[4].description);
+    ASSERT_STR_EQ("pro output 0 visible sixth", "Built-in Audio Pro", sinks[5].description);
+    ASSERT_STR_EQ("default remains bottom", "Built-in Audio Default", sinks[6].description);
+    ASSERT_TRUE("bottom is default", sinks[6].is_default);
 }
 
 static void test_parse_sink_name_with_spaces_and_unicode_description(void) {
@@ -158,7 +207,8 @@ static void test_preferred_filtered_index_selects_default_or_bottom(void) {
 }
 
 int main(void) {
-    test_parse_long_sinks_and_marks_default_last();
+    test_parse_long_sinks_reverses_non_defaults_and_marks_default_last();
+    test_parse_pro_output_group_visual_order();
     test_parse_sink_name_with_spaces_and_unicode_description();
     test_missing_description_falls_back_to_name();
     test_empty_inventory_reports_no_sinks();
