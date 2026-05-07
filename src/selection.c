@@ -1,4 +1,5 @@
 #include "selection.h"
+#include "cofi_tab_provider.h"
 #include "log.h"
 #include "display.h"
 
@@ -258,8 +259,10 @@ void move_selection_up(AppData *app) {
                      app->filtered_apps[app->selection.apps_index].name);
         }
     } else if (app->current_tab == TAB_CALC) {
-        if (app->calc_mode.count > 0) {
-            if (app->selection.calc_index < app->calc_mode.count - 1) {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
+        int count = p && p->row_count ? p->row_count(app) : 0;
+        if (count > 0) {
+            if (app->selection.calc_index < count - 1) {
                 app->selection.calc_index++;
             } else {
                 app->selection.calc_index = 0;
@@ -422,11 +425,13 @@ void move_selection_down(AppData *app) {
                      app->filtered_apps[app->selection.apps_index].name);
         }
     } else if (app->current_tab == TAB_CALC) {
-        if (app->calc_mode.count > 0) {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
+        int count = p && p->row_count ? p->row_count(app) : 0;
+        if (count > 0) {
             if (app->selection.calc_index > 0) {
                 app->selection.calc_index--;
             } else {
-                app->selection.calc_index = app->calc_mode.count - 1;
+                app->selection.calc_index = count - 1;
             }
             update_scroll_position(app);
             update_display(app);
@@ -664,9 +669,11 @@ void update_scroll_position(AppData *app) {
         case TAB_APPS:
             total_count = app->filtered_apps_count;
             break;
-        case TAB_CALC:
-            total_count = app->calc_mode.count;
+        case TAB_CALC: {
+            const CofiTabProvider *p = cofi_get_provider_for_tab(TAB_CALC);
+            total_count = p && p->row_count ? p->row_count(app) : 0;
             break;
+        }
         case TAB_SINKS:
             total_count = app->sinks_mode.filtered_count;
             break;

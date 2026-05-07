@@ -114,15 +114,18 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
             return TRUE;
         }
     }
-    if (app->command_mode.state == CMD_MODE_NORMAL && event->keyval == GDK_KEY_colon) {
-        log_debug("USER: ':' pressed -> Entering command mode");
-        enter_command_mode(app);
-        return TRUE;
-    }
-    if (app->command_mode.state == CMD_MODE_NORMAL && event->keyval == GDK_KEY_exclam) {
-        log_debug("USER: '!' pressed -> Entering run mode");
-        enter_run_mode(app, NULL);
-        return TRUE;
+    if (app->command_mode.state == CMD_MODE_NORMAL &&
+        strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0) {
+        if (event->keyval == GDK_KEY_colon) {
+            log_debug("USER: ':' pressed -> Entering command mode");
+            enter_command_mode(app);
+            return TRUE;
+        }
+        if (event->keyval == GDK_KEY_exclam) {
+            log_debug("USER: '!' pressed -> Entering run mode");
+            enter_run_mode(app, NULL);
+            return TRUE;
+        }
     }
     if (handle_harpoon_assignment(event, app) ||
         handle_harpoon_workspace_switching(event, app) ||
