@@ -1,4 +1,5 @@
 #include "app_setup.h"
+#include "calc_provider.h"
 #include "path_binaries.h"
 #include "run_mode.h"
 
@@ -343,6 +344,7 @@ int run_cofi(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
     init_app_data(&app);
+    calc_provider_register();
     init_x11_connection(&app);
 
     load_config(&app.config);

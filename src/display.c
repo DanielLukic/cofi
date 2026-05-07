@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "app_data.h"
-#include "calc.h"
+#include "cofi_tab_provider.h"
 #include "display.h"
 #include "window_info.h"
 #include "log.h"
@@ -707,26 +707,40 @@ static void format_apps_display(AppData *app, GString *text, gint selected_idx) 
     render_display_pipeline(&request, text);
 }
 
-static void format_calc_display(AppData *app, GString *text, gint selected_idx) {
-    CalcMode *calc = &app->calc_mode;
+static void format_provider_display(AppData *app, GString *text, gint selected_idx,
+                                     int tab_mode) {
+    const CofiTabProvider *p = cofi_get_provider_for_tab(tab_mode);
+    if (!p || !p->row_count || !p->format_row) return;
 
-    if (calc->count == 0) {
+    int count = p->row_count(app);
+    if (count == 0) {
         g_string_append(text, "  Type =<expr> and press Enter\n");
         return;
     }
 
     int max_lines = get_max_display_lines_dynamic(app);
     int scroll = get_scroll_offset(app);
-    int visible = (calc->count - scroll < max_lines) ? (calc->count - scroll) : max_lines;
+    int end = scroll + max_lines;
+    if (end > count) end = count;
 
-    for (int i = scroll; i < scroll + visible && i < calc->count; i++) {
-        CalcEntry *e = &calc->entries[i];
-        char result_col[21], expr_col[51];
-        fit_column(e->result, 20, result_col);
-        fit_column(e->expr, 50, expr_col);
-        g_string_append_printf(text, "%s%-20s  = %s\n",
-                               (i == selected_idx) ? "> " : "  ",
-                               result_col, expr_col);
+    for (int i = scroll; i < end; i++) {
+        CofiRowCells row;
+        memset(&row, 0, sizeof(row));
+        p->format_row(app, i, &row);
+
+        g_string_append(text, (i == selected_idx) ? "> " : "  ");
+        for (int c = 0; c < row.cell_count; c++) {
+            const char *t = row.cells[c].text ? row.cells[c].text : "";
+            int w = row.cells[c].width_hint;
+            if (c == 0 && w > 0) {
+                char col[64];
+                fit_column(t, w < 63 ? w : 63, col);
+                g_string_append_printf(text, "%-*s", w, col);
+            } else {
+                g_string_append_printf(text, "  %s", t);
+            }
+        }
+        g_string_append_c(text, '\n');
     }
 }
 
@@ -945,7 +959,7 @@ void update_display(AppData *app) {
             format_apps_display(app, text, selected_idx);
             break;
         case TAB_CALC:
-            format_calc_display(app, text, selected_idx);
+            format_provider_display(app, text, selected_idx, TAB_CALC);
             break;
         case TAB_SINKS:
             format_sinks_display(app, text, selected_idx);

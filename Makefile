@@ -91,7 +91,7 @@ SOURCES = src/main.c \
           src/daemon_socket.c \
           src/daemon_socket_runtime.c \
           src/calc.c \
-          src/calc_mode.c \
+          src/calc_provider.c \
           src/tinyexpr.c \
           src/cofi_tab_provider.c
 
@@ -335,8 +335,8 @@ test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_sto
 	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)

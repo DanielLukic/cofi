@@ -15,7 +15,7 @@ typedef enum {
     COFI_HANDLED_KEEP,     /* stay open, clear entry, refresh display */
     COFI_HANDLED_REFRESH,  /* stay open, preserve entry, re-filter */
     COFI_NO_OP,            /* nothing happened */
-    COFI_ERROR             /* show transient error row, keep open */
+    COFI_ACTION_ERROR      /* show transient error row, keep open */
 } CofiActionStatus;
 
 typedef enum {
