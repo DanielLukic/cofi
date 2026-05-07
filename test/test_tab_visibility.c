@@ -99,6 +99,11 @@ void sinks_start_polling(AppData *app) {
 void sinks_stop_polling(AppData *app) {
     (void)app;
 }
+gboolean sinks_switch_slot(AppData *app, char slot_key) {
+    (void)app;
+    (void)slot_key;
+    return FALSE;
+}
 void proc_start_polling(AppData *app) {
     (void)app;
 }

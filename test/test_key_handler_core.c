@@ -259,6 +259,9 @@ void apps_launch(const AppEntry *entry) {
 
 void sinks_switch_selected(AppData *app) { (void)app; g_sinks_switch_calls++; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
+void sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; }
+gboolean sinks_assign_selected_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
+gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
     (void)app;
     g_proc_signal_calls++;
@@ -661,16 +664,27 @@ static void test_exclam_enters_run_mode_with_empty_entry(void) {
     reset_captures();
 
     app.command_mode.state = CMD_MODE_NORMAL;
-    gtk_entry_set_text(GTK_ENTRY(app.entry), "leftover");
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
 
     GdkEventKey ev = make_key(GDK_KEY_exclam, 0);
     gboolean handled = on_key_press(NULL, &ev, &app);
 
-    ASSERT_TRUE("Exclam handled", handled == TRUE);
-    ASSERT_TRUE("Exclam enters run mode", app.command_mode.state == CMD_MODE_RUN && g_enter_run_mode_calls == 1);
+    ASSERT_TRUE("Exclam handled on empty entry", handled == TRUE);
+    ASSERT_TRUE("Exclam enters run mode on empty entry",
+                app.command_mode.state == CMD_MODE_RUN && g_enter_run_mode_calls == 1);
     ASSERT_TRUE("Exclam sets mode indicator '!'",
                 strcmp(gtk_label_get_text(GTK_LABEL(app.mode_indicator)), "!") == 0);
     ASSERT_TRUE("Exclam run-mode entry is empty", strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
+
+    init_app(&app);
+    reset_captures();
+    app.command_mode.state = CMD_MODE_NORMAL;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "qemu");
+    GdkEventKey ev2 = make_key(GDK_KEY_exclam, 0);
+    gboolean handled2 = on_key_press(NULL, &ev2, &app);
+    ASSERT_TRUE("Exclam not handled when entry non-empty", handled2 == FALSE);
+    ASSERT_TRUE("Exclam does not enter run mode on non-empty entry",
+                app.command_mode.state == CMD_MODE_NORMAL && g_enter_run_mode_calls == 0);
 }
 
 static void test_overlay_dispatch_precedence(void) {

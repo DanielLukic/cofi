@@ -10,6 +10,8 @@
 #include "hotkeys.h"
 #include "log.h"
 #include "run_mode.h"
+#include "sinks.h"
+#include "slot_store.h"
 #include "tab_switching.h"
 
 #include <stdio.h>
@@ -136,8 +138,15 @@ gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
 }
 
 gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
-                   const char *args __attribute__((unused))) {
+                   const char *args) {
     exit_command_mode(app);
+    if (args && args[0] != '\0') {
+        char slot = args[0];
+        if (slot_index_from_key(slot) < 0 || !sinks_switch_slot(app, slot)) {
+            show_error_in_display(app, "No sink assigned to that slot.");
+        }
+        return FALSE;
+    }
     surface_tab(app, TAB_SINKS);
     return FALSE;
 }

@@ -6,6 +6,8 @@
 #include "harpoon_config.h"
 #include "log.h"
 #include "selection.h"
+#include "sinks.h"
+#include "slot_store.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
 #include "workspace_slots.h"
@@ -41,12 +43,21 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
 }
 
 gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
-    if (!(event->state & GDK_CONTROL_MASK) || app->current_tab != TAB_WINDOWS) {
+    if (!(event->state & GDK_CONTROL_MASK) ||
+        (app->current_tab != TAB_WINDOWS && app->current_tab != TAB_SINKS)) {
         return FALSE;
     }
 
     int slot = get_harpoon_slot(event, TRUE);
-    if (slot < 0 || app->filtered_count == 0) {
+    if (slot < 0) {
+        return FALSE;
+    }
+
+    if (app->current_tab == TAB_SINKS) {
+        return sinks_assign_selected_slot(app, slot_key_from_index(slot));
+    }
+
+    if (app->filtered_count == 0) {
         return FALSE;
     }
 
@@ -113,6 +124,10 @@ gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *app) {
             }
             return FALSE;
         }
+    }
+
+    if (app->current_tab == TAB_SINKS) {
+        return sinks_switch_slot(app, slot_key_from_index(slot));
     }
 
     if (app->current_tab == TAB_WINDOWS) {

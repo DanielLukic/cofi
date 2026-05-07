@@ -42,6 +42,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_t
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 void enter_calc_mode(AppData *app) { (void)app; }
 void exit_calc_mode(AppData *app) { (void)app; }
+gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 static int g_enter_run_mode_calls = 0;
 void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; g_enter_run_mode_calls++; }
 

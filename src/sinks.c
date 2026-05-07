@@ -7,9 +7,11 @@
 #ifndef COFI_SINKS_PARSER_TEST
 #include "app_data.h"
 #include "display.h"
+#include "harpoon_config.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
+#include "slot_store.h"
 #include "window_lifecycle.h"
 #endif
 
@@ -355,18 +357,15 @@ static void on_set_default_done(GObject *source, GAsyncResult *result,
     hide_window(app);
 }
 
-void sinks_switch_selected(AppData *app) {
-    if (!app || app->selection.sinks_index < 0 ||
-        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
+void sinks_switch_name(AppData *app, const char *sink_name) {
+    if (!app || !sink_name || sink_name[0] == '\0') {
         return;
     }
 
-    int sink_index = app->sinks_mode.filtered_indices[app->selection.sinks_index];
-    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
     g_autoptr(GError) error = NULL;
     GSubprocess *process = g_subprocess_new(G_SUBPROCESS_FLAGS_STDERR_PIPE,
                                             &error, "pactl",
-                                            "set-default-sink", sink->name,
+                                            "set-default-sink", sink_name,
                                             NULL);
     if (!process) {
         set_error(&app->sinks_mode, error ? error->message : "Unable to spawn pactl");
@@ -377,5 +376,56 @@ void sinks_switch_selected(AppData *app) {
     g_subprocess_communicate_utf8_async(process, NULL, NULL,
                                         on_set_default_done, app);
     g_object_unref(process);
+}
+
+void sinks_switch_selected(AppData *app) {
+    if (!app || app->selection.sinks_index < 0 ||
+        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
+        return;
+    }
+
+    int sink_index = app->sinks_mode.filtered_indices[app->selection.sinks_index];
+    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
+    sinks_switch_name(app, sink->name);
+}
+
+gboolean sinks_assign_selected_slot(AppData *app, char slot_key) {
+    if (!app || app->selection.sinks_index < 0 ||
+        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
+        return FALSE;
+    }
+
+    int sink_index = app->sinks_mode.filtered_indices[app->selection.sinks_index];
+    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
+    const char *current = slot_lookup(&app->harpoon.store, "sinks", slot_key);
+    if (current && strcmp(current, sink->name) == 0) {
+        slot_clear(&app->harpoon.store, "sinks", slot_key);
+        log_info("Unassigned sink '%s' from slot %c", sink->description, slot_key);
+    } else {
+        char old_slot = slot_for_payload(&app->harpoon.store, "sinks", sink->name);
+        if (old_slot != '\0') {
+            slot_clear(&app->harpoon.store, "sinks", old_slot);
+        }
+        slot_assign(&app->harpoon.store, slot_key, "sinks", sink->name);
+        log_info("Assigned sink '%s' to slot %c", sink->description, slot_key);
+    }
+
+    save_harpoon_slots(&app->harpoon);
+    update_display(app);
+    return TRUE;
+}
+
+gboolean sinks_switch_slot(AppData *app, char slot_key) {
+    if (!app) {
+        return FALSE;
+    }
+
+    const char *sink_name = slot_lookup(&app->harpoon.store, "sinks", slot_key);
+    if (!sink_name) {
+        return FALSE;
+    }
+
+    sinks_switch_name(app, sink_name);
+    return TRUE;
 }
 #endif

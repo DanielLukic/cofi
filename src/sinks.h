@@ -37,6 +37,9 @@ void sinks_stop_polling(AppData *app);
 void sinks_refresh_async(AppData *app);
 void sinks_filter(AppData *app, const char *filter);
 void sinks_switch_selected(AppData *app);
+void sinks_switch_name(AppData *app, const char *sink_name);
+gboolean sinks_assign_selected_slot(AppData *app, char slot_key);
+gboolean sinks_switch_slot(AppData *app, char slot_key);
 
 #ifdef COFI_TESTING
 int sinks_parse_inventory_test_hook(const char *inventory,

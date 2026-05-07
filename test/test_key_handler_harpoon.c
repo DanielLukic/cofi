@@ -36,6 +36,9 @@ static int g_highlight_calls;
 static Window g_last_highlight_window;
 static int g_get_workspace_slot_calls;
 static int g_last_workspace_slot_query;
+static int g_sinks_assign_calls;
+static int g_sinks_switch_slot_calls;
+static char g_last_sinks_slot;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -51,6 +54,19 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (
 void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
 void sinks_switch_selected(AppData *app) { (void)app; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
+void sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; }
+gboolean sinks_assign_selected_slot(AppData *app, char slot_key) {
+    (void)app;
+    g_sinks_assign_calls++;
+    g_last_sinks_slot = slot_key;
+    return TRUE;
+}
+gboolean sinks_switch_slot(AppData *app, char slot_key) {
+    (void)app;
+    g_sinks_switch_slot_calls++;
+    g_last_sinks_slot = slot_key;
+    return TRUE;
+}
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) { (void)app; (void)state; return TRUE; }
 void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
@@ -196,6 +212,9 @@ static void reset_captures(void) {
     g_last_highlight_window = 0;
     g_get_workspace_slot_calls = 0;
     g_last_workspace_slot_query = -1;
+    g_sinks_assign_calls = 0;
+    g_sinks_switch_slot_calls = 0;
+    g_last_sinks_slot = '\0';
 }
 
 static void init_app(AppData *app) {
@@ -357,6 +376,51 @@ static void test_alt_a_default_mode_activates_harpoon_letter_slot(void) {
                 g_activate_calls == 1 && g_last_activate_window == (Window)0xA11);
 }
 
+static void test_ctrl_a_on_sinks_assigns_sink_slot(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_SINKS;
+
+    GdkEventKey ev = make_key(GDK_KEY_a, GDK_CONTROL_MASK);
+    gboolean handled = handle_harpoon_assignment(&ev, &app);
+
+    ASSERT_TRUE("Ctrl+a on Sinks handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+a on Sinks delegates to sink assignment",
+                g_sinks_assign_calls == 1 && g_last_sinks_slot == 'a');
+}
+
+static void test_alt_a_on_sinks_switches_sink_slot(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_SINKS;
+
+    GdkEventKey ev = make_key(GDK_KEY_a, GDK_MOD1_MASK);
+    gboolean handled = handle_harpoon_workspace_switching(&ev, &app);
+
+    ASSERT_TRUE("Alt+a on Sinks handled", handled == TRUE);
+    ASSERT_TRUE("Alt+a on Sinks delegates to sink recall",
+                g_sinks_switch_slot_calls == 1 && g_last_sinks_slot == 'a');
+}
+
+static void test_ctrl_j_on_sinks_remains_navigation_key(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_SINKS;
+
+    GdkEventKey ev = make_key(GDK_KEY_j, GDK_CONTROL_MASK);
+    gboolean handled = handle_harpoon_assignment(&ev, &app);
+
+    ASSERT_TRUE("Ctrl+j on Sinks not a slot assignment", handled == FALSE);
+    ASSERT_TRUE("Ctrl+j on Sinks does not call sink assignment",
+                g_sinks_assign_calls == 0);
+}
+
 static void test_alt_digit_out_of_workspace_range_non_windows_noop(void) {
     AppData app;
     init_app(&app);
@@ -393,6 +457,9 @@ int main(int argc, char **argv) {
     test_alt_1_workspaces_mode_switches_workspace();
     test_alt_1_per_workspace_mode_activates_slot_window();
     test_alt_a_default_mode_activates_harpoon_letter_slot();
+    test_ctrl_a_on_sinks_assigns_sink_slot();
+    test_alt_a_on_sinks_switches_sink_slot();
+    test_ctrl_j_on_sinks_remains_navigation_key();
     test_alt_digit_out_of_workspace_range_non_windows_noop();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);

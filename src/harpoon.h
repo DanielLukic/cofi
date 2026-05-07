@@ -3,6 +3,7 @@
 
 #include <X11/Xlib.h>
 #include <stdbool.h>
+#include "slot_store.h"
 #include "types.h"
 
 // Forward declare WindowAlignment
@@ -20,6 +21,7 @@ typedef struct HarpoonSlot {
 
 // Structure to manage all harpoon assignments
 typedef struct HarpoonManager {
+    SlotStore store;
     HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l,u)
 } HarpoonManager;
 
@@ -30,6 +32,9 @@ void unassign_slot(HarpoonManager *manager, int slot);
 int get_window_slot(const HarpoonManager *manager, Window id);
 Window get_slot_window(const HarpoonManager *manager, int slot);
 int is_slot_assigned(const HarpoonManager *manager, int slot);
+const char *harpoon_tab_id(void);
+char *serialize_window_slot_payload(const HarpoonSlot *slot, char *out, size_t out_size);
+bool deserialize_window_slot_payload(const char *payload, HarpoonSlot *slot);
 
 
 
