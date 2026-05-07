@@ -350,6 +350,16 @@ if [ -f test_apps ]; then
     fi
 fi
 
+# Run sinks tab parser tests if they exist
+if [ -f test_sinks ]; then
+    echo ""
+    echo "Running sinks tab parser tests..."
+    ./test_sinks
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run system actions tests if they exist
 if [ -f test_system_actions ]; then
     echo ""

@@ -28,6 +28,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "mw",      {"max", "maximize-window", NULL},             NULL },
     { "pw",      {"pull-window", "p", NULL},                   NULL },
     { "rw",      {"rename-workspace", NULL},                     NULL },
+    { "sinks",   {"sink", NULL},                                  NULL },
     { "sb",      {"skip-taskbar", NULL},                         "+-" },
     { "set",     {NULL},                                           NULL },
     { "show",    {"s", NULL},                                    NULL },
@@ -268,4 +269,3 @@ gboolean visit_command_segments(const char *command,
 
     return TRUE;
 }
-

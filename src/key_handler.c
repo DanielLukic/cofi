@@ -16,6 +16,7 @@
 #include "repeat_action.h"
 #include "run_mode.h"
 #include "selection.h"
+#include "sinks.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
@@ -29,6 +30,11 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 app->harpoon_delete.pending_delete = FALSE;
                 log_info("Cancelled harpoon delete");
                 update_display(app);
+                return TRUE;
+            }
+            if (app->current_tab == TAB_SINKS) {
+                switch_to_tab(app, TAB_WINDOWS);
+                app->tab_visibility[TAB_SINKS] = TAB_VIS_HIDDEN;
                 return TRUE;
             }
             log_debug("USER: ESCAPE pressed -> Closing cofi");
@@ -53,6 +59,8 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     apps_launch(entry);
                     hide_window(app);
                 }
+            } else if (app->current_tab == TAB_SINKS) {
+                sinks_switch_selected(app);
             } else {
                 WorkspaceInfo *ws = get_selected_workspace(app);
                 if (ws) {
@@ -194,6 +202,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_rules(app, text);
     } else if (app->current_tab == TAB_APPS) {
         filter_apps(app, text);
+    } else if (app->current_tab == TAB_SINKS) {
+        sinks_filter(app, text);
     }
 
     reset_selection(app);

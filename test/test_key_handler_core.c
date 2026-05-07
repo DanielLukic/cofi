@@ -30,6 +30,7 @@ static int g_switch_calls;
 static int g_last_switched_desktop;
 static int g_apps_launch_calls;
 static const AppEntry *g_last_app_entry;
+static int g_sinks_switch_calls;
 static int g_workspace_switch_state;
 static int g_highlight_calls;
 static Window g_last_highlight_window;
@@ -254,6 +255,13 @@ void apps_launch(const AppEntry *entry) {
     g_last_app_entry = entry;
 }
 
+void sinks_switch_selected(AppData *app) { (void)app; g_sinks_switch_calls++; }
+void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
+
+void switch_to_tab(AppData *app, TabMode target_tab) {
+    app->current_tab = target_tab;
+}
+
 /* required but not exercised here */
 int get_number_of_desktops(Display *display) { (void)display; return 0; }
 void assign_workspace_slots(AppData *app) { (void)app; }
@@ -342,6 +350,7 @@ static void reset_captures(void) {
     g_last_switched_desktop = -1;
     g_apps_launch_calls = 0;
     g_last_app_entry = NULL;
+    g_sinks_switch_calls = 0;
     g_workspace_switch_state = 0;
     g_highlight_calls = 0;
     g_last_highlight_window = 0;
