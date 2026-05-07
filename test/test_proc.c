@@ -34,6 +34,14 @@ gboolean has_match(const char *query, const char *text) {
     return strstr(text, query) != NULL;
 }
 
+score_t fzf_fuzzy_match(const char *needle, const char *haystack) {
+    if (!needle || needle[0] == '\0') return 0;
+    if (!haystack) return SCORE_MIN;
+    const char *hit = strstr(haystack, needle);
+    if (!hit) return SCORE_MIN;
+    return (score_t)(1000 - (int)(hit - haystack));
+}
+
 void update_display(AppData *app) {
     (void)app;
     g_update_display_calls++;
@@ -131,11 +139,38 @@ static void test_snapshot_ignores_cmdline_and_rss(void) {
     ASSERT_TRUE("snapshot stable for pid+basename only", strcmp(a, b) == 0);
 }
 
+static void test_weighted_basename_priority_sorting(void) {
+    AppData app;
+    init_app(&app);
+    g_entry_text = "claude";
+
+    ProcEntry entries[4] = {
+        make_proc(101, "python", "python worker claude --session", 1024L * 9000L),
+        make_proc(102, "claude", "claude --fast", 1024L * 200L),
+        make_proc(103, "java", "java -jar claude-tool.jar", 1024L * 12000L),
+        make_proc(104, "claude-helper", "claude-helper --task", 1024L * 300L),
+    };
+    proc_apply_entries_test_hook(&app, entries, 4);
+
+    ASSERT_EQ_INT("all query matches included", 4, app.proc_mode.filtered_count);
+    int first_pid = app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid;
+    int second_pid = app.proc_mode.procs[app.proc_mode.filtered_indices[1]].pid;
+    ASSERT_TRUE("top two are basename hits",
+                (first_pid == 102 || first_pid == 104) &&
+                (second_pid == 102 || second_pid == 104) &&
+                first_pid != second_pid);
+    ASSERT_EQ_INT("cmdline-only high RSS after basename matches",
+                  103, app.proc_mode.procs[app.proc_mode.filtered_indices[2]].pid);
+    ASSERT_EQ_INT("cmdline-only lower score/rank last",
+                  101, app.proc_mode.procs[app.proc_mode.filtered_indices[3]].pid);
+}
+
 int main(void) {
     test_stat_parsing_fields();
     test_signal_mapping();
     test_selection_preserve_on_refresh();
     test_snapshot_ignores_cmdline_and_rss();
+    test_weighted_basename_priority_sorting();
 
     printf("\nProc tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;

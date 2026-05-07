@@ -22,6 +22,7 @@ typedef struct {
 typedef struct {
     ProcEntry procs[MAX_PROCS];
     int filtered_indices[MAX_PROCS];
+    int filtered_scores[MAX_PROCS];
     int proc_count;
     int filtered_count;
     char snapshot[MAX_PROCS * 24];

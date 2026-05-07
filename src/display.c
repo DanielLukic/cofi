@@ -153,6 +153,36 @@ static void fit_column(const char *text, int width, char *output) {
     pad_text(trimmed, width, output);
 }
 
+static void fit_column_ellipsis(const char *text, int width, char *output) {
+    if (!output || width <= 0) {
+        return;
+    }
+    if (!text || text[0] == '\0') {
+        memset(output, ' ', width);
+        output[width] = '\0';
+        return;
+    }
+
+    char clean_buffer[1024];
+    clean_text(text, clean_buffer, sizeof(clean_buffer));
+    char *trimmed = trim_text(clean_buffer);
+    size_t len = strlen(trimmed);
+    if ((int)len <= width) {
+        pad_text(trimmed, width, output);
+        return;
+    }
+
+    if (width <= 3) {
+        memset(output, '.', width);
+        output[width] = '\0';
+        return;
+    }
+
+    memcpy(output, trimmed, (size_t)(width - 3));
+    memcpy(output + width - 3, "...", 3);
+    output[width] = '\0';
+}
+
 // Get maximum display lines using dynamic calculation
 int get_max_display_lines(void) {
     // For now, we need access to the app data to get the window
@@ -759,13 +789,36 @@ static void render_proc_item(gpointer context, gint index,
     AppData *app = (AppData *)context;
     int proc_index = app->proc_mode.filtered_indices[index];
     ProcEntry *entry = &app->proc_mode.procs[proc_index];
-    long rss_mb = entry->rss_kb / 1024;
-    char cmd_preview[128];
-    fit_column(entry->cmdline, 90, cmd_preview);
+    const int pid_width = 8;
+    const int base_width = 16;
+    const int rss_width = 10;
+    int total_cols = get_display_columns(app);
+    int cmd_width = total_cols - 2 - pid_width - 1 - base_width - 1 - rss_width;
+    if (cmd_width < 12) {
+        cmd_width = 12;
+    }
+    if (cmd_width > 510) {
+        cmd_width = 510;
+    }
+
+    char pid_col[16];
+    char base_col[32];
+    char cmd_col[512];
+    char rss_col[32];
+    double rss_mb = (double)entry->rss_kb / 1024.0;
+
+    g_snprintf(pid_col, sizeof(pid_col), "%*d", pid_width, (int)entry->pid);
+    fit_column_ellipsis(entry->basename, base_width, base_col);
+    fit_column_ellipsis(entry->cmdline, cmd_width, cmd_col);
+    if (rss_mb >= 1000.0) {
+        g_snprintf(rss_col, sizeof(rss_col), "%*.1f MB", rss_width - 3, rss_mb);
+    } else {
+        g_snprintf(rss_col, sizeof(rss_col), "%*.0f MB", rss_width - 3, rss_mb);
+    }
 
     g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    g_string_append_printf(text, "[%d] %s - %s (RSS=%ld MB)\n",
-                           (int)entry->pid, entry->basename, cmd_preview, rss_mb);
+    g_string_append_printf(text, "%s %s %s %s\n",
+                           pid_col, base_col, cmd_col, rss_col);
 }
 
 static void format_proc_display(AppData *app, GString *text, gint selected_idx) {

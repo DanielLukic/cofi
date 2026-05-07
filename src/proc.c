@@ -13,6 +13,7 @@
 #ifndef COFI_PROC_PARSER_TEST
 #include "app_data.h"
 #include "display.h"
+#include "fzf_algo.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
@@ -94,6 +95,28 @@ static int compare_rss_desc(const void *a, const void *b) {
     if (pa->rss_kb > pb->rss_kb) return -1;
     if (pa->pid < pb->pid) return -1;
     if (pa->pid > pb->pid) return 1;
+    return 0;
+}
+
+typedef struct {
+    int raw_index;
+    int final_score;
+    long rss_kb;
+    pid_t pid;
+} ProcFilterHit;
+
+static int compare_filter_hits(const void *a, const void *b) {
+    const ProcFilterHit *ha = a;
+    const ProcFilterHit *hb = b;
+
+    if (ha->final_score != hb->final_score) {
+        return (hb->final_score - ha->final_score);
+    }
+    if (ha->rss_kb != hb->rss_kb) {
+        return (ha->rss_kb < hb->rss_kb) ? 1 : -1;
+    }
+    if (ha->pid < hb->pid) return -1;
+    if (ha->pid > hb->pid) return 1;
     return 0;
 }
 
@@ -267,20 +290,53 @@ void proc_filter(AppData *app, const char *filter) {
     ProcMode *mode = &app->proc_mode;
     mode->filtered_count = 0;
 
+    ProcFilterHit hits[MAX_PROCS];
+    int hit_count = 0;
+
     for (int i = 0; i < mode->proc_count; i++) {
-        if (mode->filtered_count >= MAX_PROCS) break;
+        if (hit_count >= MAX_PROCS) break;
         if (!filter || filter[0] == '\0') {
-            mode->filtered_indices[mode->filtered_count++] = i;
+            hits[hit_count++] = (ProcFilterHit){
+                .raw_index = i,
+                .final_score = 0,
+                .rss_kb = mode->procs[i].rss_kb,
+                .pid = mode->procs[i].pid,
+            };
             continue;
         }
 
-        char searchable[MAX_PROC_BASENAME_LEN + MAX_PROC_CMDLINE_LEN + 2];
-        g_snprintf(searchable, sizeof(searchable), "%s %s",
-                   mode->procs[i].basename, mode->procs[i].cmdline);
-        if (has_match(filter, searchable)) {
-            mode->filtered_indices[mode->filtered_count++] = i;
+        int basename_score = (int)fzf_fuzzy_match(filter, mode->procs[i].basename);
+        int cmdline_score = (int)fzf_fuzzy_match(filter, mode->procs[i].cmdline);
+        int final_score = 0;
+
+        if (basename_score > 0) {
+            if (cmdline_score < 0) {
+                cmdline_score = 0;
+            }
+            final_score = basename_score * 10 + cmdline_score;
+        } else if (cmdline_score > 0) {
+            final_score = cmdline_score;
+        }
+
+        if (final_score > 0) {
+            hits[hit_count++] = (ProcFilterHit){
+                .raw_index = i,
+                .final_score = final_score,
+                .rss_kb = mode->procs[i].rss_kb,
+                .pid = mode->procs[i].pid,
+            };
         }
     }
+
+    if (filter && filter[0] != '\0' && hit_count > 1) {
+        qsort(hits, (size_t)hit_count, sizeof(hits[0]), compare_filter_hits);
+    }
+
+    for (int i = 0; i < hit_count; i++) {
+        mode->filtered_indices[i] = hits[i].raw_index;
+        mode->filtered_scores[i] = hits[i].final_score;
+    }
+    mode->filtered_count = hit_count;
 }
 
 static void apply_entries(AppData *app, const ProcEntry *entries, int count,
