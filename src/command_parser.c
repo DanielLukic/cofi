@@ -23,6 +23,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl" },
     { "names",   {"nm", NULL},                                   NULL },
     { "rules",   {"rl", NULL},                                   NULL },
+    { "proc",    {"ps", NULL},                                   NULL },
     { "miw",     {"min", "minimize-window", NULL},             NULL },
     { "mouse",   {"m", "ma", "ms", "mh", NULL},            "ash" },
     { "mw",      {"max", "maximize-window", NULL},             NULL },

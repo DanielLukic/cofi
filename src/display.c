@@ -44,8 +44,8 @@ static void format_candidate_strip(AppData *app, GString *output) {
 
 // Format tab header with active tab indication
 static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
-    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run"};
-    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "RULES", "APPS", "CALC", "SINKS", "RUN"};
+    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
+    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "RULES", "APPS", "CALC", "SINKS", "RUN", "PROC"};
 
     g_string_append(output, "\n");
     g_string_append(output, "  ");
@@ -754,6 +754,50 @@ static void format_run_display(AppData *app, GString *text, gint selected_idx) {
     render_display_pipeline(&request, text);
 }
 
+static void render_proc_item(gpointer context, gint index,
+                             gint selected_idx, GString *text) {
+    AppData *app = (AppData *)context;
+    int proc_index = app->proc_mode.filtered_indices[index];
+    ProcEntry *entry = &app->proc_mode.procs[proc_index];
+    long rss_mb = entry->rss_kb / 1024;
+    char cmd_preview[128];
+    fit_column(entry->cmdline, 90, cmd_preview);
+
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+    g_string_append_printf(text, "[%d] %s - %s (RSS=%ld MB)\n",
+                           (int)entry->pid, entry->basename, cmd_preview, rss_mb);
+}
+
+static void format_proc_display(AppData *app, GString *text, gint selected_idx) {
+    if (app->proc_mode.last_error[0] != '\0') {
+        g_string_append_printf(text, "  %s\n", app->proc_mode.last_error);
+    }
+
+    if (app->proc_mode.proc_count == 0) {
+        if (app->proc_mode.last_error[0] == '\0') {
+            g_string_append(text, "  Loading processes...\n");
+        }
+        return;
+    }
+
+    if (app->proc_mode.filtered_count == 0) {
+        g_string_append(text, "No matching processes found\n");
+        return;
+    }
+
+    DisplayPipelineRequest request = {
+        .total_count = app->proc_mode.filtered_count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = get_display_columns(app),
+        .context = app,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    request.render_item = render_proc_item;
+    render_display_pipeline(&request, text);
+}
+
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
     int selected_idx = get_selected_index(app);
@@ -813,6 +857,9 @@ void update_display(AppData *app) {
             break;
         case TAB_RUN:
             format_run_display(app, text, selected_idx);
+            break;
+        case TAB_PROC:
+            format_proc_display(app, text, selected_idx);
             break;
     }
     
