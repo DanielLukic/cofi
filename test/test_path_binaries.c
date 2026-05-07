@@ -30,6 +30,8 @@ void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
 void reset_selection(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; }
 void apps_load(void) {}
+void sinks_start_polling(AppData *app) { (void)app; }
+void sinks_stop_polling(AppData *app) { (void)app; }
 
 void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *count) {
     (void)config;

@@ -63,6 +63,9 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) { (void)event; (vo
 void command_update_candidates(CommandMode *cmd, const char *text) { (void)cmd; (void)text; }
 gboolean handle_run_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
+void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
+void sinks_switch_selected(AppData *app) { (void)app; }
+void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
 void enter_command_mode(AppData *app) { (void)app; }
 void enter_run_mode(AppData *app, const char *prefill_command) { (void)app; (void)prefill_command; }

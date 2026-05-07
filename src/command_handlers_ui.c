@@ -133,6 +133,13 @@ gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
+                   const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    surface_tab(app, TAB_SINKS);
+    return FALSE;
+}
+
 gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     ShowMode mode = SHOW_MODE_WINDOWS;
 

@@ -92,6 +92,14 @@ void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *
 void apps_load(void) {
 }
 
+void sinks_start_polling(AppData *app) {
+    (void)app;
+}
+
+void sinks_stop_polling(AppData *app) {
+    (void)app;
+}
+
 void path_binaries_ensure_loaded(AppData *app) {
     (void)app;
 }
@@ -291,10 +299,11 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_RULES,
         TAB_APPS,
         TAB_CALC,
+        TAB_SINKS,
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("forward tab switch handled", handled == TRUE);
 
@@ -312,6 +321,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
+        TAB_SINKS,
         TAB_CALC,
         TAB_APPS,
         TAB_RULES,
@@ -323,7 +333,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("backward tab switch handled", handled == TRUE);
 
