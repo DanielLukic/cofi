@@ -1,0 +1,222 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "../src/cofi_tab_provider.h"
+
+static int s_tests_run = 0;
+static int s_tests_passed = 0;
+
+#define ASSERT_TRUE(msg, cond) \
+    do { \
+        s_tests_run++; \
+        if (cond) { \
+            s_tests_passed++; \
+            printf("PASS: %s\n", msg); \
+        } else { \
+            printf("FAIL: %s\n", msg); \
+        } \
+    } while (0)
+
+#define ASSERT_EQ(msg, a, b)     ASSERT_TRUE(msg, (a) == (b))
+#define ASSERT_STR_EQ(msg, a, b) ASSERT_TRUE(msg, strcmp((a), (b)) == 0)
+#define ASSERT_NULL(msg, p)      ASSERT_TRUE(msg, (p) == NULL)
+#define ASSERT_NOT_NULL(msg, p)  ASSERT_TRUE(msg, (p) != NULL)
+
+static int mock_row_count_5(AppData *app) { (void)app; return 5; }
+static int mock_row_count_3(AppData *app) { (void)app; return 3; }
+
+static CofiActionStatus mock_enter_pressed(AppData *app, int fi, int ri,
+                                            const char *text) {
+    (void)app; (void)fi; (void)ri; (void)text;
+    return COFI_HANDLED_KEEP;
+}
+
+static void test_init_defaults(void) {
+    CofiTabProvider p;
+    memset(&p, 0xFF, sizeof(p));
+    cofi_init_provider_defaults(&p);
+
+    ASSERT_EQ("init: hidden_by_default=1", p.hidden_by_default, 1);
+    ASSERT_EQ("init: modal_policy=HIDE_ON_ESC", p.modal_policy, COFI_MODAL_HIDE_ON_ESC);
+    ASSERT_NULL("init: row_count=NULL", (void *)p.row_count);
+    ASSERT_NULL("init: id=NULL", (void *)p.id);
+    ASSERT_NULL("init: on_enter_pressed=NULL", (void *)p.on_enter_pressed);
+    ASSERT_EQ("init: tick_interval_ms=0", p.tick_interval_ms, 0);
+    ASSERT_EQ("init: slot_store_enabled=0", p.slot_store_enabled, 0);
+}
+
+static void test_registry_add_and_get(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider p1, p2;
+    cofi_init_provider_defaults(&p1);
+    p1.id = "first";
+    p1.tab_mode = 99;
+    p1.row_count = mock_row_count_5;
+
+    cofi_init_provider_defaults(&p2);
+    p2.id = "second";
+    p2.tab_mode = 100;
+    p2.row_count = mock_row_count_3;
+
+    int id1 = cofi_register_tab_provider(&p1);
+    int id2 = cofi_register_tab_provider(&p2);
+
+    ASSERT_EQ("id1=0", id1, 0);
+    ASSERT_EQ("id2=1", id2, 1);
+    ASSERT_EQ("provider_count=2", cofi_provider_count(), 2);
+
+    const CofiTabProvider *r1 = cofi_get_provider(id1);
+    const CofiTabProvider *r2 = cofi_get_provider(id2);
+    ASSERT_NOT_NULL("get provider 0", r1);
+    ASSERT_NOT_NULL("get provider 1", r2);
+    ASSERT_STR_EQ("provider 0 id", r1->id, "first");
+    ASSERT_STR_EQ("provider 1 id", r2->id, "second");
+    ASSERT_NULL("get out-of-range returns NULL", cofi_get_provider(99));
+    ASSERT_NULL("get negative id returns NULL", cofi_get_provider(-1));
+}
+
+static void test_get_provider_for_tab(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider p;
+    cofi_init_provider_defaults(&p);
+    p.id = "mytab";
+    p.tab_mode = 42;
+    cofi_register_tab_provider(&p);
+
+    const CofiTabProvider *found = cofi_get_provider_for_tab(42);
+    ASSERT_NOT_NULL("found by tab_mode", found);
+    ASSERT_STR_EQ("correct provider found", found->id, "mytab");
+    ASSERT_NULL("unknown tab_mode returns NULL", cofi_get_provider_for_tab(999));
+}
+
+static void test_filtered_raw_mapping(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider p;
+    cofi_init_provider_defaults(&p);
+    p.id = "maptest";
+    p.tab_mode = 1;
+    int id = cofi_register_tab_provider(&p);
+
+    ASSERT_EQ("initial filtered count=0", cofi_get_filtered_count(id), 0);
+    ASSERT_EQ("initial filtered_to_raw returns -1", cofi_filtered_to_raw(id, 0), -1);
+
+    int raw_map[] = {3, 7, 1, 9, 2};
+    cofi_set_filtered_map(id, raw_map, 5);
+
+    ASSERT_EQ("filtered count=5", cofi_get_filtered_count(id), 5);
+    ASSERT_EQ("filtered[0]=3", cofi_filtered_to_raw(id, 0), 3);
+    ASSERT_EQ("filtered[1]=7", cofi_filtered_to_raw(id, 1), 7);
+    ASSERT_EQ("filtered[4]=2", cofi_filtered_to_raw(id, 4), 2);
+    ASSERT_EQ("out-of-range returns -1", cofi_filtered_to_raw(id, 5), -1);
+    ASSERT_EQ("negative index returns -1", cofi_filtered_to_raw(id, -1), -1);
+    ASSERT_EQ("bad provider_id returns -1", cofi_filtered_to_raw(99, 0), -1);
+
+    /* overwrite with smaller map */
+    int map2[] = {10, 20};
+    cofi_set_filtered_map(id, map2, 2);
+    ASSERT_EQ("overwrite count=2", cofi_get_filtered_count(id), 2);
+    ASSERT_EQ("overwrite[0]=10", cofi_filtered_to_raw(id, 0), 10);
+    ASSERT_EQ("old index 4 now out-of-range", cofi_filtered_to_raw(id, 4), -1);
+}
+
+static void test_generation_token(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider p;
+    cofi_init_provider_defaults(&p);
+    p.id = "gentest";
+    p.tab_mode = 2;
+    int id = cofi_register_tab_provider(&p);
+
+    ASSERT_EQ("initial generation=0", cofi_current_generation(id), 0);
+
+    int g1 = cofi_next_generation(id);
+    ASSERT_EQ("next_generation=1", g1, 1);
+    ASSERT_EQ("current_generation=1", cofi_current_generation(id), 1);
+
+    int g2 = cofi_next_generation(id);
+    ASSERT_EQ("next_generation=2", g2, 2);
+
+    ASSERT_EQ("bad id next returns -1", cofi_next_generation(99), -1);
+    ASSERT_EQ("bad id current returns -1", cofi_current_generation(99), -1);
+}
+
+static void test_dispatch_helpers(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider p;
+    cofi_init_provider_defaults(&p);
+    p.id = "dispatch";
+    p.tab_mode = 3;
+    p.row_count = mock_row_count_5;
+    p.on_enter_pressed = mock_enter_pressed;
+    int id = cofi_register_tab_provider(&p);
+
+    ASSERT_EQ("row_count dispatch=5", cofi_call_row_count(id, NULL), 5);
+
+    CofiActionStatus st = cofi_call_on_enter_pressed(id, NULL, 0, 0, "expr");
+    ASSERT_EQ("on_enter_pressed dispatch=KEEP", st, COFI_HANDLED_KEEP);
+
+    ASSERT_EQ("row_count bad id=0", cofi_call_row_count(99, NULL), 0);
+    ASSERT_EQ("on_command_args bad id=NO_OP",
+              cofi_call_on_command_args(99, NULL, "x"), COFI_NO_OP);
+
+    /* provider with no on_enter_pressed returns NO_OP */
+    CofiTabProvider p2;
+    cofi_init_provider_defaults(&p2);
+    p2.id = "noop";
+    p2.tab_mode = 4;
+    int id2 = cofi_register_tab_provider(&p2);
+    ASSERT_EQ("no on_enter_pressed returns NO_OP",
+              cofi_call_on_enter_pressed(id2, NULL, 0, 0, ""), COFI_NO_OP);
+}
+
+static void test_multiple_providers_independent(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider a, b;
+    cofi_init_provider_defaults(&a);
+    a.id = "A";
+    a.tab_mode = 10;
+
+    cofi_init_provider_defaults(&b);
+    b.id = "B";
+    b.tab_mode = 11;
+
+    int id_a = cofi_register_tab_provider(&a);
+    int id_b = cofi_register_tab_provider(&b);
+
+    int map_a[] = {0, 1, 2};
+    int map_b[] = {5, 6};
+    cofi_set_filtered_map(id_a, map_a, 3);
+    cofi_set_filtered_map(id_b, map_b, 2);
+
+    ASSERT_EQ("A filtered count=3", cofi_get_filtered_count(id_a), 3);
+    ASSERT_EQ("B filtered count=2", cofi_get_filtered_count(id_b), 2);
+    ASSERT_EQ("A[2]=2", cofi_filtered_to_raw(id_a, 2), 2);
+    ASSERT_EQ("B[0]=5", cofi_filtered_to_raw(id_b, 0), 5);
+
+    cofi_next_generation(id_a);
+    ASSERT_EQ("A gen=1", cofi_current_generation(id_a), 1);
+    ASSERT_EQ("B gen unchanged=0", cofi_current_generation(id_b), 0);
+}
+
+int main(void) {
+    printf("CofiTabProvider registry tests\n");
+    printf("==============================\n\n");
+
+    test_init_defaults();
+    test_registry_add_and_get();
+    test_get_provider_for_tab();
+    test_filtered_raw_mapping();
+    test_generation_token();
+    test_dispatch_helpers();
+    test_multiple_providers_independent();
+
+    printf("\n==============================\n");
+    printf("Results: %d/%d tests passed\n", s_tests_passed, s_tests_run);
+    return s_tests_passed == s_tests_run ? 0 : 1;
+}
