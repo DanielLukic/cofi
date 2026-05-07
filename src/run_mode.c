@@ -5,6 +5,9 @@
 #include "display.h"
 #include "log.h"
 #include "detach_launch.h"
+#include "prefix_tabs.h"
+#include "selection.h"
+#include "tab_switching.h"
 
 extern void hide_window(AppData *app);
 
@@ -63,12 +66,13 @@ void add_run_history_entry(RunMode *run_mode, const char *command) {
         return;
     }
 
-    for (int i = 9; i > 0; i--) {
+    int cap = RUN_HISTORY_CAP;
+    for (int i = (cap - 1 < run_mode->history_count ? cap - 1 : run_mode->history_count); i > 0; i--) {
         strcpy(run_mode->history[i], run_mode->history[i - 1]);
     }
 
     g_strlcpy(run_mode->history[0], command, sizeof(run_mode->history[0]));
-    if (run_mode->history_count < 10) {
+    if (run_mode->history_count < RUN_HISTORY_CAP) {
         run_mode->history_count++;
     }
     run_mode->history_index = -1;
@@ -123,10 +127,18 @@ void enter_run_mode(AppData *app, const char *prefill_command) {
     }
 
     if (prefill_command && prefill_command[0] != '\0') {
-        set_run_entry_text(app, prefill_command);
+        const char *stripped = prefill_command;
+        if (stripped[0] == '!') {
+            stripped++;
+            while (*stripped == ' ') stripped++;
+        }
+        set_run_entry_text(app, stripped);
     } else {
         set_run_entry_text(app, "");
     }
+
+    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
+    surface_tab(app, TAB_RUN);
 
     log_info("USER: Entered run mode");
 }
@@ -140,11 +152,14 @@ void exit_run_mode(AppData *app) {
         return;
     }
 
+    TabMode origin = app->prefix_origin_tab;
     gboolean should_close = app->run_mode.close_on_exit;
 
     app->command_mode.state = CMD_MODE_NORMAL;
     app->run_mode.history_index = -1;
     app->run_mode.close_on_exit = FALSE;
+    app->tab_visibility[TAB_RUN] = TAB_VIS_HIDDEN;
+    clear_prefix_tab_claim(app);
 
     if (should_close) {
         log_info("USER: Exited run mode (started with --run, closing window)");
@@ -157,6 +172,7 @@ void exit_run_mode(AppData *app) {
     }
 
     set_run_entry_text(app, "");
+    switch_to_tab(app, origin);
     update_display(app);
     log_info("USER: Exited run mode");
 }
@@ -179,43 +195,54 @@ gboolean handle_run_key(GdkEventKey *event, AppData *app) {
     }
 
     switch (event->keyval) {
-        case GDK_KEY_Escape:
+        case GDK_KEY_Escape: {
+            const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            if (text[0] != '\0') {
+                app->run_mode.suppress_entry_change = TRUE;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                app->run_mode.suppress_entry_change = FALSE;
+                update_display(app);
+                return TRUE;
+            }
             exit_run_mode(app);
             return TRUE;
+        }
 
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter: {
-            char command[256];
-            if (!extract_run_command(gtk_entry_get_text(GTK_ENTRY(app->entry)),
-                                     command, sizeof(command))) {
-                return TRUE;
-            }
-
-            if (detach_launch_shell(command)) {
-                add_run_history_entry(&app->run_mode, command);
-                hide_window(app);
-            }
-            return TRUE;
-        }
-
-        case GDK_KEY_Up: {
-            char entry_text[257];
-            if (browse_run_history(&app->run_mode, -1, entry_text, sizeof(entry_text))) {
-                set_run_entry_text(app, entry_text);
-            }
-            return TRUE;
-        }
-
-        case GDK_KEY_Down: {
-            char entry_text[257];
-            if (browse_run_history(&app->run_mode, 1, entry_text, sizeof(entry_text))) {
-                set_run_entry_text(app, entry_text);
+            const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            if (text[0] != '\0') {
+                char command[256];
+                if (extract_run_command(text, command, sizeof(command))) {
+                    if (detach_launch_shell(command)) {
+                        add_run_history_entry(&app->run_mode, command);
+                        reset_selection(app);
+                        update_scroll_position(app);
+                        update_display(app);
+                        hide_window(app);
+                    }
+                }
+            } else if (app->run_mode.history_count > 0) {
+                int sel = app->selection.run_index;
+                if (sel >= 0 && sel < app->run_mode.history_count) {
+                    detach_launch_shell(app->run_mode.history[sel]);
+                    hide_window(app);
+                }
             }
             return TRUE;
         }
+
+        case GDK_KEY_Up:
+            move_selection_up(app);
+            return TRUE;
+
+        case GDK_KEY_Down:
+            move_selection_down(app);
+            return TRUE;
 
         case GDK_KEY_Tab:
         case GDK_KEY_ISO_Left_Tab:
+            exit_run_mode(app);
             return FALSE;
 
         default:

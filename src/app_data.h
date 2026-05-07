@@ -34,6 +34,7 @@ typedef enum {
     TAB_APPS,
     TAB_CALC,
     TAB_SINKS,
+    TAB_RUN,
     TAB_COUNT
 } TabMode;
 
@@ -87,8 +88,10 @@ typedef struct {
     gboolean close_on_exit;         // True when window should close after exiting command mode
 } CommandMode;
 
+#define RUN_HISTORY_CAP 32
+
 typedef struct {
-    char history[10][256];          // Session-only run history (last 10 commands)
+    char history[RUN_HISTORY_CAP][256]; // Session-only run history, newest-first (index 0 = newest)
     int history_count;              // Number of run commands in history
     int history_index;              // Current position in history (-1 = not browsing)
     gboolean close_on_exit;         // True when window should close after exiting run mode
@@ -110,6 +113,7 @@ typedef struct {
     int apps_index;                         // Selected index in apps tab
     int calc_index;                         // Selected index in calc history
     int sinks_index;                        // Selected index in sinks tab
+    int run_index;                          // Selected index in run history
 
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
@@ -122,6 +126,7 @@ typedef struct {
     int apps_scroll_offset;                // First visible item index for apps tab
     int calc_scroll_offset;                // First visible item index for calc tab
     int sinks_scroll_offset;               // First visible item index for sinks tab
+    int run_scroll_offset;                 // First visible item index for run tab
 } SelectionState;
 
 typedef struct AppData {

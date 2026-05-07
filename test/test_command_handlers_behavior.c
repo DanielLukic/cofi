@@ -42,6 +42,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_t
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 void enter_calc_mode(AppData *app) { (void)app; }
 void exit_calc_mode(AppData *app) { (void)app; }
+void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; }
 
 int get_current_desktop(Display *display) { (void)display; return 0; }
 int resolve_workspace_from_arg(Display *display, const char *arg, int workspaces_per_row) {
