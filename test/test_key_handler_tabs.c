@@ -67,6 +67,9 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (
 void enter_command_mode(AppData *app) { (void)app; }
 void enter_run_mode(AppData *app, const char *prefill_command) { (void)app; (void)prefill_command; }
 void handle_run_entry_changed(GtkEntry *entry, AppData *app) { (void)entry; (void)app; }
+void enter_calc_mode(AppData *app) { (void)app; }
+void exit_calc_mode(AppData *app) { (void)app; }
+gboolean handle_calc_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 WorkspaceInfo *get_selected_workspace(AppData *app) { (void)app; return NULL; }

@@ -19,6 +19,7 @@
 #include "rules.h"
 #include "apps.h"
 #include "daemon_socket.h"
+#include "calc.h"
 
 
 typedef enum {
@@ -30,6 +31,7 @@ typedef enum {
     TAB_HOTKEYS,
     TAB_RULES,
     TAB_APPS,
+    TAB_CALC,
     TAB_COUNT
 } TabMode;
 
@@ -64,7 +66,8 @@ typedef enum {
 typedef enum {
     CMD_MODE_NORMAL,    // Regular window switching mode
     CMD_MODE_COMMAND,   // Command entry mode (after pressing ':')
-    CMD_MODE_RUN        // Run entry mode (after pressing '!')
+    CMD_MODE_RUN,       // Run entry mode (after pressing '!')
+    CMD_MODE_CALC       // Calculator mode (after pressing '=')
 } CommandModeState;
 
 typedef struct {
@@ -103,6 +106,7 @@ typedef struct {
     int hotkeys_index;                      // Selected index in hotkeys tab
     int rules_index;                        // Selected index in rules tab
     int apps_index;                         // Selected index in apps tab
+    int calc_index;                         // Selected index in calc history
 
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
@@ -113,6 +117,7 @@ typedef struct {
     int hotkeys_scroll_offset;             // First visible item index for hotkeys tab
     int rules_scroll_offset;               // First visible item index for rules tab
     int apps_scroll_offset;                // First visible item index for apps tab
+    int calc_scroll_offset;                // First visible item index for calc tab
 } SelectionState;
 
 typedef struct AppData {
@@ -214,6 +219,7 @@ typedef struct AppData {
     RuleState rule_state;                   // Per-rule per-window match state
     CommandMode command_mode;               // Command mode state
     RunMode run_mode;                       // Run mode state
+    CalcMode calc_mode;                     // Calculator tab state
     int start_in_command_mode;              // Whether to start in command mode (--command delegate)
     int start_in_run_mode;                  // Whether to start in run mode (--run delegate)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)

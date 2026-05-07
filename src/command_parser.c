@@ -11,6 +11,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "as",      {"assign-slots", NULL},                         NULL },
     { "aot",     {"at", "always-on-top", NULL},                "+-" },
     { "cl",      {"c", "close", "close-window", NULL},       NULL },
+    { "calc",    {"ca", NULL},                                   NULL },
     { "config",  {"conf", "cfg", NULL},                        NULL },
     { "cw",      {"change-workspace", NULL},                     "0123456789hjkl" },
     { "ew",      {"every-workspace", NULL},                      "+-" },

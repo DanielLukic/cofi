@@ -1,6 +1,7 @@
 #include "command_handlers_ui.h"
 
 #include "app_data.h"
+#include "calc_mode.h"
 #include "command_definitions.h"
 #include "config.h"
 #include "display.h"
@@ -122,6 +123,13 @@ gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
                    const char *args __attribute__((unused))) {
     exit_command_mode(app);
     surface_tab(app, TAB_RULES);
+    return FALSE;
+}
+
+gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
+                  const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    enter_calc_mode(app);
     return FALSE;
 }
 

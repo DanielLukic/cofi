@@ -64,9 +64,12 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_APPS) {
         app->selection.apps_index = 0;
         app->selection.apps_scroll_offset = 0;
+    } else if (app->current_tab == TAB_CALC) {
+        app->selection.calc_index = 0;
+        app->selection.calc_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -112,6 +115,8 @@ int get_selected_index(AppData *app) {
         return app->selection.rules_index;
     } else if (app->current_tab == TAB_APPS) {
         return app->selection.apps_index;
+    } else if (app->current_tab == TAB_CALC) {
+        return app->selection.calc_index;
     }
 
     return 0;
@@ -230,6 +235,17 @@ void move_selection_up(AppData *app) {
                      app->selection.apps_index,
                      app->filtered_apps[app->selection.apps_index].name);
         }
+    } else if (app->current_tab == TAB_CALC) {
+        if (app->calc_mode.count > 0) {
+            if (app->selection.calc_index < app->calc_mode.count - 1) {
+                app->selection.calc_index++;
+            } else {
+                app->selection.calc_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Calc[%d]", app->selection.calc_index);
+        }
     }
 }
 
@@ -346,6 +362,17 @@ void move_selection_down(AppData *app) {
                      app->selection.apps_index,
                      app->filtered_apps[app->selection.apps_index].name);
         }
+    } else if (app->current_tab == TAB_CALC) {
+        if (app->calc_mode.count > 0) {
+            if (app->selection.calc_index > 0) {
+                app->selection.calc_index--;
+            } else {
+                app->selection.calc_index = app->calc_mode.count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Calc[%d]", app->selection.calc_index);
+        }
     }
 }
 
@@ -455,6 +482,8 @@ int get_scroll_offset(AppData *app) {
             return app->selection.rules_scroll_offset;
         case TAB_APPS:
             return app->selection.apps_scroll_offset;
+        case TAB_CALC:
+            return app->selection.calc_scroll_offset;
         default:
             return 0;
     }
@@ -488,6 +517,9 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_APPS:
             app->selection.apps_scroll_offset = offset;
+            break;
+        case TAB_CALC:
+            app->selection.calc_scroll_offset = offset;
             break;
     }
 }
@@ -525,6 +557,9 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_APPS:
             total_count = app->filtered_apps_count;
+            break;
+        case TAB_CALC:
+            total_count = app->calc_mode.count;
             break;
     }
 
