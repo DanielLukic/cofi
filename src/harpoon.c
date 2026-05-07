@@ -9,8 +9,89 @@
 #include "utils.h"
 #include "app_data.h"  // For WindowAlignment
 
+const char *harpoon_tab_id(void) {
+    return "windows";
+}
+
+static void sanitize_payload_field(char *value) {
+    if (!value) {
+        return;
+    }
+
+    for (char *p = value; *p; p++) {
+        if (*p == '\t' || *p == '\n' || *p == '\r') {
+            *p = ' ';
+        }
+    }
+}
+
+char *serialize_window_slot_payload(const HarpoonSlot *slot, char *out, size_t out_size) {
+    if (!slot || !out || out_size == 0) {
+        return NULL;
+    }
+
+    char title[MAX_TITLE_LEN];
+    char class_name[MAX_CLASS_LEN];
+    char instance[MAX_CLASS_LEN];
+    char type[16];
+    safe_string_copy(title, slot->title, sizeof(title));
+    safe_string_copy(class_name, slot->class_name, sizeof(class_name));
+    safe_string_copy(instance, slot->instance, sizeof(instance));
+    safe_string_copy(type, slot->type, sizeof(type));
+    sanitize_payload_field(title);
+    sanitize_payload_field(class_name);
+    sanitize_payload_field(instance);
+    sanitize_payload_field(type);
+
+    snprintf(out, out_size, "%lu\n%s\n%s\n%s\n%s",
+             slot->id, class_name, instance, type, title);
+    return out;
+}
+
+bool deserialize_window_slot_payload(const char *payload, HarpoonSlot *slot) {
+    if (!payload || !slot) {
+        return false;
+    }
+
+    char local[SLOT_STORE_PAYLOAD_LEN];
+    safe_string_copy(local, payload, sizeof(local));
+
+    char *id_text = local;
+    char *class_name = strchr(id_text, '\n');
+    if (!class_name) {
+        return false;
+    }
+    *class_name++ = '\0';
+    char *instance = strchr(class_name, '\n');
+    if (!instance) {
+        return false;
+    }
+    *instance++ = '\0';
+    char *type = strchr(instance, '\n');
+    if (!type) {
+        return false;
+    }
+    *type++ = '\0';
+    char *title = strchr(type, '\n');
+    if (!title) {
+        return false;
+    }
+    *title++ = '\0';
+
+    memset(slot, 0, sizeof(*slot));
+    slot->id = (Window)strtoul(id_text, NULL, 10);
+    safe_string_copy(slot->class_name, class_name, sizeof(slot->class_name));
+    safe_string_copy(slot->instance, instance, sizeof(slot->instance));
+    safe_string_copy(slot->type, type, sizeof(slot->type));
+    safe_string_copy(slot->title, title, sizeof(slot->title));
+    slot->assigned = slot->id != 0;
+    return slot->assigned;
+}
+
 void init_harpoon_manager(HarpoonManager *manager) {
     if (!manager) return;
+
+    slot_store_init(&manager->store);
     
     // Initialize all slots as unassigned
     for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
@@ -49,6 +130,10 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     safe_string_copy(manager->slots[slot].instance, window->instance, MAX_CLASS_LEN);
     safe_string_copy(manager->slots[slot].type, window->type, 16);
     manager->slots[slot].assigned = 1;
+
+    char payload[SLOT_STORE_PAYLOAD_LEN];
+    serialize_window_slot_payload(&manager->slots[slot], payload, sizeof(payload));
+    slot_assign(&manager->store, slot_key_from_index(slot), harpoon_tab_id(), payload);
 }
 
 void unassign_slot(HarpoonManager *manager, int slot) {
@@ -56,6 +141,7 @@ void unassign_slot(HarpoonManager *manager, int slot) {
     
     manager->slots[slot].assigned = 0;
     manager->slots[slot].id = 0;
+    slot_clear(&manager->store, harpoon_tab_id(), slot_key_from_index(slot));
 }
 
 int get_window_slot(const HarpoonManager *manager, Window id) {

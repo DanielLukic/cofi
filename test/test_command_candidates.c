@@ -40,6 +40,12 @@ gint get_window_slot(const HarpoonManager *manager, Window id) {
     (void)id;
     return -1;
 }
+char slot_for_payload(const SlotStore *store, const char *tab_id, const char *payload) {
+    (void)store;
+    (void)tab_id;
+    (void)payload;
+    return '\0';
+}
 gboolean tab_is_visible(AppData *app, TabMode tab) {
     (void)app;
     (void)tab;

@@ -7,27 +7,6 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-// Helper function to get harpoon config file path
-static const char* get_harpoon_config_path() {
-    static char path[512];
-    const char *home = getenv("HOME");
-    if (!home) {
-        home = ".";
-    }
-    
-    // Create .config directory if it doesn't exist
-    snprintf(path, sizeof(path), "%s/.config", home);
-    mkdir(path, 0755);
-    
-    // Create .config/cofi directory if it doesn't exist
-    snprintf(path, sizeof(path), "%s/.config/cofi", home);
-    mkdir(path, 0755);
-    
-    // Return full path to harpoon.json
-    snprintf(path, sizeof(path), "%s/.config/cofi/harpoon.json", home);
-    return path;
-}
-
 // Helper function to parse harpoon slot data from a line
 static void parse_harpoon_slot_line(const char *line, HarpoonSlot *temp_slot, int *slot) {
     if (strstr(line, "\"slot\":")) {
@@ -93,87 +72,98 @@ static void parse_harpoon_slot_line(const char *line, HarpoonSlot *temp_slot, in
     }
 }
 
+static void load_legacy_harpoon_slots(HarpoonManager *harpoon) {
+    FILE *file = fopen(harpoon->store.path, "r");
+    if (!file) {
+        return;
+    }
+
+    char line[1024];
+    int in_slots = 0;
+    int slot = -1;
+    HarpoonSlot temp_slot = {0};
+
+    while (fgets(line, sizeof(line), file)) {
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;
+
+        if (strstr(p, "\"harpoon_slots\":")) {
+            in_slots = 1;
+        } else if (strstr(p, "}")) {
+            if (in_slots && slot >= 0 && slot < MAX_HARPOON_SLOTS && temp_slot.id != 0) {
+                temp_slot.assigned = 1;
+                harpoon->slots[slot] = temp_slot;
+
+                char payload[SLOT_STORE_PAYLOAD_LEN];
+                serialize_window_slot_payload(&temp_slot, payload, sizeof(payload));
+                slot_assign(&harpoon->store, slot_key_from_index(slot),
+                            harpoon_tab_id(), payload);
+                slot = -1;
+                memset(&temp_slot, 0, sizeof(temp_slot));
+            }
+        }
+
+        if (in_slots) {
+            parse_harpoon_slot_line(p, &temp_slot, &slot);
+        }
+    }
+
+    fclose(file);
+}
+
+static void hydrate_window_slots_from_store(HarpoonManager *harpoon) {
+    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+        const char *payload = slot_lookup(&harpoon->store, harpoon_tab_id(),
+                                          slot_key_from_index(i));
+        if (!payload) {
+            continue;
+        }
+
+        HarpoonSlot slot;
+        if (deserialize_window_slot_payload(payload, &slot)) {
+            harpoon->slots[i] = slot;
+        }
+    }
+}
+
+static void sync_window_slots_to_store(const HarpoonManager *harpoon,
+                                       SlotStore *store) {
+    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+        if (!harpoon->slots[i].assigned) {
+            if (slot_lookup(store, harpoon_tab_id(), slot_key_from_index(i))) {
+                slot_clear(store, harpoon_tab_id(), slot_key_from_index(i));
+            }
+            continue;
+        }
+
+        char payload[SLOT_STORE_PAYLOAD_LEN];
+        serialize_window_slot_payload(&harpoon->slots[i], payload, sizeof(payload));
+        slot_assign(store, slot_key_from_index(i), harpoon_tab_id(), payload);
+    }
+}
+
 // Save harpoon slots to separate config file
 void save_harpoon_slots(const HarpoonManager *harpoon) {
     if (!harpoon) return;
-    
-    const char *path = get_harpoon_config_path();
-    FILE *file = fopen(path, "w");
-    if (!file) {
-        log_error("Failed to open harpoon config file for writing: %s", path);
-        return;
+
+    SlotStore *store = &((HarpoonManager *)harpoon)->store;
+    sync_window_slots_to_store(harpoon, store);
+    if (slot_save(store)) {
+        log_debug("Saved slot store to %s", store->path);
     }
-    
-    fprintf(file, "{\n");
-    fprintf(file, "  \"harpoon_slots\": [\n");
-    
-    int first = 1;
-    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-        if (harpoon->slots[i].assigned) {
-            if (!first) fprintf(file, ",\n");
-            first = 0;
-            
-            fprintf(file, "    {\n");
-            fprintf(file, "      \"slot\": %d,\n", i);
-            fprintf(file, "      \"window_id\": %lu,\n", harpoon->slots[i].id);
-            fprintf(file, "      \"title\": \"%s\",\n", harpoon->slots[i].title);
-            fprintf(file, "      \"class_name\": \"%s\",\n", harpoon->slots[i].class_name);
-            fprintf(file, "      \"instance\": \"%s\",\n", harpoon->slots[i].instance);
-            fprintf(file, "      \"type\": \"%s\"\n", harpoon->slots[i].type);
-            fprintf(file, "    }");
-        }
-    }
-    
-    fprintf(file, "\n  ]\n");
-    fprintf(file, "}\n");
-    
-    fclose(file);
-    log_debug("Saved harpoon slots to %s", path);
 }
 
 // Load harpoon slots from separate config file
 void load_harpoon_slots(HarpoonManager *harpoon) {
     if (!harpoon) return;
-    
-    const char *path = get_harpoon_config_path();
-    FILE *file = fopen(path, "r");
-    if (!file) {
-        if (errno != ENOENT) {
-            log_error("Failed to open harpoon config file for reading: %s", path);
-        }
+
+    gboolean loaded_generic = slot_load(&harpoon->store);
+    if (loaded_generic) {
+        hydrate_window_slots_from_store(harpoon);
+        log_info("Loaded slots from %s", harpoon->store.path);
         return;
     }
-    
-    // Parse the JSON file line by line (simple parser)
-    char line[1024];
-    int in_slots = 0;
-    int slot = -1;
-    HarpoonSlot temp_slot = {0};
-    
-    while (fgets(line, sizeof(line), file)) {
-        // Trim whitespace
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        
-        // Check for section markers
-        if (strstr(p, "\"harpoon_slots\":")) {
-            in_slots = 1;
-        } else if (strstr(p, "}")) {
-            if (in_slots && slot >= 0 && slot < MAX_HARPOON_SLOTS && temp_slot.id != 0) {
-                // End of slot entry, save it
-                harpoon->slots[slot] = temp_slot;
-                harpoon->slots[slot].assigned = 1;
-                slot = -1;
-                memset(&temp_slot, 0, sizeof(temp_slot));
-            }
-        }
-        
-        // Parse content if in slots section
-        if (in_slots) {
-            parse_harpoon_slot_line(p, &temp_slot, &slot);
-        }
-    }
-    
-    fclose(file);
-    log_info("Loaded harpoon slots from %s", path);
+
+    load_legacy_harpoon_slots(harpoon);
+    log_info("Loaded legacy harpoon slots from %s", harpoon->store.path);
 }

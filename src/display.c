@@ -18,6 +18,7 @@
 #include "display_pipeline.h"
 #include "tab_switching.h"
 #include "path_binaries.h"
+#include "slot_store.h"
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -734,8 +735,14 @@ static void render_sinks_item(gpointer context, gint index,
     AppData *app = (AppData *)context;
     int sink_index = app->sinks_mode.filtered_indices[index];
     SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
+    char slot = slot_for_payload(&app->harpoon.store, "sinks", sink->name);
 
     g_string_append(text, (index == selected_idx) ? "> " : "  ");
+    if (slot != '\0') {
+        g_string_append_printf(text, "[%c] ", slot);
+    } else {
+        g_string_append(text, "    ");
+    }
     g_string_append_printf(text, "[%c] %s\n",
                            sink->is_default ? '*' : ' ',
                            sink->description);
