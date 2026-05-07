@@ -798,41 +798,62 @@ static void format_run_display(AppData *app, GString *text, gint selected_idx) {
     render_display_pipeline(&request, text);
 }
 
+static void format_proc_mem_compact(long rss_kb, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (rss_kb < 1024) {
+        g_snprintf(out, out_size, "0M");
+        return;
+    }
+    double mib = (double)rss_kb / 1024.0;
+    if (mib < 1024.0) {
+        if (mib < 10.0) g_snprintf(out, out_size, "%.1fM", mib);
+        else g_snprintf(out, out_size, "%.0fM", mib);
+        return;
+    }
+    double gib = mib / 1024.0;
+    if (gib < 10.0) g_snprintf(out, out_size, "%.1fG", gib);
+    else g_snprintf(out, out_size, "%.0fG", gib);
+}
+
+static void format_proc_cpu_pct(double cpu_pct, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (cpu_pct < 0.0) cpu_pct = 0.0;
+    g_snprintf(out, out_size, "%.1f", cpu_pct);
+}
+
 static void render_proc_item(gpointer context, gint index,
                              gint selected_idx, GString *text) {
     AppData *app = (AppData *)context;
     int proc_index = app->proc_mode.filtered_indices[index];
     ProcEntry *entry = &app->proc_mode.procs[proc_index];
     const int pid_width = 8;
-    const int base_width = 16;
-    const int rss_width = 10;
+    const int cpu_width = 5;
+    const int mem_width = 6;
+    const int name_width = 16;
     int total_cols = get_display_columns(app);
-    int cmd_width = total_cols - 2 - pid_width - 1 - base_width - 1 - rss_width;
-    if (cmd_width < 12) {
-        cmd_width = 12;
-    }
-    if (cmd_width > 510) {
-        cmd_width = 510;
-    }
+    int cmd_width = total_cols - 2 - pid_width - 1 - cpu_width - 1 - mem_width - 1 - name_width - 1;
+    if (cmd_width < 12) cmd_width = 12;
+    if (cmd_width > 510) cmd_width = 510;
 
     char pid_col[16];
-    char base_col[32];
+    char cpu_val[16];
+    char cpu_col[16];
+    char mem_val[16];
+    char mem_col[16];
+    char name_col[32];
     char cmd_col[512];
-    char rss_col[32];
-    double rss_mb = (double)entry->rss_kb / 1024.0;
 
     g_snprintf(pid_col, sizeof(pid_col), "%*d", pid_width, (int)entry->pid);
-    fit_column_ellipsis(entry->basename, base_width, base_col);
+    format_proc_cpu_pct(entry->cpu_pct, cpu_val, sizeof(cpu_val));
+    g_snprintf(cpu_col, sizeof(cpu_col), "%*s", cpu_width, cpu_val);
+    format_proc_mem_compact(entry->rss_kb, mem_val, sizeof(mem_val));
+    g_snprintf(mem_col, sizeof(mem_col), "%*s", mem_width, mem_val);
+    fit_column_ellipsis(entry->basename, name_width, name_col);
     fit_column_ellipsis(entry->cmdline, cmd_width, cmd_col);
-    if (rss_mb >= 1000.0) {
-        g_snprintf(rss_col, sizeof(rss_col), "%*.1f MB", rss_width - 3, rss_mb);
-    } else {
-        g_snprintf(rss_col, sizeof(rss_col), "%*.0f MB", rss_width - 3, rss_mb);
-    }
 
     g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    g_string_append_printf(text, "%s %s %s %s\n",
-                           pid_col, base_col, cmd_col, rss_col);
+    g_string_append_printf(text, "%s %s %s %s %s\n",
+                           pid_col, cpu_col, mem_col, name_col, cmd_col);
 }
 
 static void format_proc_display(AppData *app, GString *text, gint selected_idx) {

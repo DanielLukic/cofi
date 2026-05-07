@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/types.h>
+#include <X11/Xlib.h>
 
 #define MAX_PROCS 512
 #define MAX_PROC_BASENAME_LEN 128
@@ -17,7 +18,13 @@ typedef struct {
     char basename[MAX_PROC_BASENAME_LEN];
     char cmdline[MAX_PROC_CMDLINE_LEN];
     long rss_kb;
+    double cpu_pct;
 } ProcEntry;
+
+typedef struct {
+    pid_t pid;
+    unsigned long long jiffies;
+} ProcCpuSample;
 
 typedef struct {
     ProcEntry procs[MAX_PROCS];
@@ -31,6 +38,9 @@ typedef struct {
     char snapshot[MAX_PROCS * 24];
     char last_error[256];
     guint refresh_timer_id;
+    ProcCpuSample cpu_samples[MAX_PROCS];
+    int cpu_sample_count;
+    unsigned long long prev_system_jiffies;
 } ProcMode;
 
 static inline void init_proc_mode(ProcMode *mode) {
@@ -45,6 +55,10 @@ void proc_refresh(AppData *app);
 void proc_filter(AppData *app, const char *filter);
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state);
 void proc_update_action_candidates(ProcMode *mode, const char *action_spec);
+void proc_format_mem_compact(long rss_kb, char *out, size_t out_size);
+void proc_format_cpu_pct(double cpu_pct, char *out, size_t out_size);
+void proc_fit_name_column(const char *name, char *out, size_t out_size);
+void proc_fit_cmd_column(const char *cmdline, int width, char *out, size_t out_size);
 
 #ifdef COFI_TESTING
 int proc_signal_from_modifiers_test_hook(guint state);
@@ -64,9 +78,16 @@ int proc_parse_stat_fields_test_hook(const char *stat_line,
                                      unsigned long long *utime,
                                      unsigned long long *stime,
                                      unsigned long long *vsize);
+void proc_format_mem_compact_test_hook(long rss_kb, char *out, size_t out_size);
+void proc_format_cpu_pct_test_hook(double cpu_pct, char *out, size_t out_size);
+void proc_format_name_column_test_hook(const char *name, char *out, size_t out_size);
+void proc_format_cmd_column_test_hook(const char *cmdline, int width, char *out, size_t out_size);
 void proc_apply_entries_test_hook(AppData *app,
                                   const ProcEntry *entries,
                                   int count);
+void proc_set_show_resolvers_test_hook(int (*window_for_pid)(AppData *, pid_t, Window *),
+                                       int (*parent_pid)(pid_t),
+                                       int max_depth);
 #endif
 
 #endif
