@@ -1,7 +1,8 @@
 #include "command_handlers_ui.h"
 
 #include "app_data.h"
-#include "calc_mode.h"
+#include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "command_definitions.h"
 #include "config.h"
 #include "detach_launch.h"
@@ -133,7 +134,7 @@ gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
 gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
                   const char *args __attribute__((unused))) {
     exit_command_mode(app);
-    enter_calc_mode(app);
+    cofi_enter_modal(app, cofi_get_provider_for_prefix('='));
     return FALSE;
 }
 

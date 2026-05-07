@@ -1,14 +1,9 @@
-#include "calc_mode.h"
 #include "calc_provider.h"
 
 #include "calc.h"
 #include "cofi_tab_provider.h"
 #include "app_data.h"
-#include "display.h"
 #include "log.h"
-#include "prefix_tabs.h"
-#include "selection.h"
-#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
@@ -66,6 +61,12 @@ static CofiActionStatus calc_on_command_args(AppData *app, const char *args) {
     return COFI_HANDLED_KEEP;
 }
 
+/* ---- on_enter: sets placeholder text for the calc tab ---- */
+
+static void calc_on_enter(AppData *app) {
+    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "expression");
+}
+
 /* ---- provider registration ---- */
 
 static const char *const s_calc_aliases[] = {"ca", NULL};
@@ -80,89 +81,12 @@ void calc_provider_register(void) {
     s_calc_provider.aliases      = s_calc_aliases;
     s_calc_provider.prefix_char  = '=';
     s_calc_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
-    s_calc_provider.row_count    = calc_row_count;
-    s_calc_provider.format_row   = calc_format_row;
-    s_calc_provider.match_string  = calc_match_string;
-    s_calc_provider.row_identity  = calc_row_identity;
-    s_calc_provider.on_enter_pressed = calc_on_enter_pressed;
-    s_calc_provider.on_command_args  = calc_on_command_args;
+    s_calc_provider.on_enter          = calc_on_enter;
+    s_calc_provider.row_count         = calc_row_count;
+    s_calc_provider.format_row        = calc_format_row;
+    s_calc_provider.match_string      = calc_match_string;
+    s_calc_provider.row_identity      = calc_row_identity;
+    s_calc_provider.on_enter_pressed  = calc_on_enter_pressed;
+    s_calc_provider.on_command_args   = calc_on_command_args;
     cofi_register_tab_provider(&s_calc_provider);
-}
-
-/* ---- mode lifecycle (moved from calc_mode.c) ---- */
-
-void enter_calc_mode(AppData *app) {
-    if (!app || !app->entry) return;
-
-    app->command_mode.state = CMD_MODE_CALC;
-    app->calc_mode.suppress_entry_change = TRUE;
-
-    surface_tab(app, TAB_CALC);
-
-    if (app->mode_indicator)
-        gtk_label_set_text(GTK_LABEL(app->mode_indicator), "=");
-
-    gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "expression");
-    app->calc_mode.suppress_entry_change = FALSE;
-
-    log_info("USER: Entered calc mode");
-}
-
-void exit_calc_mode(AppData *app) {
-    if (!app || !app->entry) return;
-    if (app->command_mode.state != CMD_MODE_CALC) return;
-
-    TabMode origin = app->prefix_origin_tab;
-    app->command_mode.state = CMD_MODE_NORMAL;
-    app->tab_visibility[TAB_CALC] = TAB_VIS_HIDDEN;
-    clear_prefix_tab_claim(app);
-
-    if (app->mode_indicator)
-        gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
-
-    app->calc_mode.suppress_entry_change = TRUE;
-    switch_to_tab(app, origin);
-    app->calc_mode.suppress_entry_change = FALSE;
-
-    log_info("USER: Exited calc mode");
-}
-
-gboolean handle_calc_key(GdkEventKey *event, AppData *app) {
-    if (!app || app->command_mode.state != CMD_MODE_CALC) return FALSE;
-
-    switch (event->keyval) {
-        case GDK_KEY_Escape: {
-            const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-            if (text[0] != '\0') {
-                app->calc_mode.suppress_entry_change = TRUE;
-                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-                app->calc_mode.suppress_entry_change = FALSE;
-                update_display(app);
-                return TRUE;
-            }
-            exit_calc_mode(app);
-            return TRUE;
-        }
-        case GDK_KEY_Return:
-        case GDK_KEY_KP_Enter: {
-            const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-            if (text[0] == '\0') return TRUE;
-            calc_on_enter_pressed(app, 0, 0, text);
-            app->calc_mode.suppress_entry_change = TRUE;
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            app->calc_mode.suppress_entry_change = FALSE;
-            if (app->calc_mode.count > 0)
-                app->selection.calc_index = app->calc_mode.count - 1;
-            update_scroll_position(app);
-            update_display(app);
-            return TRUE;
-        }
-        case GDK_KEY_Tab:
-        case GDK_KEY_ISO_Left_Tab:
-            exit_calc_mode(app);
-            return FALSE;
-        default:
-            return FALSE;
-    }
 }

@@ -713,10 +713,8 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     if (!p || !p->row_count || !p->format_row) return;
 
     int count = p->row_count(app);
-    if (count == 0) {
-        g_string_append(text, "  Type =<expr> and press Enter\n");
+    if (count == 0)
         return;
-    }
 
     int max_lines = get_max_display_lines_dynamic(app);
     int scroll = get_scroll_offset(app);
@@ -932,44 +930,47 @@ void update_display(AppData *app) {
     
     GString *text = g_string_new("");
     
-    // Format content based on current tab
-    switch (app->current_tab) {
-        case TAB_WINDOWS:
-            format_windows_display(app, text, selected_idx);
-            break;
-        case TAB_WORKSPACES:
-            format_workspaces_display(app, text, selected_idx);
-            break;
-        case TAB_HARPOON:
-            format_harpoon_display(app, text, selected_idx);
-            break;
-        case TAB_NAMES:
-            format_names_display(app, text, selected_idx);
-            break;
-        case TAB_CONFIG:
-            format_config_display_tab(app, text, selected_idx);
-            break;
-        case TAB_HOTKEYS:
-            format_hotkeys_display(app, text, selected_idx);
-            break;
-        case TAB_RULES:
-            format_rules_display(app, text, selected_idx);
-            break;
-        case TAB_APPS:
-            format_apps_display(app, text, selected_idx);
-            break;
-        case TAB_CALC:
-            format_provider_display(app, text, selected_idx, TAB_CALC);
-            break;
-        case TAB_SINKS:
-            format_sinks_display(app, text, selected_idx);
-            break;
-        case TAB_RUN:
-            format_run_display(app, text, selected_idx);
-            break;
-        case TAB_PROC:
-            format_proc_display(app, text, selected_idx);
-            break;
+    // Format content based on current tab: registered provider tabs first, then built-ins
+    if (cofi_get_provider_for_tab(app->current_tab)) {
+        format_provider_display(app, text, selected_idx, app->current_tab);
+    } else {
+        switch (app->current_tab) {
+            case TAB_WINDOWS:
+                format_windows_display(app, text, selected_idx);
+                break;
+            case TAB_WORKSPACES:
+                format_workspaces_display(app, text, selected_idx);
+                break;
+            case TAB_HARPOON:
+                format_harpoon_display(app, text, selected_idx);
+                break;
+            case TAB_NAMES:
+                format_names_display(app, text, selected_idx);
+                break;
+            case TAB_CONFIG:
+                format_config_display_tab(app, text, selected_idx);
+                break;
+            case TAB_HOTKEYS:
+                format_hotkeys_display(app, text, selected_idx);
+                break;
+            case TAB_RULES:
+                format_rules_display(app, text, selected_idx);
+                break;
+            case TAB_APPS:
+                format_apps_display(app, text, selected_idx);
+                break;
+            case TAB_SINKS:
+                format_sinks_display(app, text, selected_idx);
+                break;
+            case TAB_RUN:
+                format_run_display(app, text, selected_idx);
+                break;
+            case TAB_PROC:
+                format_proc_display(app, text, selected_idx);
+                break;
+            default:
+                break;
+        }
     }
     
     // Add tab header at the bottom

@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "calc.h"
-#include "calc_mode.h"
+#include "cofi_modal.h"
 #include "command_mode.h"
 #include "display.h"
 #include "filter.h"
@@ -109,8 +109,8 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         if (handle_run_key(event, app)) {
             return TRUE;
         }
-    } else if (app->command_mode.state == CMD_MODE_CALC) {
-        if (handle_calc_key(event, app)) {
+    } else if (app->command_mode.state == CMD_MODE_MODAL) {
+        if (cofi_handle_modal_key(app, event)) {
             return TRUE;
         }
     }

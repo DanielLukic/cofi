@@ -125,4 +125,6 @@ CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
 
 void cofi_registry_reset(void);
 
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix);
+
 #endif /* COFI_TAB_PROVIDER_H */

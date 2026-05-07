@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
 #include "../src/command_definitions.h"
 #include "../src/tiling.h"
 #include "../src/x11_utils.h"
@@ -40,8 +41,9 @@ void exit_command_mode(AppData *app) { (void)app; }
 void show_help_commands(AppData *app) { (void)app; }
 void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_tab; }
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
-void enter_calc_mode(AppData *app) { (void)app; }
-void exit_calc_mode(AppData *app) { (void)app; }
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
+void cofi_exit_modal(AppData *app) { (void)app; }
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
 gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 static int g_enter_run_mode_calls = 0;
 void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; g_enter_run_mode_calls++; }
