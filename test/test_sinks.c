@@ -24,7 +24,7 @@ static int fail = 0;
 #define ASSERT_STR_EQ(name, a, b) \
     ASSERT_TRUE(name, strcmp((a), (b)) == 0)
 
-static void test_parse_long_sinks_and_marks_default_first(void) {
+static void test_parse_long_sinks_and_marks_default_last(void) {
     const char *inventory =
         "Sink #41\n"
         "\tState: IDLE\n"
@@ -44,13 +44,15 @@ static void test_parse_long_sinks_and_marks_default_first(void) {
         sinks, MAX_SINKS, error, sizeof(error));
 
     ASSERT_EQ_INT("parse count", 2, count);
-    ASSERT_STR_EQ("default moved first",
-                  "bluez_output.11_22_33_44_55_66.1", sinks[0].name);
-    ASSERT_TRUE("default marked", sinks[0].is_default);
-    ASSERT_STR_EQ("description parsed", "Headphones WH-1000XM5", sinks[0].description);
-    ASSERT_TRUE("non-default unmarked", !sinks[1].is_default);
+    ASSERT_STR_EQ("non-default preserves pactl order",
+                  "alsa_output.pci-0000_0a_00.4.analog-stereo", sinks[0].name);
+    ASSERT_TRUE("non-default unmarked", !sinks[0].is_default);
     ASSERT_STR_EQ("non-default description parsed",
-                  "Built-in Audio Analog Stereo", sinks[1].description);
+                  "Built-in Audio Analog Stereo", sinks[0].description);
+    ASSERT_STR_EQ("default moved last",
+                  "bluez_output.11_22_33_44_55_66.1", sinks[1].name);
+    ASSERT_TRUE("default marked", sinks[1].is_default);
+    ASSERT_STR_EQ("description parsed", "Headphones WH-1000XM5", sinks[1].description);
     ASSERT_STR_EQ("no parser error", "", error);
 }
 
@@ -131,7 +133,7 @@ static void test_snapshot_tracks_order_and_default_only(void) {
 }
 
 int main(void) {
-    test_parse_long_sinks_and_marks_default_first();
+    test_parse_long_sinks_and_marks_default_last();
     test_parse_sink_name_with_spaces_and_unicode_description();
     test_missing_description_falls_back_to_name();
     test_empty_inventory_reports_no_sinks();
