@@ -13,8 +13,36 @@
 #include "log.h"
 #include "selection.h"
 #include "path_binaries.h"
-#include "sinks.h"
 #include "proc.h"
+
+static gboolean provider_tick(gpointer data) {
+    AppData *app = (AppData *)data;
+    if (!app) return FALSE;
+
+    const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+    if (!p || !p->on_tick || app->current_tab != app->provider_tick_tab) {
+        app->provider_tick_timer_id = 0;
+        return FALSE;
+    }
+
+    int provider_id = cofi_get_provider_id_for_tab(app->current_tab);
+    p->on_tick(app, cofi_next_generation(provider_id));
+    return TRUE;
+}
+
+static void stop_provider_tick(AppData *app) {
+    if (!app || app->provider_tick_timer_id == 0) return;
+    g_source_remove(app->provider_tick_timer_id);
+    app->provider_tick_timer_id = 0;
+}
+
+static void start_provider_tick(AppData *app, const CofiTabProvider *p) {
+    stop_provider_tick(app);
+    if (!app || !p || !p->on_tick || p->tick_interval_ms <= 0) return;
+    app->provider_tick_tab = (TabMode)p->tab_mode;
+    app->provider_tick_timer_id =
+        g_timeout_add((guint)p->tick_interval_ms, provider_tick, app);
+}
 
 static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
     for (int i = 1; i <= TAB_COUNT; i++) {
@@ -33,8 +61,10 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     }
 
     TabMode previous_tab = app->current_tab;
-    if (previous_tab == TAB_SINKS && target_tab != TAB_SINKS) {
-        sinks_stop_polling(app);
+    const CofiTabProvider *previous_provider = cofi_get_provider_for_tab(previous_tab);
+    if (previous_provider && previous_tab != target_tab) {
+        if (previous_provider->on_leave) previous_provider->on_leave(app);
+        stop_provider_tick(app);
     }
     if (previous_tab == TAB_PROC && target_tab != TAB_PROC) {
         proc_stop_polling(app);
@@ -68,9 +98,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
         filter_apps(app, "");
-    } else if (target_tab == TAB_SINKS) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Audio sinks...");
-        sinks_start_polling(app);
     } else if (target_tab == TAB_RUN) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
     } else if (target_tab == TAB_PROC) {
@@ -80,6 +107,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)
             p->on_enter(app);
+        start_provider_tick(app, p);
     }
 
     reset_selection(app);

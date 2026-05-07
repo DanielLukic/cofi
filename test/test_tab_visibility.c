@@ -158,6 +158,14 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     (void)tab_mode; return NULL;
 }
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
+    (void)command; return NULL;
+}
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+int cofi_next_generation(int provider_id) { (void)provider_id; return -1; }
+CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
+    (void)provider_id; (void)app; (void)args; return COFI_NO_OP;
+}
 
 void show_help_commands(AppData *app) {
     (void)app;

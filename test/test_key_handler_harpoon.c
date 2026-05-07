@@ -40,6 +40,8 @@ static int g_last_workspace_slot_query;
 static int g_sinks_assign_calls;
 static int g_sinks_switch_slot_calls;
 static char g_last_sinks_slot;
+static const CofiTabProvider *g_provider_for_tab;
+static CofiTabProvider g_sinks_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -55,7 +57,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (
 void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
 void sinks_switch_selected(AppData *app) { (void)app; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
-void sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; }
+gboolean sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; return TRUE; }
 gboolean sinks_assign_selected_slot(AppData *app, char slot_key) {
     (void)app;
     g_sinks_assign_calls++;
@@ -78,6 +80,34 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return g_provider_for_tab; }
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return 0; }
+int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
+
+static const char *test_sink_slot_payload(AppData *app, int raw_idx) {
+    (void)app; (void)raw_idx;
+    return "alsa_output.test";
+}
+
+static CofiActionStatus test_sink_slot_recall(AppData *app, const char *payload) {
+    (void)app;
+    if (payload && strcmp(payload, "alsa_output.test") == 0) {
+        g_sinks_switch_slot_calls++;
+        g_last_sinks_slot = 'a';
+        return COFI_HANDLED_HIDE;
+    }
+    return COFI_ACTION_ERROR;
+}
+
+static void enable_test_sinks_provider(void) {
+    memset(&g_sinks_provider, 0, sizeof(g_sinks_provider));
+    g_sinks_provider.tab_mode = TAB_SINKS;
+    g_sinks_provider.id = "sinks";
+    g_sinks_provider.slot_store_enabled = 1;
+    g_sinks_provider.slot_payload_for = test_sink_slot_payload;
+    g_sinks_provider.slot_recall = test_sink_slot_recall;
+    g_provider_for_tab = &g_sinks_provider;
+}
 
 WindowInfo *get_selected_window(AppData *app) {
     if (!app || app->filtered_count <= 0) return NULL;
@@ -88,6 +118,7 @@ WindowInfo *get_selected_window(AppData *app) {
 WorkspaceInfo *get_selected_workspace(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
+int get_selected_index(AppData *app) { (void)app; return 0; }
 void handle_repeat_key(AppData *app) { (void)app; }
 void store_last_windows_query(AppData *app, const char *query) { (void)app; (void)query; }
 
@@ -217,6 +248,7 @@ static void reset_captures(void) {
     g_sinks_assign_calls = 0;
     g_sinks_switch_slot_calls = 0;
     g_last_sinks_slot = '\0';
+    g_provider_for_tab = NULL;
 }
 
 static void init_app(AppData *app) {
@@ -384,13 +416,15 @@ static void test_ctrl_a_on_sinks_assigns_sink_slot(void) {
     reset_captures();
 
     app.current_tab = TAB_SINKS;
+    enable_test_sinks_provider();
 
     GdkEventKey ev = make_key(GDK_KEY_a, GDK_CONTROL_MASK);
     gboolean handled = handle_harpoon_assignment(&ev, &app);
 
     ASSERT_TRUE("Ctrl+a on Sinks handled", handled == TRUE);
-    ASSERT_TRUE("Ctrl+a on Sinks delegates to sink assignment",
-                g_sinks_assign_calls == 1 && g_last_sinks_slot == 'a');
+    ASSERT_TRUE("Ctrl+a on Sinks assigns provider slot",
+                strcmp(slot_lookup(&app.harpoon.store, "sinks", 'a'),
+                       "alsa_output.test") == 0);
 }
 
 static void test_alt_a_on_sinks_switches_sink_slot(void) {
@@ -399,6 +433,8 @@ static void test_alt_a_on_sinks_switches_sink_slot(void) {
     reset_captures();
 
     app.current_tab = TAB_SINKS;
+    slot_assign(&app.harpoon.store, 'a', "sinks", "alsa_output.test");
+    enable_test_sinks_provider();
 
     GdkEventKey ev = make_key(GDK_KEY_a, GDK_MOD1_MASK);
     gboolean handled = handle_harpoon_workspace_switching(&ev, &app);

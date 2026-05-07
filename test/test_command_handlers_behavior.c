@@ -44,7 +44,11 @@ void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
 void cofi_exit_modal(AppData *app) { (void)app; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
-gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) { (void)command; return NULL; }
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
+    (void)provider_id; (void)app; (void)args; return COFI_NO_OP;
+}
 static int g_enter_run_mode_calls = 0;
 void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; g_enter_run_mode_calls++; }
 

@@ -7,11 +7,9 @@
 #ifndef COFI_SINKS_PARSER_TEST
 #include "app_data.h"
 #include "display.h"
-#include "harpoon_config.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
-#include "slot_store.h"
 #include "window_lifecycle.h"
 #endif
 
@@ -183,40 +181,6 @@ void sinks_filter(AppData *app, const char *filter) {
     }
 }
 
-static gboolean sinks_poll_tick(gpointer data) {
-    AppData *app = (AppData *)data;
-    if (!app || app->current_tab != TAB_SINKS) {
-        if (app) {
-            app->sinks_mode.refresh_timer_id = 0;
-        }
-        return FALSE;
-    }
-
-    sinks_refresh_async(app);
-    return TRUE;
-}
-
-void sinks_start_polling(AppData *app) {
-    if (!app) {
-        return;
-    }
-
-    sinks_refresh_async(app);
-    if (app->sinks_mode.refresh_timer_id == 0) {
-        app->sinks_mode.refresh_timer_id =
-            g_timeout_add(1500, sinks_poll_tick, app);
-    }
-}
-
-void sinks_stop_polling(AppData *app) {
-    if (!app || app->sinks_mode.refresh_timer_id == 0) {
-        return;
-    }
-
-    g_source_remove(app->sinks_mode.refresh_timer_id);
-    app->sinks_mode.refresh_timer_id = 0;
-}
-
 static void apply_refresh_result(AppData *app,
                                  const char *default_sink,
                                  const char *inventory) {
@@ -227,9 +191,9 @@ static void apply_refresh_result(AppData *app,
     char snapshot[sizeof(mode->snapshot)];
 
     selected_name[0] = '\0';
-    if (app->selection.sinks_index >= 0 &&
-        app->selection.sinks_index < mode->filtered_count) {
-        int selected_raw = mode->filtered_indices[app->selection.sinks_index];
+    if (app->selection.provider_index >= 0 &&
+        app->selection.provider_index < mode->filtered_count) {
+        int selected_raw = mode->filtered_indices[app->selection.provider_index];
         if (selected_raw >= 0 && selected_raw < mode->sink_count) {
             safe_copy(selected_name, sizeof(selected_name),
                       mode->sinks[selected_raw].name);
@@ -256,13 +220,13 @@ static void apply_refresh_result(AppData *app,
     }
 
     sinks_filter(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
-    app->selection.sinks_index = 0;
-    app->selection.sinks_scroll_offset = 0;
+    app->selection.provider_index = 0;
+    app->selection.provider_scroll_offset = 0;
     if (selected_name[0] != '\0') {
         for (int i = 0; i < mode->filtered_count; i++) {
             int raw_index = mode->filtered_indices[i];
             if (strcmp(mode->sinks[raw_index].name, selected_name) == 0) {
-                app->selection.sinks_index = i;
+                app->selection.provider_index = i;
                 break;
             }
         }
@@ -357,9 +321,9 @@ static void on_set_default_done(GObject *source, GAsyncResult *result,
     hide_window(app);
 }
 
-void sinks_switch_name(AppData *app, const char *sink_name) {
+gboolean sinks_switch_name(AppData *app, const char *sink_name) {
     if (!app || !sink_name || sink_name[0] == '\0') {
-        return;
+        return FALSE;
     }
 
     g_autoptr(GError) error = NULL;
@@ -370,62 +334,13 @@ void sinks_switch_name(AppData *app, const char *sink_name) {
     if (!process) {
         set_error(&app->sinks_mode, error ? error->message : "Unable to spawn pactl");
         update_display(app);
-        return;
+        return FALSE;
     }
 
     g_subprocess_communicate_utf8_async(process, NULL, NULL,
                                         on_set_default_done, app);
     g_object_unref(process);
-}
-
-void sinks_switch_selected(AppData *app) {
-    if (!app || app->selection.sinks_index < 0 ||
-        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
-        return;
-    }
-
-    int sink_index = app->sinks_mode.filtered_indices[app->selection.sinks_index];
-    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
-    sinks_switch_name(app, sink->name);
-}
-
-gboolean sinks_assign_selected_slot(AppData *app, char slot_key) {
-    if (!app || app->selection.sinks_index < 0 ||
-        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
-        return FALSE;
-    }
-
-    int sink_index = app->sinks_mode.filtered_indices[app->selection.sinks_index];
-    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
-    const char *current = slot_lookup(&app->harpoon.store, "sinks", slot_key);
-    if (current && strcmp(current, sink->name) == 0) {
-        slot_clear(&app->harpoon.store, "sinks", slot_key);
-        log_info("Unassigned sink '%s' from slot %c", sink->description, slot_key);
-    } else {
-        char old_slot = slot_for_payload(&app->harpoon.store, "sinks", sink->name);
-        if (old_slot != '\0') {
-            slot_clear(&app->harpoon.store, "sinks", old_slot);
-        }
-        slot_assign(&app->harpoon.store, slot_key, "sinks", sink->name);
-        log_info("Assigned sink '%s' to slot %c", sink->description, slot_key);
-    }
-
-    save_harpoon_slots(&app->harpoon);
-    update_display(app);
     return TRUE;
 }
 
-gboolean sinks_switch_slot(AppData *app, char slot_key) {
-    if (!app) {
-        return FALSE;
-    }
-
-    const char *sink_name = slot_lookup(&app->harpoon.store, "sinks", slot_key);
-    if (!sink_name) {
-        return FALSE;
-    }
-
-    sinks_switch_name(app, sink_name);
-    return TRUE;
-}
 #endif

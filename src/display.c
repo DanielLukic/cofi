@@ -716,6 +716,14 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     if (count == 0)
         return;
 
+    int provider_id = cofi_get_provider_id_for_tab(tab_mode);
+    int raw_map[1024];
+    int map_count = count < 1024 ? count : 1024;
+    for (int i = 0; i < map_count; i++) {
+        raw_map[i] = i;
+    }
+    cofi_set_filtered_map(provider_id, raw_map, map_count);
+
     int max_lines = get_max_display_lines_dynamic(app);
     int scroll = get_scroll_offset(app);
     int end = scroll + max_lines;
@@ -727,6 +735,16 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         p->format_row(app, i, &row);
 
         g_string_append(text, (i == selected_idx) ? "> " : "  ");
+        if (p->slot_store_enabled && p->slot_payload_for &&
+            (row.row_flags & COFI_ROW_SLOTTABLE)) {
+            const char *payload = p->slot_payload_for(app, i);
+            char slot = slot_for_payload(&app->harpoon.store, p->id, payload);
+            if (slot != '\0') {
+                g_string_append_printf(text, "[%c] ", slot);
+            } else {
+                g_string_append(text, "    ");
+            }
+        }
         for (int c = 0; c < row.cell_count; c++) {
             const char *t = row.cells[c].text ? row.cells[c].text : "";
             int w = row.cells[c].width_hint;
@@ -740,55 +758,6 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         }
         g_string_append_c(text, '\n');
     }
-}
-
-static void render_sinks_item(gpointer context, gint index,
-                              gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    int sink_index = app->sinks_mode.filtered_indices[index];
-    SinkEntry *sink = &app->sinks_mode.sinks[sink_index];
-    char slot = slot_for_payload(&app->harpoon.store, "sinks", sink->name);
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    if (slot != '\0') {
-        g_string_append_printf(text, "[%c] ", slot);
-    } else {
-        g_string_append(text, "    ");
-    }
-    g_string_append_printf(text, "[%c] %s\n",
-                           sink->is_default ? '*' : ' ',
-                           sink->description);
-}
-
-static void format_sinks_display(AppData *app, GString *text, gint selected_idx) {
-    if (app->sinks_mode.last_error[0] != '\0') {
-        g_string_append_printf(text, "  %s\n", app->sinks_mode.last_error);
-    }
-
-    if (app->sinks_mode.sink_count == 0) {
-        if (app->sinks_mode.last_error[0] == '\0') {
-            g_string_append(text, "  Loading sinks...\n");
-        }
-        return;
-    }
-
-    if (app->sinks_mode.filtered_count == 0) {
-        g_string_append(text, "No matching audio sinks found\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->sinks_mode.filtered_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_sinks_item;
-
-    render_display_pipeline(&request, text);
 }
 
 static void render_run_item(gpointer context, gint index,
@@ -958,9 +927,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_APPS:
                 format_apps_display(app, text, selected_idx);
-                break;
-            case TAB_SINKS:
-                format_sinks_display(app, text, selected_idx);
                 break;
             case TAB_RUN:
                 format_run_display(app, text, selected_idx);

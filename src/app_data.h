@@ -247,6 +247,8 @@ typedef struct AppData {
     char daemon_socket_path[COFI_SOCKET_PATH_MAX]; // Bound unix socket path
     GIOChannel *daemon_socket_channel;      // GLib channel for daemon socket watcher
     guint daemon_socket_watch_id;           // GLib watch id for daemon socket
+    guint provider_tick_timer_id;           // Generic provider tick source
+    TabMode provider_tick_tab;              // Tab owning provider_tick_timer_id
 
     // Overlay state management
     gboolean overlay_active;                // Whether any overlay is currently shown

@@ -86,6 +86,7 @@ static char g_last_filter_apps[64];
 static int g_reset_selection_calls;
 static int g_update_display_calls;
 static int g_run_entry_changed_calls;
+static const CofiTabProvider *g_provider_for_tab;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
@@ -188,6 +189,15 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix;
     return NULL;
 }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    (void)tab_mode;
+    return g_provider_for_tab;
+}
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return 0; }
+int cofi_filtered_to_raw(int provider_id, int filtered_idx) {
+    (void)provider_id;
+    return filtered_idx;
+}
 
 WindowInfo *get_selected_window(AppData *app) {
     if (!app || app->current_tab != TAB_WINDOWS || app->filtered_count <= 0) return NULL;
@@ -223,6 +233,10 @@ void move_selection_down(AppData *app) {
             app->selection.window_index = app->filtered_count - 1;
         }
     }
+}
+
+int get_selected_index(AppData *app) {
+    return app ? app->selection.window_index : 0;
 }
 
 void store_last_windows_query(AppData *app, const char *query) {
@@ -264,7 +278,7 @@ void apps_launch(const AppEntry *entry) {
 
 void sinks_switch_selected(AppData *app) { (void)app; g_sinks_switch_calls++; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
-void sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; }
+gboolean sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; return TRUE; }
 gboolean sinks_assign_selected_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {

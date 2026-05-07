@@ -28,6 +28,8 @@ static int tests_passed = 0;
 /* ---- stubs required by tab_switching.c and cofi_modal.c (routing tests) ---- */
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+int cofi_next_generation(int provider_id) { (void)provider_id; return -1; }
 void filter_windows(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
 void reset_selection(AppData *app) { (void)app; }

@@ -75,9 +75,6 @@ void reset_selection(AppData *app) {
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         app->selection.provider_index = 0;
         app->selection.provider_scroll_offset = 0;
-    } else if (app->current_tab == TAB_SINKS) {
-        app->selection.sinks_index = 0;
-        app->selection.sinks_scroll_offset = 0;
     } else if (app->current_tab == TAB_RUN) {
         app->selection.run_index = 0;
         app->selection.run_scroll_offset = 0;
@@ -134,8 +131,6 @@ int get_selected_index(AppData *app) {
         return app->selection.apps_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         return app->selection.provider_index;
-    } else if (app->current_tab == TAB_SINKS) {
-        return app->selection.sinks_index;
     } else if (app->current_tab == TAB_RUN) {
         return app->selection.run_index;
     } else if (app->current_tab == TAB_PROC) {
@@ -275,20 +270,7 @@ void move_selection_up(AppData *app) {
             return;
         }
     }
-    if (app->current_tab == TAB_SINKS) {
-        if (app->sinks_mode.filtered_count > 0) {
-            if (app->selection.sinks_index < app->sinks_mode.filtered_count - 1) {
-                app->selection.sinks_index++;
-            } else {
-                app->selection.sinks_index = 0;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Sink[%d] '%s'",
-                     app->selection.sinks_index,
-                     app->sinks_mode.sinks[app->sinks_mode.filtered_indices[app->selection.sinks_index]].name);
-        }
-    } else if (app->current_tab == TAB_RUN) {
+    if (app->current_tab == TAB_RUN) {
         if (app->run_mode.history_count > 0) {
             if (app->selection.run_index < app->run_mode.history_count - 1) {
                 app->selection.run_index++;
@@ -445,20 +427,7 @@ void move_selection_down(AppData *app) {
             return;
         }
     }
-    if (app->current_tab == TAB_SINKS) {
-        if (app->sinks_mode.filtered_count > 0) {
-            if (app->selection.sinks_index > 0) {
-                app->selection.sinks_index--;
-            } else {
-                app->selection.sinks_index = app->sinks_mode.filtered_count - 1;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Sink[%d] '%s'",
-                     app->selection.sinks_index,
-                     app->sinks_mode.sinks[app->sinks_mode.filtered_indices[app->selection.sinks_index]].name);
-        }
-    } else if (app->current_tab == TAB_RUN) {
+    if (app->current_tab == TAB_RUN) {
         if (app->run_mode.history_count > 0) {
             if (app->selection.run_index > 0) {
                 app->selection.run_index--;
@@ -591,8 +560,6 @@ int get_scroll_offset(AppData *app) {
             return app->selection.rules_scroll_offset;
         case TAB_APPS:
             return app->selection.apps_scroll_offset;
-        case TAB_SINKS:
-            return app->selection.sinks_scroll_offset;
         case TAB_PROC:
             return app->selection.proc_scroll_offset;
         default:
@@ -630,9 +597,6 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_APPS:
             app->selection.apps_scroll_offset = offset;
-            break;
-        case TAB_SINKS:
-            app->selection.sinks_scroll_offset = offset;
             break;
         case TAB_PROC:
             app->selection.proc_scroll_offset = offset;
@@ -677,9 +641,6 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_APPS:
             total_count = app->filtered_apps_count;
-            break;
-        case TAB_SINKS:
-            total_count = app->sinks_mode.filtered_count;
             break;
         case TAB_PROC:
             total_count = app->proc_mode.filtered_count;
@@ -783,11 +744,14 @@ void validate_selection(AppData *app) {
         app->selection.apps_index = app->filtered_apps_count - 1;
     }
 
-    if (app->current_tab == TAB_SINKS && app->sinks_mode.filtered_count > 0 &&
-        app->selection.sinks_index >= app->sinks_mode.filtered_count) {
-        app->selection.sinks_index = app->sinks_mode.filtered_count - 1;
-    } else if (app->current_tab == TAB_SINKS && app->sinks_mode.filtered_count <= 0) {
-        app->selection.sinks_index = 0;
+    const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+    if (provider && provider->row_count) {
+        int count = provider->row_count(app);
+        if (count > 0 && app->selection.provider_index >= count) {
+            app->selection.provider_index = count - 1;
+        } else if (count <= 0) {
+            app->selection.provider_index = 0;
+        }
     }
 
     if (app->current_tab == TAB_PROC && app->proc_mode.filtered_count > 0 &&

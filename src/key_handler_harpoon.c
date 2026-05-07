@@ -1,18 +1,20 @@
 #include "key_handler_harpoon.h"
 
 #include "config.h"
+#include "cofi_tab_provider.h"
 #include "display.h"
 #include "harpoon.h"
 #include "harpoon_config.h"
 #include "log.h"
 #include "selection.h"
-#include "sinks.h"
 #include "slot_store.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
 #include "workspace_slots.h"
 #include "x11_events.h"
 #include "x11_utils.h"
+
+#include <string.h>
 
 static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
     if (event->keyval >= GDK_KEY_0 && event->keyval <= GDK_KEY_9) {
@@ -43,8 +45,7 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
 }
 
 gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
-    if (!(event->state & GDK_CONTROL_MASK) ||
-        (app->current_tab != TAB_WINDOWS && app->current_tab != TAB_SINKS)) {
+    if (!(event->state & GDK_CONTROL_MASK)) {
         return FALSE;
     }
 
@@ -53,8 +54,32 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
-    if (app->current_tab == TAB_SINKS) {
-        return sinks_assign_selected_slot(app, slot_key_from_index(slot));
+    const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+    if (provider && provider->slot_store_enabled && provider->slot_payload_for) {
+        int provider_id = cofi_get_provider_id_for_tab(app->current_tab);
+        int selected = get_selected_index(app);
+        int raw = cofi_filtered_to_raw(provider_id, selected);
+        if (raw < 0) raw = selected;
+        const char *payload = provider->slot_payload_for(app, raw);
+        if (!payload || payload[0] == '\0') return FALSE;
+        char slot_key = slot_key_from_index(slot);
+        const char *current = slot_lookup(&app->harpoon.store, provider->id, slot_key);
+        if (current && strcmp(current, payload) == 0) {
+            slot_clear(&app->harpoon.store, provider->id, slot_key);
+        } else {
+            char old_slot = slot_for_payload(&app->harpoon.store, provider->id, payload);
+            if (old_slot != '\0') {
+                slot_clear(&app->harpoon.store, provider->id, old_slot);
+            }
+            slot_assign(&app->harpoon.store, slot_key, provider->id, payload);
+        }
+        save_harpoon_slots(&app->harpoon);
+        update_display(app);
+        return TRUE;
+    }
+
+    if (app->current_tab != TAB_WINDOWS) {
+        return FALSE;
     }
 
     if (app->filtered_count == 0) {
@@ -95,6 +120,21 @@ gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
+    const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+    if (provider && provider->slot_store_enabled && provider->slot_recall) {
+        const char *payload = slot_lookup(&app->harpoon.store, provider->id,
+                                          slot_key_from_index(slot));
+        if (!payload) {
+            log_warn("No %s slot assigned for %c", provider->id,
+                     slot_key_from_index(slot));
+            return TRUE;
+        }
+        CofiActionStatus status = provider->slot_recall(app, payload);
+        if (status == COFI_HANDLED_HIDE) hide_window(app);
+        else if (status == COFI_ACTION_ERROR) update_display(app);
+        return TRUE;
+    }
+
     if (slot >= 1 && slot <= 9) {
         if (app->config.digit_slot_mode == DIGIT_MODE_WORKSPACES) {
             int workspace_num = slot - 1;
@@ -124,10 +164,6 @@ gboolean handle_harpoon_workspace_switching(GdkEventKey *event, AppData *app) {
             }
             return FALSE;
         }
-    }
-
-    if (app->current_tab == TAB_SINKS) {
-        return sinks_switch_slot(app, slot_key_from_index(slot));
     }
 
     if (app->current_tab == TAB_WINDOWS) {

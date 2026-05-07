@@ -99,6 +99,8 @@ int  cofi_register_tab_provider(const CofiTabProvider *p);
 
 const CofiTabProvider *cofi_get_provider(int provider_id);
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode);
+const CofiTabProvider *cofi_get_provider_for_command(const char *command);
+int  cofi_get_provider_id_for_tab(int tab_mode);
 int  cofi_provider_count(void);
 
 /* === Filtered→raw mapping (core populates after each filter pass) === */
