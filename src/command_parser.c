@@ -28,6 +28,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "mw",      {"max", "maximize-window", NULL},             NULL },
     { "pw",      {"pull-window", "p", NULL},                   NULL },
     { "rw",      {"rename-workspace", NULL},                     NULL },
+    { "run",     {"r", NULL},                                      NULL },
     { "sinks",   {"sink", NULL},                                  NULL },
     { "sb",      {"skip-taskbar", NULL},                         "+-" },
     { "set",     {NULL},                                           NULL },

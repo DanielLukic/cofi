@@ -16,6 +16,7 @@ void init_selection(AppData *app) {
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
     app->selection.sinks_index = 0;
+    app->selection.run_index = 0;
 
     // Initialize scroll offsets
     app->selection.window_scroll_offset = 0;
@@ -27,6 +28,7 @@ void init_selection(AppData *app) {
     app->selection.rules_scroll_offset = 0;
     app->selection.apps_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
+    app->selection.run_scroll_offset = 0;
 
     log_debug("Selection initialized");
 }
@@ -73,9 +75,12 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_SINKS) {
         app->selection.sinks_index = 0;
         app->selection.sinks_scroll_offset = 0;
+    } else if (app->current_tab == TAB_RUN) {
+        app->selection.run_index = 0;
+        app->selection.run_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks", "run"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -125,6 +130,8 @@ int get_selected_index(AppData *app) {
         return app->selection.calc_index;
     } else if (app->current_tab == TAB_SINKS) {
         return app->selection.sinks_index;
+    } else if (app->current_tab == TAB_RUN) {
+        return app->selection.run_index;
     }
 
     return 0;
@@ -267,6 +274,17 @@ void move_selection_up(AppData *app) {
                      app->selection.sinks_index,
                      app->sinks_mode.sinks[app->sinks_mode.filtered_indices[app->selection.sinks_index]].name);
         }
+    } else if (app->current_tab == TAB_RUN) {
+        if (app->run_mode.history_count > 0) {
+            if (app->selection.run_index < app->run_mode.history_count - 1) {
+                app->selection.run_index++;
+            } else {
+                app->selection.run_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Run[%d]", app->selection.run_index);
+        }
     }
 }
 
@@ -406,6 +424,17 @@ void move_selection_down(AppData *app) {
             log_info("USER: Selection DOWN -> Sink[%d] '%s'",
                      app->selection.sinks_index,
                      app->sinks_mode.sinks[app->sinks_mode.filtered_indices[app->selection.sinks_index]].name);
+        }
+    } else if (app->current_tab == TAB_RUN) {
+        if (app->run_mode.history_count > 0) {
+            if (app->selection.run_index > 0) {
+                app->selection.run_index--;
+            } else {
+                app->selection.run_index = app->run_mode.history_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Run[%d]", app->selection.run_index);
         }
     }
 }

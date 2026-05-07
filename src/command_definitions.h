@@ -203,6 +203,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
+        .primary = "run",
+        .aliases = {"r", NULL},
+        .handler = cmd_run,
+        .description = "Switch to run mode",
+        .help_format = "run, r",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "set",
         .aliases = {NULL},
         .handler = cmd_set_config,

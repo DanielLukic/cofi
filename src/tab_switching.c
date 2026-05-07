@@ -68,12 +68,14 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_SINKS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Audio sinks...");
         sinks_start_polling(app);
+    } else if (target_tab == TAB_RUN) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
     }
 
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -123,7 +125,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     }
 
     TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run"};
 
     if (direction < 0) {
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
