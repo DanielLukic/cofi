@@ -67,7 +67,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (
 void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
 void sinks_switch_selected(AppData *app) { (void)app; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
-void sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; }
+gboolean sinks_switch_name(AppData *app, const char *sink_name) { (void)app; (void)sink_name; return TRUE; }
 gboolean sinks_assign_selected_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 gboolean sinks_switch_slot(AppData *app, char slot_key) { (void)app; (void)slot_key; return FALSE; }
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) { (void)app; (void)state; return TRUE; }
@@ -80,11 +80,15 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 WorkspaceInfo *get_selected_workspace(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
+int get_selected_index(AppData *app) { (void)app; return 0; }
 void handle_repeat_key(AppData *app) { (void)app; }
 void store_last_windows_query(AppData *app, const char *query) { (void)app; (void)query; }
 void set_workspace_switch_state(int state) { (void)state; }

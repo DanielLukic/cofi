@@ -4,6 +4,7 @@
 
 #include "calc.h"
 #include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "command_mode.h"
 #include "display.h"
 #include "filter.h"
@@ -16,7 +17,6 @@
 #include "repeat_action.h"
 #include "run_mode.h"
 #include "selection.h"
-#include "sinks.h"
 #include "proc.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
@@ -33,9 +33,11 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 update_display(app);
                 return TRUE;
             }
-            if (app->current_tab == TAB_SINKS) {
-                switch_to_tab(app, TAB_WINDOWS);
-                app->tab_visibility[TAB_SINKS] = TAB_VIS_HIDDEN;
+            const CofiTabProvider *esc_provider = cofi_get_provider_for_tab(app->current_tab);
+            if (esc_provider) {
+                TabMode origin = app->prefix_origin_tab;
+                app->tab_visibility[(TabMode)esc_provider->tab_mode] = TAB_VIS_HIDDEN;
+                switch_to_tab(app, origin);
                 return TRUE;
             }
             if (app->current_tab == TAB_PROC) {
@@ -65,16 +67,31 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     apps_launch(entry);
                     hide_window(app);
                 }
-            } else if (app->current_tab == TAB_SINKS) {
-                sinks_switch_selected(app);
             } else if (app->current_tab == TAB_PROC) {
                 proc_signal_selected_with_modifiers(app, event->state);
             } else {
-                WorkspaceInfo *ws = get_selected_workspace(app);
-                if (ws) {
-                    log_info("USER: ENTER pressed -> Switching to workspace %d: %s", ws->id, ws->name);
-                    switch_to_desktop(app->display, ws->id);
-                    hide_window(app);
+                const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+                if (p && p->on_enter_pressed) {
+                    int provider_id = cofi_get_provider_id_for_tab(app->current_tab);
+                    int selected = get_selected_index(app);
+                    int raw = cofi_filtered_to_raw(provider_id, selected);
+                    if (raw < 0) raw = selected;
+                    CofiActionStatus status = p->on_enter_pressed(
+                        app, selected, raw, gtk_entry_get_text(GTK_ENTRY(app->entry)));
+                    if (status == COFI_HANDLED_HIDE) {
+                        hide_window(app);
+                    } else if (status == COFI_HANDLED_KEEP ||
+                               status == COFI_HANDLED_REFRESH ||
+                               status == COFI_ACTION_ERROR) {
+                        update_display(app);
+                    }
+                } else {
+                    WorkspaceInfo *ws = get_selected_workspace(app);
+                    if (ws) {
+                        log_info("USER: ENTER pressed -> Switching to workspace %d: %s", ws->id, ws->name);
+                        switch_to_desktop(app->display, ws->id);
+                        hide_window(app);
+                    }
                 }
             }
             return TRUE;
@@ -213,10 +230,13 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_rules(app, text);
     } else if (app->current_tab == TAB_APPS) {
         filter_apps(app, text);
-    } else if (app->current_tab == TAB_SINKS) {
-        sinks_filter(app, text);
     } else if (app->current_tab == TAB_PROC) {
         proc_filter(app, text);
+    } else {
+        const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
+        if (p && p->on_query_changed) {
+            p->on_query_changed(app, text);
+        }
     }
 
     if (app->current_tab != TAB_PROC) {

@@ -125,6 +125,8 @@ void init_app_data(AppData *app) {
     }
     app->daemon_socket_watch_id = 0;
     app->daemon_socket_channel = NULL;
+    app->provider_tick_timer_id = 0;
+    app->provider_tick_tab = TAB_WINDOWS;
 }
 
 void init_x11_connection(AppData *app) {
