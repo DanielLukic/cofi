@@ -13,6 +13,7 @@
 #include "selection.h"
 #include "path_binaries.h"
 #include "sinks.h"
+#include "proc.h"
 
 static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
     for (int i = 1; i <= TAB_COUNT; i++) {
@@ -33,6 +34,9 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     TabMode previous_tab = app->current_tab;
     if (previous_tab == TAB_SINKS && target_tab != TAB_SINKS) {
         sinks_stop_polling(app);
+    }
+    if (previous_tab == TAB_PROC && target_tab != TAB_PROC) {
+        proc_stop_polling(app);
     }
 
     app->current_tab = target_tab;
@@ -70,12 +74,15 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         sinks_start_polling(app);
     } else if (target_tab == TAB_RUN) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
+    } else if (target_tab == TAB_PROC) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Processes...");
+        proc_start_polling(app);
     }
 
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
     log_debug("Switched to %s tab", tab_names[target_tab]);
 }
 
@@ -125,7 +132,7 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     }
 
     TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run"};
+    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
 
     if (direction < 0) {
         log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);

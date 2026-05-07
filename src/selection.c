@@ -17,6 +17,7 @@ void init_selection(AppData *app) {
     app->selection.selected_workspace_id = -1;
     app->selection.sinks_index = 0;
     app->selection.run_index = 0;
+    app->selection.proc_index = 0;
 
     // Initialize scroll offsets
     app->selection.window_scroll_offset = 0;
@@ -29,6 +30,7 @@ void init_selection(AppData *app) {
     app->selection.apps_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
     app->selection.run_scroll_offset = 0;
+    app->selection.proc_scroll_offset = 0;
 
     log_debug("Selection initialized");
 }
@@ -78,9 +80,12 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_RUN) {
         app->selection.run_index = 0;
         app->selection.run_scroll_offset = 0;
+    } else if (app->current_tab == TAB_PROC) {
+        app->selection.proc_index = 0;
+        app->selection.proc_scroll_offset = 0;
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks", "run"};
+    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks", "run", "proc"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
 
@@ -132,6 +137,8 @@ int get_selected_index(AppData *app) {
         return app->selection.sinks_index;
     } else if (app->current_tab == TAB_RUN) {
         return app->selection.run_index;
+    } else if (app->current_tab == TAB_PROC) {
+        return app->selection.proc_index;
     }
 
     return 0;
@@ -285,6 +292,19 @@ void move_selection_up(AppData *app) {
             update_display(app);
             log_info("USER: Selection UP -> Run[%d]", app->selection.run_index);
         }
+    } else if (app->current_tab == TAB_PROC) {
+        if (app->proc_mode.filtered_count > 0) {
+            if (app->selection.proc_index < app->proc_mode.filtered_count - 1) {
+                app->selection.proc_index++;
+            } else {
+                app->selection.proc_index = 0;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection UP -> Proc[%d] pid=%d",
+                     app->selection.proc_index,
+                     (int)app->proc_mode.procs[app->proc_mode.filtered_indices[app->selection.proc_index]].pid);
+        }
     }
 }
 
@@ -436,6 +456,19 @@ void move_selection_down(AppData *app) {
             update_display(app);
             log_info("USER: Selection DOWN -> Run[%d]", app->selection.run_index);
         }
+    } else if (app->current_tab == TAB_PROC) {
+        if (app->proc_mode.filtered_count > 0) {
+            if (app->selection.proc_index > 0) {
+                app->selection.proc_index--;
+            } else {
+                app->selection.proc_index = app->proc_mode.filtered_count - 1;
+            }
+            update_scroll_position(app);
+            update_display(app);
+            log_info("USER: Selection DOWN -> Proc[%d] pid=%d",
+                     app->selection.proc_index,
+                     (int)app->proc_mode.procs[app->proc_mode.filtered_indices[app->selection.proc_index]].pid);
+        }
     }
 }
 
@@ -549,6 +582,8 @@ int get_scroll_offset(AppData *app) {
             return app->selection.calc_scroll_offset;
         case TAB_SINKS:
             return app->selection.sinks_scroll_offset;
+        case TAB_PROC:
+            return app->selection.proc_scroll_offset;
         default:
             return 0;
     }
@@ -588,6 +623,9 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_SINKS:
             app->selection.sinks_scroll_offset = offset;
+            break;
+        case TAB_PROC:
+            app->selection.proc_scroll_offset = offset;
             break;
     }
 }
@@ -631,6 +669,9 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_SINKS:
             total_count = app->sinks_mode.filtered_count;
+            break;
+        case TAB_PROC:
+            total_count = app->proc_mode.filtered_count;
             break;
     }
 
@@ -730,5 +771,12 @@ void validate_selection(AppData *app) {
         app->selection.sinks_index = app->sinks_mode.filtered_count - 1;
     } else if (app->current_tab == TAB_SINKS && app->sinks_mode.filtered_count <= 0) {
         app->selection.sinks_index = 0;
+    }
+
+    if (app->current_tab == TAB_PROC && app->proc_mode.filtered_count > 0 &&
+        app->selection.proc_index >= app->proc_mode.filtered_count) {
+        app->selection.proc_index = app->proc_mode.filtered_count - 1;
+    } else if (app->current_tab == TAB_PROC && app->proc_mode.filtered_count <= 0) {
+        app->selection.proc_index = 0;
     }
 }

@@ -17,6 +17,7 @@
 #include "run_mode.h"
 #include "selection.h"
 #include "sinks.h"
+#include "proc.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
@@ -35,6 +36,11 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
             if (app->current_tab == TAB_SINKS) {
                 switch_to_tab(app, TAB_WINDOWS);
                 app->tab_visibility[TAB_SINKS] = TAB_VIS_HIDDEN;
+                return TRUE;
+            }
+            if (app->current_tab == TAB_PROC) {
+                switch_to_tab(app, app->prefix_origin_tab);
+                app->tab_visibility[TAB_PROC] = TAB_VIS_HIDDEN;
                 return TRUE;
             }
             log_debug("USER: ESCAPE pressed -> Closing cofi");
@@ -61,6 +67,8 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 }
             } else if (app->current_tab == TAB_SINKS) {
                 sinks_switch_selected(app);
+            } else if (app->current_tab == TAB_PROC) {
+                proc_signal_selected_with_modifiers(app, event->state);
             } else {
                 WorkspaceInfo *ws = get_selected_workspace(app);
                 if (ws) {
@@ -204,6 +212,8 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_apps(app, text);
     } else if (app->current_tab == TAB_SINKS) {
         sinks_filter(app, text);
+    } else if (app->current_tab == TAB_PROC) {
+        proc_filter(app, text);
     }
 
     reset_selection(app);

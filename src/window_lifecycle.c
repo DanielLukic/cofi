@@ -15,6 +15,7 @@
 #include "run_mode.h"
 #include "selection.h"
 #include "sinks.h"
+#include "proc.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
 #include "window_list.h"
@@ -114,6 +115,7 @@ void hide_window(AppData *app) {
     app->selection.workspace_scroll_offset = 0;
     app->selection.harpoon_scroll_offset = 0;
     sinks_stop_polling(app);
+    proc_stop_polling(app);
 
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);

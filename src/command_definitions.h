@@ -203,6 +203,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
+        .primary = "proc",
+        .aliases = {"ps", NULL},
+        .handler = cmd_proc,
+        .description = "Switch to process manager tab",
+        .help_format = "proc, ps",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "run",
         .aliases = {"r", NULL},
         .handler = cmd_run,

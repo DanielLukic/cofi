@@ -31,6 +31,8 @@ static int g_last_switched_desktop;
 static int g_apps_launch_calls;
 static const AppEntry *g_last_app_entry;
 static int g_sinks_switch_calls;
+static int g_proc_signal_calls;
+static guint g_last_proc_signal_state;
 static int g_workspace_switch_state;
 static int g_highlight_calls;
 static Window g_last_highlight_window;
@@ -257,6 +259,13 @@ void apps_launch(const AppEntry *entry) {
 
 void sinks_switch_selected(AppData *app) { (void)app; g_sinks_switch_calls++; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
+gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
+    (void)app;
+    g_proc_signal_calls++;
+    g_last_proc_signal_state = state;
+    return TRUE;
+}
+void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
 void switch_to_tab(AppData *app, TabMode target_tab) {
     app->current_tab = target_tab;
@@ -351,6 +360,8 @@ static void reset_captures(void) {
     g_apps_launch_calls = 0;
     g_last_app_entry = NULL;
     g_sinks_switch_calls = 0;
+    g_proc_signal_calls = 0;
+    g_last_proc_signal_state = 0;
     g_workspace_switch_state = 0;
     g_highlight_calls = 0;
     g_last_highlight_window = 0;
@@ -505,6 +516,20 @@ static void test_return_workspaces_switches_desktop_and_hides(void) {
     ASSERT_TRUE("Return on Workspaces switches selected workspace",
                 g_switch_calls == 1 && g_last_switched_desktop == 3);
     ASSERT_TRUE("Return on Workspaces hides window", g_hide_calls == 1 && app.window_visible == FALSE);
+}
+
+static void test_return_proc_routes_signal_by_modifier(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_PROC;
+
+    GdkEventKey ev = make_key(GDK_KEY_Return, GDK_SHIFT_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Return on Proc handled", handled == TRUE);
+    ASSERT_TRUE("Return on Proc routes to proc signal handler",
+                g_proc_signal_calls == 1 && g_last_proc_signal_state == GDK_SHIFT_MASK);
 }
 
 static void test_up_arrow_moves_selection(void) {
@@ -865,6 +890,7 @@ int main(int argc, char **argv) {
     test_return_windows_activates_selected_and_hides();
     test_return_apps_launches_selected_and_hides();
     test_return_workspaces_switches_desktop_and_hides();
+    test_return_proc_routes_signal_by_modifier();
     test_up_arrow_moves_selection();
     test_down_arrow_moves_selection();
     test_ctrl_k_matches_up_behavior();

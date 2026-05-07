@@ -19,6 +19,7 @@
 #include "rules.h"
 #include "apps.h"
 #include "sinks.h"
+#include "proc.h"
 #include "daemon_socket.h"
 #include "calc.h"
 
@@ -35,6 +36,7 @@ typedef enum {
     TAB_CALC,
     TAB_SINKS,
     TAB_RUN,
+    TAB_PROC,
     TAB_COUNT
 } TabMode;
 
@@ -114,6 +116,7 @@ typedef struct {
     int calc_index;                         // Selected index in calc history
     int sinks_index;                        // Selected index in sinks tab
     int run_index;                          // Selected index in run history
+    int proc_index;                         // Selected index in proc tab
 
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
@@ -127,6 +130,7 @@ typedef struct {
     int calc_scroll_offset;                // First visible item index for calc tab
     int sinks_scroll_offset;               // First visible item index for sinks tab
     int run_scroll_offset;                 // First visible item index for run tab
+    int proc_scroll_offset;                // First visible item index for proc tab
 } SelectionState;
 
 typedef struct AppData {
@@ -190,6 +194,7 @@ typedef struct AppData {
 
     // Sinks tab data
     SinksMode sinks_mode;
+    ProcMode proc_mode;
 
     // Edit state for harpoon
     struct {

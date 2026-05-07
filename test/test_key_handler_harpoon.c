@@ -51,6 +51,8 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (
 void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
 void sinks_switch_selected(AppData *app) { (void)app; }
 void sinks_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
+gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) { (void)app; (void)state; return TRUE; }
+void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
 void enter_command_mode(AppData *app) { (void)app; }
 void enter_run_mode(AppData *app, const char *prefill_command) { (void)app; (void)prefill_command; }

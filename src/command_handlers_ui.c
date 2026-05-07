@@ -142,6 +142,14 @@ gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
+                  const char *args __attribute__((unused))) {
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, TAB_PROC);
+    return FALSE;
+}
+
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
                  const char *args) {
     if (args && args[0] != '\0') {
