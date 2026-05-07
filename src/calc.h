@@ -16,7 +16,6 @@ typedef struct {
     CalcEntry entries[CALC_HISTORY_CAP];
     int count;
     char last_result[CALC_RESULT_LEN];   /* last numeric result, empty if last was error */
-    gboolean suppress_entry_change;
 } CalcMode;
 
 /* Evaluate raw_expr (after stripping leading '='). If starts with operator,

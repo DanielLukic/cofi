@@ -237,6 +237,7 @@ typedef struct AppData {
     CommandMode command_mode;               // Command mode state
     RunMode run_mode;                       // Run mode state
     CalcMode calc_mode;                     // Calculator tab state
+    gboolean suppress_entry_change;         // Modal-shared guard while programmatically updating entry text
     int start_in_command_mode;              // Whether to start in command mode (--command delegate)
     int start_in_run_mode;                  // Whether to start in run mode (--run delegate)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
