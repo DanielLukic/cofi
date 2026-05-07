@@ -91,6 +91,7 @@ static int parse_inventory(const char *inventory,
 
     g_strfreev(lines);
 
+    gboolean default_found = FALSE;
     for (int i = 0; i < count; i++) {
         out[i].is_default = default_name[0] != '\0' &&
             strcmp(out[i].name, default_name) == 0;
@@ -101,7 +102,15 @@ static int parse_inventory(const char *inventory,
         SinkEntry default_sink_entry = out[i];
         memmove(&out[i], &out[i + 1], sizeof(SinkEntry) * (count - i - 1));
         out[count - 1] = default_sink_entry;
+        default_found = TRUE;
         break;
+    }
+
+    int non_default_count = default_found ? count - 1 : count;
+    for (int left = 0, right = non_default_count - 1; left < right; left++, right--) {
+        SinkEntry temp = out[left];
+        out[left] = out[right];
+        out[right] = temp;
     }
 
     if (count == 0 && error_out && error_size > 0) {
