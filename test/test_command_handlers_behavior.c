@@ -29,9 +29,13 @@ static WindowStateAction last_window_state_action = WINDOW_STATE_TOGGLE;
 static Window last_window_state_window = 0;
 static char last_window_state_name[64] = {0};
 static int parse_hotkey_action = 0;
+static int hide_window_calls = 0;
 
 // --- shared stubs for handler dependencies ---
-void hide_window(AppData *app) { (void)app; }
+void hide_window(AppData *app) {
+    (void)app;
+    hide_window_calls++;
+}
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
     (void)app;
     dispatch_hotkey_mode_calls++;
@@ -45,6 +49,7 @@ static int g_enter_modal_calls_cmd = 0;
 static CofiTabProvider g_stub_run_provider;
 static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
+static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
 
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     (void)provider;
@@ -63,7 +68,7 @@ CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const 
     if (args && args[0] != '\0') {
         g_cmd_args_calls++;
         g_strlcpy(g_cmd_args_last, args, sizeof(g_cmd_args_last));
-        return COFI_HANDLED_HIDE;
+        return g_cmd_args_result;
     }
     return COFI_NO_OP;
 }
@@ -345,17 +350,22 @@ static void test_cmd_run_behavior(void) {
     if (!cmd) return;
 
     g_cmd_args_calls = 0;
+    hide_window_calls = 0;
+    g_cmd_args_result = COFI_HANDLED_HIDE;
     gboolean result = cmd->handler(&app, NULL, "xterm");
     ASSERT_TRUE("run with arg returns FALSE", result == FALSE);
     ASSERT_TRUE("run with arg dispatches to provider", g_cmd_args_calls == 1);
     ASSERT_TRUE("run with arg passes command string", strcmp(g_cmd_args_last, "xterm") == 0);
+    ASSERT_TRUE("run with arg hides after provider hide status", hide_window_calls == 1);
 
     g_cmd_args_calls = 0;
     g_enter_modal_calls_cmd = 0;
+    hide_window_calls = 0;
     result = cmd->handler(&app, NULL, "");
     ASSERT_TRUE("run without arg returns FALSE", result == FALSE);
     ASSERT_TRUE("run without arg does not dispatch args", g_cmd_args_calls == 0);
     ASSERT_TRUE("run without arg enters run modal", g_enter_modal_calls_cmd == 1);
+    ASSERT_TRUE("run without arg does not hide", hide_window_calls == 0);
 }
 
 int main(void) {

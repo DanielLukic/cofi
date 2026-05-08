@@ -36,7 +36,12 @@ static const char *run_row_identity(AppData *app, int raw_idx) {
 
 static void run_on_selection_changed(AppData *app, int filtered_idx) {
     if (!app || !app->entry) return;
-    if (filtered_idx < 0 || filtered_idx >= app->run_mode.history_count) return;
+    if (filtered_idx < 0 || filtered_idx >= app->run_mode.history_count) {
+        app->suppress_entry_change = TRUE;
+        gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+        app->suppress_entry_change = FALSE;
+        return;
+    }
     app->suppress_entry_change = TRUE;
     gtk_entry_set_text(GTK_ENTRY(app->entry), app->run_mode.history[filtered_idx]);
     gtk_editable_set_position(GTK_EDITABLE(app->entry), -1);

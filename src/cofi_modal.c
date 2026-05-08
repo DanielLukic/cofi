@@ -13,6 +13,8 @@ extern void hide_window(AppData *app);
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     if (!app || !app->entry || !provider) return;
 
+    if (app->current_tab != (TabMode)provider->tab_mode)
+        app->prefix_origin_tab = app->current_tab;
     app->command_mode.state = CMD_MODE_MODAL;
     /* spike: suppress_entry_change lives in calc_mode; generic modal uses it as a shared mutex */
     app->suppress_entry_change = TRUE;
