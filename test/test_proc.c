@@ -156,8 +156,8 @@ static int test_parent_pid(pid_t pid) {
 static void init_app(AppData *app) {
     memset(app, 0, sizeof(*app));
     app->current_tab = TAB_PROC;
-    app->selection.proc_index = 0;
-    app->selection.proc_scroll_offset = 0;
+    app->selection.provider_index = 0;
+    app->selection.provider_scroll_offset = 0;
     proc_set_kill_impl_test_hook(fake_kill);
     g_hide_calls = 0;
     g_kill_calls = 0;
@@ -203,7 +203,7 @@ static void test_selection_preserve_on_refresh(void) {
         make_proc(30, "gamma", "gamma --z", 800),
     };
     proc_apply_entries_test_hook(&app, first, 3);
-    app.selection.proc_index = 1; /* pid 20 */
+    app.selection.provider_index = 1; /* pid 20 */
     int display_calls_before = g_update_display_calls;
     int scroll_calls_before = g_update_scroll_calls;
 
@@ -214,7 +214,7 @@ static void test_selection_preserve_on_refresh(void) {
     };
     proc_apply_entries_test_hook(&app, second, 3);
 
-    ASSERT_TRUE("refresh preserves selection by pid", app.selection.proc_index == 1);
+    ASSERT_TRUE("refresh preserves selection by pid", app.selection.provider_index == 1);
     ASSERT_TRUE("unchanged snapshot skips repaint", g_update_display_calls == display_calls_before);
     ASSERT_TRUE("unchanged snapshot skips scroll update", g_update_scroll_calls == scroll_calls_before);
 }
@@ -230,12 +230,12 @@ static void test_selection_preserve_on_filter_narrowing(void) {
         make_proc(333, "charlie", "charlie drop", 300),
     };
     proc_apply_entries_test_hook(&app, entries, 3);
-    app.selection.proc_index = 1; /* pid 222 */
+    app.selection.provider_index = 1; /* pid 222 */
 
     proc_filter(&app, "br");
-    ASSERT_EQ_INT("narrowed filter keeps selected pid", 0, app.selection.proc_index);
+    ASSERT_EQ_INT("narrowed filter keeps selected pid", 0, app.selection.provider_index);
     ASSERT_EQ_INT("selected pid still 222", 222,
-                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.proc_index]].pid);
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.provider_index]].pid);
 }
 
 static void test_selection_resets_when_pid_filtered_out(void) {
@@ -249,11 +249,11 @@ static void test_selection_resets_when_pid_filtered_out(void) {
         make_proc(333, "charlie", "charlie keep", 300),
     };
     proc_apply_entries_test_hook(&app, entries, 3);
-    app.selection.proc_index = 1; /* pid 222 */
+    app.selection.provider_index = 1; /* pid 222 */
 
     proc_filter(&app, "char");
-    ASSERT_EQ_INT("selection resets when previous pid gone", 0, app.selection.proc_index);
-    ASSERT_EQ_INT("scroll resets when previous pid gone", 0, app.selection.proc_scroll_offset);
+    ASSERT_EQ_INT("selection resets when previous pid gone", 0, app.selection.provider_index);
+    ASSERT_EQ_INT("scroll resets when previous pid gone", 0, app.selection.provider_scroll_offset);
     ASSERT_EQ_INT("new first row is charlie", 333,
                   app.proc_mode.procs[app.proc_mode.filtered_indices[0]].pid);
 }
@@ -270,12 +270,12 @@ static void test_selection_preserve_while_typing_pipe_action(void) {
     };
     proc_apply_entries_test_hook(&app, entries, 3);
     proc_filter(&app, "claude$");
-    app.selection.proc_index = 1; /* second claude pid */
+    app.selection.provider_index = 1; /* second claude pid */
 
     proc_filter(&app, "claude$ | w");
-    ASSERT_EQ_INT("pipe action typing keeps selected pid", 1, app.selection.proc_index);
+    ASSERT_EQ_INT("pipe action typing keeps selected pid", 1, app.selection.provider_index);
     ASSERT_EQ_INT("selected pid remains second claude", 5002,
-                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.proc_index]].pid);
+                  app.proc_mode.procs[app.proc_mode.filtered_indices[app.selection.provider_index]].pid);
 }
 
 static void test_snapshot_ignores_cmdline_and_rss(void) {
@@ -476,7 +476,7 @@ static void test_selected_vs_all_scope(void) {
         make_proc(803, "beta", "beta", 100),
     };
     proc_apply_entries_test_hook(&app, entries, 3);
-    app.selection.proc_index = 1;
+    app.selection.provider_index = 1;
 
     ASSERT_EQ_INT("selected action success", 1, proc_execute_action_test_hook(&app, "alpha | k", 0));
     ASSERT_EQ_INT("selected action one kill", 1, g_kill_calls);
@@ -516,7 +516,7 @@ static void test_empty_filter_pipe_kill_selected(void) {
         make_proc(911, "beta", "beta two", 200),
     };
     proc_apply_entries_test_hook(&app, entries, 2);
-    app.selection.proc_index = 0;
+    app.selection.provider_index = 0;
     ASSERT_EQ_INT("empty filter pipe selected success", 1, proc_execute_action_test_hook(&app, " | k", 0));
     ASSERT_EQ_INT("empty filter pipe selected pid", 910, (int)g_killed_pids[0]);
 }

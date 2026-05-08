@@ -18,7 +18,6 @@ void init_selection(AppData *app) {
     app->selection.selected_workspace_id = -1;
     app->selection.provider_index = 0;
     app->selection.sinks_index = 0;
-    app->selection.proc_index = 0;
 
     // Initialize scroll offsets
     app->selection.window_scroll_offset = 0;
@@ -31,7 +30,6 @@ void init_selection(AppData *app) {
     app->selection.apps_scroll_offset = 0;
     app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
-    app->selection.proc_scroll_offset = 0;
 
     log_debug("Selection initialized");
 }
@@ -86,11 +84,6 @@ void reset_selection(AppData *app) {
         }
     }
 
-    if (app->current_tab == TAB_PROC) {
-        app->selection.proc_index = 0;
-        app->selection.proc_scroll_offset = 0;
-    }
-
     const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks", "run", "proc"};
     log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
 }
@@ -139,8 +132,6 @@ int get_selected_index(AppData *app) {
         return app->selection.apps_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         return app->selection.provider_index;
-    } else if (app->current_tab == TAB_PROC) {
-        return app->selection.proc_index;
     }
 
     return 0;
@@ -278,20 +269,6 @@ void move_selection_up(AppData *app) {
             return;
         }
     }
-    if (app->current_tab == TAB_PROC) {
-        if (app->proc_mode.filtered_count > 0) {
-            if (app->selection.proc_index < app->proc_mode.filtered_count - 1) {
-                app->selection.proc_index++;
-            } else {
-                app->selection.proc_index = 0;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Proc[%d] pid=%d",
-                     app->selection.proc_index,
-                     (int)app->proc_mode.procs[app->proc_mode.filtered_indices[app->selection.proc_index]].pid);
-        }
-    }
 }
 
 // Move selection down (increments index in display, moves down visually)
@@ -426,20 +403,6 @@ void move_selection_down(AppData *app) {
             return;
         }
     }
-    if (app->current_tab == TAB_PROC) {
-        if (app->proc_mode.filtered_count > 0) {
-            if (app->selection.proc_index > 0) {
-                app->selection.proc_index--;
-            } else {
-                app->selection.proc_index = app->proc_mode.filtered_count - 1;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Proc[%d] pid=%d",
-                     app->selection.proc_index,
-                     (int)app->proc_mode.procs[app->proc_mode.filtered_indices[app->selection.proc_index]].pid);
-        }
-    }
 }
 
 // Preserve current selection before filtering
@@ -548,8 +511,6 @@ int get_scroll_offset(AppData *app) {
             return app->selection.rules_scroll_offset;
         case TAB_APPS:
             return app->selection.apps_scroll_offset;
-        case TAB_PROC:
-            return app->selection.proc_scroll_offset;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
                 return app->selection.provider_scroll_offset;
@@ -585,9 +546,6 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_APPS:
             app->selection.apps_scroll_offset = offset;
-            break;
-        case TAB_PROC:
-            app->selection.proc_scroll_offset = offset;
             break;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
@@ -629,9 +587,6 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_APPS:
             total_count = app->filtered_apps_count;
-            break;
-        case TAB_PROC:
-            total_count = app->proc_mode.filtered_count;
             break;
         default: {
             const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -742,10 +697,4 @@ void validate_selection(AppData *app) {
         }
     }
 
-    if (app->current_tab == TAB_PROC && app->proc_mode.filtered_count > 0 &&
-        app->selection.proc_index >= app->proc_mode.filtered_count) {
-        app->selection.proc_index = app->proc_mode.filtered_count - 1;
-    } else if (app->current_tab == TAB_PROC && app->proc_mode.filtered_count <= 0) {
-        app->selection.proc_index = 0;
-    }
 }

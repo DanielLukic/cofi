@@ -34,6 +34,8 @@ static const AppEntry *g_last_app_entry;
 static int g_sinks_switch_calls;
 static int g_proc_signal_calls;
 static guint g_last_proc_signal_state;
+static int g_provider_enter_calls;
+static int g_provider_enter_modifier_state;
 static int g_workspace_switch_state;
 static int g_highlight_calls;
 static Window g_last_highlight_window;
@@ -260,6 +262,14 @@ gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
 }
 void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
+static CofiActionStatus mock_provider_enter_pressed(AppData *app, int filtered_idx, int raw_idx,
+                                                    const char *entry_text, int modifier_state) {
+    (void)app; (void)filtered_idx; (void)raw_idx; (void)entry_text;
+    g_provider_enter_calls++;
+    g_provider_enter_modifier_state = modifier_state;
+    return COFI_NO_OP;
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     app->current_tab = target_tab;
 }
@@ -355,6 +365,9 @@ static void reset_captures(void) {
     g_sinks_switch_calls = 0;
     g_proc_signal_calls = 0;
     g_last_proc_signal_state = 0;
+    g_provider_enter_calls = 0;
+    g_provider_enter_modifier_state = 0;
+    g_provider_for_tab = NULL;
     g_workspace_switch_state = 0;
     g_highlight_calls = 0;
     g_last_highlight_window = 0;
@@ -509,16 +522,22 @@ static void test_return_workspaces_switches_desktop_and_hides(void) {
 
 static void test_return_proc_routes_signal_by_modifier(void) {
     AppData app;
+    CofiTabProvider provider;
     init_app(&app);
     reset_captures();
     app.current_tab = TAB_PROC;
+    memset(&provider, 0, sizeof(provider));
+    provider.tab_mode = TAB_PROC;
+    provider.on_enter_pressed = mock_provider_enter_pressed;
+    g_provider_for_tab = &provider;
 
     GdkEventKey ev = make_key(GDK_KEY_Return, GDK_SHIFT_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("Return on Proc handled", handled == TRUE);
-    ASSERT_TRUE("Return on Proc routes to proc signal handler",
-                g_proc_signal_calls == 1 && g_last_proc_signal_state == GDK_SHIFT_MASK);
+    ASSERT_TRUE("Return on Proc routes to provider enter with modifiers",
+                g_provider_enter_calls == 1 &&
+                g_provider_enter_modifier_state == (int)GDK_SHIFT_MASK);
 }
 
 static void test_up_arrow_moves_selection(void) {

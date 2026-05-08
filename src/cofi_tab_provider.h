@@ -83,7 +83,7 @@ typedef struct CofiTabProvider {
     int  tick_interval_ms;
 
     CofiActionStatus (*on_enter_pressed)(AppData *, int filtered_idx, int raw_idx,
-                                         const char *entry_text);
+                                         const char *entry_text, int modifier_state);
     CofiActionStatus (*on_command_args)(AppData *, const char *args);
 
     const CofiPipeActionTable *pipe_actions;
@@ -120,7 +120,8 @@ int cofi_current_generation(int provider_id);
 int  cofi_call_row_count(int provider_id, AppData *app);
 CofiActionStatus cofi_call_on_enter_pressed(int provider_id, AppData *app,
                                              int filtered_idx, int raw_idx,
-                                             const char *entry_text);
+                                             const char *entry_text,
+                                             int modifier_state);
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
                                             const char *args);
 

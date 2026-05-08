@@ -79,7 +79,8 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
             int filtered_idx = app->selection.provider_index;
             int raw = cofi_filtered_to_raw(provider_id, filtered_idx);
             if (raw < 0) raw = filtered_idx;
-            CofiActionStatus status = p->on_enter_pressed(app, filtered_idx, raw, text ? text : "");
+            CofiActionStatus status = p->on_enter_pressed(
+                app, filtered_idx, raw, text ? text : "", (int)event->state);
             if (status == COFI_HANDLED_HIDE) {
                 cofi_exit_modal(app);
                 hide_window(app);

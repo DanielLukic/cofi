@@ -757,9 +757,9 @@ void proc_filter(AppData *app, const char *filter) {
     ProcMode *mode = &app->proc_mode;
     pid_t selected_pid = 0;
 
-    if (app->selection.proc_index >= 0 &&
-        app->selection.proc_index < mode->filtered_count) {
-        int selected_raw = mode->filtered_indices[app->selection.proc_index];
+    if (app->selection.provider_index >= 0 &&
+        app->selection.provider_index < mode->filtered_count) {
+        int selected_raw = mode->filtered_indices[app->selection.provider_index];
         if (selected_raw >= 0 && selected_raw < mode->proc_count) {
             selected_pid = mode->procs[selected_raw].pid;
         }
@@ -773,6 +773,11 @@ void proc_filter(AppData *app, const char *filter) {
     ProcPipeParts parts;
     split_filter_and_action(filter, &parts);
     proc_update_action_candidates(mode, parts.has_pipe ? parts.action : NULL);
+    app->command_mode.candidate_count = mode->action_candidate_count;
+    app->command_mode.candidate_highlight = mode->action_candidate_highlight;
+    for (int i = 0; i < 16; i++) {
+        app->command_mode.candidates[i] = mode->action_candidates[i];
+    }
 
     ProcMatchMode match_mode = PROC_MATCH_FUZZY;
     char normalized_filter[256];
@@ -851,21 +856,116 @@ void proc_filter(AppData *app, const char *filter) {
             int raw_index = mode->filtered_indices[i];
             if (raw_index >= 0 && raw_index < mode->proc_count &&
                 mode->procs[raw_index].pid == selected_pid) {
-                app->selection.proc_index = i;
+                app->selection.provider_index = i;
                 restored = TRUE;
                 break;
             }
         }
         if (!restored) {
-            app->selection.proc_index = 0;
-            app->selection.proc_scroll_offset = 0;
+            app->selection.provider_index = 0;
+            app->selection.provider_scroll_offset = 0;
         }
     } else {
-        app->selection.proc_index = 0;
-        app->selection.proc_scroll_offset = 0;
+        app->selection.provider_index = 0;
+        app->selection.provider_scroll_offset = 0;
     }
 
     update_scroll_position(app);
+}
+
+int proc_row_count(AppData *app) {
+    if (!app) return 0;
+    if (app->proc_mode.last_error[0] != '\0') return 1;
+    if (app->proc_mode.proc_count == 0) return 1;
+    if (app->proc_mode.filtered_count == 0) return 1;
+    return app->proc_mode.filtered_count;
+}
+
+static ProcEntry *proc_entry_at_visible(AppData *app, int visible_idx) {
+    if (!app || visible_idx < 0 || visible_idx >= app->proc_mode.filtered_count) {
+        return NULL;
+    }
+    int raw = app->proc_mode.filtered_indices[visible_idx];
+    if (raw < 0 || raw >= app->proc_mode.proc_count) {
+        return NULL;
+    }
+    return &app->proc_mode.procs[raw];
+}
+
+void proc_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
+    if (!out) return;
+    memset(out, 0, sizeof(*out));
+
+    static char pid_col[32];
+    static char cpu_col[32];
+    static char mem_col[32];
+    static char name_col[64];
+    static char cmd_col[512];
+
+    out->cell_count = 1;
+    out->cells[0].text = "Loading processes...";
+    out->row_flags = 0;
+
+    if (!app) return;
+    if (app->proc_mode.last_error[0] != '\0') {
+        out->cells[0].text = app->proc_mode.last_error;
+        out->row_flags = COFI_ROW_ERROR;
+        return;
+    }
+    if (app->proc_mode.proc_count == 0) {
+        return;
+    }
+    if (app->proc_mode.filtered_count == 0) {
+        out->cells[0].text = "No matching processes found";
+        return;
+    }
+
+    ProcEntry *entry = proc_entry_at_visible(app, visible_idx);
+    if (!entry) {
+        out->cells[0].text = "No matching processes found";
+        return;
+    }
+
+    char cpu_val[16];
+    char mem_val[16];
+    proc_format_cpu_pct(entry->cpu_pct, cpu_val, sizeof(cpu_val));
+    proc_format_mem_compact(entry->rss_kb, mem_val, sizeof(mem_val));
+    proc_fit_name_column(entry->basename, name_col, sizeof(name_col));
+    proc_fit_cmd_column(entry->cmdline, 64, cmd_col, sizeof(cmd_col));
+    g_snprintf(pid_col, sizeof(pid_col), "%8d", (int)entry->pid);
+    g_snprintf(cpu_col, sizeof(cpu_col), "%5s", cpu_val);
+    g_snprintf(mem_col, sizeof(mem_col), "%6s", mem_val);
+
+    out->cell_count = 5;
+    out->cells[0].text = pid_col;
+    out->cells[0].width_hint = 8;
+    out->cells[0].align = 1;
+    out->cells[1].text = cpu_col;
+    out->cells[1].width_hint = 5;
+    out->cells[1].align = 1;
+    out->cells[2].text = mem_col;
+    out->cells[2].width_hint = 6;
+    out->cells[2].align = 1;
+    out->cells[3].text = name_col;
+    out->cells[3].width_hint = 16;
+    out->cells[3].align = 0;
+    out->cells[4].text = cmd_col;
+    out->cells[4].width_hint = 0;
+    out->cells[4].align = 0;
+    out->row_flags = COFI_ROW_ACTIONABLE;
+}
+
+const char *proc_match_string(AppData *app, int visible_idx) {
+    ProcEntry *entry = proc_entry_at_visible(app, visible_idx);
+    return entry ? entry->cmdline : "";
+}
+
+const char *proc_row_identity(AppData *app, int visible_idx) {
+    static char id_buf[32];
+    ProcEntry *entry = proc_entry_at_visible(app, visible_idx);
+    if (!entry) return "";
+    g_snprintf(id_buf, sizeof(id_buf), "%d", (int)entry->pid);
+    return id_buf;
 }
 
 static void apply_entries(AppData *app, const ProcEntry *entries, int count,
@@ -874,9 +974,9 @@ static void apply_entries(AppData *app, const ProcEntry *entries, int count,
     char snapshot[sizeof(mode->snapshot)];
     pid_t selected_pid = -1;
 
-    if (app->selection.proc_index >= 0 &&
-        app->selection.proc_index < mode->filtered_count) {
-        int selected_raw = mode->filtered_indices[app->selection.proc_index];
+    if (app->selection.provider_index >= 0 &&
+        app->selection.provider_index < mode->filtered_count) {
+        int selected_raw = mode->filtered_indices[app->selection.provider_index];
         if (selected_raw >= 0 && selected_raw < mode->proc_count) {
             selected_pid = mode->procs[selected_raw].pid;
         }
@@ -900,13 +1000,13 @@ static void apply_entries(AppData *app, const ProcEntry *entries, int count,
     }
 
     proc_filter(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
-    app->selection.proc_index = 0;
-    app->selection.proc_scroll_offset = 0;
+    app->selection.provider_index = 0;
+    app->selection.provider_scroll_offset = 0;
     if (selected_pid > 0) {
         for (int i = 0; i < mode->filtered_count; i++) {
             int raw = mode->filtered_indices[i];
             if (mode->procs[raw].pid == selected_pid) {
-                app->selection.proc_index = i;
+                app->selection.provider_index = i;
                 break;
             }
         }
@@ -946,6 +1046,32 @@ void proc_stop_polling(AppData *app) {
     if (!app || app->proc_mode.refresh_timer_id == 0) return;
     g_source_remove(app->proc_mode.refresh_timer_id);
     app->proc_mode.refresh_timer_id = 0;
+}
+
+void proc_on_enter(AppData *app) {
+    if (!app || !app->entry) return;
+    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Processes...");
+    proc_start_polling(app);
+}
+
+void proc_on_leave(AppData *app) {
+    if (app) {
+        app->command_mode.candidate_count = 0;
+        app->command_mode.candidate_highlight = 0;
+        for (int i = 0; i < 16; i++) {
+            app->command_mode.candidates[i] = NULL;
+        }
+    }
+    proc_stop_polling(app);
+}
+
+void proc_on_query_changed(AppData *app, const char *query) {
+    proc_filter(app, query ? query : "");
+}
+
+void proc_on_tick(AppData *app, int generation) {
+    (void)generation;
+    proc_refresh(app);
 }
 
 static int signal_from_modifiers(guint state) {
@@ -1086,11 +1212,11 @@ static gboolean execute_proc_action(AppData *app, const char *entry_text, guint 
             update_display(app);
         }
     } else {
-        if (app->selection.proc_index < 0 ||
-            app->selection.proc_index >= app->proc_mode.filtered_count) {
+        if (app->selection.provider_index < 0 ||
+            app->selection.provider_index >= app->proc_mode.filtered_count) {
             return FALSE;
         }
-        int raw = app->proc_mode.filtered_indices[app->selection.proc_index];
+        int raw = app->proc_mode.filtered_indices[app->selection.provider_index];
         if (action_type == PROC_ACTION_SHOW) {
             if (show_single_target(app, raw, TRUE)) {
                 success_count = 1;
@@ -1123,6 +1249,10 @@ gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) {
         entry_text = gtk_entry_get_text(GTK_ENTRY(app->entry));
     }
     return execute_proc_action(app, entry_text, state);
+}
+
+gboolean proc_execute_action_with_modifiers(AppData *app, const char *entry_text, guint state) {
+    return execute_proc_action(app, entry_text ? entry_text : "", state);
 }
 
 #ifdef COFI_TESTING

@@ -109,10 +109,11 @@ int cofi_call_row_count(int provider_id, AppData *app) {
 
 CofiActionStatus cofi_call_on_enter_pressed(int provider_id, AppData *app,
                                              int filtered_idx, int raw_idx,
-                                             const char *entry_text) {
+                                             const char *entry_text,
+                                             int modifier_state) {
     const CofiTabProvider *p = cofi_get_provider(provider_id);
     if (!p || !p->on_enter_pressed) return COFI_NO_OP;
-    return p->on_enter_pressed(app, filtered_idx, raw_idx, entry_text);
+    return p->on_enter_pressed(app, filtered_idx, raw_idx, entry_text, modifier_state);
 }
 
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
