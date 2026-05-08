@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <X11/Xlib.h>
+#include "cofi_tab_provider.h"
 
 #define MAX_PROCS 512
 #define MAX_PROC_BASENAME_LEN 128
@@ -54,7 +55,16 @@ void proc_stop_polling(AppData *app);
 void proc_refresh(AppData *app);
 void proc_filter(AppData *app, const char *filter);
 gboolean proc_signal_selected_with_modifiers(AppData *app, guint state);
+gboolean proc_execute_action_with_modifiers(AppData *app, const char *entry_text, guint state);
 void proc_update_action_candidates(ProcMode *mode, const char *action_spec);
+int proc_row_count(AppData *app);
+void proc_format_row(AppData *app, int visible_idx, CofiRowCells *out);
+const char *proc_match_string(AppData *app, int visible_idx);
+const char *proc_row_identity(AppData *app, int visible_idx);
+void proc_on_enter(AppData *app);
+void proc_on_leave(AppData *app);
+void proc_on_query_changed(AppData *app, const char *query);
+void proc_on_tick(AppData *app, int generation);
 void proc_format_mem_compact(long rss_kb, char *out, size_t out_size);
 void proc_format_cpu_pct(double cpu_pct, char *out, size_t out_size);
 void proc_fit_name_column(const char *name, char *out, size_t out_size);

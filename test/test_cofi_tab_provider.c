@@ -26,8 +26,8 @@ static int mock_row_count_5(AppData *app) { (void)app; return 5; }
 static int mock_row_count_3(AppData *app) { (void)app; return 3; }
 
 static CofiActionStatus mock_enter_pressed(AppData *app, int fi, int ri,
-                                            const char *text) {
-    (void)app; (void)fi; (void)ri; (void)text;
+                                            const char *text, int modifier_state) {
+    (void)app; (void)fi; (void)ri; (void)text; (void)modifier_state;
     return COFI_HANDLED_KEEP;
 }
 
@@ -158,7 +158,7 @@ static void test_dispatch_helpers(void) {
 
     ASSERT_EQ("row_count dispatch=5", cofi_call_row_count(id, NULL), 5);
 
-    CofiActionStatus st = cofi_call_on_enter_pressed(id, NULL, 0, 0, "expr");
+    CofiActionStatus st = cofi_call_on_enter_pressed(id, NULL, 0, 0, "expr", 0);
     ASSERT_EQ("on_enter_pressed dispatch=KEEP", st, COFI_HANDLED_KEEP);
 
     ASSERT_EQ("row_count bad id=0", cofi_call_row_count(99, NULL), 0);
@@ -172,7 +172,7 @@ static void test_dispatch_helpers(void) {
     p2.tab_mode = 4;
     int id2 = cofi_register_tab_provider(&p2);
     ASSERT_EQ("no on_enter_pressed returns NO_OP",
-              cofi_call_on_enter_pressed(id2, NULL, 0, 0, ""), COFI_NO_OP);
+              cofi_call_on_enter_pressed(id2, NULL, 0, 0, "", 0), COFI_NO_OP);
 }
 
 static void test_multiple_providers_independent(void) {

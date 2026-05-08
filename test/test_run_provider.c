@@ -119,7 +119,7 @@ static void test_empty_enter_reexecutes_selected_history_without_dup(void) {
     int before_count = app.run_mode.history_count;
     reset_launch_capture();
 
-    CofiActionStatus status = p->on_enter_pressed(&app, 0, 0, "");
+    CofiActionStatus status = p->on_enter_pressed(&app, 0, 0, "", 0);
 
     ASSERT_TRUE("empty enter returns hide", status == COFI_HANDLED_HIDE);
     ASSERT_TRUE("empty enter launches selected history", g_detach_calls == 1);

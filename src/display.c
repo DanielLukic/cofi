@@ -34,12 +34,6 @@ static void format_candidate_strip(AppData *app, GString *output) {
     int candidate_count = app->command_mode.candidate_count;
     int highlight = app->command_mode.candidate_highlight;
 
-    if (app->current_tab == TAB_PROC) {
-        candidates = app->proc_mode.action_candidates;
-        candidate_count = app->proc_mode.action_candidate_count;
-        highlight = app->proc_mode.action_candidate_highlight;
-    }
-
     if (candidate_count == 0) {
         return;
     }
@@ -748,106 +742,26 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         for (int c = 0; c < row.cell_count; c++) {
             const char *t = row.cells[c].text ? row.cells[c].text : "";
             int w = row.cells[c].width_hint;
-            if (c == 0 && w > 0) {
-                char col[64];
-                fit_column(t, w < 63 ? w : 63, col);
-                g_string_append_printf(text, "%-*s", w, col);
+            if (c > 0) {
+                g_string_append_c(text, ' ');
+            }
+            if (w > 0) {
+                char col[256];
+                int fit = w < 255 ? w : 255;
+                fit_column(t, fit, col);
+                if (row.cells[c].align == 1) {
+                    g_string_append_printf(text, "%*s", w, col);
+                } else {
+                    g_string_append_printf(text, "%-*s", w, col);
+                }
             } else {
-                g_string_append_printf(text, "  %s", t);
+                g_string_append(text, t);
             }
         }
         g_string_append_c(text, '\n');
     }
 }
 
-
-static void format_proc_mem_compact(long rss_kb, char *out, size_t out_size) {
-    if (!out || out_size == 0) return;
-    if (rss_kb < 1024) {
-        g_snprintf(out, out_size, "0M");
-        return;
-    }
-    double mib = (double)rss_kb / 1024.0;
-    if (mib < 1024.0) {
-        if (mib < 10.0) g_snprintf(out, out_size, "%.1fM", mib);
-        else g_snprintf(out, out_size, "%.0fM", mib);
-        return;
-    }
-    double gib = mib / 1024.0;
-    if (gib < 10.0) g_snprintf(out, out_size, "%.1fG", gib);
-    else g_snprintf(out, out_size, "%.0fG", gib);
-}
-
-static void format_proc_cpu_pct(double cpu_pct, char *out, size_t out_size) {
-    if (!out || out_size == 0) return;
-    if (cpu_pct < 0.0) cpu_pct = 0.0;
-    g_snprintf(out, out_size, "%.1f", cpu_pct);
-}
-
-static void render_proc_item(gpointer context, gint index,
-                             gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    int proc_index = app->proc_mode.filtered_indices[index];
-    ProcEntry *entry = &app->proc_mode.procs[proc_index];
-    const int pid_width = 8;
-    const int cpu_width = 5;
-    const int mem_width = 6;
-    const int name_width = 16;
-    int total_cols = get_display_columns(app);
-    int cmd_width = total_cols - 2 - pid_width - 1 - cpu_width - 1 - mem_width - 1 - name_width - 1;
-    if (cmd_width < 12) cmd_width = 12;
-    if (cmd_width > 510) cmd_width = 510;
-
-    char pid_col[16];
-    char cpu_val[16];
-    char cpu_col[16];
-    char mem_val[16];
-    char mem_col[16];
-    char name_col[32];
-    char cmd_col[512];
-
-    g_snprintf(pid_col, sizeof(pid_col), "%*d", pid_width, (int)entry->pid);
-    format_proc_cpu_pct(entry->cpu_pct, cpu_val, sizeof(cpu_val));
-    g_snprintf(cpu_col, sizeof(cpu_col), "%*s", cpu_width, cpu_val);
-    format_proc_mem_compact(entry->rss_kb, mem_val, sizeof(mem_val));
-    g_snprintf(mem_col, sizeof(mem_col), "%*s", mem_width, mem_val);
-    fit_column_ellipsis(entry->basename, name_width, name_col);
-    fit_column_ellipsis(entry->cmdline, cmd_width, cmd_col);
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    g_string_append_printf(text, "%s %s %s %s %s\n",
-                           pid_col, cpu_col, mem_col, name_col, cmd_col);
-}
-
-static void format_proc_display(AppData *app, GString *text, gint selected_idx) {
-    if (app->proc_mode.last_error[0] != '\0') {
-        g_string_append_printf(text, "  %s\n", app->proc_mode.last_error);
-    }
-
-    if (app->proc_mode.proc_count == 0) {
-        if (app->proc_mode.last_error[0] == '\0') {
-            g_string_append(text, "  Loading processes...\n");
-        }
-        return;
-    }
-
-    if (app->proc_mode.filtered_count == 0) {
-        g_string_append(text, "No matching processes found\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->proc_mode.filtered_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_proc_item;
-    render_display_pipeline(&request, text);
-}
 
 // Update the text display with proper 5-column format like Go code
 void update_display(AppData *app) {
@@ -902,9 +816,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_APPS:
                 format_apps_display(app, text, selected_idx);
-                break;
-            case TAB_PROC:
-                format_proc_display(app, text, selected_idx);
                 break;
             default:
                 break;

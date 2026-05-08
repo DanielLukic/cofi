@@ -94,6 +94,7 @@ SOURCES = src/main.c \
           src/calc_provider.c \
           src/sinks_provider.c \
           src/run_provider.c \
+          src/proc_provider.c \
           src/cofi_modal.c \
           src/tinyexpr.c \
           src/cofi_tab_provider.c

@@ -95,9 +95,11 @@ static void sinks_on_tick(AppData *app, int generation) {
 
 static CofiActionStatus sinks_on_enter_pressed(AppData *app, int filtered_idx,
                                                 int raw_idx,
-                                                const char *entry_text) {
+                                                const char *entry_text,
+                                                int modifier_state) {
     (void)filtered_idx;
     (void)entry_text;
+    (void)modifier_state;
     SinkEntry *sink = sink_at_visible(app, raw_idx);
     if (!sink) return COFI_NO_OP;
     return sinks_switch_name(app, sink->name) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;

@@ -13,7 +13,6 @@
 #include "log.h"
 #include "selection.h"
 #include "path_binaries.h"
-#include "proc.h"
 
 static gboolean provider_tick(gpointer data) {
     AppData *app = (AppData *)data;
@@ -66,9 +65,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         if (previous_provider->on_leave) previous_provider->on_leave(app);
         stop_provider_tick(app);
     }
-    if (previous_tab == TAB_PROC && target_tab != TAB_PROC) {
-        proc_stop_polling(app);
-    }
 
     app->current_tab = target_tab;
     gtk_entry_set_text(GTK_ENTRY(app->entry), "");
@@ -98,9 +94,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
         filter_apps(app, "");
-    } else if (target_tab == TAB_PROC) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Processes...");
-        proc_start_polling(app);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)

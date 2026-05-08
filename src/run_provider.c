@@ -50,8 +50,10 @@ static void run_on_selection_changed(AppData *app, int filtered_idx) {
 
 static CofiActionStatus run_on_enter_pressed(AppData *app, int filtered_idx,
                                               int raw_idx,
-                                              const char *entry_text) {
+                                              const char *entry_text,
+                                              int modifier_state) {
     (void)filtered_idx;
+    (void)modifier_state;
     if (entry_text && entry_text[0] != '\0') {
         char command[256];
         if (extract_run_command(entry_text, command, sizeof(command))) {

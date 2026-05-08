@@ -39,9 +39,11 @@ static const char *calc_row_identity(AppData *app, int raw_idx) {
 
 static CofiActionStatus calc_on_enter_pressed(AppData *app, int filtered_idx,
                                                int raw_idx,
-                                               const char *entry_text) {
+                                               const char *entry_text,
+                                               int modifier_state) {
     (void)filtered_idx;
     (void)raw_idx;
+    (void)modifier_state;
     if (!entry_text || entry_text[0] == '\0') return COFI_NO_OP;
 
     char result[CALC_RESULT_LEN];

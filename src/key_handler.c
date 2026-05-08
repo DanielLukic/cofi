@@ -16,7 +16,6 @@
 #include "prefix_tabs.h"
 #include "repeat_action.h"
 #include "selection.h"
-#include "proc.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
@@ -37,11 +36,6 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 TabMode origin = app->prefix_origin_tab;
                 app->tab_visibility[(TabMode)esc_provider->tab_mode] = TAB_VIS_HIDDEN;
                 switch_to_tab(app, origin);
-                return TRUE;
-            }
-            if (app->current_tab == TAB_PROC) {
-                switch_to_tab(app, app->prefix_origin_tab);
-                app->tab_visibility[TAB_PROC] = TAB_VIS_HIDDEN;
                 return TRUE;
             }
             log_debug("USER: ESCAPE pressed -> Closing cofi");
@@ -66,8 +60,6 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     apps_launch(entry);
                     hide_window(app);
                 }
-            } else if (app->current_tab == TAB_PROC) {
-                proc_signal_selected_with_modifiers(app, event->state);
             } else {
                 const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
                 if (p && p->on_enter_pressed) {
@@ -76,7 +68,7 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     int raw = cofi_filtered_to_raw(provider_id, selected);
                     if (raw < 0) raw = selected;
                     CofiActionStatus status = p->on_enter_pressed(
-                        app, selected, raw, gtk_entry_get_text(GTK_ENTRY(app->entry)));
+                        app, selected, raw, gtk_entry_get_text(GTK_ENTRY(app->entry)), (int)event->state);
                     if (status == COFI_HANDLED_HIDE) {
                         hide_window(app);
                     } else if (status == COFI_HANDLED_KEEP ||
@@ -198,6 +190,7 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         log_debug("USER: Filter text changed -> '%s'", text);
     }
 
+    gboolean handled_by_provider = FALSE;
     if (app->current_tab == TAB_WINDOWS) {
         filter_windows(app, text);
     } else if (app->current_tab == TAB_WORKSPACES) {
@@ -214,16 +207,15 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_rules(app, text);
     } else if (app->current_tab == TAB_APPS) {
         filter_apps(app, text);
-    } else if (app->current_tab == TAB_PROC) {
-        proc_filter(app, text);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {
             p->on_query_changed(app, text);
+            handled_by_provider = TRUE;
         }
     }
 
-    if (app->current_tab != TAB_PROC) {
+    if (!handled_by_provider) {
         reset_selection(app);
     }
     update_display(app);

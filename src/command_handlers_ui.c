@@ -161,10 +161,19 @@ gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
 }
 
 gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
-                  const char *args __attribute__((unused))) {
+                  const char *args) {
     exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("proc");
+    if (!provider) {
+        show_error_in_display(app, "Proc provider not available.");
+        return FALSE;
+    }
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, TAB_PROC);
+    surface_tab(app, (TabMode)provider->tab_mode);
+    if (args && args[0] != '\0') {
+        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
+        cofi_call_on_command_args(provider_id, app, args);
+    }
     return FALSE;
 }
 
