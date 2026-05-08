@@ -760,31 +760,6 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     }
 }
 
-static void render_run_item(gpointer context, gint index,
-                             gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    g_string_append_printf(text, "%s\n", app->run_mode.history[index]);
-}
-
-static void format_run_display(AppData *app, GString *text, gint selected_idx) {
-    if (app->run_mode.history_count == 0) {
-        g_string_append(text, "  Type a command and press Enter\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->run_mode.history_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_run_item;
-    render_display_pipeline(&request, text);
-}
 
 static void format_proc_mem_compact(long rss_kb, char *out, size_t out_size) {
     if (!out || out_size == 0) return;
@@ -927,9 +902,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_APPS:
                 format_apps_display(app, text, selected_idx);
-                break;
-            case TAB_RUN:
-                format_run_display(app, text, selected_idx);
                 break;
             case TAB_PROC:
                 format_proc_display(app, text, selected_idx);

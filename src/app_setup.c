@@ -2,6 +2,7 @@
 #include "calc_provider.h"
 #include "path_binaries.h"
 #include "run_mode.h"
+#include "run_provider.h"
 #include "sinks_provider.h"
 
 #include <gdk/gdkx.h>
@@ -347,6 +348,7 @@ int run_cofi(int argc, char *argv[]) {
     init_app_data(&app);
     calc_provider_register();
     sinks_provider_register();
+    run_provider_register();
     init_x11_connection(&app);
 
     load_config(&app.config);

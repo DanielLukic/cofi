@@ -10,7 +10,6 @@
 #include "hotkey_config.h"
 #include "hotkeys.h"
 #include "log.h"
-#include "run_mode.h"
 #include "slot_store.h"
 #include "tab_switching.h"
 
@@ -171,19 +170,20 @@ gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
 
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
                  const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+    if (!provider) return FALSE;
+
     if (args && args[0] != '\0') {
-        char command[256];
-        if (extract_run_command(args, command, sizeof(command))) {
-            if (detach_launch_shell(command)) {
-                add_run_history_entry(&app->run_mode, command);
-                hide_window(app);
-            }
-        }
-        exit_command_mode(app);
+        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
+        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
+        if (status == COFI_HANDLED_HIDE)
+            hide_window(app);
         return FALSE;
     }
-    exit_command_mode(app);
-    enter_run_mode(app, NULL);
+    app->prefix_origin_tab = app->current_tab;
+    app->active_prefix_claim = '!';
+    cofi_enter_modal(app, provider);
     return FALSE;
 }
 

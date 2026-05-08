@@ -3,7 +3,6 @@
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
-#include "run_mode.h"
 
 static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
     if (!target_tab) {
@@ -69,7 +68,7 @@ void apply_prefix_tab_claim(AppData *app, const char *entry_text) {
             app->prefix_origin_tab = app->current_tab;
             app->active_prefix_claim = '!';
         }
-        enter_run_mode(app, entry_text);
+        cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
         return;
     }
 

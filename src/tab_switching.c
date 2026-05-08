@@ -98,8 +98,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
         apps_load();
         filter_apps(app, "");
-    } else if (target_tab == TAB_RUN) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
     } else if (target_tab == TAB_PROC) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Processes...");
         proc_start_polling(app);

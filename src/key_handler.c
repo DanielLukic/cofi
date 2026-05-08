@@ -15,7 +15,6 @@
 #include "overlay_manager.h"
 #include "prefix_tabs.h"
 #include "repeat_action.h"
-#include "run_mode.h"
 #include "selection.h"
 #include "proc.h"
 #include "tab_switching.h"
@@ -122,10 +121,6 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         if (handle_command_key(event, app)) {
             return TRUE;
         }
-    } else if (app->command_mode.state == CMD_MODE_RUN) {
-        if (handle_run_key(event, app)) {
-            return TRUE;
-        }
     } else if (app->command_mode.state == CMD_MODE_MODAL) {
         if (cofi_handle_modal_key(app, event)) {
             return TRUE;
@@ -139,8 +134,10 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
             return TRUE;
         }
         if (event->keyval == GDK_KEY_exclam) {
-            log_debug("USER: '!' pressed -> Entering run mode");
-            enter_run_mode(app, NULL);
+            log_debug("USER: '!' pressed -> Entering run modal");
+            app->prefix_origin_tab = app->current_tab;
+            app->active_prefix_claim = '!';
+            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
             return TRUE;
         }
     }
@@ -187,19 +184,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         update_display(app);
         return;
     }
-    if (app->command_mode.state == CMD_MODE_RUN) {
-        CommandModeState previous_state = app->command_mode.state;
-        handle_run_entry_changed(entry, app);
-        if (previous_state == CMD_MODE_RUN &&
-            app->command_mode.state == CMD_MODE_NORMAL &&
-            strlen(gtk_entry_get_text(entry)) == 0 &&
-            app->active_prefix_claim == '!') {
-            app->current_tab = app->prefix_origin_tab;
-            clear_prefix_tab_claim(app);
-        }
-        return;
-    }
-
     const char *text = gtk_entry_get_text(entry);
     apply_prefix_tab_claim(app, text);
     if (app->command_mode.state != CMD_MODE_NORMAL) {

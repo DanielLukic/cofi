@@ -7,12 +7,13 @@
 #include <gdk/gdkx.h>
 #include <X11/Xatom.h>
 
+#include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "command_mode.h"
 #include "daemon_socket.h"
 #include "display.h"
 #include "filter.h"
 #include "log.h"
-#include "run_mode.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -88,8 +89,8 @@ void daemon_socket_stop_monitor(AppData *app) {
 static void reset_interaction_modes(AppData *app) {
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);
-    } else if (app->command_mode.state == CMD_MODE_RUN) {
-        exit_run_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_MODAL) {
+        cofi_exit_modal(app);
     }
 }
 
@@ -168,10 +169,11 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
         case COFI_OPCODE_RUN:
             app->current_tab = TAB_WINDOWS;
             show_window(app);
-            if (app->command_mode.state == CMD_MODE_COMMAND) {
+            if (app->command_mode.state == CMD_MODE_COMMAND)
                 exit_command_mode(app);
-            }
-            enter_run_mode(app, NULL);
+            app->prefix_origin_tab = app->current_tab;
+            app->active_prefix_claim = '!';
+            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
             break;
         default:
             break;

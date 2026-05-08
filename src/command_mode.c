@@ -2,7 +2,8 @@
 #include "command_api.h"
 #include "display.h"
 #include "log.h"
-#include "run_mode.h"
+#include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "selection.h"
 #include "dynamic_display.h"
 #include "command_parse_defs.h"
@@ -503,9 +504,13 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
         case GDK_KEY_colon:
             return TRUE;
 
-        case GDK_KEY_exclam:
-            enter_run_mode(app, NULL);
+        case GDK_KEY_exclam: {
+            exit_command_mode(app);
+            app->prefix_origin_tab = app->current_tab;
+            app->active_prefix_claim = '!';
+            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
             return TRUE;
+        }
 
         case GDK_KEY_Tab:
         case GDK_KEY_ISO_Left_Tab:

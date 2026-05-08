@@ -5,7 +5,8 @@
 #include "filter.h"
 #include "key_handler.h"
 #include "log.h"
-#include "run_mode.h"
+#include "cofi_modal.h"
+#include "cofi_tab_provider.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -24,7 +25,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             case SHOW_MODE_RUN:
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                enter_run_mode(app, NULL);
+                cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
                 break;
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WORKSPACES;
@@ -47,8 +48,8 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
 
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);
-    } else if (app->command_mode.state == CMD_MODE_RUN) {
-        exit_run_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_MODAL) {
+        cofi_exit_modal(app);
     }
 
     switch (mode) {
@@ -86,11 +87,11 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             break;
 
         case SHOW_MODE_RUN:
-            if (app->command_mode.state == CMD_MODE_RUN) {
+            if (app->command_mode.state == CMD_MODE_MODAL) {
                 return;
             }
             app->current_tab = TAB_WINDOWS;
-            enter_run_mode(app, NULL);
+            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
             break;
 
         default:

@@ -4,6 +4,7 @@
 #include "../src/app_data.h"
 #include "../src/command_api.h"
 #include "../src/display_pipeline.h"
+#include "../src/cofi_tab_provider.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -14,7 +15,8 @@ static int tests_failed = 0;
 } while (0)
 
 void hide_window(AppData *app) { (void)app; }
-void enter_run_mode(AppData *app, const char *cmd) { (void)app; (void)cmd; }
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
+void cofi_exit_modal(AppData *app) { (void)app; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 char *generate_command_help_text(HelpFormat fmt) { (void)fmt; return NULL; }

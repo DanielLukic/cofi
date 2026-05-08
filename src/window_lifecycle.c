@@ -12,7 +12,7 @@
 #include "log.h"
 #include "named_window.h"
 #include "overlay_manager.h"
-#include "run_mode.h"
+#include "cofi_modal.h"
 #include "selection.h"
 #include "proc.h"
 #include "tab_switching.h"
@@ -38,9 +38,9 @@ gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *ap
         if (app->command_mode.state == CMD_MODE_COMMAND) {
             log_debug("Resetting command mode due to focus loss");
             exit_command_mode(app);
-        } else if (app->command_mode.state == CMD_MODE_RUN) {
-            log_debug("Resetting run mode due to focus loss");
-            exit_run_mode(app);
+        } else if (app->command_mode.state == CMD_MODE_MODAL) {
+            log_debug("Resetting modal mode due to focus loss");
+            cofi_exit_modal(app);
         }
     }
 
@@ -121,8 +121,8 @@ void hide_window(AppData *app) {
 
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         exit_command_mode(app);
-    } else if (app->command_mode.state == CMD_MODE_RUN) {
-        exit_run_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_MODAL) {
+        cofi_exit_modal(app);
     }
 
     if (app->mode_indicator) {
@@ -246,7 +246,7 @@ void show_window(AppData *app) {
         const char *indicator = ">";
         if (app->command_mode.state == CMD_MODE_COMMAND) {
             indicator = ":";
-        } else if (app->command_mode.state == CMD_MODE_RUN) {
+        } else if (app->command_mode.state == CMD_MODE_MODAL) {
             indicator = "!";
         }
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), indicator);

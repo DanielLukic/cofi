@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
 #include "../src/daemon_socket.h"
 
 static int pass = 0;
@@ -18,9 +19,7 @@ static int call_sequence = 0;
 static int show_window_sequence = 0;
 static int get_active_window_sequence = 0;
 static int enter_command_mode_sequence = 0;
-static int enter_run_mode_calls = 0;
 static int exit_command_mode_calls = 0;
-static int exit_run_mode_calls = 0;
 static int reset_selection_calls = 0;
 static int filter_windows_calls = 0;
 static int update_display_calls = 0;
@@ -56,19 +55,8 @@ void enter_command_mode(AppData *app) {
     app->command_mode.state = CMD_MODE_COMMAND;
 }
 
-void enter_run_mode(AppData *app, const char *prefill_command) {
-    (void)prefill_command;
-    enter_run_mode_calls++;
-    app->command_mode.state = CMD_MODE_RUN;
-}
-
 void exit_command_mode(AppData *app) {
     exit_command_mode_calls++;
-    app->command_mode.state = CMD_MODE_NORMAL;
-}
-
-void exit_run_mode(AppData *app) {
-    exit_run_mode_calls++;
     app->command_mode.state = CMD_MODE_NORMAL;
 }
 
@@ -149,6 +137,24 @@ int test_XFlush(Display *display) {
 #endif
 #define GTK_ENTRY(widget) ((GtkEntry *)(widget))
 
+static int cofi_enter_modal_calls = 0;
+static int cofi_exit_modal_calls = 0;
+
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
+    (void)provider;
+    cofi_enter_modal_calls++;
+    app->command_mode.state = CMD_MODE_MODAL;
+}
+void cofi_exit_modal(AppData *app) {
+    cofi_exit_modal_calls++;
+    app->command_mode.state = CMD_MODE_NORMAL;
+}
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+CofiActionStatus cofi_call_on_command_args(int id, AppData *app, const char *args) {
+    (void)id; (void)app; (void)args; return COFI_NO_OP;
+}
+
 #include "../src/daemon_socket_runtime.c"
 
 static void reset_mocks(void) {
@@ -159,9 +165,9 @@ static void reset_mocks(void) {
     show_window_sequence = 0;
     get_active_window_sequence = 0;
     enter_command_mode_sequence = 0;
-    enter_run_mode_calls = 0;
     exit_command_mode_calls = 0;
-    exit_run_mode_calls = 0;
+    cofi_enter_modal_calls = 0;
+    cofi_exit_modal_calls = 0;
     reset_selection_calls = 0;
     filter_windows_calls = 0;
     update_display_calls = 0;
@@ -272,7 +278,7 @@ static void test_run_opcode_dispatch(void) {
     ASSERT_TRUE("run opcode marks _NET_WM_USER_TIME", xchangeproperty_calls == 1);
     ASSERT_TRUE("run opcode sets property timestamp", user_time_property_value_at_set == fresh_focus_timestamp_stub);
     ASSERT_TRUE("run opcode exits command mode first", exit_command_mode_calls == 1);
-    ASSERT_TRUE("run opcode enters run mode", enter_run_mode_calls == 1);
+    ASSERT_TRUE("run opcode enters run modal", cofi_enter_modal_calls == 1);
 }
 
 int main(void) {
