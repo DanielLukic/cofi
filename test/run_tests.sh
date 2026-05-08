@@ -526,4 +526,59 @@ if [ -f test_calc ]; then
     fi
 fi
 
+if [ -f test_cofi_tab_provider ]; then
+    echo ""
+    echo "Running CofiTabProvider registry tests..."
+    ./test_cofi_tab_provider
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_cofi_modal ]; then
+    echo ""
+    echo "Running cofi_modal behavioral tests..."
+
+    test_exit=0
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_cofi_modal
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_cofi_modal
+            test_exit=$?
+        fi
+    else
+        ./test_cofi_modal
+        test_exit=$?
+    fi
+
+    if [ $test_exit -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_run_provider ]; then
+    echo ""
+    echo "Running run_provider behavioral tests..."
+
+    test_exit=0
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a ./test_run_provider
+        test_exit=$?
+
+        if [ $test_exit -ne 0 ]; then
+            ./test_run_provider
+            test_exit=$?
+        fi
+    else
+        ./test_run_provider
+        test_exit=$?
+    fi
+
+    if [ $test_exit -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 exit $overall_exit
