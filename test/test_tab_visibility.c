@@ -260,15 +260,6 @@ void enter_command_mode(AppData *app) {
     (void)app;
 }
 
-void enter_run_mode(AppData *app, const char *prefill_command) {
-    (void)app;
-    (void)prefill_command;
-}
-
-void exit_run_mode(AppData *app) {
-    (void)app;
-}
-
 void hide_window(AppData *app) { (void)app; }
 
 gboolean detach_launch_shell(const char *command) { (void)command; return TRUE; }

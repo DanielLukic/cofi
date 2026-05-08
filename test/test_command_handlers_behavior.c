@@ -41,16 +41,32 @@ void exit_command_mode(AppData *app) { (void)app; }
 void show_help_commands(AppData *app) { (void)app; }
 void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_tab; }
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
-void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
+static int g_enter_modal_calls_cmd = 0;
+static CofiTabProvider g_stub_run_provider;
+static int g_cmd_args_calls = 0;
+static char g_cmd_args_last[256] = {0};
+
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
+    (void)provider;
+    g_enter_modal_calls_cmd++;
+    if (app) app->command_mode.state = CMD_MODE_MODAL;
+}
 void cofi_exit_modal(AppData *app) { (void)app; }
-const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
+    if (prefix == '!') return &g_stub_run_provider;
+    return NULL;
+}
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) { (void)command; return NULL; }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
-    (void)provider_id; (void)app; (void)args; return COFI_NO_OP;
+    (void)provider_id; (void)app;
+    if (args && args[0] != '\0') {
+        g_cmd_args_calls++;
+        g_strlcpy(g_cmd_args_last, args, sizeof(g_cmd_args_last));
+        return COFI_HANDLED_HIDE;
+    }
+    return COFI_NO_OP;
 }
-static int g_enter_run_mode_calls = 0;
-void enter_run_mode(AppData *app, const char *prefill) { (void)app; (void)prefill; g_enter_run_mode_calls++; }
 
 static int g_detach_launch_shell_calls = 0;
 static char g_last_launched_command[256] = {0};
@@ -328,22 +344,18 @@ static void test_cmd_run_behavior(void) {
     ASSERT_TRUE("run command exists", cmd != NULL);
     if (!cmd) return;
 
-    g_detach_launch_shell_calls = 0;
-    g_add_run_history_calls = 0;
-    g_detach_launch_shell_result = TRUE;
+    g_cmd_args_calls = 0;
     gboolean result = cmd->handler(&app, NULL, "xterm");
     ASSERT_TRUE("run with arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("run with arg launches shell command", g_detach_launch_shell_calls == 1);
-    ASSERT_TRUE("run with arg adds to history", g_add_run_history_calls == 1);
-    ASSERT_TRUE("run with arg uses the command string", strcmp(g_last_launched_command, "xterm") == 0);
+    ASSERT_TRUE("run with arg dispatches to provider", g_cmd_args_calls == 1);
+    ASSERT_TRUE("run with arg passes command string", strcmp(g_cmd_args_last, "xterm") == 0);
 
-    g_detach_launch_shell_calls = 0;
-    g_add_run_history_calls = 0;
-    g_enter_run_mode_calls = 0;
+    g_cmd_args_calls = 0;
+    g_enter_modal_calls_cmd = 0;
     result = cmd->handler(&app, NULL, "");
     ASSERT_TRUE("run without arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("run without arg does not launch", g_detach_launch_shell_calls == 0);
-    ASSERT_TRUE("run without arg enters run mode", g_enter_run_mode_calls == 1);
+    ASSERT_TRUE("run without arg does not dispatch args", g_cmd_args_calls == 0);
+    ASSERT_TRUE("run without arg enters run modal", g_enter_modal_calls_cmd == 1);
 }
 
 int main(void) {

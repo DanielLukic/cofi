@@ -18,7 +18,6 @@ void init_selection(AppData *app) {
     app->selection.selected_workspace_id = -1;
     app->selection.provider_index = 0;
     app->selection.sinks_index = 0;
-    app->selection.run_index = 0;
     app->selection.proc_index = 0;
 
     // Initialize scroll offsets
@@ -32,7 +31,6 @@ void init_selection(AppData *app) {
     app->selection.apps_scroll_offset = 0;
     app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
-    app->selection.run_scroll_offset = 0;
     app->selection.proc_scroll_offset = 0;
 
     log_debug("Selection initialized");
@@ -88,10 +86,7 @@ void reset_selection(AppData *app) {
         }
     }
 
-    if (app->current_tab == TAB_RUN) {
-        app->selection.run_index = 0;
-        app->selection.run_scroll_offset = 0;
-    } else if (app->current_tab == TAB_PROC) {
+    if (app->current_tab == TAB_PROC) {
         app->selection.proc_index = 0;
         app->selection.proc_scroll_offset = 0;
     }
@@ -144,8 +139,6 @@ int get_selected_index(AppData *app) {
         return app->selection.apps_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         return app->selection.provider_index;
-    } else if (app->current_tab == TAB_RUN) {
-        return app->selection.run_index;
     } else if (app->current_tab == TAB_PROC) {
         return app->selection.proc_index;
     }
@@ -278,23 +271,14 @@ void move_selection_up(AppData *app) {
                 }
                 update_scroll_position(app);
                 update_display(app);
+                if (p->on_selection_changed)
+                    p->on_selection_changed(app, app->selection.provider_index);
                 log_info("USER: Selection UP -> provider[%d]", app->selection.provider_index);
             }
             return;
         }
     }
-    if (app->current_tab == TAB_RUN) {
-        if (app->run_mode.history_count > 0) {
-            if (app->selection.run_index < app->run_mode.history_count - 1) {
-                app->selection.run_index++;
-            } else {
-                app->selection.run_index = 0;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Run[%d]", app->selection.run_index);
-        }
-    } else if (app->current_tab == TAB_PROC) {
+    if (app->current_tab == TAB_PROC) {
         if (app->proc_mode.filtered_count > 0) {
             if (app->selection.proc_index < app->proc_mode.filtered_count - 1) {
                 app->selection.proc_index++;
@@ -435,23 +419,14 @@ void move_selection_down(AppData *app) {
                 }
                 update_scroll_position(app);
                 update_display(app);
+                if (p->on_selection_changed)
+                    p->on_selection_changed(app, app->selection.provider_index);
                 log_info("USER: Selection DOWN -> provider[%d]", app->selection.provider_index);
             }
             return;
         }
     }
-    if (app->current_tab == TAB_RUN) {
-        if (app->run_mode.history_count > 0) {
-            if (app->selection.run_index > 0) {
-                app->selection.run_index--;
-            } else {
-                app->selection.run_index = app->run_mode.history_count - 1;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Run[%d]", app->selection.run_index);
-        }
-    } else if (app->current_tab == TAB_PROC) {
+    if (app->current_tab == TAB_PROC) {
         if (app->proc_mode.filtered_count > 0) {
             if (app->selection.proc_index > 0) {
                 app->selection.proc_index--;

@@ -62,7 +62,6 @@ gboolean is_overlay_active(AppData *app) { (void)app; return FALSE; }
 gboolean handle_overlay_key_press(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 gboolean handle_command_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 void command_update_candidates(CommandMode *cmd, const char *text) { (void)cmd; (void)text; }
-gboolean handle_run_key(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app) { (void)event; (void)app; return FALSE; }
 void switch_to_tab(AppData *app, TabMode target_tab) { app->current_tab = target_tab; }
 void sinks_switch_selected(AppData *app) { (void)app; }
@@ -74,8 +73,6 @@ gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) { (void)
 void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
 void enter_command_mode(AppData *app) { (void)app; }
-void enter_run_mode(AppData *app, const char *prefill_command) { (void)app; (void)prefill_command; }
-void handle_run_entry_changed(GtkEntry *entry, AppData *app) { (void)entry; (void)app; }
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }

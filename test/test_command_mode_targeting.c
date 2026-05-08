@@ -4,6 +4,7 @@
 #include "../src/app_data.h"
 #include "../src/command_api.h"
 #include "../src/command_mode.h"
+#include "../src/cofi_tab_provider.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -20,7 +21,9 @@ void update_display(AppData *app) {
     (void)app;
     g_update_display_calls++;
 }
-void enter_run_mode(AppData *app, const char *cmd) { (void)app; (void)cmd; }
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
+void cofi_exit_modal(AppData *app) { (void)app; }
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }

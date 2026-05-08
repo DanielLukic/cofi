@@ -3,6 +3,7 @@
 
 #include "../src/app_data.h"
 #include "../src/config.h"
+#include "../src/run_provider.h"
 
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
@@ -113,8 +114,8 @@ static void test_exclam_switches_from_command_mode_to_run_mode(void) {
 
     ASSERT_TRUE("handle_command_key consumes ! in command mode",
                 handle_command_key(&event, &app) == TRUE);
-    ASSERT_TRUE("! switches entry state to run mode",
-                app.command_mode.state == CMD_MODE_RUN);
+    ASSERT_TRUE("! switches entry state to modal",
+                app.command_mode.state == CMD_MODE_MODAL);
     ASSERT_TRUE("! enters run mode with empty entry text",
                 strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
 }
@@ -132,6 +133,8 @@ int main(void) {
 
     printf("Main split regression tests\n");
     printf("===========================\n\n");
+
+    run_provider_register();
 
     test_filter_hotkeys_behavior();
     test_filter_config_behavior();

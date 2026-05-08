@@ -48,9 +48,6 @@ static gboolean g_command_handler_returns;
 static int g_command_update_candidates_calls;
 static char g_last_command_candidates_text[64];
 
-static int g_handle_run_calls;
-static gboolean g_run_handler_returns;
-
 static int g_handle_modal_calls;
 static gboolean g_modal_handler_returns;
 
@@ -58,7 +55,6 @@ static int g_handle_tab_switching_calls;
 static gboolean g_tab_switching_returns;
 
 static int g_enter_command_mode_calls;
-static int g_enter_run_mode_calls;
 static int g_enter_modal_calls;
 static int g_exit_modal_calls;
 
@@ -85,7 +81,6 @@ static char g_last_filter_apps[64];
 
 static int g_reset_selection_calls;
 static int g_update_display_calls;
-static int g_run_entry_changed_calls;
 static const CofiTabProvider *g_provider_for_tab;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
@@ -118,13 +113,6 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
     strncpy(g_last_command_candidates_text, text ? text : "", sizeof(g_last_command_candidates_text) - 1);
 }
 
-gboolean handle_run_key(GdkEventKey *event, AppData *app) {
-    (void)event;
-    (void)app;
-    g_handle_run_calls++;
-    return g_run_handler_returns;
-}
-
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     (void)event;
     (void)app;
@@ -138,23 +126,6 @@ void enter_command_mode(AppData *app) {
     if (app->mode_indicator) {
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), ":");
     }
-}
-
-void enter_run_mode(AppData *app, const char *prefill_command) {
-    g_enter_run_mode_calls++;
-    app->command_mode.state = CMD_MODE_RUN;
-    if (app->mode_indicator) {
-        gtk_label_set_text(GTK_LABEL(app->mode_indicator), "!");
-    }
-    if (app->entry) {
-        gtk_entry_set_text(GTK_ENTRY(app->entry), prefill_command ? prefill_command : "");
-    }
-}
-
-void handle_run_entry_changed(GtkEntry *entry, AppData *app) {
-    (void)entry;
-    (void)app;
-    g_run_entry_changed_calls++;
 }
 
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
@@ -396,14 +367,11 @@ static void reset_captures(void) {
     g_command_handler_returns = FALSE;
     g_command_update_candidates_calls = 0;
     g_last_command_candidates_text[0] = '\0';
-    g_handle_run_calls = 0;
-    g_run_handler_returns = FALSE;
     g_handle_modal_calls = 0;
     g_modal_handler_returns = FALSE;
     g_handle_tab_switching_calls = 0;
     g_tab_switching_returns = FALSE;
     g_enter_command_mode_calls = 0;
-    g_enter_run_mode_calls = 0;
     g_enter_modal_calls = 0;
     g_exit_modal_calls = 0;
     g_move_selection_up_calls = 0;
@@ -427,7 +395,6 @@ static void reset_captures(void) {
     g_last_filter_apps[0] = '\0';
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
-    g_run_entry_changed_calls = 0;
 }
 
 static void init_app(AppData *app) {
@@ -677,7 +644,7 @@ static void test_colon_enters_command_mode(void) {
                 strcmp(gtk_label_get_text(GTK_LABEL(app.mode_indicator)), ":") == 0);
 }
 
-static void test_exclam_enters_run_mode_with_empty_entry(void) {
+static void test_exclam_enters_run_modal_with_empty_entry(void) {
     AppData app;
     init_app(&app);
     reset_captures();
@@ -689,11 +656,9 @@ static void test_exclam_enters_run_mode_with_empty_entry(void) {
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("Exclam handled on empty entry", handled == TRUE);
-    ASSERT_TRUE("Exclam enters run mode on empty entry",
-                app.command_mode.state == CMD_MODE_RUN && g_enter_run_mode_calls == 1);
-    ASSERT_TRUE("Exclam sets mode indicator '!'",
-                strcmp(gtk_label_get_text(GTK_LABEL(app.mode_indicator)), "!") == 0);
-    ASSERT_TRUE("Exclam run-mode entry is empty", strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
+    ASSERT_TRUE("Exclam enters modal on empty entry",
+                app.command_mode.state == CMD_MODE_MODAL && g_enter_modal_calls == 1);
+    ASSERT_TRUE("Exclam sets active prefix claim '!'", app.active_prefix_claim == '!');
 
     init_app(&app);
     reset_captures();
@@ -702,8 +667,8 @@ static void test_exclam_enters_run_mode_with_empty_entry(void) {
     GdkEventKey ev2 = make_key(GDK_KEY_exclam, 0);
     gboolean handled2 = on_key_press(NULL, &ev2, &app);
     ASSERT_TRUE("Exclam not handled when entry non-empty", handled2 == FALSE);
-    ASSERT_TRUE("Exclam does not enter run mode on non-empty entry",
-                app.command_mode.state == CMD_MODE_NORMAL && g_enter_run_mode_calls == 0);
+    ASSERT_TRUE("Exclam does not enter modal on non-empty entry",
+                app.command_mode.state == CMD_MODE_NORMAL && g_enter_modal_calls == 0);
 }
 
 static void test_overlay_dispatch_precedence(void) {
@@ -722,7 +687,7 @@ static void test_overlay_dispatch_precedence(void) {
 
     ASSERT_TRUE("Overlay active routes to overlay handler", handled == TRUE && g_handle_overlay_calls == 1);
     ASSERT_TRUE("Overlay active does not hit main dispatch", g_activate_calls == 0 && g_hide_calls == 0);
-    ASSERT_TRUE("Overlay active bypasses command/run handlers", g_handle_command_calls == 0 && g_handle_run_calls == 0);
+    ASSERT_TRUE("Overlay active bypasses command/modal handlers", g_handle_command_calls == 0 && g_handle_modal_calls == 0);
 }
 
 static void test_command_mode_dispatch_precedence(void) {
@@ -740,20 +705,6 @@ static void test_command_mode_dispatch_precedence(void) {
     ASSERT_TRUE("CMD_MODE_COMMAND does not hit normal dispatch", g_enter_command_mode_calls == 0 && g_activate_calls == 0);
 }
 
-static void test_run_mode_dispatch_precedence(void) {
-    AppData app;
-    init_app(&app);
-    reset_captures();
-
-    app.command_mode.state = CMD_MODE_RUN;
-    g_run_handler_returns = TRUE;
-
-    GdkEventKey ev = make_key(GDK_KEY_Return, 0);
-    gboolean handled = on_key_press(NULL, &ev, &app);
-
-    ASSERT_TRUE("CMD_MODE_RUN routes to run handler", handled == TRUE && g_handle_run_calls == 1);
-    ASSERT_TRUE("CMD_MODE_RUN does not hit navigation dispatch", g_activate_calls == 0 && g_hide_calls == 0);
-}
 
 static void test_calc_mode_dispatch_precedence(void) {
     AppData app;
@@ -832,7 +783,7 @@ static void test_on_entry_changed_leading_colon_claims_command_mode(void) {
     ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TAB_HARPOON);
 }
 
-static void test_on_entry_changed_leading_exclam_claims_run_mode(void) {
+static void test_on_entry_changed_leading_exclam_claims_run_modal(void) {
     AppData app;
     init_app(&app);
     reset_captures();
@@ -841,11 +792,10 @@ static void test_on_entry_changed_leading_exclam_claims_run_mode(void) {
 
     on_entry_changed(GTK_ENTRY(app.entry), &app);
 
-    ASSERT_TRUE("Leading '!' enters run mode from entry change",
-                app.command_mode.state == CMD_MODE_RUN && g_enter_run_mode_calls == 1);
+    ASSERT_TRUE("Leading '!' calls cofi_enter_modal from entry change",
+                app.command_mode.state == CMD_MODE_MODAL && g_enter_modal_calls == 1);
     ASSERT_TRUE("Leading '!' stores origin tab", app.prefix_origin_tab == TAB_NAMES);
-    ASSERT_TRUE("Leading '!' keeps run prefix text",
-                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "!alacritty") == 0);
+    ASSERT_TRUE("Leading '!' sets active claim", app.active_prefix_claim == '!');
 }
 
 static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
@@ -932,14 +882,13 @@ int main(int argc, char **argv) {
     test_alt_shift_tab_moves_selection_down_on_windows_tab();
     test_period_empty_query_calls_repeat();
     test_colon_enters_command_mode();
-    test_exclam_enters_run_mode_with_empty_entry();
+    test_exclam_enters_run_modal_with_empty_entry();
     test_overlay_dispatch_precedence();
     test_command_mode_dispatch_precedence();
-    test_run_mode_dispatch_precedence();
     test_calc_mode_dispatch_precedence();
     test_on_entry_changed_routes_per_tab_filters();
     test_on_entry_changed_leading_colon_claims_command_mode();
-    test_on_entry_changed_leading_exclam_claims_run_mode();
+    test_on_entry_changed_leading_exclam_claims_run_modal();
     test_on_entry_changed_prefix_tabs_claim_and_restore_origin();
     test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty();
     test_tab_key_clears_prefix_claim_before_tab_switching();

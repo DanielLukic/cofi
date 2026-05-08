@@ -8,6 +8,8 @@
 
 #include <gtk/gtk.h>
 
+extern void hide_window(AppData *app);
+
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     if (!app || !app->entry || !provider) return;
 
@@ -69,22 +71,32 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
         }
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter: {
+            if (!p->on_enter_pressed) return TRUE;
             const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-            if (!text || text[0] == '\0') return TRUE;
-            if (p->on_enter_pressed)
-                p->on_enter_pressed(app, 0, 0, text);
-            app->suppress_entry_change = TRUE;
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            app->suppress_entry_change = FALSE;
-            int count = p->row_count ? p->row_count(app) : 0;
-            app->selection.provider_index = p->initial_selection_index;
-            if (count > 0 && app->selection.provider_index >= count) {
-                app->selection.provider_index = count - 1;
-            } else if (app->selection.provider_index < 0 || count <= 0) {
-                app->selection.provider_index = 0;
+            int provider_id = cofi_get_provider_id_for_tab(app->current_tab);
+            int filtered_idx = app->selection.provider_index;
+            int raw = cofi_filtered_to_raw(provider_id, filtered_idx);
+            if (raw < 0) raw = filtered_idx;
+            CofiActionStatus status = p->on_enter_pressed(app, filtered_idx, raw, text ? text : "");
+            if (status == COFI_HANDLED_HIDE) {
+                cofi_exit_modal(app);
+                hide_window(app);
+                return TRUE;
             }
-            update_scroll_position(app);
-            update_display(app);
+            if (status == COFI_HANDLED_KEEP || status == COFI_HANDLED_REFRESH) {
+                app->suppress_entry_change = TRUE;
+                gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+                app->suppress_entry_change = FALSE;
+                int count = p->row_count ? p->row_count(app) : 0;
+                app->selection.provider_index = p->initial_selection_index;
+                if (count > 0 && app->selection.provider_index >= count) {
+                    app->selection.provider_index = count - 1;
+                } else if (app->selection.provider_index < 0 || count <= 0) {
+                    app->selection.provider_index = 0;
+                }
+                update_scroll_position(app);
+                update_display(app);
+            }
             return TRUE;
         }
         case GDK_KEY_Tab:
