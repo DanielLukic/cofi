@@ -118,6 +118,13 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "jw, jump-workspace, j [N]"
     },
     {
+        .primary = "jump-slot",
+        .aliases = {"js", NULL},
+        .handler = cmd_jump_slot,
+        .description = "Jump to the Nth window on the current workspace by screen position (1-9)",
+        .help_format = "js, jump-slot N"
+    },
+    {
         .primary = "names",
         .aliases = {"nm", NULL},
         .handler = cmd_names,

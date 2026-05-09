@@ -20,6 +20,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL },
     { "hotkeys", {"hotkey", "hk", NULL},                       NULL },
     { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl" },
+    { "jump-slot", {"js", NULL},                                "123456789" },
     { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl" },
     { "names",   {"nm", NULL},                                   NULL },
     { "rules",   {"rl", NULL},                                   NULL },

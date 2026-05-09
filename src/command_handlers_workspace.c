@@ -1,12 +1,18 @@
 #include "command_handlers_workspace.h"
 
 #include "app_data.h"
+#include "display.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "workspace_slots.h"
 #include "workspace_utils.h"
+#include "window_highlight.h"
+#include "window_list.h"
+#include "x11_events.h"
 #include "x11_utils.h"
 
+#include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,6 +55,64 @@ gboolean cmd_jump_workspace(AppData *app, WindowInfo *window __attribute__((unus
 
     show_workspace_jump_overlay(app);
     return FALSE;
+}
+
+static gboolean parse_jump_slot_arg(const char *args, int *slot_out) {
+    if (!args || !slot_out) {
+        return FALSE;
+    }
+
+    while (*args && isspace((unsigned char)*args)) {
+        args++;
+    }
+    if (*args == '\0') {
+        return FALSE;
+    }
+
+    errno = 0;
+    char *endptr = NULL;
+    long slot = strtol(args, &endptr, 10);
+    if (errno != 0 || endptr == args) {
+        return FALSE;
+    }
+
+    while (*endptr && isspace((unsigned char)*endptr)) {
+        endptr++;
+    }
+    if (*endptr != '\0') {
+        return FALSE;
+    }
+
+    if (slot < 1 || slot > 9) {
+        return FALSE;
+    }
+
+    *slot_out = (int)slot;
+    return TRUE;
+}
+
+gboolean cmd_jump_slot(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
+    int slot = 0;
+    if (!parse_jump_slot_arg(args, &slot)) {
+        log_warn("Invalid jump-slot argument '%s' (expected N in 1-9)", args ? args : "");
+        return FALSE;
+    }
+
+    get_window_list(app);
+    assign_workspace_slots(app);
+
+    Window target = get_workspace_slot_window(&app->workspace_slots, slot);
+    if (target == 0) {
+        log_warn("No window assigned to workspace slot %d", slot);
+        return FALSE;
+    }
+
+    set_workspace_switch_state(1);
+    activate_window(app->display, target);
+    highlight_window(app, target);
+    hide_window(app);
+    log_info("Jumped to workspace slot %d -> window 0x%lx", slot, target);
+    return TRUE;
 }
 
 gboolean cmd_rename_workspace(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {

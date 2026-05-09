@@ -30,6 +30,17 @@ static Window last_window_state_window = 0;
 static char last_window_state_name[64] = {0};
 static int parse_hotkey_action = 0;
 static int hide_window_calls = 0;
+static int g_assign_workspace_slots_calls = 0;
+static int g_get_workspace_slot_calls = 0;
+static int g_last_workspace_slot = 0;
+static Window g_workspace_slot_target = 0;
+static int g_get_window_list_calls = 0;
+static int g_set_workspace_switch_state_calls = 0;
+static int g_last_workspace_switch_state = -1;
+static int g_highlight_calls = 0;
+static Window g_last_highlight_window = 0;
+static int g_activate_calls = 0;
+static Window g_last_activate_window = 0;
 
 // --- shared stubs for handler dependencies ---
 void hide_window(AppData *app) {
@@ -118,7 +129,29 @@ void show_name_assign_overlay(AppData *app) {
     show_name_assign_overlay_calls++;
 }
 
-void assign_workspace_slots(AppData *app) { (void)app; }
+void assign_workspace_slots(AppData *app) {
+    (void)app;
+    g_assign_workspace_slots_calls++;
+}
+Window get_workspace_slot_window(const WorkspaceSlotManager *manager, int slot) {
+    (void)manager;
+    g_get_workspace_slot_calls++;
+    g_last_workspace_slot = slot;
+    return g_workspace_slot_target;
+}
+void get_window_list(AppData *app) {
+    (void)app;
+    g_get_window_list_calls++;
+}
+void set_workspace_switch_state(int suppress) {
+    g_set_workspace_switch_state_calls++;
+    g_last_workspace_switch_state = suppress;
+}
+void highlight_window(AppData *app, Window target) {
+    (void)app;
+    g_highlight_calls++;
+    g_last_highlight_window = target;
+}
 void apply_tiling(Display *display, Window window, TileOption option, int columns) {
     (void)display; (void)window; (void)option; (void)columns;
 }
@@ -137,7 +170,11 @@ void toggle_window_state(Display *display, Window window, const char *state) {
 }
 void close_window(Display *display, Window window) { (void)display; (void)window; }
 void minimize_window(Display *display, Window window) { (void)display; (void)window; }
-void activate_window(Display *display, Window window) { (void)display; (void)window; }
+void activate_window(Display *display, Window window) {
+    (void)display;
+    g_activate_calls++;
+    g_last_activate_window = window;
+}
 gboolean get_window_state(Display *display, Window window, const char *state_name) {
     (void)display; (void)window; (void)state_name;
     return FALSE;
@@ -279,6 +316,47 @@ static void test_workspace_handler_behavior(void) {
     ASSERT_TRUE("rw rejects workspace 0", invalid_workspace == FALSE);
 }
 
+static void test_jump_slot_handler_behavior(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    app.display = (Display *)0x1;
+
+    const CommandDef *cmd = find_command("jump-slot");
+    ASSERT_TRUE("jump-slot command exists", cmd != NULL);
+    if (!cmd) return;
+
+    g_assign_workspace_slots_calls = 0;
+    g_get_workspace_slot_calls = 0;
+    g_get_window_list_calls = 0;
+    g_set_workspace_switch_state_calls = 0;
+    g_highlight_calls = 0;
+    g_activate_calls = 0;
+    hide_window_calls = 0;
+    g_workspace_slot_target = 0;
+
+    ASSERT_TRUE("jump-slot rejects missing arg", cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("jump-slot rejects zero", cmd->handler(&app, NULL, "0") == FALSE);
+    ASSERT_TRUE("jump-slot rejects ten", cmd->handler(&app, NULL, "10") == FALSE);
+    ASSERT_TRUE("jump-slot rejects alpha", cmd->handler(&app, NULL, "abc") == FALSE);
+    ASSERT_TRUE("jump-slot rejects trailing garbage", cmd->handler(&app, NULL, "1x") == FALSE);
+    ASSERT_TRUE("invalid args do not dispatch workspace slots",
+                g_assign_workspace_slots_calls == 0 && g_get_workspace_slot_calls == 0);
+
+    g_workspace_slot_target = (Window)0xBEEF;
+    ASSERT_TRUE("jump-slot valid arg succeeds", cmd->handler(&app, NULL, "1") == TRUE);
+    ASSERT_TRUE("jump-slot refreshes window list first", g_get_window_list_calls == 1);
+    ASSERT_TRUE("jump-slot assigns workspace slots", g_assign_workspace_slots_calls == 1);
+    ASSERT_TRUE("jump-slot queries requested slot", g_get_workspace_slot_calls == 1 && g_last_workspace_slot == 1);
+    ASSERT_TRUE("jump-slot toggles workspace-switch suppress", g_set_workspace_switch_state_calls == 1 && g_last_workspace_switch_state == 1);
+    ASSERT_TRUE("jump-slot activates target window",
+                g_activate_calls == 1 && g_last_activate_window == (Window)0xBEEF);
+    ASSERT_TRUE("jump-slot highlights target window", g_highlight_calls == 1 && g_last_highlight_window == (Window)0xBEEF);
+    ASSERT_TRUE("jump-slot hides launcher window", hide_window_calls == 1);
+
+    g_workspace_slot_target = 0;
+    ASSERT_TRUE("jump-slot missing slot target fails", cmd->handler(&app, NULL, "2") == FALSE);
+}
+
 static void test_tiling_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
@@ -375,6 +453,7 @@ int main(void) {
     test_window_handler_behavior();
     test_window_state_handlers_behavior();
     test_workspace_handler_behavior();
+    test_jump_slot_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
     test_cmd_run_behavior();
