@@ -109,21 +109,22 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     if (is_overlay_active(app)) {
         return handle_overlay_key_press(app, event);
     }
-    /* Unified prefix dispatch: intercept any prefix char on empty entry */
+    /* Unified prefix dispatch. ':' is special: it must enter command mode
+       even after the user typed a filter, so commands can target that result. */
     {
         guint32 u = gdk_keyval_to_unicode(event->keyval);
-        if (u < 128 && strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0 &&
-            cofi_is_prefix_char((char)u)) {
-            if (app->command_mode.state == CMD_MODE_NORMAL) {
-                cofi_dispatch_prefix(app, (char)u);
-                return TRUE;
-            }
-            if (app->command_mode.state == CMD_MODE_MODAL &&
-                app->active_prefix_claim != (char)u) {
+        gboolean entry_empty = strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0;
+        gboolean command_escape = (u == ':' && app->command_mode.state == CMD_MODE_NORMAL);
+        if (u > 0 && (entry_empty || command_escape) &&
+            cofi_is_prefix_char((char)u) &&
+            app->active_prefix_claim != (char)u) {
+            if (app->command_mode.state == CMD_MODE_MODAL) {
                 cofi_exit_modal(app);
-                cofi_dispatch_prefix(app, (char)u);
-                return TRUE;
+            } else if (app->command_mode.state == CMD_MODE_COMMAND) {
+                exit_command_mode(app);
             }
+            cofi_dispatch_prefix(app, (char)u);
+            return TRUE;
         }
     }
     if (app->command_mode.state == CMD_MODE_COMMAND) {

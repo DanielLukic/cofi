@@ -101,6 +101,7 @@ static void show_tab_for_opcode(AppData *app, TabMode tab) {
 
     reset_interaction_modes(app);
 
+    app->apps_mode = APPS_MODE_DEFAULT;
     app->current_tab = TAB_WINDOWS;
     show_window(app);
 

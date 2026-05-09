@@ -99,6 +99,8 @@ typedef struct {
     gboolean suppress_entry_change; // Guard while programmatically updating the entry text
 } RunMode;
 
+typedef enum { APPS_MODE_DEFAULT, APPS_MODE_PATH } AppsMode;
+
 // Selection management structure
 typedef struct {
     int window_index;                       // Selected index in filtered windows array
@@ -192,6 +194,7 @@ typedef struct AppData {
     // Sinks tab data
     SinksMode sinks_mode;
     ProcMode proc_mode;
+    AppsMode apps_mode;
 
     // Edit state for harpoon
     struct {

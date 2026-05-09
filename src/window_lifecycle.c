@@ -129,6 +129,7 @@ void hide_window(AppData *app) {
 
     clear_surfaced_tabs(app);
     app->current_tab = TAB_WINDOWS;
+    app->apps_mode = APPS_MODE_DEFAULT;
 
     if (app->overlay_active) {
         hide_overlay(app);

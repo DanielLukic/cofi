@@ -162,8 +162,9 @@ static void test_dollar_routing_uses_path_only(void) {
 
     AppData app;
     memset(&app, 0, sizeof(app));
+    app.apps_mode = APPS_MODE_PATH;
 
-    filter_apps(&app, "$git");
+    filter_apps(&app, "git");
 
     ASSERT_EQ_INT("$ routing count", 2, app.filtered_apps_count);
     assert_all_path_entries(app.filtered_apps, app.filtered_apps_count,

@@ -3,7 +3,9 @@
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
+#include "display.h"
 #include "log.h"
+#include "selection.h"
 #include "tab_switching.h"
 
 #include <gtk/gtk.h>
@@ -15,6 +17,7 @@ static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
 
     switch (prefix) {
         case '$':
+        case '\\':
             *target_tab = TAB_APPS;
             return TRUE;
         case '>':
@@ -62,14 +65,28 @@ void cofi_dispatch_prefix(AppData *app, char c) {
         return;
     }
 
-    /* tab claim → tab switch (e.g. $, >) */
+    /* tab claim → tab switch (e.g. $, \\, >) */
     TabMode claimed_tab;
     if (get_tab_claim(c, &claimed_tab)) {
-        app->suppress_entry_change = TRUE;
-        switch_to_tab(app, claimed_tab);
+        if (claimed_tab == TAB_APPS)
+            app->apps_mode = (c == '$') ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
+        if (app->current_tab == claimed_tab) {
+            /* same-tab toggle: clear entry, reset selection, refresh */
+            app->suppress_entry_change = TRUE;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            app->suppress_entry_change = FALSE;
+            if (claimed_tab == TAB_APPS) {
+                filter_apps(app, "");
+            }
+            reset_selection(app);
+            update_display(app);
+        } else {
+            app->suppress_entry_change = TRUE;
+            switch_to_tab(app, claimed_tab);
+            app->suppress_entry_change = FALSE;
+        }
         if (app->mode_indicator)
             gtk_label_set_text(GTK_LABEL(app->mode_indicator), (char[2]){c, '\0'});
-        app->suppress_entry_change = FALSE;
         return;
     }
 }
