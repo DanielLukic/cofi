@@ -140,12 +140,25 @@ static void test_cli_flag_to_opcode_round_trip_names(void) {
     }
 }
 
+static void test_applications_flag_resets_apps_mode(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    app.apps_mode = APPS_MODE_PATH;
+
+    char *argv[] = {(char *)"cofi", (char *)"--applications", NULL};
+    parse_args(&app, 2, argv);
+
+    ASSERT_TRUE("--applications resets apps_mode to DEFAULT",
+                app.apps_mode == APPS_MODE_DEFAULT);
+}
+
 int main(void) {
     test_windows_flag_sets_delegate_opcode();
     test_command_flag_sets_command_mode_delegate();
     test_last_delegate_flag_wins();
     test_delegate_flags_prepare_startup_mode_when_becoming_daemon();
     test_cli_flag_to_opcode_round_trip_names();
+    test_applications_flag_resets_apps_mode();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

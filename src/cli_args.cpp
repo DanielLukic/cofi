@@ -36,6 +36,7 @@ static void set_startup_delegate(AppData *app, uint8_t opcode) {
             break;
         case COFI_OPCODE_APPLICATIONS:
             app->current_tab = TAB_APPS;
+            app->apps_mode = APPS_MODE_DEFAULT;
             break;
         default:
             app->current_tab = TAB_WINDOWS;
