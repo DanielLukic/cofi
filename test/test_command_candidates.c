@@ -19,7 +19,7 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app
 void cofi_exit_modal(AppData *app) { (void)app; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
-char *generate_command_help_text(HelpFormat fmt) { (void)fmt; return NULL; }
+char *generate_command_help_text(HelpFormat fmt, int width) { (void)fmt; (void)width; return NULL; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;

@@ -67,7 +67,7 @@ void print_usage(const char *prog_name) {
 }
 
 void print_command_mode_help(void) {
-    char *help_text = generate_command_help_text(HELP_FORMAT_CLI);
+    char *help_text = generate_command_help_text(HELP_FORMAT_CLI, 115);
     if (help_text) {
         printf("%s\n", help_text);
         free(help_text);

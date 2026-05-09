@@ -27,7 +27,7 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix;
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }
-char *generate_command_help_text(HelpFormat fmt) { (void)fmt; return NULL; }
+char *generate_command_help_text(HelpFormat fmt, int width) { (void)fmt; (void)width; return NULL; }
 int get_display_columns(AppData *app) { (void)app; return 80; }
 int get_max_display_lines_dynamic(AppData *app) { (void)app; return 20; }
 void overlay_scrollbar(GString *s, int t, int v, int o, int c)

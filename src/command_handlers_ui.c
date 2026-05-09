@@ -264,7 +264,60 @@ gboolean cmd_help(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
-char *generate_command_help_text(HelpFormat format) {
+static gboolean is_wrap_boundary_char(char c) {
+    return c == ' ' || c == '/' || c == '|';
+}
+
+static void append_wrapped_command_line(GString *out, const char *help_format,
+                                        const char *description, int width) {
+    const int desc_indent = 45; /* "  " + 40-char command column + " - " */
+    const char *cont_prefix = "                                             ";
+    const int desc_width = width - desc_indent;
+
+    if (width <= 0 || desc_width <= 0) {
+        g_string_append_printf(out, "  %-40s - %s\n", help_format, description);
+        return;
+    }
+
+    g_string_append_printf(out, "  %-40s - ", help_format);
+
+    const char *cursor = description;
+    while (*cursor) {
+        int chunk_len = 0;
+        int last_boundary = -1;
+
+        while (cursor[chunk_len] != '\0' && chunk_len < desc_width) {
+            if (is_wrap_boundary_char(cursor[chunk_len])) {
+                last_boundary = chunk_len;
+            }
+            chunk_len++;
+        }
+
+        if (cursor[chunk_len] == '\0') {
+            g_string_append_len(out, cursor, (gssize)chunk_len);
+            break;
+        }
+
+        if (last_boundary >= 0) {
+            int emit_len = last_boundary + 1;
+            g_string_append_len(out, cursor, (gssize)emit_len);
+            cursor += emit_len;
+            while (*cursor == ' ') {
+                cursor++;
+            }
+        } else {
+            g_string_append_len(out, cursor, (gssize)chunk_len);
+            cursor += chunk_len;
+        }
+
+        g_string_append_c(out, '\n');
+        g_string_append(out, cont_prefix);
+    }
+
+    g_string_append_c(out, '\n');
+}
+
+char *generate_command_help_text(HelpFormat format, int width) {
     size_t buffer_size = 1024;
     for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
         buffer_size += strlen(COMMAND_DEFINITIONS[i].help_format);
@@ -285,13 +338,15 @@ char *generate_command_help_text(HelpFormat format) {
     }
 
     strcat(help_text, "Available commands:\n\n");
+    GString *commands = g_string_new(NULL);
     for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-        char line[256];
-        snprintf(line, sizeof(line), "  %-40s - %s\n",
-                 COMMAND_DEFINITIONS[i].help_format,
-                 COMMAND_DEFINITIONS[i].description);
-        strcat(help_text, line);
+        append_wrapped_command_line(commands,
+                                    COMMAND_DEFINITIONS[i].help_format,
+                                    COMMAND_DEFINITIONS[i].description,
+                                    width);
     }
+    strcat(help_text, commands->str);
+    g_string_free(commands, TRUE);
 
     strcat(help_text, "\nUsage:\n");
     strcat(help_text, "  Press ':' to enter command mode. Press Escape to cancel.\n");
