@@ -112,18 +112,16 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     /* Unified prefix dispatch: intercept any prefix char on empty entry */
     {
         guint32 u = gdk_keyval_to_unicode(event->keyval);
-        if (u < 128 && strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0 &&
-            cofi_is_prefix_char((char)u)) {
-            if (app->command_mode.state == CMD_MODE_NORMAL) {
-                cofi_dispatch_prefix(app, (char)u);
-                return TRUE;
-            }
-            if (app->command_mode.state == CMD_MODE_MODAL &&
-                app->active_prefix_claim != (char)u) {
+        if (u > 0 && strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0 &&
+            cofi_is_prefix_char((char)u) &&
+            app->active_prefix_claim != (char)u) {
+            if (app->command_mode.state == CMD_MODE_MODAL) {
                 cofi_exit_modal(app);
-                cofi_dispatch_prefix(app, (char)u);
-                return TRUE;
+            } else if (app->command_mode.state == CMD_MODE_COMMAND) {
+                exit_command_mode(app);
             }
+            cofi_dispatch_prefix(app, (char)u);
+            return TRUE;
         }
     }
     if (app->command_mode.state == CMD_MODE_COMMAND) {

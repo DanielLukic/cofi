@@ -73,6 +73,7 @@ gboolean proc_signal_selected_with_modifiers(AppData *app, guint state) { (void)
 void proc_filter(AppData *app, const char *filter) { (void)app; (void)filter; }
 
 void enter_command_mode(AppData *app) { (void)app; }
+void exit_command_mode(AppData *app) { if (app) { app->command_mode.state = CMD_MODE_NORMAL; app->active_prefix_claim = '\0'; } }
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }

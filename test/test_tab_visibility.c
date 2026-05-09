@@ -458,6 +458,29 @@ static void test_surface_tab_surfaces_hidden_tab(void) {
     ASSERT_TRUE("surface_tab switches current tab", app.current_tab == TAB_WORKSPACES);
 }
 
+static void test_cmd_show_apps_resets_to_default_mode(void) {
+    AppData app = make_app();
+    app.current_tab = TAB_APPS;
+    app.apps_mode = APPS_MODE_PATH;
+
+    reset_counters();
+    cmd_show(&app, NULL, "apps");
+
+    ASSERT_TRUE("cmd_show apps resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
+    ASSERT_TRUE("cmd_show apps switches tab", app.current_tab == TAB_APPS);
+}
+
+static void test_daemon_opcode_applications_resets_mode(void) {
+    AppData app = make_app();
+    app.current_tab = TAB_APPS;
+    app.apps_mode = APPS_MODE_PATH;
+
+    reset_counters();
+    show_tab_for_opcode(&app, TAB_APPS);
+
+    ASSERT_TRUE("daemon Applications opcode resets mode", app.apps_mode == APPS_MODE_DEFAULT);
+}
+
 static void test_tab_switching_skips_hidden_tabs(void) {
     AppData app = make_default_visibility_app();
     GdkEventKey event;
@@ -501,6 +524,8 @@ int main(void) {
     test_filter_rules_matches_pattern_and_commands();
     test_daemon_opcode_harpoon_switches_to_harpoon_tab();
     test_surface_tab_surfaces_hidden_tab();
+    test_cmd_show_apps_resets_to_default_mode();
+    test_daemon_opcode_applications_resets_mode();
     test_tab_switching_skips_hidden_tabs();
     test_tab_switching_clears_surfaced_tabs_on_pinned_return();
 

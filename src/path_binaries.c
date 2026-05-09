@@ -123,7 +123,7 @@ static void maybe_refresh_apps_tab(AppData *app) {
     }
 
     const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-    if (!text || text[0] != '$') {
+    if (app->apps_mode != APPS_MODE_PATH) {
         return;
     }
 

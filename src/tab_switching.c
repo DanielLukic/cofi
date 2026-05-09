@@ -59,6 +59,10 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         return;
     }
 
+    if (app->current_tab == TAB_APPS && target_tab != TAB_APPS) {
+        app->apps_mode = APPS_MODE_DEFAULT;
+    }
+
     TabMode previous_tab = app->current_tab;
     const CofiTabProvider *previous_provider = cofi_get_provider_for_tab(previous_tab);
     if (previous_provider && previous_tab != target_tab) {
@@ -307,9 +311,9 @@ void filter_rules(AppData *app, const char *filter) {
 void filter_apps(AppData *app, const char *filter) {
     const char *query = filter ? filter : "";
 
-    if (query[0] == '$') {
+    if (app->apps_mode == APPS_MODE_PATH) {
         path_binaries_ensure_loaded(app);
-        path_binaries_filter(query + 1, app->filtered_apps, &app->filtered_apps_count);
+        path_binaries_filter(query, app->filtered_apps, &app->filtered_apps_count);
         return;
     }
 

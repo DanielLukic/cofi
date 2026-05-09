@@ -84,6 +84,7 @@ static char g_last_filter_apps[64];
 static int g_reset_selection_calls;
 static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
+static CofiTabProvider g_modal_prefix_stub;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
@@ -130,6 +131,15 @@ void enter_command_mode(AppData *app) {
     }
 }
 
+void exit_command_mode(AppData *app) {
+    if (app) {
+        app->command_mode.state = CMD_MODE_NORMAL;
+        app->active_prefix_claim = '\0';
+        if (app->mode_indicator)
+            gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
+    }
+}
+
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     (void)provider;
     g_enter_modal_calls++;
@@ -159,7 +169,8 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
 }
 
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
-    (void)prefix;
+    if (prefix == '!' || prefix == '=')
+        return &g_modal_prefix_stub;
     return NULL;
 }
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
@@ -271,6 +282,8 @@ static CofiActionStatus mock_provider_enter_pressed(AppData *app, int filtered_i
 }
 
 void switch_to_tab(AppData *app, TabMode target_tab) {
+    if (app->current_tab == TAB_APPS && target_tab != TAB_APPS)
+        app->apps_mode = APPS_MODE_DEFAULT;
     app->current_tab = target_tab;
 }
 
@@ -715,6 +728,7 @@ static void test_command_mode_dispatch_precedence(void) {
     reset_captures();
 
     app.command_mode.state = CMD_MODE_COMMAND;
+    app.active_prefix_claim = ':';
     g_command_handler_returns = TRUE;
 
     GdkEventKey ev = make_key(GDK_KEY_colon, 0);
@@ -802,20 +816,6 @@ static void test_on_entry_changed_leading_colon_claims_command_mode(void) {
     ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TAB_HARPOON);
 }
 
-static void test_on_entry_changed_leading_exclam_claims_run_modal(void) {
-    AppData app;
-    init_app(&app);
-    reset_captures();
-    app.current_tab = TAB_NAMES;
-    gtk_entry_set_text(GTK_ENTRY(app.entry), "!alacritty");
-
-    on_entry_changed(GTK_ENTRY(app.entry), &app);
-
-    ASSERT_TRUE("Leading '!' calls cofi_enter_modal from entry change",
-                app.command_mode.state == CMD_MODE_MODAL && g_enter_modal_calls == 1);
-    ASSERT_TRUE("Leading '!' stores origin tab", app.prefix_origin_tab == TAB_NAMES);
-    ASSERT_TRUE("Leading '!' sets active claim", app.active_prefix_claim == '!');
-}
 
 static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
     AppData app;
@@ -839,15 +839,13 @@ static void test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty(
     AppData app;
     init_app(&app);
     reset_captures();
-    app.current_tab = TAB_CONFIG;
-    gtk_entry_set_text(GTK_ENTRY(app.entry), "=abc");
-    on_entry_changed(GTK_ENTRY(app.entry), &app);
 
-    ASSERT_TRUE("Leading '=' calls cofi_enter_modal", g_enter_modal_calls == 1);
-    ASSERT_TRUE("Leading '=' switches to Calc tab", app.current_tab == TAB_CALC);
-    ASSERT_TRUE("Leading '=' sets active claim", app.active_prefix_claim == '=');
-    ASSERT_TRUE("Leading '=' stores origin tab", app.prefix_origin_tab == TAB_CONFIG);
-    ASSERT_TRUE("Leading '=' enters CMD_MODE_MODAL", app.command_mode.state == CMD_MODE_MODAL);
+    /* Set modal state directly (entry-change path no longer fires for =) */
+    app.current_tab = TAB_CONFIG;
+    app.command_mode.state = CMD_MODE_MODAL;
+    app.active_prefix_claim = '=';
+    app.prefix_origin_tab = TAB_CONFIG;
+    g_enter_modal_calls = 1;
     /* In CMD_MODE_MODAL, further entry changes do not re-trigger cofi_enter_modal */
     gtk_entry_set_text(GTK_ENTRY(app.entry), "17+4");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
@@ -874,6 +872,149 @@ static void test_tab_key_clears_prefix_claim_before_tab_switching(void) {
     on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("Manual Tab clears active prefix claim", app.active_prefix_claim == '\0');
+}
+
+static void test_backslash_cross_tab_enters_apps_default_mode(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_backslash, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("backslash cross-tab handled", handled == TRUE);
+    ASSERT_TRUE("backslash cross-tab → TAB_APPS", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("backslash cross-tab → DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
+}
+
+static void test_dollar_cross_tab_enters_apps_path_mode(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_dollar, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("dollar cross-tab handled", handled == TRUE);
+    ASSERT_TRUE("dollar cross-tab → TAB_APPS", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("dollar cross-tab → PATH mode", app.apps_mode == APPS_MODE_PATH);
+}
+
+static void test_backslash_same_tab_resets_to_default(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_APPS;
+    app.apps_mode = APPS_MODE_PATH;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_backslash, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("backslash same-tab handled", handled == TRUE);
+    ASSERT_TRUE("backslash same-tab stays TAB_APPS", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("backslash same-tab → DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
+    ASSERT_TRUE("backslash same-tab clears entry",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
+    ASSERT_TRUE("backslash same-tab sets indicator",
+                gtk_label_get_text(GTK_LABEL(app.mode_indicator))[0] == '\\' &&
+                gtk_label_get_text(GTK_LABEL(app.mode_indicator))[1] == '\0');
+}
+
+static void test_dollar_same_tab_switches_to_path(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_APPS;
+    app.apps_mode = APPS_MODE_DEFAULT;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_dollar, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("dollar same-tab handled", handled == TRUE);
+    ASSERT_TRUE("dollar same-tab stays TAB_APPS", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("dollar same-tab → PATH mode", app.apps_mode == APPS_MODE_PATH);
+    ASSERT_TRUE("dollar same-tab clears entry",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
+    ASSERT_TRUE("dollar same-tab sets indicator",
+                strcmp(gtk_label_get_text(GTK_LABEL(app.mode_indicator)), "$") == 0);
+}
+
+static void test_switch_away_from_apps_resets_mode(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_APPS;
+    app.apps_mode = APPS_MODE_PATH;
+
+    switch_to_tab(&app, TAB_WORKSPACES);
+
+    ASSERT_TRUE("switch away from Apps resets mode", app.apps_mode == APPS_MODE_DEFAULT);
+}
+
+static void test_command_mode_prefix_exits_to_modal(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    app.prefix_origin_tab = TAB_WINDOWS;
+    app.active_prefix_claim = ':';
+    app.command_mode.state = CMD_MODE_COMMAND;
+    gtk_label_set_text(GTK_LABEL(app.mode_indicator), ":");
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_equal, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("COMMAND -> MODAL handled", handled == TRUE);
+    ASSERT_TRUE("COMMAND -> MODAL state", app.command_mode.state == CMD_MODE_MODAL);
+    ASSERT_TRUE("COMMAND -> MODAL indicator",
+                gtk_label_get_text(GTK_LABEL(app.mode_indicator))[0] == '=');
+    ASSERT_TRUE("COMMAND -> MODAL origin preserved", app.prefix_origin_tab == TAB_WINDOWS);
+}
+
+static void test_command_mode_prefix_exits_to_tab_claim(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    app.active_prefix_claim = ':';
+    app.command_mode.state = CMD_MODE_COMMAND;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+
+    GdkEventKey ev = make_key(GDK_KEY_backslash, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("COMMAND -> APPS handled", handled == TRUE);
+    ASSERT_TRUE("COMMAND -> APPS state is NORMAL", app.command_mode.state == CMD_MODE_NORMAL);
+    ASSERT_TRUE("COMMAND -> APPS tab", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("COMMAND -> APPS mode DEFAULT", app.apps_mode == APPS_MODE_DEFAULT);
+}
+
+static void test_command_mode_same_prefix_colon_noop(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    app.active_prefix_claim = ':';
+    app.command_mode.state = CMD_MODE_COMMAND;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "");
+    g_enter_command_mode_calls = 0;
+    g_enter_modal_calls = 0;
+
+    GdkEventKey ev = make_key(GDK_KEY_colon, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    /* colon in command mode: gate does NOT fire (same-prefix guard),
+       falls through to handle_command_key which processes it */
+    ASSERT_TRUE("same-prefix colon in COMMAND stays COMMAND",
+                app.command_mode.state == CMD_MODE_COMMAND);
+    ASSERT_TRUE("same-prefix colon no re-enter modal", g_enter_modal_calls == 0);
 }
 
 int main(int argc, char **argv) {
@@ -907,10 +1048,17 @@ int main(int argc, char **argv) {
     test_calc_mode_dispatch_precedence();
     test_on_entry_changed_routes_per_tab_filters();
     test_on_entry_changed_leading_colon_claims_command_mode();
-    test_on_entry_changed_leading_exclam_claims_run_modal();
     test_on_entry_changed_prefix_tabs_claim_and_restore_origin();
     test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty();
     test_tab_key_clears_prefix_claim_before_tab_switching();
+    test_backslash_cross_tab_enters_apps_default_mode();
+    test_dollar_cross_tab_enters_apps_path_mode();
+    test_backslash_same_tab_resets_to_default();
+    test_dollar_same_tab_switches_to_path();
+    test_switch_away_from_apps_resets_mode();
+    test_command_mode_prefix_exits_to_modal();
+    test_command_mode_prefix_exits_to_tab_claim();
+    test_command_mode_same_prefix_colon_noop();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

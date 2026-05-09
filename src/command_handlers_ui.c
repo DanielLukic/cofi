@@ -219,6 +219,7 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             return FALSE;
         } else if (strcmp(args, "apps") == 0) {
             exit_command_mode(app);
+            app->apps_mode = APPS_MODE_DEFAULT;
             surface_tab(app, TAB_APPS);
             return FALSE;
         } else {
