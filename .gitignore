@@ -31,3 +31,4 @@ src/*.d
 .pi/messenger/feed.jsonl
 .pi/messenger/sessions/
 /.agents/skills
+.mcp.json
