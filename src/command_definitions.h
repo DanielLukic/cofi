@@ -191,7 +191,7 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"s", NULL},
         .handler = cmd_show,
         .description = "Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps)",
-        .help_format = "show [windows|command|run|workspaces|harpoon|names|config|rules|apps]",
+        .help_format = "show [MODE]",
         .keeps_open_on_hotkey_auto = 1
     },
     {
