@@ -4,6 +4,7 @@
 #include "log.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
+#include "nav_keys.h"
 #include "selection.h"
 #include "dynamic_display.h"
 #include "command_parse_defs.h"
@@ -286,13 +287,18 @@ static gboolean handle_help_navigation_key(GdkEventKey *event, AppData *app) {
         page = 1;
     }
 
-    switch (event->keyval) {
-        case GDK_KEY_Up:
+    switch (nav_direction_from_key(event)) {
+        case NAV_UP:
             render_help_page(app, offset - 1);
             return TRUE;
-        case GDK_KEY_Down:
+        case NAV_DOWN:
             render_help_page(app, offset + 1);
             return TRUE;
+        case NAV_NONE:
+            break;
+    }
+
+    switch (event->keyval) {
         case GDK_KEY_Page_Up:
             render_help_page(app, offset - page);
             return TRUE;
@@ -305,18 +311,6 @@ static gboolean handle_help_navigation_key(GdkEventKey *event, AppData *app) {
         case GDK_KEY_End:
             render_help_page(app, INT_MAX);
             return TRUE;
-        case GDK_KEY_j:
-            if (event->state & GDK_CONTROL_MASK) {
-                render_help_page(app, offset + 1);
-                return TRUE;
-            }
-            break;
-        case GDK_KEY_k:
-            if (event->state & GDK_CONTROL_MASK) {
-                render_help_page(app, offset - 1);
-                return TRUE;
-            }
-            break;
         default:
             break;
     }
@@ -474,20 +468,6 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             }
             return FALSE;
 
-        case GDK_KEY_j:
-            if (event->state & GDK_CONTROL_MASK) {
-                move_selection_down(app);
-                return TRUE;
-            }
-            return FALSE;
-
-        case GDK_KEY_k:
-            if (event->state & GDK_CONTROL_MASK) {
-                move_selection_up(app);
-                return TRUE;
-            }
-            return FALSE;
-
         case GDK_KEY_Up:
             if (app->command_mode.history_count > 0) {
                 if (app->command_mode.history_index == -1) {
@@ -552,8 +532,21 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             return TRUE;
 
         default:
-            return FALSE;
+            break;
     }
+
+    switch (nav_direction_from_key(event)) {
+        case NAV_UP:
+            move_selection_up(app);
+            return TRUE;
+        case NAV_DOWN:
+            move_selection_down(app);
+            return TRUE;
+        case NAV_NONE:
+            break;
+    }
+
+    return FALSE;
 }
 
 void show_help_commands(AppData *app) {
