@@ -109,27 +109,29 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
     if (is_overlay_active(app)) {
         return handle_overlay_key_press(app, event);
     }
+    /* Unified prefix dispatch: intercept any prefix char on empty entry */
+    {
+        guint32 u = gdk_keyval_to_unicode(event->keyval);
+        if (u < 128 && strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0 &&
+            cofi_is_prefix_char((char)u)) {
+            if (app->command_mode.state == CMD_MODE_NORMAL) {
+                cofi_dispatch_prefix(app, (char)u);
+                return TRUE;
+            }
+            if (app->command_mode.state == CMD_MODE_MODAL &&
+                app->active_prefix_claim != (char)u) {
+                cofi_exit_modal(app);
+                cofi_dispatch_prefix(app, (char)u);
+                return TRUE;
+            }
+        }
+    }
     if (app->command_mode.state == CMD_MODE_COMMAND) {
         if (handle_command_key(event, app)) {
             return TRUE;
         }
     } else if (app->command_mode.state == CMD_MODE_MODAL) {
         if (cofi_handle_modal_key(app, event)) {
-            return TRUE;
-        }
-    }
-    if (app->command_mode.state == CMD_MODE_NORMAL &&
-        strlen(gtk_entry_get_text(GTK_ENTRY(app->entry))) == 0) {
-        if (event->keyval == GDK_KEY_colon) {
-            log_debug("USER: ':' pressed -> Entering command mode");
-            enter_command_mode(app);
-            return TRUE;
-        }
-        if (event->keyval == GDK_KEY_exclam) {
-            log_debug("USER: '!' pressed -> Entering run modal");
-            app->prefix_origin_tab = app->current_tab;
-            app->active_prefix_claim = '!';
-            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
             return TRUE;
         }
     }
