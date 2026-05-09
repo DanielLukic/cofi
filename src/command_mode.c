@@ -245,7 +245,7 @@ static void render_help_page(AppData *app, int requested_offset) {
         return;
     }
 
-    char *help_text = generate_command_help_text(HELP_FORMAT_GUI);
+    char *help_text = generate_command_help_text(HELP_FORMAT_GUI, get_display_columns(app));
     if (!help_text) {
         return;
     }

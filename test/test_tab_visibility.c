@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #include "../src/app_data.h"
@@ -512,6 +514,112 @@ static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
     ASSERT_TRUE("surfaced tab hidden again after leaving", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_HIDDEN);
 }
 
+static void test_command_help_wrap_respects_width_budget(void) {
+    char *help = generate_command_help_text(HELP_FORMAT_CLI, 115);
+    ASSERT_TRUE("help text generated", help != NULL);
+    if (!help) {
+        return;
+    }
+
+    const char *line = help;
+    gboolean all_fit = TRUE;
+    while (*line) {
+        const char *nl = strchr(line, '\n');
+        size_t len = nl ? (size_t)(nl - line) : strlen(line);
+        if (len > 115) {
+            all_fit = FALSE;
+            break;
+        }
+        if (!nl) {
+            break;
+        }
+        line = nl + 1;
+    }
+
+    ASSERT_TRUE("all help lines fit within 115 columns", all_fit == TRUE);
+    free(help);
+}
+
+static void test_command_help_wrap_show_continuation_alignment(void) {
+    char *help = generate_command_help_text(HELP_FORMAT_CLI, 115);
+    ASSERT_TRUE("help text generated", help != NULL);
+    if (!help) {
+        return;
+    }
+
+    const char *show_line = strstr(help, "  show [MODE]");
+    ASSERT_TRUE("show line exists", show_line != NULL);
+    if (!show_line) {
+        free(help);
+        return;
+    }
+
+    const char *next_line = strchr(show_line, '\n');
+    ASSERT_TRUE("show continuation line exists", next_line != NULL);
+    if (!next_line) {
+        free(help);
+        return;
+    }
+    next_line++;
+
+    gboolean aligned = TRUE;
+    for (int i = 0; i < 45; i++) {
+        if (next_line[i] != ' ') {
+            aligned = FALSE;
+            break;
+        }
+    }
+    ASSERT_TRUE("show continuation starts at description column (45)", aligned == TRUE);
+    free(help);
+}
+
+static void test_command_help_wrap_prefers_word_boundaries(void) {
+    char *help = generate_command_help_text(HELP_FORMAT_CLI, 115);
+    ASSERT_TRUE("help text generated", help != NULL);
+    if (!help) {
+        return;
+    }
+
+    const char *show_line = strstr(help, "  show [MODE]");
+    ASSERT_TRUE("show line exists", show_line != NULL);
+    if (!show_line) {
+        free(help);
+        return;
+    }
+
+    const char *next_line = strchr(show_line, '\n');
+    ASSERT_TRUE("show wraps to next line", next_line != NULL);
+    if (!next_line) {
+        free(help);
+        return;
+    }
+
+    const char *cont = next_line + 45;
+    gboolean not_mid_word = TRUE;
+    if (next_line - 2 >= help && *cont != '\0') {
+        unsigned char before = (unsigned char)*(next_line - 2);
+        unsigned char after = (unsigned char)*cont;
+        not_mid_word = !(isalnum(before) && isalnum(after));
+    }
+
+    ASSERT_TRUE("show wrap does not split a word token", not_mid_word == TRUE);
+    free(help);
+}
+
+static void test_command_help_width_zero_is_unwrapped(void) {
+    char *help = generate_command_help_text(HELP_FORMAT_CLI, 0);
+    ASSERT_TRUE("help text generated", help != NULL);
+    if (!help) {
+        return;
+    }
+
+    ASSERT_TRUE("unwrapped show line remains single-line description",
+                strstr(help,
+                       "  show [MODE]                              - Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps)\n")
+                    != NULL);
+    free(help);
+}
+
 int main(void) {
     printf("Tab visibility safety-net tests\n");
     printf("===============================\n\n");
@@ -528,6 +636,10 @@ int main(void) {
     test_daemon_opcode_applications_resets_mode();
     test_tab_switching_skips_hidden_tabs();
     test_tab_switching_clears_surfaced_tabs_on_pinned_return();
+    test_command_help_wrap_respects_width_budget();
+    test_command_help_wrap_show_continuation_alignment();
+    test_command_help_wrap_prefers_word_boundaries();
+    test_command_help_width_zero_is_unwrapped();
 
     printf("\n===============================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

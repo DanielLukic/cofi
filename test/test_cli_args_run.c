@@ -16,8 +16,9 @@ static int fail = 0;
     else { printf("FAIL: %s\n", name); fail++; } \
 } while (0)
 
-char *generate_command_help_text(HelpFormat format) {
+char *generate_command_help_text(HelpFormat format, int width) {
     (void)format;
+    (void)width;
     return strdup("help");
 }
 
