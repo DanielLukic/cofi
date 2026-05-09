@@ -305,9 +305,22 @@ static gboolean handle_help_navigation_key(GdkEventKey *event, AppData *app) {
         case GDK_KEY_End:
             render_help_page(app, INT_MAX);
             return TRUE;
+        case GDK_KEY_j:
+            if (event->state & GDK_CONTROL_MASK) {
+                render_help_page(app, offset + 1);
+                return TRUE;
+            }
+            break;
+        case GDK_KEY_k:
+            if (event->state & GDK_CONTROL_MASK) {
+                render_help_page(app, offset - 1);
+                return TRUE;
+            }
+            break;
         default:
-            return FALSE;
+            break;
     }
+    return FALSE;
 }
 
 void init_command_mode(CommandMode *cmd) {
