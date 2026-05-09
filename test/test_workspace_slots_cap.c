@@ -25,6 +25,7 @@ typedef struct {
 static TestGeometry test_geometries[MAX_WINDOWS];
 static int test_geometry_count = 0;
 static int test_current_desktop = 0;
+static int test_save_config_calls = 0;
 
 static void reset_test_geometry(void) {
     memset(test_geometries, 0, sizeof(test_geometries));
@@ -68,6 +69,7 @@ int get_window_geometry(Display *display, Window window, int *x, int *y, int *w,
 
 void save_config(const CofiConfig *config) {
     (void)config;
+    test_save_config_calls++;
 }
 
 void show_slot_overlays(AppData *app) {
@@ -137,6 +139,7 @@ static void test_assign_workspace_slots_keeps_behavior_for_small_sets(void) {
     app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
     app.window_count = 5;
+    test_save_config_calls = 0;
 
     reset_test_geometry();
 
@@ -153,6 +156,9 @@ static void test_assign_workspace_slots_keeps_behavior_for_small_sets(void) {
     ASSERT_TRUE("small set assigns 5 slots", app.workspace_slots.count == 5);
     ASSERT_TRUE("slot 1 is first window", get_workspace_slot_window(&app.workspace_slots, 1) == 0x100);
     ASSERT_TRUE("slot 5 is fifth window", get_workspace_slot_window(&app.workspace_slots, 5) == 0x104);
+    ASSERT_TRUE("assign_workspace_slots does not mutate digit_slot_mode",
+                app.config.digit_slot_mode == DIGIT_MODE_DEFAULT);
+    ASSERT_TRUE("assign_workspace_slots does not save config", test_save_config_calls == 0);
 }
 
 static void test_assign_workspace_slots_considers_all_candidates_before_capping(void) {
@@ -189,12 +195,38 @@ static void test_assign_workspace_slots_considers_all_candidates_before_capping(
     ASSERT_TRUE("far-right sticky window is excluded from top 9", get_workspace_slot_window(&app.workspace_slots, 9) != 0x201);
 }
 
+static void test_assign_workspace_slots_keeps_mode_and_never_saves(void) {
+    AppData app = {0};
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_WORKSPACES;
+    app.window_count = 2;
+
+    reset_test_geometry();
+    test_save_config_calls = 0;
+
+    for (int i = 0; i < 2; i++) {
+        Window id = (Window)(0x300 + i);
+        app.windows[i].id = id;
+        app.windows[i].desktop = 0;
+        strcpy(app.windows[i].type, "Normal");
+        add_geometry(id, i * 120, 0, 100, 100);
+    }
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("slots still computed when mode is workspaces", app.workspace_slots.count == 2);
+    ASSERT_TRUE("digit_slot_mode remains workspaces", app.config.digit_slot_mode == DIGIT_MODE_WORKSPACES);
+    ASSERT_TRUE("config save not invoked", test_save_config_calls == 0);
+}
+
 int main(void) {
     printf("Workspace slot candidate cap tests\n");
     printf("==================================\n\n");
 
     test_assign_workspace_slots_keeps_behavior_for_small_sets();
     test_assign_workspace_slots_considers_all_candidates_before_capping();
+    test_assign_workspace_slots_keeps_mode_and_never_saves();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

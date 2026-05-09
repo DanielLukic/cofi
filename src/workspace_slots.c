@@ -529,13 +529,6 @@ void assign_workspace_slots(AppData *app) {
     }
     manager->count = assigned_count;
 
-    // Auto-switch to per-workspace mode when slots are assigned
-    if (app->config.digit_slot_mode != DIGIT_MODE_PER_WORKSPACE) {
-        app->config.digit_slot_mode = DIGIT_MODE_PER_WORKSPACE;
-        save_config(&app->config);
-        log_info("Auto-switched digit_slot_mode to per-workspace");
-    }
-
     log_info("Assigned %d workspace slots on desktop %d (%d qualifying, %d visible after occlusion)",
              assigned_count, current_desktop, cand_count, vis_count);
 

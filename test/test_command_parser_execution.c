@@ -27,6 +27,14 @@ static void test_parse_command_for_execution_alias_resolution(void) {
                 parse_command_for_execution("j5", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "jw") == 0 && strcmp(arg, "5") == 0);
 
+    assert_true("compact js1 resolves to jump-slot",
+                parse_command_for_execution("js1", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "jump-slot") == 0 && strcmp(arg, "1") == 0);
+
+    assert_true("jump-slot 9 resolves to jump-slot",
+                parse_command_for_execution("jump-slot 9", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "jump-slot") == 0 && strcmp(arg, "9") == 0);
+
     assert_true("tile alias tL resolves to tw",
                 parse_command_for_execution("tL", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "tw") == 0 && strcmp(arg, "L") == 0);

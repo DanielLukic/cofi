@@ -14,7 +14,7 @@
 STUB(cmd_always_below) STUB(cmd_assign_name) STUB(cmd_assign_slots)
 STUB(cmd_always_on_top) STUB(cmd_close_window) STUB(cmd_show_config)
 STUB(cmd_change_workspace) STUB(cmd_every_workspace) STUB(cmd_horizontal_maximize)
-STUB(cmd_hotkeys) STUB(cmd_jump_workspace) STUB(cmd_move_all_to_workspace)
+STUB(cmd_hotkeys) STUB(cmd_jump_workspace) STUB(cmd_jump_slot) STUB(cmd_move_all_to_workspace)
 STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
@@ -103,6 +103,7 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("help",    0);   // help: shows help text
     ASSERT_ACTIVATES("hotkeys", 0);   // hotkeys: manages bindings
     ASSERT_ACTIVATES("jw",      0);   // jump-workspace: switches desktop, no window
+    ASSERT_ACTIVATES("jump-slot", 0); // jump-slot: activates internally
     ASSERT_ACTIVATES("maw",     0);   // move-all: moves multiple windows
     ASSERT_ACTIVATES("miw",     0);   // minimize: handles activation directly
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
@@ -296,12 +297,12 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 22 non-activating = 33 commands (includes :run, :proc)
-    if (table_count == 33) {
+    // 11 activating + 23 non-activating = 34 commands (includes jump-slot)
+    if (table_count == 34) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 33 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 34 — update test!\n", table_count);
         tests_failed++;
     }
 }
