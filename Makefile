@@ -35,6 +35,7 @@ SOURCES = src/main.c \
           src/app_setup.c \
           src/tab_switching.c \
           src/key_handler.c \
+          src/nav_keys.c \
           src/prefix_tabs.c \
           src/key_handler_harpoon.c \
           src/key_handler_tabs.c \
@@ -168,8 +169,8 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_modal test_run_provider
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_sinks test_proc test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_tab_provider test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_sinks test_proc test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_tab_provider test_cofi_modal test_run_provider
 	cd test && ./run_tests.sh
 
 # Build command parsing test
@@ -277,14 +278,17 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
+
+test_nav_keys: test/test_nav_keys.c src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)
 
 # Build workspace slot cap regression tests
 # (includes workspace_slots.c directly with X11/config stubs)
@@ -315,8 +319,8 @@ test/test_detach_survival_bin: test/test_detach_survival_bin.c
 	$(CC) -o $@ $<
 
 # Build command mode targeting tests
-test_command_mode_targeting: test/test_command_mode_targeting.c src/log.o
-	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c src/log.o $(LDFLAGS)
+test_command_mode_targeting: test/test_command_mode_targeting.c src/log.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c src/log.o src/nav_keys.o $(LDFLAGS)
 
 # Build CLI run-flag parsing tests
 test_cli_args_run: test/test_cli_args_run.c src/cli_args.o src/config.o src/log.o src/utils.o
@@ -339,8 +343,8 @@ test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_sto
 	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)

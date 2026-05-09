@@ -300,6 +300,16 @@ if [ -f test_key_handler_tabs ]; then
     fi
 fi
 
+# Run nav-key mapping tests if they exist
+if [ -f test_nav_keys ]; then
+    echo ""
+    echo "Running nav-key mapping tests..."
+    ./test_nav_keys
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run workspace slot cap regression tests if they exist
 if [ -f test_workspace_slots_cap ]; then
     echo ""

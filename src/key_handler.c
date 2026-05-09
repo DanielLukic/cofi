@@ -17,6 +17,7 @@
 #include "repeat_action.h"
 #include "selection.h"
 #include "tab_switching.h"
+#include "nav_keys.h"
 #include "window_highlight.h"
 #include "window_lifecycle.h"
 #include "x11_events.h"
@@ -86,19 +87,18 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 }
             }
             return TRUE;
-        case GDK_KEY_Up: move_selection_up(app); return TRUE;
-        case GDK_KEY_Down: move_selection_down(app); return TRUE;
-        case GDK_KEY_k:
-            if (event->state & GDK_CONTROL_MASK) {
-                move_selection_up(app);
-                return TRUE;
-            }
+        default:
             break;
-        case GDK_KEY_j:
-            if (event->state & GDK_CONTROL_MASK) {
-                move_selection_down(app);
-                return TRUE;
-            }
+    }
+
+    switch (nav_direction_from_key(event)) {
+        case NAV_UP:
+            move_selection_up(app);
+            return TRUE;
+        case NAV_DOWN:
+            move_selection_down(app);
+            return TRUE;
+        case NAV_NONE:
             break;
     }
     return FALSE;
