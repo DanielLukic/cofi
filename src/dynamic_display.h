@@ -18,6 +18,8 @@ typedef struct {
 
 // Screen information structure
 typedef struct {
+    gint x;
+    gint y;
     gint width;
     gint height;
     gint workarea_width;
