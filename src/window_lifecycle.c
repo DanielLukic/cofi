@@ -6,6 +6,7 @@
 #include "command_mode.h"
 #include "config.h"
 #include "display.h"
+#include "dynamic_display.h"
 #include "filter.h"
 #include "harpoon_config.h"
 #include "history.h"
@@ -267,11 +268,11 @@ void show_window(AppData *app) {
     app->window_visible = TRUE;
     ensure_cofi_on_current_workspace(app);
 
-    if (app->fixed_cols > 0 && app->fixed_rows > 0) {
-        update_display(app);
-    } else {
-        app->pending_initial_render = TRUE;
-    }
+    app->fixed_cols = 0;
+    app->fixed_rows = 0;
+    init_fixed_window_size(app);
+    app->pending_initial_render = FALSE;
+    update_display(app);
 
     GtkWindow *window = GTK_WINDOW(app->window);
     guint32 ts = app->focus_timestamp ? app->focus_timestamp : GDK_CURRENT_TIME;

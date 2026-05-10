@@ -63,8 +63,17 @@ gboolean get_monitor_info_best_api(GdkDisplay *display, GtkWidget *window,
     if (has_modern_monitor_api()) {
         // Use modern GdkMonitor API (GTK 3.22+)
         GdkMonitor *monitor = NULL;
-        
-        if (window && gtk_widget_get_realized(window)) {
+
+        GdkSeat *seat = gdk_display_get_default_seat(display);
+        GdkDevice *pointer = seat ? gdk_seat_get_pointer(seat) : NULL;
+        if (pointer) {
+            gint pointer_x = 0;
+            gint pointer_y = 0;
+            gdk_device_get_position(pointer, NULL, &pointer_x, &pointer_y);
+            monitor = gdk_display_get_monitor_at_point(display, pointer_x, pointer_y);
+        }
+
+        if (!monitor && window && gtk_widget_get_realized(window)) {
             GdkWindow *gdk_window = gtk_widget_get_window(window);
             if (gdk_window) {
                 monitor = gdk_display_get_monitor_at_window(display, gdk_window);
@@ -100,9 +109,14 @@ gboolean get_monitor_info_best_api(GdkDisplay *display, GtkWidget *window,
         // Use deprecated GdkScreen API for older GTK versions
         GdkScreen *screen = gdk_display_get_default_screen(display);
         if (!screen) return FALSE;
-        
+
         gint monitor_num = 0;
-        if (window && gtk_widget_get_realized(window)) {
+        gint mouse_x = 0;
+        gint mouse_y = 0;
+        gdk_display_get_pointer(display, NULL, &mouse_x, &mouse_y, NULL);
+        monitor_num = gdk_screen_get_monitor_at_point(screen, mouse_x, mouse_y);
+
+        if (monitor_num < 0 && window && gtk_widget_get_realized(window)) {
             GdkWindow *gdk_window = gtk_widget_get_window(window);
             if (gdk_window) {
                 monitor_num = gdk_screen_get_monitor_at_window(screen, gdk_window);
@@ -153,6 +167,8 @@ gboolean get_screen_info(GtkWidget *window, ScreenInfo *screen_info) {
     }
     
     // Fill screen info structure
+    screen_info->x = geometry.x;
+    screen_info->y = geometry.y;
     screen_info->width = geometry.width;
     screen_info->height = geometry.height;
     screen_info->workarea_width = workarea.width > 0 ? workarea.width : geometry.width;
@@ -370,10 +386,6 @@ void init_fixed_window_size(struct AppData *app) {
         return;
     }
 
-    if (app->fixed_cols > 0 && app->fixed_rows > 0) {
-        return;
-    }
-
     GtkWidget *tv = app->textview;
     PangoContext *context = gtk_widget_get_pango_context(tv);
     if (!context) {
@@ -423,9 +435,17 @@ void init_fixed_window_size(struct AppData *app) {
     app->fixed_rows = visible_rows;
     app->fixed_window_size_initializing = TRUE;
 
-    gtk_window_resize(GTK_WINDOW(app->window),
-                      width_px + horizontal_padding,
-                      height_px + vertical_padding);
+    gint target_width = width_px + horizontal_padding;
+    gint target_height = height_px + vertical_padding;
+
+    gtk_window_resize(GTK_WINDOW(app->window), target_width, target_height);
+
+    ScreenInfo screen_info = {0};
+    if (get_screen_info(app->window, &screen_info)) {
+        gint target_x = screen_info.x + (screen_info.width - target_width) / 2;
+        gint target_y = screen_info.y + (screen_info.height - target_height) / 2;
+        gtk_window_move(GTK_WINDOW(app->window), target_x, target_y);
+    }
 
     invalidate_display_line_cache(app);
     g_idle_add(clear_fixed_window_init_flag_idle, app);
