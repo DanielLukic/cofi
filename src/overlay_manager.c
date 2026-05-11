@@ -1,5 +1,7 @@
 #include "overlay_manager.h"
 
+#include <string.h>
+
 #include "hotkeys.h"
 #include "overlay_dispatch.h"
 #include "overlay_harpoon.h"
@@ -46,6 +48,11 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
     if (type == OVERLAY_RULE_DELETE) {
         app->rules_delete.pending_delete = FALSE;
         app->rules_delete.rule_index = -1;
+    }
+
+    if (type == OVERLAY_HOTKEY_REBIND) {
+        memset(&app->hotkey_rebind, 0, sizeof(app->hotkey_rebind));
+        app->hotkey_rebind.conflict_index = -1;
     }
 }
 void init_overlay_system(AppData *app) {

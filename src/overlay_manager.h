@@ -37,6 +37,7 @@ void show_rule_delete_overlay(AppData *app, int rule_index);
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
     return type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
            type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
+           type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
            type == OVERLAY_RULE_EDIT;
 }
