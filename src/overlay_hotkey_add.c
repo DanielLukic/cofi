@@ -64,6 +64,55 @@ gboolean show_rebind_conflict(AppData *app, GtkWidget *error_label,
     return TRUE;
 }
 
+static gboolean dispatch_rebind_canonical(AppData *app, GtkWidget *error_label,
+                                          const char *canonical, int existing) {
+    if (existing == app->hotkey_rebind.target_index ||
+        strcmp(canonical, app->hotkey_rebind.target_key) == 0) {
+        hide_overlay(app);
+        return TRUE;
+    }
+    if (existing >= 0) {
+        return show_rebind_conflict(app, error_label, canonical, existing);
+    }
+    return apply_rebind(app, canonical);
+}
+
+static gboolean dispatch_add_canonical(AppData *app, GtkWidget *error_label,
+                                       GtkWidget *name_entry_or_null,
+                                       const char *canonical, int existing,
+                                       const char *log_verb) {
+    if (existing >= 0) {
+        gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
+        return TRUE;
+    }
+    if (!add_hotkey_binding(&app->hotkey_config, canonical, "")) {
+        gtk_label_set_text(GTK_LABEL(error_label), "Could not add hotkey binding");
+        return TRUE;
+    }
+    if (name_entry_or_null) {
+        gtk_entry_set_text(GTK_ENTRY(name_entry_or_null), canonical);
+    }
+    save_hotkey_config(&app->hotkey_config);
+    if (!app->hotkey_capture_active) {
+        regrab_hotkeys(app);
+    }
+    log_info("USER: %s hotkey binding '%s'", log_verb, canonical);
+    hide_overlay(app);
+    finish_hotkey_capture_add(app, canonical);
+    return TRUE;
+}
+
+gboolean process_canonical_combo(AppData *app, GtkWidget *error_label,
+                                 GtkWidget *name_entry_or_null,
+                                 const char *canonical, const char *log_verb) {
+    int existing = find_hotkey_binding(&app->hotkey_config, canonical);
+    if (app->hotkey_rebind.active) {
+        return dispatch_rebind_canonical(app, error_label, canonical, existing);
+    }
+    return dispatch_add_canonical(app, error_label, name_entry_or_null,
+                                  canonical, existing, log_verb);
+}
+
 gboolean handle_rebind_confirm_key(AppData *app, GdkEventKey *event) {
     if (event->keyval == GDK_KEY_y) {
         const char *conflict_key =
@@ -129,117 +178,58 @@ void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppData *app
     log_info("Hotkey add overlay created");
 }
 
-gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
-    GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
-    GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
+static gboolean is_plain_enter(const GdkEventKey *event) {
+    GdkModifierType mods = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK |
+                                           GDK_SUPER_MASK | GDK_META_MASK |
+                                           GDK_HYPER_MASK);
+    return (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) && !mods;
+}
 
-    if (!name_entry || !error_label) {
-        log_error("Hotkey add widgets not found");
-        hide_overlay(app);
+static gboolean handle_typed_shortcut_enter(AppData *app, GtkWidget *name_entry,
+                                            GtkWidget *error_label) {
+    const char *input = gtk_entry_get_text(GTK_ENTRY(name_entry));
+    if (!input || input[0] == '\0') {
+        gtk_label_set_text(GTK_LABEL(error_label), "Enter a shortcut to add");
         return TRUE;
     }
-
-    if (app->hotkey_rebind.active && app->hotkey_rebind.awaiting_confirm) {
-        return handle_rebind_confirm_key(app, event);
-    }
-
-    GdkModifierType add_mods = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK |
-                                               GDK_SUPER_MASK | GDK_META_MASK |
-                                               GDK_HYPER_MASK);
-    if ((event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter) && !add_mods) {
-        const char *shortcut_input = gtk_entry_get_text(GTK_ENTRY(name_entry));
-        char canonical[128];
-        char err_buf[256];
-
-        if (!shortcut_input || shortcut_input[0] == '\0') {
-            gtk_label_set_text(GTK_LABEL(error_label), "Enter a shortcut to add");
-            return TRUE;
-        }
-
-        if (!canonicalize_hotkey_shortcut(shortcut_input, canonical, sizeof(canonical),
-                                          err_buf, sizeof(err_buf))) {
-            gtk_label_set_text(GTK_LABEL(error_label), err_buf);
-            return TRUE;
-        }
-
-        int existing = find_hotkey_binding(&app->hotkey_config, canonical);
-        if (app->hotkey_rebind.active) {
-            if (existing == app->hotkey_rebind.target_index ||
-                strcmp(canonical, app->hotkey_rebind.target_key) == 0) {
-                hide_overlay(app);
-                return TRUE;
-            }
-            if (existing >= 0) {
-                return show_rebind_conflict(app, error_label, canonical, existing);
-            }
-            return apply_rebind(app, canonical);
-        }
-
-        if (existing >= 0) {
-            gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
-            return TRUE;
-        }
-
-        if (!add_hotkey_binding(&app->hotkey_config, canonical, "")) {
-            gtk_label_set_text(GTK_LABEL(error_label), "Could not add hotkey binding");
-            return TRUE;
-        }
-
-        save_hotkey_config(&app->hotkey_config);
-        if (!app->hotkey_capture_active) {
-            regrab_hotkeys(app);
-        }
-
-        log_info("USER: Added hotkey binding '%s'", canonical);
-        hide_overlay(app);
-        finish_hotkey_capture_add(app, canonical);
-        return TRUE;
-    }
-
-    if (!overlay_hotkey_add_should_capture_event(event)) {
-        return FALSE;
-    }
-
     char canonical[128];
     char err_buf[256];
+    if (!canonicalize_hotkey_shortcut(input, canonical, sizeof(canonical),
+                                      err_buf, sizeof(err_buf))) {
+        gtk_label_set_text(GTK_LABEL(error_label), err_buf);
+        return TRUE;
+    }
+    return process_canonical_combo(app, error_label, NULL, canonical, "Added");
+}
 
+static gboolean handle_captured_event(AppData *app, GtkWidget *name_entry,
+                                      GtkWidget *error_label, GdkEventKey *event) {
+    char canonical[128];
+    char err_buf[256];
     if (!canonicalize_hotkey_event(event, canonical, sizeof(canonical),
                                    err_buf, sizeof(err_buf))) {
         gtk_label_set_text(GTK_LABEL(error_label), err_buf);
         return TRUE;
     }
+    return process_canonical_combo(app, error_label, name_entry, canonical, "Captured");
+}
 
-    int existing_cap = find_hotkey_binding(&app->hotkey_config, canonical);
-    if (app->hotkey_rebind.active) {
-        if (existing_cap == app->hotkey_rebind.target_index ||
-            strcmp(canonical, app->hotkey_rebind.target_key) == 0) {
-            hide_overlay(app);
-            return TRUE;
-        }
-        if (existing_cap >= 0) {
-            return show_rebind_conflict(app, error_label, canonical, existing_cap);
-        }
-        return apply_rebind(app, canonical);
-    }
-
-    if (existing_cap >= 0) {
-        gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
+gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
+    GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+    GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
+    if (!name_entry || !error_label) {
+        log_error("Hotkey add widgets not found");
+        hide_overlay(app);
         return TRUE;
     }
-
-    if (!add_hotkey_binding(&app->hotkey_config, canonical, "")) {
-        gtk_label_set_text(GTK_LABEL(error_label), "Could not add hotkey binding");
-        return TRUE;
+    if (app->hotkey_rebind.active && app->hotkey_rebind.awaiting_confirm) {
+        return handle_rebind_confirm_key(app, event);
     }
-
-    gtk_entry_set_text(GTK_ENTRY(name_entry), canonical);
-    save_hotkey_config(&app->hotkey_config);
-    if (!app->hotkey_capture_active) {
-        regrab_hotkeys(app);
+    if (is_plain_enter(event)) {
+        return handle_typed_shortcut_enter(app, name_entry, error_label);
     }
-
-    log_info("USER: Captured hotkey binding '%s'", canonical);
-    hide_overlay(app);
-    finish_hotkey_capture_add(app, canonical);
-    return TRUE;
+    if (!overlay_hotkey_add_should_capture_event(event)) {
+        return FALSE;
+    }
+    return handle_captured_event(app, name_entry, error_label, event);
 }
