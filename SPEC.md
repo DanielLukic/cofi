@@ -2,6 +2,8 @@
 
 Cofi is a keyboard-driven window switcher for X11/Linux with native GTK UI.
 
+> **Scope.** This document defines **product behavior** — what cofi does from the user's seat: window-list rules, search semantics, command catalog, keyboard model, slot/tile/run-mode behavior. For **system shape** (how the binary is wired internally) see [docs/architecture.md](docs/architecture.md). For **design decisions and their history** see [docs/adr/](docs/adr/). For **domain terminology** see [docs/glossary.md](docs/glossary.md).
+
 ## Window List
 
 Cofi displays a list of open windows on the system.
@@ -42,28 +44,32 @@ Real-time filtering as the user types. Case-insensitive.
 
 ### Search Target
 
-The search matches against the full displayed row as the user sees it — desktop indicator, instance name, window title, class name. This enables queries like "2ter" to find terminals on desktop 2, or combining any visible fields.
+The search matches against the **full displayed row** as the user sees it — desktop indicator, instance name, window title, class name — joined into a single string. *Display order = search order:* if a column moves, what the scorer sees moves with it. This enables queries like `"2ter"` to find terminals on desktop 2, or combining any visible fields.
 
-### Match Stages (in priority order)
+### Scoring Algorithm
 
-1. **Word boundary** — query matches the start of a word
-   - "comm" matches "Commodoro"
-2. **Initials** — each character matches the first letter of consecutive words
-   - "ddl" matches "Daniel Dario Lukic"
-3. **Subsequence** — characters appear in order within the target
-   - "th" matches "Thunderbird"
-4. **Fuzzy** — fallback with variable scoring
+Single-pass **fzf FuzzyMatchV2** (`src/fzf_algo.c`) over the joined display row. The algorithm itself rewards word-boundary and consecutive-character matches via internal position bonuses — there are no separate match stages. Higher scores rank higher; non-matches are dropped.
+
+Examples of what the user effectively gets, all from one scoring pass:
+
+- `"comm"` → "**Comm**odoro" (word-boundary boost)
+- `"ddl"` → "**D**aniel **D**ario **L**ukic" (initials, via consecutive boundaries)
+- `"th"` → "**Th**underbird" (subsequence)
+
+> **History.** Until 2026-03-26 cofi used a multi-stage fzy cascade (word-boundary → initials → subsequence → fuzzy). It was replaced by a single fzf v2 pass on the full row. See [ADR-0004](docs/adr/0004-fzf-fuzzymatchv2-full-row.md).
 
 ### Scoring Adjustments
 
-- Windows on the current desktop receive a scoring bonus
-- Normal windows rank above special windows (docks, dialogs, etc.)
+Applied after the fzf score:
+
+- Windows on the current desktop receive a constant bonus.
+- Normal windows rank above special windows (docks, dialogs, etc.) — special windows pinned to bottom.
 
 ### Behavior
 
-- Results update instantly as the user types
-- Empty query shows all windows in MRU order
-- Selection resets to default position (index 1) when filter changes
+- Results update instantly as the user types.
+- Empty query shows all windows in MRU order (no scoring).
+- Selection resets to the default position (index 1) when the filter changes.
 
 ## Keyboard Navigation
 
@@ -349,14 +355,14 @@ Launch installed desktop applications from a dedicated Apps tab.
 - `--applications` starts directly on the Apps tab
 - `:show apps` switches to the Apps tab
 
-### System Actions (TFD-544 Phase 1)
+### System Actions
 
 Six system actions are available as fixed entries in the Apps tab:
 
 - **Lock** — screen lock via shell fallback chain: `xdg-screensaver` → `mate-screensaver-command` → `xscreensaver-command` → `loginctl` → logind D-Bus `Session.Lock`
 - **Suspend / Hibernate / Logout / Reboot / Shutdown** — via logind D-Bus (`org.freedesktop.login1`)
 
-### $PATH Mode (TFD-544 Phase 2)
+### $PATH Mode
 
 Typing `$` as the first character in the Apps search entry switches to `$PATH` binary mode:
 
@@ -376,7 +382,7 @@ Apps tab matching is local to the Apps launcher and does not reuse Windows-tab M
 - `generic_name` and `keywords` are token-matched to avoid cross-token false positives
 - Alphabetical order is only used as a tie-breaker within the same ranking tier
 
-### Terminal Detection (TFD-566)
+### Terminal Detection
 
 When launching a terminal app or PATH binary, the terminal is detected via this priority chain:
 
@@ -388,7 +394,7 @@ When launching a terminal app or PATH binary, the terminal is detected via this 
 3. `x-terminal-emulator` (Debian alternatives system), then hardcoded candidate list: mate-terminal, gnome-terminal, konsole, alacritty, kitty, foot, wezterm, urxvt, xterm
 4. Final fallback: `xterm`
 
-### Process Detachment (TFD-557)
+### Process Detachment
 
 All Apps-tab launches (desktop entries and PATH binaries) use `detach_launch_properly`:
 
@@ -396,7 +402,7 @@ All Apps-tab launches (desktop entries and PATH binaries) use `detach_launch_pro
 - Fallback: fork + setsid + double-fork + execvp. An errno-pipe (`pipe()` + `FD_CLOEXEC` on write end) propagates exec failure back to the parent — a non-empty pipe read means execvp failed.
 - All launched apps survive cofi stop/restart.
 
-### Desktop Entry Launch Behavior (audit-batch-c)
+### Desktop Entry Launch Behavior
 
 - **Terminal=true** entries (htop, vim, etc.) are launched as `{term, -e, sh, -c, cmd}`. The explicit `sh -c` wrapper ensures consistent behavior across all terminals regardless of how they split the `-e` argument.
 - **Terminal=false (GUI) entries** are parsed with `g_shell_parse_argv` and spawned directly via `detach_launch_argv_array` — no shell is involved. Shell metacharacters (`$()`, backticks, `;`) in `Exec=` do not execute.
