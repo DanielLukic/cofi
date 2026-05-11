@@ -67,7 +67,6 @@ int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
     return 1;
 }
 
-#ifndef HOTKEY_REBIND_TEST
 int save_hotkey_config(const HotkeyConfig *config) {
     if (!config) return 0;
 
@@ -90,7 +89,6 @@ int save_hotkey_config(const HotkeyConfig *config) {
     log_debug("Saved %d hotkey bindings to %s", config->count, path);
     return 1;
 }
-#endif /* HOTKEY_REBIND_TEST */
 
 int load_hotkey_config(HotkeyConfig *config) {
     if (!config) return 0;
