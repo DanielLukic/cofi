@@ -15,13 +15,37 @@
 #include "overlay_manager.h"
 #include "cofi_modal.h"
 #include "selection.h"
+#include "slot_overlay.h"
 #include "tab_switching.h"
 #include "window_highlight.h"
 #include "window_list.h"
 #include "workspace_utils.h"
+#include "workspace_slots.h"
 #include "x11_utils.h"
 
 static gboolean grab_focus_delayed(gpointer data);
+static gboolean show_initial_slot_overlays_idle(gpointer data);
+
+void maybe_show_initial_slot_overlays(AppData *app) {
+    if (!app || !app->window_visible) {
+        return;
+    }
+    if (app->current_tab != TAB_WINDOWS) {
+        return;
+    }
+    if (app->config.digit_slot_mode != DIGIT_MODE_PER_WORKSPACE) {
+        return;
+    }
+
+    assign_workspace_slots(app);
+}
+
+static gboolean show_initial_slot_overlays_idle(gpointer data) {
+    AppData *app = (AppData *)data;
+    app->initial_overlay_idle_id = 0;
+    maybe_show_initial_slot_overlays(app);
+    return FALSE;
+}
 
 gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app) {
     (void)widget;
@@ -144,6 +168,11 @@ void hide_window(AppData *app) {
         g_source_remove(app->focus_grab_timer);
         app->focus_grab_timer = 0;
     }
+    if (app->initial_overlay_idle_id > 0) {
+        g_source_remove(app->initial_overlay_idle_id);
+        app->initial_overlay_idle_id = 0;
+    }
+    destroy_slot_overlays(app);
 
     save_config(&app->config);
     save_harpoon_slots(&app->harpoon);
@@ -284,6 +313,10 @@ void show_window(AppData *app) {
         g_source_remove(app->focus_grab_timer);
     }
     app->focus_grab_timer = g_idle_add(grab_focus_delayed, app);
+    if (app->initial_overlay_idle_id > 0) {
+        g_source_remove(app->initial_overlay_idle_id);
+    }
+    app->initial_overlay_idle_id = g_idle_add(show_initial_slot_overlays_idle, app);
 
     log_debug("Window shown with multi-method focus grab");
 }
