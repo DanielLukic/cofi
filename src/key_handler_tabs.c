@@ -190,6 +190,26 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
         }
     }
 
+    if (event->keyval == GDK_KEY_b && (event->state & GDK_CONTROL_MASK)) {
+        if (app->selection.hotkeys_index >= app->filtered_hotkeys_count) {
+            return FALSE;
+        }
+        int master_idx = app->filtered_hotkeys_indices[app->selection.hotkeys_index];
+        HotkeyBinding *binding = &app->hotkey_config.bindings[master_idx];
+        app->hotkey_rebind.active = TRUE;
+        app->hotkey_rebind.target_index = master_idx;
+        g_strlcpy(app->hotkey_rebind.target_key, binding->key,
+                  sizeof(app->hotkey_rebind.target_key));
+        g_strlcpy(app->hotkey_rebind.target_command, binding->command,
+                  sizeof(app->hotkey_rebind.target_command));
+        app->hotkey_rebind.awaiting_confirm = FALSE;
+        app->hotkey_rebind.conflict_index = -1;
+        cleanup_hotkeys(app);
+        app->hotkey_capture_active = TRUE;
+        show_overlay(app, OVERLAY_HOTKEY_REBIND, NULL);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
