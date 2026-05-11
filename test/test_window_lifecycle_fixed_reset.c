@@ -34,6 +34,8 @@ CofiResult get_x11_property(Display *display, Window window, Atom property, Atom
       (void)actual_type; (void)actual_format; (void)n_items; (void)prop; return COFI_ERROR; }
 void move_window_to_desktop(Display *display, Window window, int desktop)
     { (void)display; (void)window; (void)desktop; }
+void destroy_slot_overlays(AppData *app) { (void)app; }
+void assign_workspace_slots(AppData *app) { (void)app; }
 void log_debug(const char *fmt, ...) { (void)fmt; }
 void log_info(const char *fmt, ...) { (void)fmt; }
 void log_error(const char *fmt, ...) { (void)fmt; }

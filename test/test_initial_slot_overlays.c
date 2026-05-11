@@ -40,6 +40,7 @@ void exit_command_mode(AppData *app) { (void)app; }
 void cofi_exit_modal(AppData *app) { (void)app; }
 void save_config(const CofiConfig *config) { (void)config; }
 void save_harpoon_slots(const HarpoonManager *harpoon) { (void)harpoon; }
+void init_fixed_window_size(AppData *app) { (void)app; }
 void log_debug(const char *fmt, ...) { (void)fmt; }
 void log_info(const char *fmt, ...) { (void)fmt; }
 void log_error(const char *fmt, ...) { (void)fmt; }
