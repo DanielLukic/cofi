@@ -268,6 +268,7 @@ typedef struct AppData {
     // Timer management for deferred operations
     guint focus_loss_timer;                 // Timer ID for focus loss delay
     guint focus_grab_timer;                 // Timer ID for focus grab delay
+    guint initial_overlay_idle_id;          // Idle source for initial per-workspace slot overlays
     guint32 focus_timestamp;               // X11 event time for focus requests (0 = CurrentTime)
     int pending_hotkey_mode;               // ShowMode to dispatch on next idle (-1 = none)
     

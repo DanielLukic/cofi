@@ -8,6 +8,7 @@
 void destroy_window(AppData *app);
 void hide_window(AppData *app);
 void show_window(AppData *app);
+void maybe_show_initial_slot_overlays(AppData *app);
 gboolean check_focus_loss_delayed(AppData *app);
 gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app);
 gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app);
