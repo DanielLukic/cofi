@@ -615,7 +615,7 @@ static void format_hotkeys_display(AppData *app, GString *text,
     render_display_pipeline(&request, text);
     g_string_append(text, "\n");
     g_string_append(text,
-        "Shortcuts: Ctrl+A=Add binding  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
+        "Shortcuts: Ctrl+A=Add binding  Ctrl+B=Rebind key  Ctrl+E=Edit command  Ctrl+D=Delete binding\n");
 }
 
 static void render_rules_item(gpointer context, gint index,
