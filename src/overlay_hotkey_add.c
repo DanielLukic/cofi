@@ -35,8 +35,63 @@ static void finish_hotkey_capture_add(AppData *app, const char *hotkey) {
     update_display(app);
 }
 
+static gboolean apply_rebind(AppData *app, const char *canonical) {
+    g_strlcpy(app->hotkey_config.bindings[app->hotkey_rebind.target_index].key,
+              canonical,
+              sizeof(app->hotkey_config.bindings[0].key));
+    save_hotkey_config(&app->hotkey_config);
+    log_info("USER: Rebound hotkey '%s' -> '%s' (cmd: %s)",
+             app->hotkey_rebind.target_key, canonical,
+             app->hotkey_rebind.target_command);
+    hide_overlay(app);
+    finish_hotkey_capture_add(app, canonical);
+    return TRUE;
+}
+
+static gboolean show_rebind_conflict(AppData *app, GdkEventKey *event,
+                                     GtkWidget *error_label,
+                                     const char *canonical, int conflict_idx) {
+    (void)event;
+    app->hotkey_rebind.awaiting_confirm = TRUE;
+    app->hotkey_rebind.conflict_index = conflict_idx;
+    g_strlcpy(app->hotkey_rebind.pending_combo, canonical,
+              sizeof(app->hotkey_rebind.pending_combo));
+    char msg[320];
+    snprintf(msg, sizeof(msg),
+             "Conflict: '%s' already uses this key. Y=replace, N=cancel",
+             app->hotkey_config.bindings[conflict_idx].command);
+    gtk_label_set_text(GTK_LABEL(error_label), msg);
+    return TRUE;
+}
+
+static gboolean handle_rebind_confirm_key(AppData *app, GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_y) {
+        const char *conflict_key =
+            app->hotkey_config.bindings[app->hotkey_rebind.conflict_index].key;
+        remove_hotkey_binding(&app->hotkey_config, conflict_key);
+        int new_target = find_hotkey_binding(&app->hotkey_config,
+                                             app->hotkey_rebind.target_key);
+        if (new_target >= 0) {
+            g_strlcpy(app->hotkey_config.bindings[new_target].key,
+                      app->hotkey_rebind.pending_combo,
+                      sizeof(app->hotkey_config.bindings[0].key));
+        }
+        save_hotkey_config(&app->hotkey_config);
+        log_info("USER: Rebound hotkey '%s' -> '%s' replacing conflict",
+                 app->hotkey_rebind.target_key, app->hotkey_rebind.pending_combo);
+        hide_overlay(app);
+        finish_hotkey_capture_add(app, app->hotkey_rebind.pending_combo);
+        return TRUE;
+    }
+    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_Escape) {
+        hide_overlay(app);
+        return TRUE;
+    }
+    return TRUE; // swallow all other keys while awaiting confirm
+}
+
 void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppData *app) {
-    (void)app;
+    gboolean rebind = app->hotkey_rebind.active;
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
@@ -44,11 +99,13 @@ void create_hotkey_add_overlay_content(GtkWidget *parent_container, AppData *app
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title_label = gtk_label_new("Add Hotkey Binding");
+    GtkWidget *title_label = gtk_label_new(rebind ? "Rebind Hotkey" : "Add Hotkey Binding");
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
-    GtkWidget *info_label = gtk_label_new("Press a key combo to capture, or type a shortcut text");
+    GtkWidget *info_label = gtk_label_new(
+        rebind ? "Press a new key combo to rebind, or type and press Enter"
+               : "Press a key combo to capture, or type a shortcut text");
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
 
     GtkWidget *name_entry = gtk_entry_new();
@@ -82,6 +139,10 @@ gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
+    if (app->hotkey_rebind.active && app->hotkey_rebind.awaiting_confirm) {
+        return handle_rebind_confirm_key(app, event);
+    }
+
     GdkModifierType add_mods = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK |
                                                GDK_SUPER_MASK | GDK_META_MASK |
                                                GDK_HYPER_MASK);
@@ -101,7 +162,20 @@ gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
             return TRUE;
         }
 
-        if (find_hotkey_binding(&app->hotkey_config, canonical) >= 0) {
+        int existing = find_hotkey_binding(&app->hotkey_config, canonical);
+        if (app->hotkey_rebind.active) {
+            if (existing == app->hotkey_rebind.target_index ||
+                strcmp(canonical, app->hotkey_rebind.target_key) == 0) {
+                hide_overlay(app);
+                return TRUE;
+            }
+            if (existing >= 0) {
+                return show_rebind_conflict(app, event, error_label, canonical, existing);
+            }
+            return apply_rebind(app, canonical);
+        }
+
+        if (existing >= 0) {
             gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
             return TRUE;
         }
@@ -135,7 +209,20 @@ gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    if (find_hotkey_binding(&app->hotkey_config, canonical) >= 0) {
+    int existing_cap = find_hotkey_binding(&app->hotkey_config, canonical);
+    if (app->hotkey_rebind.active) {
+        if (existing_cap == app->hotkey_rebind.target_index ||
+            strcmp(canonical, app->hotkey_rebind.target_key) == 0) {
+            hide_overlay(app);
+            return TRUE;
+        }
+        if (existing_cap >= 0) {
+            return show_rebind_conflict(app, event, error_label, canonical, existing_cap);
+        }
+        return apply_rebind(app, canonical);
+    }
+
+    if (existing_cap >= 0) {
         gtk_label_set_text(GTK_LABEL(error_label), "That hotkey already exists");
         return TRUE;
     }
