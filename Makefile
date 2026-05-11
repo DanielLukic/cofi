@@ -252,11 +252,24 @@ test_overlay_delete_flow: test/test_overlay_delete_flow.c src/overlay_harpoon.o 
 	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o $(LDFLAGS)
 
 # Build hotkey rebind flow behavioral tests
-# (tests data-layer rebind: no-conflict, same-combo no-op, conflict Y/N, index shift)
-# hotkey_config.c compiled inline with -DHOTKEY_REBIND_TEST to suppress save_hotkey_config
-# so our stub can intercept it; log.c stub is inlined in the test file.
-test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c
-	$(CC) $(CFLAGS) -DHOTKEY_REBIND_TEST -o test/test_hotkey_rebind_flow test/test_hotkey_rebind_flow.c src/hotkey_config.c $(LDFLAGS)
+# Calls production rebind helpers (apply_rebind, show_rebind_conflict,
+# handle_rebind_confirm_key) directly. Uses ld --wrap to intercept collaborators
+# (hide_overlay, save_hotkey_config, regrab_hotkeys, filter_hotkeys, update_display,
+# validate_selection, update_scroll_position, log_log) so production code runs but
+# side effects are observed via test stubs.
+HOTKEY_REBIND_WRAP = \
+	-Wl,--wrap=hide_overlay \
+	-Wl,--wrap=save_hotkey_config \
+	-Wl,--wrap=regrab_hotkeys \
+	-Wl,--wrap=filter_hotkeys \
+	-Wl,--wrap=update_display \
+	-Wl,--wrap=validate_selection \
+	-Wl,--wrap=update_scroll_position \
+	-Wl,--wrap=log_log \
+	-Wl,--wrap=gtk_entry_get_text
+
+test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_rebind_flow test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o $(HOTKEY_REBIND_WRAP) $(LDFLAGS)
 
 # Build rules overlay behavior tests
 # (tests rules CRUD persistence-only behavior and clamp)
