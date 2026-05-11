@@ -35,7 +35,7 @@ static void finish_hotkey_capture_add(AppData *app, const char *hotkey) {
     update_display(app);
 }
 
-static gboolean apply_rebind(AppData *app, const char *canonical) {
+gboolean apply_rebind(AppData *app, const char *canonical) {
     g_strlcpy(app->hotkey_config.bindings[app->hotkey_rebind.target_index].key,
               canonical,
               sizeof(app->hotkey_config.bindings[0].key));
@@ -48,23 +48,23 @@ static gboolean apply_rebind(AppData *app, const char *canonical) {
     return TRUE;
 }
 
-static gboolean show_rebind_conflict(AppData *app, GdkEventKey *event,
-                                     GtkWidget *error_label,
-                                     const char *canonical, int conflict_idx) {
-    (void)event;
+gboolean show_rebind_conflict(AppData *app, GtkWidget *error_label,
+                              const char *canonical, int conflict_idx) {
     app->hotkey_rebind.awaiting_confirm = TRUE;
     app->hotkey_rebind.conflict_index = conflict_idx;
     g_strlcpy(app->hotkey_rebind.pending_combo, canonical,
               sizeof(app->hotkey_rebind.pending_combo));
-    char msg[320];
-    snprintf(msg, sizeof(msg),
-             "Conflict: '%s' already uses this key. Y=replace, N=cancel",
-             app->hotkey_config.bindings[conflict_idx].command);
-    gtk_label_set_text(GTK_LABEL(error_label), msg);
+    if (error_label) {
+        char msg[320];
+        snprintf(msg, sizeof(msg),
+                 "Conflict: '%s' already uses this key. Y=replace, N=cancel",
+                 app->hotkey_config.bindings[conflict_idx].command);
+        gtk_label_set_text(GTK_LABEL(error_label), msg);
+    }
     return TRUE;
 }
 
-static gboolean handle_rebind_confirm_key(AppData *app, GdkEventKey *event) {
+gboolean handle_rebind_confirm_key(AppData *app, GdkEventKey *event) {
     if (event->keyval == GDK_KEY_y) {
         const char *conflict_key =
             app->hotkey_config.bindings[app->hotkey_rebind.conflict_index].key;
@@ -170,7 +170,7 @@ gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
                 return TRUE;
             }
             if (existing >= 0) {
-                return show_rebind_conflict(app, event, error_label, canonical, existing);
+                return show_rebind_conflict(app, error_label, canonical, existing);
             }
             return apply_rebind(app, canonical);
         }
@@ -217,7 +217,7 @@ gboolean handle_hotkey_add_key_press(AppData *app, GdkEventKey *event) {
             return TRUE;
         }
         if (existing_cap >= 0) {
-            return show_rebind_conflict(app, event, error_label, canonical, existing_cap);
+            return show_rebind_conflict(app, error_label, canonical, existing_cap);
         }
         return apply_rebind(app, canonical);
     }
