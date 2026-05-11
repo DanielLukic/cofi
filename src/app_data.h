@@ -62,6 +62,7 @@ typedef enum {
     OVERLAY_CONFIG_EDIT,
     OVERLAY_HOTKEY_ADD,
     OVERLAY_HOTKEY_EDIT,
+    OVERLAY_HOTKEY_REBIND,
     OVERLAY_RULE_ADD,
     OVERLAY_RULE_EDIT,
     OVERLAY_RULE_DELETE
@@ -221,6 +222,17 @@ typedef struct AppData {
         gboolean pending_delete;
         int rule_index;
     } rules_delete;
+
+    // Rebind state (Hotkeys tab Ctrl+B)
+    struct {
+        gboolean active;           // TRUE while rebind overlay is open
+        int target_index;          // Index into hotkey_config.bindings[] of the row being rebound
+        char target_key[64];       // Current key of that row (for same-combo no-op check)
+        char target_command[256];  // Command to preserve (byte-for-byte)
+        gboolean awaiting_confirm; // TRUE when conflict confirm prompt is showing
+        int conflict_index;        // Index of the conflicting binding (-1 when none)
+        char pending_combo[64];    // New combo captured while awaiting confirm
+    } hotkey_rebind;
 
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms
