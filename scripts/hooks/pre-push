@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# cofi pre-push hook: run the test suite before letting a push out.
+# Install via: bash scripts/install-hooks.sh
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "[pre-push] make test"
+if ! make test >/tmp/cofi-pre-push.log 2>&1; then
+    echo "[pre-push] FAILED — see /tmp/cofi-pre-push.log" >&2
+    tail -40 /tmp/cofi-pre-push.log >&2
+    echo "[pre-push] push aborted. Fix tests, or bypass with --no-verify (discouraged)." >&2
+    exit 1
+fi
+echo "[pre-push] tests passed"

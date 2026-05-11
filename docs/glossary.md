@@ -1,0 +1,59 @@
+# Glossary
+
+Domain terms used throughout cofi's code and docs. Defined once here so new contributors don't have to reverse-engineer them.
+
+## Window & workspace
+
+- **Window** — a top-level X11 client window managed by the WM (matches EWMH `_NET_CLIENT_LIST`). cofi excludes windows with `_NET_WM_STATE_SKIP_TASKBAR` set.
+- **Workspace** — an X11 virtual desktop (EWMH `_NET_CURRENT_DESKTOP`). cofi uses "workspace" and "desktop" interchangeably; the code prefers `desktop` for the integer index and `workspace` for the user-facing name.
+- **Active window / focused window** — the window with input focus (`_NET_ACTIVE_WINDOW`).
+- **Monitor** — a physical output reported by XRandR. cofi is multi-monitor aware for tiling and slot assignment.
+
+## MRU & history
+
+- **MRU** — Most Recently Used. cofi tracks focus order via PropertyNotify on `_NET_ACTIVE_WINDOW` rather than polling. The MRU list is the source of truth for default ordering in the Windows tab.
+- **partition_and_reorder** — internal function (`src/history.c`) that splits the window list by type/desktop and re-emits in MRU order. Used to keep the current desktop's windows ahead of others when configured.
+
+## Harpoon
+
+- **Harpoon slot** — one of 36 persistent assignments (digits `0–9` plus letters `a–z`) mapping a key to a specific window. Inspired by the Neovim plugin of the same name. Stored in `~/.config/cofi/harpoon.json` and survives restarts.
+- **Harpoon tab** — the UI surface for editing/jumping harpoon assignments. Shortcut: `Ctrl+H`.
+
+## Workspace slots
+
+- **Workspace slot** — an auto-assigned 1–9 index for windows on the current workspace, sorted by screen position (column-major). Distinct from harpoon: slots are computed live, not persisted.
+- **Slot overlay** — a transient `[N]` indicator drawn on each window showing its current slot. Toggled by Alt and during the per-workspace digit-slot mode.
+- **digit slot mode** — a config setting controlling what Alt+digit does:
+  - `default` — Alt+digit jumps to harpoon slot
+  - `workspaces` — Alt+digit jumps to workspace N
+  - `per-workspace` — Alt+digit jumps to workspace slot N within the current workspace
+
+## Modes & tabs
+
+- **Tab** — one of the views in the cofi window: Windows, Workspaces, Harpoon, Names, Apps, Config, Hotkeys. Switch via Ctrl-letter shortcuts.
+- **Command mode** — vim-style `:` prefix entering compact commands (see `:help`). Implemented in `src/command_mode.c`; command table in `src/command_parser.c`.
+- **Run mode** — `!` prefix for launching shell commands with session-only history. Backed by `src/run_mode.c`.
+- **Auto-execute marker** — an entered query starting with `!` that triggers immediate launch on Enter without confirmation.
+
+## Daemon
+
+- **Daemon** — the long-lived cofi process. Starts hidden, registers global X11 hotkeys, listens on a Unix socket. Single-instance guard at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`).
+- **Delegation** — when a second `cofi` invocation finds the socket already bound, it sends its argv+opcode to the running daemon instead of starting a second instance. Opcodes are defined in `src/daemon_socket.h`.
+- **Opcode** — single-byte tag (`COFI_OPCODE_*`) identifying what surface the delegating invocation wants opened (Windows, Workspaces, Harpoon, command mode, run mode, etc.).
+
+## UI primitives
+
+- **Slot overlay** — see above under Workspace slots.
+- **Window highlight** — circle ripple effect drawn on a window when cofi activates it. Implemented in `src/window_highlight.c`.
+- **Fixed window size** — cofi's main window has a precomputed width × height derived from Pango font metrics + monitor work area. Recomputed on each `show_window` to handle XSettings/DPI changes (see `src/window_lifecycle.c`).
+
+## Tiling
+
+- **Tile** — place a window at a predefined geometry (half/quarter/third/grid). Driven by the `:tw` command and the `tw` digit/letter argument; logic in `src/tiling.c`.
+- **Work area** — the monitor geometry minus reserved struts (panels, docks). cofi tiles within the work area, not the full screen.
+
+## Config
+
+- **Config tab** — `Ctrl+E` opens the runtime-editable config UI; written changes persist to `~/.config/cofi/config.json`.
+- **`:set` command** — change a single config key from command mode (e.g. `:set digit-slot-mode per-workspace`).
+- **build_config_entries** — single source of truth (`src/config.c`) for the list of editable config keys; both the `:set` parser and the Config tab read from it.
