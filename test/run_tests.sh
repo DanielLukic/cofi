@@ -212,6 +212,16 @@ if [ -f test_hotkey_grab_state ]; then
     fi
 fi
 
+# Run hotkey rebind flow behavioral tests if they exist
+if [ -f test_hotkey_rebind_flow ]; then
+    echo ""
+    echo "Running hotkey rebind flow tests..."
+    ./test_hotkey_rebind_flow
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run command handlers split tests if they exist
 if [ -f test_command_handlers_split ]; then
     echo ""
