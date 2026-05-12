@@ -67,6 +67,24 @@ JSON
         printf '#!/usr/bin/env sh\nexit 0\n' > "$bin"
         chmod +x "$bin"
     done
+
+    cat > "$PATH_BIN_DIR/pactl" <<'SH'
+#!/usr/bin/env sh
+if [ "$1" = "get-default-sink" ]; then
+    printf '%s\n' 'cofi.test.sink'
+    exit 0
+fi
+if [ "$1" = "list" ] && [ "$2" = "sinks" ]; then
+    cat <<'EOF'
+Sink #1
+    Name: cofi.test.sink
+    Description: Cofi Test Sink
+EOF
+    exit 0
+fi
+exit 1
+SH
+    chmod +x "$PATH_BIN_DIR/pactl"
 }
 
 start_window_manager() {
@@ -112,9 +130,11 @@ start_test_windows() {
     wmctrl -a "TestWindow::Two" >/dev/null 2>&1 || true
 }
 
-launch_cofi_windows() {
-    env PATH="$PATH_BIN_DIR" \
-        ./cofi --windows --no-auto-close --log-file "$LOG_FILE" --log-level debug \
+launch_cofi() {
+    local cofi_path="${COFI_TEST_PATH:-$PATH_BIN_DIR}"
+
+    env PATH="$cofi_path" \
+        ./cofi "$@" --no-auto-close --log-file "$LOG_FILE" --log-level debug \
         >"$TEST_ROOT/cofi.stderr" 2>&1 &
     cofi_pid="$!"
     pids+=("$cofi_pid")
@@ -140,6 +160,10 @@ launch_cofi_windows() {
     [[ -n "$cofi_window" ]] || fail "$CASE_NAME: cofi window did not appear"
 }
 
+launch_cofi_windows() {
+    launch_cofi --windows
+}
+
 wait_for_window_enumeration() {
     for _ in {1..100}; do
         if [[ -f "$LOG_FILE" ]] &&
@@ -149,6 +173,19 @@ wait_for_window_enumeration() {
         sleep 0.1
     done
     fail "$CASE_NAME: cofi did not enumerate the test windows"
+}
+
+wait_for_log_line() {
+    local pattern="$1"
+    local description="$2"
+
+    for _ in {1..100}; do
+        if [[ -f "$LOG_FILE" ]] && grep -Eq "$pattern" "$LOG_FILE"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+    fail "$CASE_NAME: timed out waiting for $description"
 }
 
 focus_cofi() {
@@ -246,6 +283,96 @@ run_windows_basic() {
     capture_and_compare "windows-basic.png" "1030,365 1209,425"
 }
 
+run_cli_tab_basic() {
+    local cli_flag="$1"
+    local tab_name="$2"
+    local fixture_name="$3"
+
+    setup_common_config
+    start_window_manager
+    start_test_windows
+    launch_cofi "$cli_flag"
+    wait_for_window_enumeration
+    wait_for_log_line "Switched to $tab_name tab|Delegated opcode handled: .*" "$tab_name tab"
+    focus_cofi
+
+    capture_and_compare "$fixture_name"
+}
+
+run_command_tab_basic() {
+    local command="$1"
+    local tab_name="$2"
+    local fixture_name="$3"
+    local query="${4:-}"
+
+    setup_common_config
+    start_window_manager
+    start_test_windows
+    launch_cofi --command
+    wait_for_window_enumeration
+    wait_for_log_line "USER: Entered command mode" "command mode"
+    focus_cofi
+
+    xdotool type --clearmodifiers "$command"
+    xdotool key Return
+    wait_for_log_line "Switched to $tab_name tab" "$tab_name tab"
+
+    if [[ -n "$query" ]]; then
+        xdotool type --clearmodifiers "$query"
+    fi
+
+    capture_and_compare "$fixture_name"
+}
+
+run_workspaces_basic() {
+    run_cli_tab_basic "--workspaces" "Workspaces" "workspaces-basic.png"
+}
+
+run_harpoon_basic() {
+    run_cli_tab_basic "--harpoon" "Harpoon" "harpoon-basic.png"
+}
+
+run_names_basic() {
+    run_cli_tab_basic "--names" "Names" "names-basic.png"
+}
+
+run_run_basic() {
+    setup_common_config
+    start_window_manager
+    start_test_windows
+    launch_cofi --run
+    wait_for_window_enumeration
+    wait_for_log_line "Switched to Run tab" "Run tab"
+    focus_cofi
+
+    capture_and_compare "run-basic.png"
+}
+
+run_config_basic() {
+    run_command_tab_basic "config" "Config" "config-basic.png"
+}
+
+run_hotkeys_basic() {
+    run_command_tab_basic "hotkeys" "Hotkeys" "hotkeys-basic.png"
+}
+
+run_rules_basic() {
+    run_command_tab_basic "rules" "Rules" "rules-basic.png"
+}
+
+run_calc_basic() {
+    run_command_tab_basic "calc" "Calc" "calc-basic.png"
+}
+
+run_sinks_basic() {
+    COFI_TEST_PATH="$PATH_BIN_DIR:/usr/bin:/bin" \
+        run_command_tab_basic "sinks" "Sinks" "sinks-basic.png"
+}
+
+run_proc_basic() {
+    run_command_tab_basic "proc" "Proc" "proc-basic.png" "zz-cofi-no-such-process"
+}
+
 run_case() (
     CASE_NAME="$1"
     TEST_ROOT="$(mktemp -d)"
@@ -281,3 +408,13 @@ run_case() (
 
 run_case apps_path_bin
 run_case windows_basic
+run_case workspaces_basic
+run_case harpoon_basic
+run_case names_basic
+run_case run_basic
+run_case config_basic
+run_case hotkeys_basic
+run_case rules_basic
+run_case calc_basic
+run_case sinks_basic
+run_case proc_basic
