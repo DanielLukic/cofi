@@ -28,7 +28,7 @@ See also:
 1. Branch from `develop`.
 2. Add or update tests for behavior changes when feasible.
 3. Make the change.
-4. Run the relevant tests (`make test` unless a narrower subset is clearly enough).
+4. Run the relevant tests (`mise run test` unless a narrower subset is clearly enough).
 5. Rebuild and restart cofi for behavior changes so the user can verify the running app.
 6. Wait for user verification before committing unless the user explicitly asks for an earlier checkpoint.
 7. Push the branch and create a PR targeting `develop`.
@@ -48,13 +48,14 @@ See also:
 ## Build, Test, Run
 
 ```bash
-make                         # incremental build
-make clean && make            # full rebuild; required after header changes
-make test                     # unit/regression tests
-make test-integration          # opt-in Xvfb GUI screenshot tests
-make install                  # copy release binary + install user service
-make install-dev              # symlink ~/.local/bin/cofi to this worktree + install service
-./restart.sh                  # rebuild and restart, preserving dev symlink installs
+mise run build                # incremental build
+mise run rebuild              # full rebuild; required after header changes
+mise run test                 # unit/regression tests
+mise run test-target test_fzf_algo # targeted test binary
+mise run test-integration      # opt-in Xvfb GUI screenshot tests
+mise run install              # copy release binary + install user service
+mise run install-dev          # symlink ~/.local/bin/cofi to this worktree + install service
+mise run restart              # rebuild and restart, preserving dev symlink installs
 systemctl --user restart cofi # restart without rebuild
 journalctl --user -u cofi -f  # tail logs
 ```

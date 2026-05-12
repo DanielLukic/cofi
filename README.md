@@ -332,24 +332,25 @@ Release-style install copies the current build to `~/.local/bin/cofi`, writes th
 systemd user service, enables it, and restarts cofi:
 
 ```bash
-make install
+mise run install
 ```
 
 For active development, install a symlink instead. After this, rebuilding `./cofi`
 in the current worktree and restarting the service runs the rebuilt binary:
 
 ```bash
-make install-dev
+mise run install-dev
 ```
 
-`restart.sh` rebuilds and restarts safely. If the installed binary is already a
-dev symlink to the current worktree, it just restarts the service; otherwise it
-runs `make install` so systemd does not keep running a stale binary.
+`mise run restart` rebuilds and restarts safely. If the installed binary is
+already a dev symlink to the current worktree, it just restarts the service;
+otherwise it runs the release install path so systemd does not keep running a
+stale binary.
 
 To uninstall:
 
 ```bash
-make uninstall
+mise run uninstall
 ```
 
 ## Testing
@@ -357,7 +358,7 @@ make uninstall
 Run the test suite:
 
 ```bash
-make test
+mise run test
 ```
 
 ## Architecture

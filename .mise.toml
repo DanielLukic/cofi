@@ -1,0 +1,37 @@
+[tasks.build]
+description = "Build cofi"
+raw_args = true
+run = 'make "$@"'
+
+[tasks.rebuild]
+description = "Clean and rebuild cofi"
+run = "make clean && make"
+
+[tasks.test]
+description = "Run unit/regression tests"
+run = "make test"
+
+[tasks.test-target]
+description = "Run one or more specific make test targets"
+raw_args = true
+run = "scripts/run-test-targets.sh"
+
+[tasks.test-integration]
+description = "Run Xvfb screenshot integration tests"
+run = "make test-integration"
+
+[tasks.restart]
+description = "Rebuild and restart the user service"
+run = "./restart.sh"
+
+[tasks.install]
+description = "Install copied binary and user service"
+run = "make install"
+
+[tasks.install-dev]
+description = "Install dev symlink and user service"
+run = "make install-dev"
+
+[tasks.uninstall]
+description = "Remove installed binary and user service"
+run = "make uninstall"

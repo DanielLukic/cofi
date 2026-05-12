@@ -30,7 +30,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 - **Single-instance guard.** Unix-socket listener at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`). A second invocation that finds the socket bound becomes a delegator: it sends a one-byte **opcode** + argv tail, then exits. The daemon dispatches the opcode to the appropriate UI surface.
 - **Daemon bootstrap.** First invocation registers global X11 hotkeys, opens a GIOChannel on the X11 connection for PropertyNotify events, hides the GTK toplevel, and waits.
 - **No polling.** Window list updates come from `_NET_CLIENT_LIST` and `_NET_ACTIVE_WINDOW` PropertyNotify events, not from periodic re-enumeration. MRU history is maintained from focus changes.
-- **systemd integration.** `make install` installs a user service (`scripts/cofi.service`) that auto-restarts on crash.
+- **systemd integration.** `mise run install` installs a user service (`scripts/cofi.service`) that auto-restarts on crash.
 
 ## Subsystem map
 
@@ -141,7 +141,7 @@ These are the rules that don't live in any one file but must hold across the sys
 
 ## Build & test
 
-- **Build:** `make` (incremental, header deps via `-MMD -MP` in `.d` files). After header changes, `make clean && make` because the dep tracking is partial.
-- **Test:** `make test` builds and runs 70 standalone test binaries from `test/test_*.c`. Each test links specific `src/*.o` files plus stubs for cross-cutting deps it doesn't exercise.
+- **Build:** `mise run build` wraps `make` (incremental, header deps via `-MMD -MP` in `.d` files). After header changes, `mise run rebuild` because the dep tracking is partial.
+- **Test:** `mise run test` wraps `make test`, which builds and runs 70 standalone test binaries from `test/test_*.c`. Each test links specific `src/*.o` files plus stubs for cross-cutting deps it doesn't exercise.
 - **CI:** `.github/workflows/build.yml` runs `make` + `make test` on every push.
-- **Pre-push hook:** `scripts/hooks/pre-push` runs `make test` locally; install via `bash scripts/install-hooks.sh`.
+- **Pre-push hook:** `scripts/hooks/pre-push` runs `make test` locally so a Git hook does not require mise; install via `bash scripts/install-hooks.sh`.
