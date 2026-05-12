@@ -141,18 +141,33 @@ PREFIX ?= $(HOME)/.local
 BINDIR = $(PREFIX)/bin
 SYSTEMD_USER_DIR = $(HOME)/.config/systemd/user
 
-# Install binary + systemd user service
-install: $(TARGET)
-	install -d $(BINDIR)
-	install -m 755 $(TARGET) $(BINDIR)/
+# Install systemd user service
+.PHONY: install-service
+install-service:
 	install -d $(SYSTEMD_USER_DIR)
 	sed "s|@BINDIR@|$(BINDIR)|g" scripts/cofi.service > $(SYSTEMD_USER_DIR)/cofi.service
 	systemctl --user daemon-reload
 	systemctl --user reenable cofi
 	systemctl --user restart cofi
+
+# Install copied binary + systemd user service (release mode)
+.PHONY: install
+install: $(TARGET)
+	install -d $(BINDIR)
+	install -m 755 $(TARGET) $(BINDIR)/
+	$(MAKE) install-service PREFIX="$(PREFIX)"
 	@echo "Installed to $(BINDIR)/cofi and enabled systemd user service"
 
+# Install symlinked binary + systemd user service (development mode)
+.PHONY: install-dev
+install-dev: $(TARGET)
+	install -d $(BINDIR)
+	ln -sf $(CURDIR)/$(TARGET) $(BINDIR)/$(TARGET)
+	$(MAKE) install-service PREFIX="$(PREFIX)"
+	@echo "Installed dev symlink $(BINDIR)/cofi -> $(CURDIR)/$(TARGET) and enabled systemd user service"
+
 # Uninstall binary + systemd service
+.PHONY: uninstall
 uninstall:
 	-systemctl --user disable --now cofi
 	rm -f $(BINDIR)/$(TARGET)

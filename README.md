@@ -328,16 +328,28 @@ Give windows meaningful custom names for better identification:
 
 ## Installation
 
+Release-style install copies the current build to `~/.local/bin/cofi`, writes the
+systemd user service, enables it, and restarts cofi:
+
 ```bash
-sudo make install
+make install
 ```
 
-This installs cofi to `/usr/local/bin/`.
+For active development, install a symlink instead. After this, rebuilding `./cofi`
+in the current worktree and restarting the service runs the rebuilt binary:
+
+```bash
+make install-dev
+```
+
+`restart.sh` rebuilds and restarts safely. If the installed binary is already a
+dev symlink to the current worktree, it just restarts the service; otherwise it
+runs `make install` so systemd does not keep running a stale binary.
 
 To uninstall:
 
 ```bash
-sudo make uninstall
+make uninstall
 ```
 
 ## Testing

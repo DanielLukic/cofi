@@ -1,2 +1,18 @@
-#!/bin/bash
-make clean && make && systemctl --user restart cofi && journalctl --user -u cofi --no-pager -n 5
+#!/usr/bin/env bash
+set -euo pipefail
+
+PREFIX="${PREFIX:-$HOME/.local}"
+BINDIR="$PREFIX/bin"
+INSTALLED="$BINDIR/cofi"
+LOCAL_BIN="$(pwd -P)/cofi"
+
+make clean
+make
+
+if [[ -L "$INSTALLED" ]] && [[ "$(readlink -f "$INSTALLED")" == "$LOCAL_BIN" ]]; then
+    systemctl --user restart cofi
+else
+    make install PREFIX="$PREFIX"
+fi
+
+journalctl --user -u cofi --no-pager -n 5
