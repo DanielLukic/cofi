@@ -1,156 +1,104 @@
 # COFI - C/GTK Window Switcher
 
-Intent: this file is the contributor workflow and repository operating guide. It covers branching, build/test expectations, coding guidelines, and the high-level subsystem map. It is not the session log and not the place for fragile implementation gotchas.
+Intent: this file is the contributor workflow and agent operating contract. It is not
+a session log, subsystem inventory, or source-file index.
 
 See also:
-- `docs/gotchas.md` for regressions to avoid, tricky invariants, and implementation learnings
-- `SPEC.md` for intended product behavior
+- `SPEC.md` for intended product behavior.
+- `docs/architecture.md` for process model, layers, subsystem map, and build/test shape.
+- `docs/gotchas.md` for fragile implementation invariants and regressions to avoid.
+- `docs/adr/` for accepted and superseded design decisions.
 
 ## Development Workflow
 
-### Branch Structure
+### Branches
 
-- **`main`** — stable releases, updated via PR from develop
-- **`develop`** — active development, all work merges here first
-- **`fix/*`** or **`feat/*`** — short-lived branches off develop for PRs
+- `main` - stable releases, updated via PR from `develop`.
+- `develop` - active development, all work merges here first.
+- `fix/*` / `feat/*` - short-lived PR branches off `develop`.
 
-### Rules
+### Hard Rules
 
-- **NEVER push to `develop`, `main`, or `release` without explicit user consent**
-- **NEVER create merge commits — always clean rebase for clean history**
-- **NEVER merge PRs that change app logic without user testing first**
+- NEVER push to `develop`, `main`, or `release` without explicit user consent.
+- NEVER create merge commits - always rebase for clean history.
+- NEVER merge PRs that change app logic without user testing first.
 
-### Making Changes
+### Normal Change Flow
 
-1. Branch from `develop` (never from `main`)
-2. For ticket work, prefer test-first: add or update a failing automated test before implementation when feasible
-3. Make changes, then run tests (`make test` unless a narrower subset is clearly sufficient)
-4. Rebuild and restart cofi so the user can verify the change in the running app
-5. Wait for user verification before committing, unless the user explicitly asks for an earlier checkpoint commit
-6. Push branch, create PR targeting `develop`
-7. Wait for user approval before merging
+1. Branch from `develop`.
+2. Add or update tests for behavior changes when feasible.
+3. Make the change.
+4. Run the relevant tests (`make test` unless a narrower subset is clearly enough).
+5. Rebuild and restart cofi for behavior changes so the user can verify the running app.
+6. Wait for user verification before committing unless the user explicitly asks for an earlier checkpoint.
+7. Push the branch and create a PR targeting `develop`.
+8. Wait for user approval before merging.
 
-### Subagent PRs
+### Subagent Worktrees
 
-When spawning agents for isolated work:
-- Always instruct them to branch from `develop`
-- Use `isolation: "worktree"` for parallel work
-- **Always place worktrees inside `.worktrees/` within the project root** — never as siblings of the project directory
+- Instruct agents to branch from `develop`.
+- Use `isolation: "worktree"` for parallel work.
+- Always place worktrees under `.worktrees/` inside this repo:
   ```bash
   git worktree add .worktrees/<branch-slug> -b <branch-name>
   ```
-- `.worktrees/` is gitignored — worktrees are local/ephemeral only
-- Agent creates branch `fix/<issue-slug>`, works in `.worktrees/fix-<issue-slug>/`
-- Review diff before merging — agents may branch from wrong base
+- `.worktrees/` is ignored and local only.
+- Review agent diffs before merging; agents may have started from the wrong base.
 
-### Build & Run
+## Build, Test, Run
 
 ```bash
-make clean && make      # full rebuild (required after header changes)
-make test               # run all tests
-./restart.sh            # clean build + restart systemd service
-systemctl --user restart cofi  # restart without rebuild
-journalctl --user -u cofi -f   # tail logs
+make                         # incremental build
+make clean && make            # full rebuild; required after header changes
+make test                     # unit/regression tests
+make test-integration          # opt-in Xvfb GUI screenshot tests
+make install                  # copy release binary + install user service
+make install-dev              # symlink ~/.local/bin/cofi to this worktree + install service
+./restart.sh                  # rebuild and restart, preserving dev symlink installs
+systemctl --user restart cofi # restart without rebuild
+journalctl --user -u cofi -f  # tail logs
 ```
 
-### Tracking
+## Tracking
 
-- Linear via the `/linear` skill (`.claude/skills/linear/SKILL.md`).
-- Entry point: `./.claude/skills/linear/bin/linear`. Team and project UUID auto-injected from `.linear.conf` at repo root.
-- Status flow: Backlog → Todo → In Progress → In Review → Done.
-- Use issue identifiers like `TFD-82` in conversation.
+- Linear entry point: `./.claude/skills/linear/bin/linear`.
+- Team/project defaults come from `.linear.conf`.
+- Status flow: Backlog -> Todo -> In Progress -> In Review -> Done.
+- Use issue IDs like `TFD-82` in branches, commits, PRs, and discussion.
 
-## Design Principles
+## Engineering Standards
 
-These apply to every file, every module, every change — not just when it's convenient.
+These apply to every change.
 
-- **Separation of concerns** — each module owns one thing. If you can't describe a file's responsibility in one sentence without using "and", it needs splitting.
-- **High cohesion, low coupling** — functions within a module should belong together; modules should know as little as possible about each other. Reach for a clean API boundary instead of a naked extern or a global.
-- **Boy Scout Rule** *(The Pragmatic Programmer)* — leave the code cleaner than you found it. Not a full refactor every time — just a little better. If you touch an oversized file, split off what you can as part of your change. If you see a stale comment or a misnamed variable, fix it.
-- **Broken Windows** *(The Pragmatic Programmer)* — don't leave broken windows unrepaired. A function that's too long, a file that's grown past its responsibility, a coupling that shouldn't exist — each one signals that nobody cares, and entropy accelerates. Fix them or file a ticket; never just accept them.
-- **File size as a signal** — a file that keeps growing is a design smell. When a file is already at its natural limit, the next addition is the trigger to split — not a separate refactoring ticket, but part of the change that introduced the new code. The split is the price of admission.
+- Separation of concerns: each module should own one clear responsibility.
+- High cohesion, low coupling: prefer clean APIs over globals, naked `extern`, or cross-module reach-through.
+- Boy Scout Rule: leave touched code cleaner than you found it.
+- Broken Windows: fix design damage you touch, or file a ticket instead of normalizing it.
+- File size is a signal: when a file has reached its natural limit, split as part of the change that grows it.
+- Write small functions: aim for 10-15 lines, max 30 unless there is a strong reason.
+- Use `snake_case` for functions and variables.
+- Work in small commits with clear messages.
+- Write tests for essential behavior and user-visible changes where the code structure allows it.
+- Use logging instead of `printf`/ad hoc prints.
 
-## Coding Guidelines
+### Test Discipline
 
-- **Write small functions** (10-15 lines, max 30)
-- **Use snake_case consistently** for functions and variables
-- **Work in small commit steps** with clear messages
-- **Write tests for essential functionality**
-- **For behavior changes, prefer TDD when feasible** — if test-first is not practical, say why and add coverage immediately after where reasonable
-- **User-visible behavior changes should get targeted coverage when the code structure allows it**; if not, call out the gap explicitly
-- **TDD for refactoring is different from TDD for features**:
-  - **Feature TDD**: write a *failing* test first, then implement until it passes
-  - **Refactoring TDD**: write *passing* behavioral tests against the **existing code first**, documenting current behavior as a regression safety net, then refactor — tests must still pass after. A structural/wiring test is not sufficient; tests must exercise actual behavior that would break if the refactor were wrong.
-  - When briefing agents on refactoring tasks, always say: "write behavioral tests that pass on the current code, then refactor" — never "write failing tests first"
-- **Use logging instead of print statements**
-- **`make clean && make` after any header change** (no auto header deps yet)
+- Feature work: prefer a failing test first, then implement.
+- Refactoring: first add or verify behavioral tests that pass on current code, then refactor with those tests still passing.
+- Structural/wiring tests are not enough for refactors; cover behavior that would break if the refactor were wrong.
+- If targeted coverage is not practical, call out the gap explicitly.
 
-## Ticket Workflow
+## Reporting
 
-For normal interactive ticket work, the default sequence is:
+When handing work back, state:
 
-1. Add or update tests first when feasible
-2. Implement the change
-3. Run tests
-4. Rebuild/restart cofi for live user testing
-5. Let the user verify the behavior
-6. Commit only after user verification, unless the user explicitly asks to commit earlier
+- which tests were run;
+- whether cofi was restarted;
+- whether the change is committed or intentionally left uncommitted.
 
-When reporting progress or handing work back for testing, always state:
-- which tests were run
-- whether cofi was restarted
-- whether the change is committed or intentionally left uncommitted
+## Architecture Constraints
 
-## Architecture Overview
-
-- **X11/EWMH** — direct Xlib for window management, no wmctrl
-- **GTK3** — native UI with borderless always-on-top window
-- **Event-driven** — PropertyNotify via GIOChannel, no polling
-- **Single instance** — Unix-socket daemon guard at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`); second instances delegate argv/opcodes to the running daemon
-- **Daemon mode** — starts hidden, registers global hotkeys, waits
-- **Systemd** — `make install` sets up user service with auto-restart
-
-## Key Subsystems
-
-- **MRU history** — focus-tracking window order, partition by type/desktop
-- **Fuzzy search** — fzf-style scoring + initials + word boundary matching
-- **Harpoon slots** — 36 persistent window assignments (0-9, a-z)
-- **Workspace slots** — auto-numbered by screen position per workspace
-- **Command mode** — vim-style `:` commands with compact syntax
-- **Tiling** — half/quarter/third/grid positions, multi-monitor aware
-- **Hotkeys** — configurable global X11 grabs via hotkeys.json
-- **Run mode** — first-class `!` entry mode with session-only history and detached shell launch
-- **Apps tab** — desktop application launcher with Apps-local matching/ranking and detached launch
-- **Config** — runtime-editable via `:set` or Config tab (Ctrl+T/Ctrl+E)
-- **Daemon socket delegation** — single-instance Unix socket listener + opcode dispatch for delegated startup modes
-
-## File Organization
-
-- `src/main.c` — entry point, startup wiring, GTK setup, daemon bootstrap/delegation handoff
-- `src/filter.c` — search/scoring pipeline, MRU vs native ordering
-- `src/display.c` — text formatting for all tabs
-- `src/config.c` — config load/save/apply, build_config_entries (single source of truth)
-- `src/command_mode.c` — command parsing, execution, all `:` commands
-- `src/daemon_socket.c` — Unix-socket protocol/path/bind/connect/send/accept primitives
-- `src/daemon_socket_runtime.c` — daemon socket watch integration + opcode-to-UI dispatch
-- `src/workspace_slots.c` — per-workspace slot assignment and column/row sort
-- `src/hotkeys.c` — global XGrabKey registration and dispatch
-- `src/harpoon.c` — persistent window slot assignments
-- `src/history.c` — MRU ordering and partition_and_reorder
-- `src/x11_utils.c` — X11 property extraction and window activation
-- `src/x11_events.c` — event-driven window list updates
-- `src/window_list.c` — EWMH window enumeration
-- `src/slot_overlay.c` — numbered overlay indicators on windows
-- `src/window_highlight.c` — circle ripple effect on activation
-- `src/monitor_move.c` — window geometry and multi-monitor support
-- `src/tiling.c` — tiling positions and calculations
-- `src/repeat_action.c` — session-only repeat-last-query action for Windows tab `.`
-- `src/key_handler.c` — core key dispatch, mode precedence, navigation, entry-changed routing
-- `src/key_handler_harpoon.c` — harpoon assignment + Alt-slot/workspace switching key paths
-- `src/key_handler_tabs.c` — tab-specific key handlers (Names/Harpoon/Config/Hotkeys)
-- `src/run_mode.c` — run mode state, history, and detached shell launch
-- `src/apps.c` — desktop app loading, Apps-local matching/ranking, and detached launch
-- `src/system_actions.c` — logind D-Bus wrappers for Lock/Suspend/Hibernate/Logout/Reboot/Shutdown with shell fallback chain for Lock
-- `src/path_binaries.c` — async $PATH scan cache with basename dedupe, GFileMonitor watchers, and score-ranked filter
-- `src/detach_launch.c` — shared detached-launch helpers (shell, argv, argv-array, in-terminal) with systemd-run primary and fork+setsid fallback
-- `src/log.c` — rxi/log.c logging library
+- Window management uses direct Xlib/EWMH, not `wmctrl` or shelling out.
+- Window-list updates are event-driven from `PropertyNotify`; do not add polling casually.
+- cofi is a single binary with daemon mode plus Unix-socket delegation for later invocations.
+- Global hotkeys use X11 grabs; test hotkey behavior against X11 focus/grab semantics.
