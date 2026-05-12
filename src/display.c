@@ -316,6 +316,8 @@ static void render_windows_item(gpointer context, gint index,
                                 gint selected_idx, GString *text) {
     AppData *app = (AppData *)context;
     WindowInfo *win = &app->filtered[index];
+    // Reclaim the space previously used by the hidden hex window ID column.
+    enum { WINDOWS_TITLE_WIDTH = DISPLAY_TITLE_WIDTH + 12 };
 
     g_string_append(text,
                     (index == selected_idx) ? SELECTION_INDICATOR
@@ -334,12 +336,10 @@ static void render_windows_item(gpointer context, gint index,
     char harpoon_col[DISPLAY_HARPOON_WIDTH + 2];
     char desktop_col[DISPLAY_DESKTOP_WIDTH + 1];
     char instance_col[DISPLAY_INSTANCE_WIDTH + 1];
-    char title_col[DISPLAY_TITLE_WIDTH + 1];
+    char title_col[WINDOWS_TITLE_WIDTH + 1];
     char class_col[DISPLAY_CLASS_WIDTH + 1];
-    char window_id[32];
 
     gint slot = get_window_slot(&app->harpoon, win->id);
-    Window display_id = win->id;
 
     if (slot >= 0) {
         if (slot <= HARPOON_LAST_NUMBER) {
@@ -347,10 +347,6 @@ static void render_windows_item(gpointer context, gint index,
         } else {
             snprintf(harpoon_col, sizeof(harpoon_col), "%c ",
                      'a' + (slot - HARPOON_FIRST_LETTER));
-        }
-
-        if (app->harpoon.slots[slot].assigned) {
-            display_id = app->harpoon.slots[slot].id;
         }
     } else {
         strcpy(harpoon_col, "  ");
@@ -363,9 +359,8 @@ static void render_windows_item(gpointer context, gint index,
     strncpy(display_title, win->title, sizeof(display_title) - 1);
     display_title[sizeof(display_title) - 1] = '\0';
 
-    fit_column(display_title, DISPLAY_TITLE_WIDTH, title_col);
+    fit_column(display_title, WINDOWS_TITLE_WIDTH, title_col);
     fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
-    snprintf(window_id, sizeof(window_id), "0x%lx", display_id);
 
     g_string_append(text, harpoon_col);
     g_string_append(text, desktop_col);
@@ -375,8 +370,6 @@ static void render_windows_item(gpointer context, gint index,
     g_string_append(text, title_col);
     g_string_append(text, " ");
     g_string_append(text, class_col);
-    g_string_append(text, " ");
-    g_string_append(text, window_id);
     g_string_append(text, "\n");
 }
 

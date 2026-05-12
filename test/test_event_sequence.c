@@ -43,7 +43,7 @@ void filter_windows_mock(AppData *app, const char *filter) {
         }
     }
     
-    app->selected_index = 0;
+    app->selection.window_index = 0;
 }
 
 // Simple test framework
@@ -86,18 +86,14 @@ int test_full_event_sequence() {
     printf("   Assigned window 0x%lx to slot 3\n", initial_window.id);
     
     // Step 2: Simulate X11 event processing for initial state
-    printf("\n2. Initial filtering and display:\n");
+    printf("\n2. Initial filtering:\n");
     filter_windows_mock(&app, "");
     
     printf("   Filtered windows: %d\n", app.filtered_count);
     if (app.filtered_count > 0) {
         WindowInfo *win = &app.filtered[0];
         int slot = get_window_slot(&app.harpoon, win->id);
-        Window display_id = win->id;
-        if (slot >= 0 && app.harpoon.slots[slot].assigned) {
-            display_id = app.harpoon.slots[slot].id;
-        }
-        printf("   Display would show: 0x%lx (from slot %d)\n", display_id, slot);
+        printf("   Filtered window ID: 0x%lx (slot %d)\n", win->id, slot);
     }
     
     // Step 3: Simulate window closing and reopening
@@ -127,32 +123,27 @@ int test_full_event_sequence() {
     
     Window slot_3_id = get_slot_window(&app.harpoon, 3);
     printf("      Slot 3 now has: 0x%lx\n", slot_3_id);
+    if (slot_3_id != 0x67890) {
+        printf("   ERROR: Expected slot 3 to reassign to 0x67890, got 0x%lx\n", slot_3_id);
+        return 0;
+    }
     
     printf("   c. filter_windows()\n");
     filter_windows_mock(&app, "");
     
-    printf("   d. Checking what display would show:\n");
+    printf("   d. Checking filtered state:\n");
     if (app.filtered_count > 0) {
         WindowInfo *win = &app.filtered[0];
         printf("      Filtered window ID: 0x%lx\n", win->id);
+        if (win->id != 0x67890) {
+            printf("   ERROR: Expected filtered window 0x67890, got 0x%lx\n", win->id);
+            return 0;
+        }
         
         int slot = get_window_slot(&app.harpoon, win->id);
         printf("      get_window_slot() returns: %d\n", slot);
-        
-        Window display_id = win->id;
-        if (slot >= 0 && app.harpoon.slots[slot].assigned) {
-            display_id = app.harpoon.slots[slot].id;
-            printf("      Using slot ID: 0x%lx\n", display_id);
-        } else {
-            printf("      Using window ID: 0x%lx\n", display_id);
-        }
-        
-        // This is what the user should see
-        printf("   FINAL RESULT: Display shows 0x%lx\n", display_id);
-        
-        // Test: display should show the new ID
-        if (display_id != 0x67890) {
-            printf("   ERROR: Expected 0x67890, got 0x%lx\n", display_id);
+        if (slot != 3) {
+            printf("   ERROR: Expected reassigned window in slot 3, got slot %d\n", slot);
             return 0;
         }
     } else {

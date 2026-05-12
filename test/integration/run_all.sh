@@ -119,7 +119,7 @@ wait_for_test_window_count() {
 }
 
 start_test_windows() {
-    xterm -T "TestWindow::One" >"$TEST_ROOT/xterm-one.log" 2>&1 &
+    xterm -T "TestWindow::One - title uses reclaimed XID space - visible-extra-marker-END" >"$TEST_ROOT/xterm-one.log" 2>&1 &
     pids+=("$!")
     wait_for_test_window_count 1
 
@@ -280,7 +280,7 @@ run_windows_basic() {
     wait_for_window_enumeration
     focus_cofi
 
-    capture_and_compare "windows-basic.png" "1030,365 1209,425"
+    capture_and_compare "windows-basic.png"
 }
 
 run_cli_tab_basic() {

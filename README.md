@@ -262,13 +262,12 @@ This vim-style syntax works alongside traditional space-separated commands.
 
 ### Window Display
 
-COFI shows windows in a 6-column format:
+COFI shows windows in a 5-column format:
 - **Slot** - Harpoon slot indicator (digit/letter if assigned, blank otherwise)
 - **Desktop** - [0-9] for desktop number, [S] for sticky windows
 - **Instance** - Application instance name
 - **Title** - Window title (truncated to fit)
 - **Class** - Application class name
-- **ID** - Window ID in hexadecimal
 
 The display is bottom-aligned (fzf-style) with the most recent window at the bottom.
 

@@ -109,11 +109,6 @@ if [ -f "test/test_harpoon_integration" ]; then
     run_test "Harpoon integration" "test/test_harpoon_integration"
 fi
 
-# Display tests
-if [ -f "test/test_display_integration" ]; then
-    run_test "Display integration" "test/test_display_integration"
-fi
-
 # Event sequence tests
 if [ -f "test/test_event_sequence" ]; then
     run_test "Event sequence" "test/test_event_sequence"
@@ -123,10 +118,6 @@ echo
 
 # Run shell script tests
 echo "=== Shell Script Tests ==="
-
-if [ -f "test/test_display_id_bug.sh" ]; then
-    run_test "Display ID bug test" "bash test/test_display_id_bug.sh"
-fi
 
 # Note: The following tests require manual interaction and start the cofi app
 # They are excluded from automated testing but can be run manually:

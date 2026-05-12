@@ -10,13 +10,12 @@ Cofi displays a list of open windows on the system.
 
 - Show all normal application windows
 - Exclude docks, desktop backgrounds, and cofi's own window
-- Display format: 6 fixed-width columns, monospace font
+- Display format: 5 fixed-width columns, monospace font
   - Harpoon slot indicator (1 char: digit/letter if assigned, blank otherwise)
   - Desktop indicator: `[0-9]` or `[S]` for sticky
   - Instance name (20 chars, truncated)
-  - Window title (55 chars, truncated)
+  - Window title (67 chars, truncated)
   - Class name (18 chars, truncated)
-  - Window ID (hex)
 - Display order: bottom-up (first entry at bottom, fzf-style)
 - Selection indicator: `>` prefix on selected row
 
