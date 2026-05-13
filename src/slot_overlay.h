@@ -8,6 +8,7 @@
 
 typedef struct {
     Window windows[MAX_SLOT_OVERLAYS];
+    Colormap colormaps[MAX_SLOT_OVERLAYS];
     int count;
     guint timeout_id;  // g_timeout_add ID for auto-destroy
 } SlotOverlayState;

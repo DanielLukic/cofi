@@ -212,7 +212,7 @@ After slot assignment, numbered overlays appear briefly on each assigned window.
 - Overlays are independent X11 windows (visible even after cofi hides)
 - Overlay position is the center of the largest visible content fragment, not the raw window center
 - Duration controlled by `slot_overlay_duration_ms` config (default 750, 0 = disabled)
-- Catppuccin-themed: dark background, light text
+- Catppuccin-themed: dark translucent background, opaque light text
 
 ### Auto-Assignment
 
