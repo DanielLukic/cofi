@@ -183,6 +183,10 @@ Press `:` to enter command mode for advanced window management operations. Comma
 
 Press `!` to enter run mode for detached shell commands. `!` is the mode indicator label; the entry itself holds raw command text (no literal `!` prefix). Up/Down browse a separate session-only run history, Enter launches the trimmed command detached and closes cofi, and deleting back to empty exits run mode. Bare `!` (legacy tolerated) or whitespace-only commands are ignored. `:show run` and `--run` open directly into the same run surface.
 
+### Tmux Sessions
+
+Use `:tmux` or `:show tmux` to open the hidden tmux sessions tab. It lists existing tmux sessions with window and attached-client counts. Enter opens the selected session in a detected terminal using cofi's detached launch path. `:tmux <session>` attaches an existing session by exact name; it does not create sessions.
+
 ### Apps Tab
 
 The Apps tab launches installed desktop applications from XDG desktop entries via GLib/GIO.

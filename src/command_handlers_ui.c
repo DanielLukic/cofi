@@ -177,6 +177,31 @@ gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+gboolean cmd_tmux(AppData *app, WindowInfo *window __attribute__((unused)),
+                  const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("tmux");
+    if (!provider) {
+        show_error_in_display(app, "Tmux provider not available.");
+        return FALSE;
+    }
+
+    if (args && args[0] != '\0') {
+        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
+        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            show_error_in_display(app, "No matching tmux session.");
+        }
+        return FALSE;
+    }
+
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)provider->tab_mode);
+    return FALSE;
+}
+
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
                  const char *args) {
     exit_command_mode(app);
@@ -223,7 +248,13 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             surface_tab(app, TAB_APPS);
             return FALSE;
         } else {
-            show_error_in_display(app, "Usage: show [windows|command|run|workspaces|harpoon|names|config|rules|apps]");
+            const CofiTabProvider *provider = cofi_get_provider_for_command(args);
+            if (provider) {
+                exit_command_mode(app);
+                surface_tab(app, (TabMode)provider->tab_mode);
+                return FALSE;
+            }
+            show_error_in_display(app, "Usage: show <tab>");
             return FALSE;
         }
     }

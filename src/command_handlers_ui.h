@@ -17,6 +17,7 @@ gboolean cmd_rules(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_calc(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_sinks(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_proc(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_tmux(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_run(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_set_config(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_hotkeys(AppData *app, WindowInfo *window, const char *args);

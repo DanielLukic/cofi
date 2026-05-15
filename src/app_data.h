@@ -20,6 +20,7 @@
 #include "apps.h"
 #include "sinks.h"
 #include "proc.h"
+#include "tmux.h"
 #include "daemon_socket.h"
 #include "calc.h"
 
@@ -37,6 +38,7 @@ typedef enum {
     TAB_SINKS,
     TAB_RUN,
     TAB_PROC,
+    TAB_TMUX,
     TAB_COUNT
 } TabMode;
 
@@ -195,6 +197,7 @@ typedef struct AppData {
     // Sinks tab data
     SinksMode sinks_mode;
     ProcMode proc_mode;
+    TmuxMode tmux_mode;
     AppsMode apps_mode;
 
     // Edit state for harpoon

@@ -257,6 +257,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
+        .primary = "tmux",
+        .aliases = {"tx", NULL},
+        .handler = cmd_tmux,
+        .description = "Switch to tmux sessions tab",
+        .help_format = "tmux, tx [SESSION]",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "tw",
         .aliases = {"tile-window", "t", NULL},
         .handler = cmd_tile_window,

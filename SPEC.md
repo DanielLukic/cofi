@@ -146,6 +146,16 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 - `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
+## Tmux Sessions Tab
+
+Hidden tmux session surface triggered via `:tmux` or `:show tmux`.
+
+- Sessions are listed from `tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
+- Missing `tmux` or no running tmux server shows a non-actionable status row
+- Enter on a session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
+- Session names are treated as exact tmux targets and shell-quoted before launch
+- `:tmux <session>` attaches an existing session by exact name; it does not create sessions
+
 ## Single Instance
 
 Only one cofi instance runs at a time.

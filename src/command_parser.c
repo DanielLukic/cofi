@@ -37,6 +37,7 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "show",    {"s", NULL},                                    NULL },
     { "sw",      {"swap-windows", NULL},                         NULL },
     { "tm",      {"toggle-monitor", NULL},                       NULL },
+    { "tmux",    {"tx", NULL},                                    NULL },
     { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc" },
     { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL },
     { "workspaces", {"ws", NULL},                                NULL },

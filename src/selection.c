@@ -2,6 +2,7 @@
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "display.h"
+#include "tab_metadata.h"
 
 // Initialize selection state
 void init_selection(AppData *app) {
@@ -84,8 +85,7 @@ void reset_selection(AppData *app) {
         }
     }
 
-    const char *tab_names[] = {"windows", "workspaces", "harpoon", "names", "config", "hotkeys", "rules", "apps", "calc", "sinks", "run", "proc"};
-    log_debug("Selection reset for %s tab", tab_names[app->current_tab]);
+    log_debug("Selection reset for %s tab", tab_log_name(app->current_tab));
 }
 
 // Get currently selected window

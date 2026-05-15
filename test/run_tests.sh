@@ -390,6 +390,16 @@ if [ -f test_proc ]; then
     fi
 fi
 
+# Run tmux tab parser tests if they exist
+if [ -f test_tmux ]; then
+    echo ""
+    echo "Running tmux tab parser tests..."
+    ./test_tmux
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run system actions tests if they exist
 if [ -f test_system_actions ]; then
     echo ""

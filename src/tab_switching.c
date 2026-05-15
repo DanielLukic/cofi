@@ -13,6 +13,7 @@
 #include "log.h"
 #include "selection.h"
 #include "path_binaries.h"
+#include "tab_metadata.h"
 
 static gboolean provider_tick(gpointer data) {
     AppData *app = (AppData *)data;
@@ -108,8 +109,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     reset_selection(app);
     update_display(app);
 
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
-    log_debug("Switched to %s tab", tab_names[target_tab]);
+    log_debug("Switched to %s tab", tab_display_name(target_tab));
 }
 
 void surface_tab(AppData *app, TabMode tab) {
@@ -158,12 +158,11 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
     }
 
     TabMode next_tab = find_next_visible_tab(app, app->current_tab, direction);
-    const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
 
     if (direction < 0) {
-        log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        log_debug("USER: SHIFT+TAB pressed -> Switching to %s tab", tab_display_name(next_tab));
     } else {
-        log_debug("USER: TAB pressed -> Switching to %s tab", tab_names[next_tab]);
+        log_debug("USER: TAB pressed -> Switching to %s tab", tab_display_name(next_tab));
     }
 
     if (app->tab_visibility[app->current_tab] == TAB_VIS_SURFACED &&

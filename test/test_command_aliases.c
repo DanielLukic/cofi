@@ -342,6 +342,9 @@ static void test_commands_without_compact_form(void) {
     check("show command", "show command", "show", "command");
     check("hotkeys bare", "hotkeys", "hotkeys", "");
     check("hotkeys with args", "hotkeys Mod4+1 jw 1", "hotkeys", "Mod4+1 jw 1");
+    check("tmux bare", "tmux", "tmux", "");
+    check("tmux with session", "tmux work:api", "tmux", "work:api");
+    check("tmux alias with session", "tx work:api", "tx", "work:api");
 }
 
 static void test_multi_digit_args(void) {

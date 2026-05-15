@@ -39,6 +39,7 @@ static const char *resolve_nothing(const char *p) { (void)p; return NULL; }
 static const char *resolve_only_xterm(const char *p) { return strcmp(p, "xterm") == 0 ? p : NULL; }
 static const char *resolve_only_alacritty(const char *p) { return strcmp(p, "alacritty") == 0 ? p : NULL; }
 static const char *resolve_only_kitty(const char *p) { return strcmp(p, "kitty") == 0 ? p : NULL; }
+static const char *resolve_only_mate_terminal(const char *p) { return strcmp(p, "mate-terminal") == 0 ? p : NULL; }
 
 static void test_fallback_returns_null_when_nothing_found(void) {
     // resolve_nothing returns NULL for everything — including xterm — so NULL is returned
@@ -336,6 +337,34 @@ static void test_terminal_cmd_bare_path_still_works(void) {
     g_strfreev(argv);
 }
 
+static void test_mate_terminal_cmd_uses_single_command_string(void) {
+    // mate-terminal -e consumes a single command string; split argv makes
+    // mate-terminal parse "-c" as its own option and fail before launch.
+    g_unsetenv("TERMINAL");
+    char **argv = build_terminal_cmd_argv_for_test("tmux attach-session -t '=scrcpy'",
+                                                   resolve_only_mate_terminal);
+    tests_run++;
+    if (!argv) {
+        printf("FAIL: build_terminal_cmd_argv_for_test returned NULL for mate-terminal (line %d)\n",
+               __LINE__);
+        return;
+    }
+
+    gboolean shape_ok = (strcmp(argv[0], "mate-terminal") == 0 &&
+                         strcmp(argv[1], "-e") == 0 &&
+                         strstr(argv[2], " -c ") != NULL &&
+                         strstr(argv[2], "tmux attach-session") != NULL &&
+                         argv[3] == NULL);
+    if (shape_ok) {
+        tests_passed++;
+        printf("PASS: mate-terminal cmd uses single command string\n");
+    } else {
+        printf("FAIL: mate-terminal argv shape wrong: [%s][%s][%s] (line %d)\n",
+               argv[0], argv[1], argv[2], __LINE__);
+    }
+    g_strfreev(argv);
+}
+
 // ---- C2: argv-not-shell parse tests ----
 
 static void test_shell_parse_no_variable_expansion(void) {
@@ -396,6 +425,7 @@ int main(void) {
     test_fork_setsid_exec_real_binary_returns_true();
     test_terminal_cmd_argv_has_sh_wrapper();
     test_terminal_cmd_bare_path_still_works();
+    test_mate_terminal_cmd_uses_single_command_string();
     test_shell_parse_no_variable_expansion();
     test_shell_parse_malformed_returns_false();
 

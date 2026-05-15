@@ -34,6 +34,7 @@ SOURCES = src/main.c \
           src/app_init.c \
           src/app_setup.c \
           src/tab_switching.c \
+          src/tab_metadata.c \
           src/key_handler.c \
           src/nav_keys.c \
           src/prefix_tabs.c \
@@ -46,6 +47,7 @@ SOURCES = src/main.c \
           src/apps.c \
           src/sinks.c \
           src/proc.c \
+          src/tmux.c \
           src/system_actions.c \
           src/path_binaries.c \
           src/detach_launch.c \
@@ -96,6 +98,7 @@ SOURCES = src/main.c \
           src/sinks_provider.c \
           src/run_provider.c \
           src/proc_provider.c \
+          src/tmux_provider.c \
           src/cofi_modal.c \
           src/tinyexpr.c \
           src/cofi_tab_provider.c
@@ -184,8 +187,8 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_modal test_run_provider
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_sinks test_proc test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_tab_provider test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_sinks test_proc test_tmux test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_cofi_tab_provider test_cofi_modal test_run_provider
 	cd test && ./run_tests.sh
 
 .PHONY: test-integration
@@ -378,12 +381,16 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o $(LDFLAGS)
+
+# Build tab metadata exhaustiveness tests
+test_tab_metadata: test/test_tab_metadata.c src/tab_metadata.o
+	$(CC) $(CFLAGS) -o test/test_tab_metadata test/test_tab_metadata.c src/tab_metadata.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o src/tab_metadata.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o src/tab_metadata.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)
@@ -399,11 +406,15 @@ test_apps: test/test_apps.c src/match.o src/log.o src/system_actions.o src/detac
 test_sinks: test/test_sinks.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks test/test_sinks.c $(LDFLAGS)
 
+# Build tmux tab parser tests
+test_tmux: test/test_tmux.c
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_tmux test/test_tmux.c $(LDFLAGS)
+
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)
 # Note: path_binaries.c compiled inline with -DCOFI_TESTING to expose test hooks
-test_path_binaries: test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_path_binaries test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o $(LDFLAGS)
+test_path_binaries: test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o src/tab_metadata.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_path_binaries test/test_path_binaries.c src/path_binaries.c src/match.o src/log.o src/tab_metadata.o $(LDFLAGS)
 
 # Build system actions tests
 # (tests load semantics and deterministic metadata for logind-backed actions)
@@ -443,8 +454,8 @@ test_cofi_tab_provider: test/test_cofi_tab_provider.c src/cofi_tab_provider.c
 test_cofi_modal: test/test_cofi_modal.c src/cofi_modal.c src/cofi_tab_provider.c
 	$(CC) $(CFLAGS) -o test/test_cofi_modal test/test_cofi_modal.c src/cofi_modal.c src/cofi_tab_provider.c $(LDFLAGS)
 
-test_run_provider: test/test_run_provider.c
-	$(CC) $(CFLAGS) -o test/test_run_provider test/test_run_provider.c $(LDFLAGS)
+test_run_provider: test/test_run_provider.c src/tab_metadata.o
+	$(CC) $(CFLAGS) -o test/test_run_provider test/test_run_provider.c src/tab_metadata.o $(LDFLAGS)
 
 test_window_lifecycle_fixed_reset: test/test_window_lifecycle_fixed_reset.c
 	$(CC) $(CFLAGS) -o test/test_window_lifecycle_fixed_reset test/test_window_lifecycle_fixed_reset.c $(LDFLAGS)

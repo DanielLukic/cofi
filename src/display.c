@@ -17,6 +17,7 @@
 #include "named_window.h"
 #include "display_pipeline.h"
 #include "tab_switching.h"
+#include "tab_metadata.h"
 #include "path_binaries.h"
 #include "slot_store.h"
 
@@ -53,9 +54,6 @@ static void format_candidate_strip(AppData *app, GString *output) {
 
 // Format tab header with active tab indication
 static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
-    static const char *tab_names[] = {"Windows", "Workspaces", "Harpoon", "Names", "Config", "Hotkeys", "Rules", "Apps", "Calc", "Sinks", "Run", "Proc"};
-    static const char *active_tab_names[] = {"WINDOWS", "WORKSPACES", "HARPOON", "NAMES", "CONFIG", "HOTKEYS", "RULES", "APPS", "CALC", "SINKS", "RUN", "PROC"};
-
     g_string_append(output, "\n");
     g_string_append(output, "  ");
 
@@ -70,9 +68,9 @@ static void format_tab_header(AppData *app, TabMode current_tab, GString *output
         }
 
         if (current_tab == tab) {
-            g_string_append_printf(output, "[ %s ]", active_tab_names[tab]);
+            g_string_append_printf(output, "[ %s ]", tab_active_name((TabMode)tab));
         } else {
-            g_string_append_printf(output, "  %s  ", tab_names[tab]);
+            g_string_append_printf(output, "  %s  ", tab_display_name((TabMode)tab));
         }
 
         first = FALSE;

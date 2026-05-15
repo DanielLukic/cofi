@@ -374,6 +374,34 @@ gboolean detach_launch_argv_array(const char *const *argv) {
     return detach_launch_properly(argv, argv[0]);
 }
 
+static gboolean terminal_uses_command_string(const char *term) {
+    return term && (strcmp(term, "mate-terminal") == 0 ||
+                    strcmp(term, "gnome-terminal") == 0);
+}
+
+static char **build_terminal_cmd_argv(const char *term, const char *shell, const char *cmd) {
+    if (terminal_uses_command_string(term)) {
+        gchar *quoted_cmd = g_shell_quote(cmd);
+        gchar *command = g_strdup_printf("%s -c %s", shell, quoted_cmd);
+        char **argv = g_new0(char *, 4);
+        argv[0] = g_strdup(term);
+        argv[1] = g_strdup("-e");
+        argv[2] = command;
+        argv[3] = NULL;
+        g_free(quoted_cmd);
+        return argv;
+    }
+
+    char **argv = g_new0(char *, 6);
+    argv[0] = g_strdup(term);
+    argv[1] = g_strdup("-e");
+    argv[2] = g_strdup(shell);
+    argv[3] = g_strdup("-c");
+    argv[4] = g_strdup(cmd);
+    argv[5] = NULL;
+    return argv;
+}
+
 gboolean detach_launch_in_terminal_cmd(const char *cmd) {
     if (!cmd || cmd[0] == '\0') {
         return FALSE;
@@ -390,8 +418,9 @@ gboolean detach_launch_in_terminal_cmd(const char *cmd) {
         return FALSE;
     }
 
-    const char *argv[] = {term, "-e", shell, "-c", cmd, NULL};
-    gboolean ok = detach_launch_properly(argv, cmd);
+    char **argv = build_terminal_cmd_argv(term, shell, cmd);
+    gboolean ok = detach_launch_properly((const char *const *)argv, cmd);
+    g_strfreev(argv);
 
     if (ok) {
         log_info("Launched command in terminal '%s': %s", term, cmd);
@@ -432,7 +461,6 @@ gboolean fork_setsid_exec_for_test(const char *const *argv) {
 char **build_terminal_cmd_argv_for_test(const char *cmd, ProgramResolver resolver) {
     const char *shell = "/bin/sh";
     const char *term = detect_terminal_with_resolver(resolver, NULL);
-    const char *argv[] = {term, "-e", shell, "-c", cmd, NULL};
-    return g_strdupv((gchar **)argv);
+    return build_terminal_cmd_argv(term, shell, cmd);
 }
 #endif
