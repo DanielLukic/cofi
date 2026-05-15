@@ -185,7 +185,7 @@ Press `!` to enter run mode for detached shell commands. `!` is the mode indicat
 
 ### Tmux Sessions
 
-Use `:tmux` or `:show tmux` to open the hidden tmux sessions tab. It lists existing tmux sessions with window and attached-client counts. Enter opens the selected session in a detected terminal using cofi's detached launch path. `:tmux <session>` attaches an existing session by exact name; it does not create sessions.
+Use `:tmux` or `:show tmux` to open the hidden tmux tab. It lists existing tmux sessions plus zoxide folders when `zoxide` is available. Enter on a session opens it in a detected terminal; Enter on a folder creates or attaches a tmux session named after that folder and starts it in the folder path. `:tmux <session>` attaches an existing session by exact name; it does not create sessions.
 
 ### Apps Tab
 

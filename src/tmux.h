@@ -8,9 +8,15 @@
 #include "cofi_tab_provider.h"
 
 #define MAX_TMUX_SESSIONS 128
+#define MAX_TMUX_FOLDERS 128
 #define MAX_TMUX_SESSION_NAME_LEN 256
 
 typedef struct AppData AppData;
+
+typedef enum {
+    TMUX_ROW_SESSION,
+    TMUX_ROW_FOLDER,
+} TmuxRowType;
 
 typedef struct {
     char name[MAX_TMUX_SESSION_NAME_LEN];
@@ -19,9 +25,21 @@ typedef struct {
 } TmuxSession;
 
 typedef struct {
+    char *path;
+    char *label;
+} TmuxFolder;
+
+typedef struct {
+    TmuxRowType type;
+    int index;
+} TmuxRowRef;
+
+typedef struct {
     TmuxSession sessions[MAX_TMUX_SESSIONS];
-    int filtered_indices[MAX_TMUX_SESSIONS];
+    TmuxFolder folders[MAX_TMUX_FOLDERS];
+    TmuxRowRef filtered_rows[MAX_TMUX_SESSIONS + MAX_TMUX_FOLDERS];
     int session_count;
+    int folder_count;
     int filtered_count;
     char last_error[256];
 } TmuxMode;
@@ -44,6 +62,7 @@ void tmux_on_tick(AppData *app, int generation);
 CofiActionStatus tmux_attach_visible(AppData *app, int visible_idx);
 CofiActionStatus tmux_attach_named(AppData *app, const char *name);
 gchar *tmux_build_attach_command(const char *session_name);
+gchar *tmux_build_folder_session_command(const char *path);
 
 #ifdef COFI_TESTING
 int tmux_parse_session_list_test_hook(const char *output,
@@ -51,6 +70,11 @@ int tmux_parse_session_list_test_hook(const char *output,
                                       int max_out,
                                       char *error_out,
                                       size_t error_size);
+int tmux_parse_zoxide_list_test_hook(const char *output,
+                                     TmuxFolder *out,
+                                     int max_out,
+                                     char *error_out,
+                                     size_t error_size);
 void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command));
 #endif
 

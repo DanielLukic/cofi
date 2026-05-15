@@ -146,14 +146,19 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 - `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
-## Tmux Sessions Tab
+## Tmux Tab
 
-Hidden tmux session surface triggered via `:tmux` or `:show tmux`.
+Hidden tmux surface triggered via `:tmux` or `:show tmux`.
 
 - Sessions are listed from `tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
-- Missing `tmux` or no running tmux server shows a non-actionable status row
+- Zoxide folders are listed from `zoxide query -l` when `zoxide` is available
+- The logical list keeps tmux sessions first, then zoxide folders; because cofi renders provider rows bottom-up, folders appear above sessions
+- Sessions are marked `[tmx]`; folders are marked `[dir]`
+- Missing `tmux` or no running tmux server shows a non-actionable status row only when there are no zoxide folder rows
 - Enter on a session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
+- Enter on a folder launches a detected terminal detached from cofi, then runs `tmux new-session -A -s <folder-name> -c <folder-path>`
 - Session names are treated as exact tmux targets and shell-quoted before launch
+- Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
 - `:tmux <session>` attaches an existing session by exact name; it does not create sessions
 
 ## Single Instance
