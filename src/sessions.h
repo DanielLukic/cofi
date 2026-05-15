@@ -71,8 +71,14 @@ CofiActionStatus sessions_kill_session(AppData *app,
                                    const char *session_name,
                                    SessionBackend backend);
 CofiActionStatus sessions_rename_tmux_session(AppData *app, const char *old_name, const char *new_name);
-CofiActionStatus sessions_new_tmux_session(AppData *app, const char *session_name);
+CofiActionStatus sessions_new_session(AppData *app,
+                                       const char *session_name,
+                                       SessionBackend backend,
+                                       const char *start_dir);
 SessionEntry *sessions_selected_session(AppData *app);
+SessionFolder *sessions_selected_folder(AppData *app);
+SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx);
+const char *sessions_get_shortcut_hint(AppData *app);
 
 #ifdef COFI_TESTING
 void sessions_set_launch_impl_test_hook(gboolean (*impl)(const char *command));

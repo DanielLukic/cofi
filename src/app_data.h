@@ -241,6 +241,12 @@ typedef struct AppData {
         char session_name[MAX_SESSION_NAME_LEN];
     } session_rename;
 
+    struct {
+        SessionBackend backend;
+        char session_name[MAX_SESSION_NAME_LEN];
+        char start_dir[1024];
+    } session_new;
+
     // Rebind state (Hotkeys tab Ctrl+B)
     struct {
         gboolean active;           // TRUE while rebind overlay is open

@@ -323,14 +323,14 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)

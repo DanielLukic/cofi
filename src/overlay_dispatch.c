@@ -213,6 +213,14 @@ void show_session_rename_overlay(AppData *app, const char *session_name) {
     show_overlay(app, OVERLAY_SESSION_RENAME, NULL);
 }
 
-void show_session_new_overlay(AppData *app) {
+void show_session_new_overlay(AppData *app,
+                              SessionBackend backend,
+                              const char *start_dir,
+                              const char *initial_name) {
+    app->session_new.backend = backend;
+    g_strlcpy(app->session_new.start_dir, start_dir ? start_dir : "",
+              sizeof(app->session_new.start_dir));
+    g_strlcpy(app->session_new.session_name, initial_name ? initial_name : "",
+              sizeof(app->session_new.session_name));
     show_overlay(app, OVERLAY_SESSION_NEW, NULL);
 }

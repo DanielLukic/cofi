@@ -177,6 +177,14 @@ static void test_zellij_kill_command_quotes_name(void) {
     g_free(cmd);
 }
 
+static void test_zellij_new_command_starts_in_directory(void) {
+    gchar *cmd = sessions_build_zellij_new_command("work api", "/tmp/work api");
+
+    ASSERT_STR_EQ("zellij new command changes directory before attach",
+                  "cd '/tmp/work api' && zellij attach --create 'work api'", cmd);
+    g_free(cmd);
+}
+
 static void test_match_text_includes_short_backend_markers(void) {
     SessionEntry tmux_session = {
         .backend = SESSION_BACKEND_TMUX,
@@ -228,6 +236,7 @@ int main(void) {
     test_parse_zellij_sessions();
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();
+    test_zellij_new_command_starts_in_directory();
     test_match_text_includes_short_backend_markers();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);

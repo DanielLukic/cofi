@@ -31,7 +31,10 @@ void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);
 void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend);
 void show_session_rename_overlay(AppData *app, const char *session_name);
-void show_session_new_overlay(AppData *app);
+void show_session_new_overlay(AppData *app,
+                              SessionBackend backend,
+                              const char *start_dir,
+                              const char *initial_name);
 
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {

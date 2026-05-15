@@ -2,7 +2,9 @@
 
 #include "app_data.h"
 #include "cofi_tab_provider.h"
+#include "overlay_manager.h"
 #include "sessions.h"
+#include "sessions_parse.h"
 
 #include <gtk/gtk.h>
 
@@ -12,8 +14,17 @@ static CofiActionStatus sessions_provider_on_enter_pressed(AppData *app, int fil
                                                        int modifier_state) {
     (void)filtered_idx;
     (void)entry_text;
-    (void)modifier_state;
     /* raw_idx is visible here: Sessions exposes its filtered list directly to the provider renderer. */
+    SessionFolder *folder = sessions_folder_at_visible(app, raw_idx);
+    if (folder) {
+        SessionBackend backend = (modifier_state & GDK_SHIFT_MASK)
+            ? SESSION_BACKEND_ZELLIJ
+            : SESSION_BACKEND_TMUX;
+        gchar *session_name = sessions_build_folder_session_name(folder->path);
+        show_session_new_overlay(app, backend, folder->path, session_name);
+        g_free(session_name);
+        return COFI_NO_OP;
+    }
     return sessions_attach_visible(app, raw_idx);
 }
 
@@ -32,7 +43,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.tab_mode = TAB_SESSIONS;
     s_sessions_provider.id = "sessions";
     s_sessions_provider.display_name = "SESSIONS";
-    s_sessions_provider.shortcut_hint = "Shortcuts: Delete=Kill session  F2=Rename session (tmux only)  Insert=New tmux session";
+    s_sessions_provider.get_shortcut_hint = sessions_get_shortcut_hint;
     s_sessions_provider.primary_cmd = "tmux";
     s_sessions_provider.aliases = s_sessions_aliases;
     s_sessions_provider.prefix_char = 0;

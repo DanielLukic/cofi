@@ -99,19 +99,25 @@ static CofiActionStatus zellij_attach_session(AppData *app, const char *session_
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-static CofiActionStatus open_folder_session(AppData *app, const char *path) {
+static CofiActionStatus open_folder_session(AppData *app, const char *path, SessionBackend backend) {
     (void)app;
     if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
     gchar *session_name = sessions_build_folder_session_name(path);
-    gchar *command = sessions_build_tmux_new_command(session_name, path);
+    gchar *command = backend == SESSION_BACKEND_ZELLIJ
+        ? sessions_build_zellij_new_command(session_name, path)
+        : sessions_build_tmux_new_command(session_name, path);
     g_free(session_name);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
     if (ok) {
-        log_info("USER: tmux: opening folder '%s'", path);
+        log_info("USER: %s: opening folder '%s'",
+                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 path);
     } else {
-        log_warn("tmux: failed to open folder '%s'", path);
+        log_warn("%s: failed to open folder '%s'",
+                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 path);
     }
     g_free(command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
@@ -342,7 +348,7 @@ CofiActionStatus sessions_attach_visible(AppData *app, int visible_idx) {
             : attach_tmux_session(app, session->name);
     }
     SessionFolder *folder = folder_at_visible(app, visible_idx);
-    return folder ? open_folder_session(app, folder->path) : COFI_ACTION_ERROR;
+    return folder ? open_folder_session(app, folder->path, SESSION_BACKEND_TMUX) : COFI_ACTION_ERROR;
 }
 
 static CofiActionStatus run_session_admin_command(const char *command) {
@@ -381,17 +387,27 @@ CofiActionStatus sessions_rename_tmux_session(AppData *app, const char *old_name
     return status;
 }
 
-CofiActionStatus sessions_new_tmux_session(AppData *app, const char *session_name) {
+CofiActionStatus sessions_new_session(AppData *app,
+                                       const char *session_name,
+                                       SessionBackend backend,
+                                       const char *start_dir) {
     (void)app;
     const char *home = g_get_home_dir();
-    gchar *command = sessions_build_tmux_new_command(session_name, home ? home : "/");
+    const char *dir = (start_dir && start_dir[0] != '\0') ? start_dir : (home ? home : "/");
+    gchar *command = backend == SESSION_BACKEND_ZELLIJ
+        ? sessions_build_zellij_new_command(session_name, dir)
+        : sessions_build_tmux_new_command(session_name, dir);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
     if (ok) {
-        log_info("USER: tmux: created/attached session '%s'", session_name);
+        log_info("USER: %s: created/attached session '%s'",
+                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 session_name);
     } else {
-        log_warn("tmux: failed to create/attach session '%s'", session_name);
+        log_warn("%s: failed to create/attach session '%s'",
+                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 session_name);
     }
     g_free(command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
@@ -400,6 +416,26 @@ CofiActionStatus sessions_new_tmux_session(AppData *app, const char *session_nam
 SessionEntry *sessions_selected_session(AppData *app) {
     if (!app) return NULL;
     return session_at_visible(app, app->selection.provider_index);
+}
+
+SessionFolder *sessions_selected_folder(AppData *app) {
+    if (!app) return NULL;
+    return folder_at_visible(app, app->selection.provider_index);
+}
+
+SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx) {
+    return folder_at_visible(app, visible_idx);
+}
+
+const char *sessions_get_shortcut_hint(AppData *app) {
+    if (sessions_selected_folder(app)) {
+        return "Actions: Enter/Insert=New session";
+    }
+    SessionEntry *session = sessions_selected_session(app);
+    if (session && session->backend == SESSION_BACKEND_ZELLIJ) {
+        return "Actions: Enter=Open  Delete=Kill  Insert=New";
+    }
+    return "Actions: Enter=Open  Delete=Kill  F2=Rename  Insert=New";
 }
 
 CofiActionStatus sessions_attach_named(AppData *app, const char *name) {

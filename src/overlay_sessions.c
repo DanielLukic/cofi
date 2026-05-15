@@ -44,6 +44,47 @@ static GtkWidget *create_session_entry_form(GtkWidget *parent_container,
     return entry;
 }
 
+static const char *session_backend_name(SessionBackend backend) {
+    return backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux";
+}
+
+static void update_session_new_labels(AppData *app) {
+    GtkWidget *title = g_object_get_data(G_OBJECT(app->dialog_container), "title_label");
+    GtkWidget *instructions = g_object_get_data(G_OBJECT(app->dialog_container), "instructions_label");
+    char title_text[64];
+    char instruction_text[160];
+    const char *backend = session_backend_name(app->session_new.backend);
+
+    g_snprintf(title_text, sizeof(title_text), "New %s session", backend);
+    g_snprintf(instruction_text, sizeof(instruction_text),
+               "Enter=create in %s  Tab=%s  Esc=cancel",
+               app->session_new.start_dir[0] ? "folder" : "home",
+               app->session_new.backend == SESSION_BACKEND_ZELLIJ ? "tmux" : "zellij");
+
+    if (title) {
+        gtk_label_set_text(GTK_LABEL(title), title_text);
+    }
+    if (instructions) {
+        gtk_label_set_text(GTK_LABEL(instructions), instruction_text);
+    }
+}
+
+static gboolean on_session_new_entry_key_press(GtkWidget *widget,
+                                               GdkEventKey *event,
+                                               gpointer user_data) {
+    (void)widget;
+    AppData *app = user_data;
+    if (event->keyval != GDK_KEY_Tab && event->keyval != GDK_KEY_ISO_Left_Tab) {
+        return FALSE;
+    }
+
+    app->session_new.backend = app->session_new.backend == SESSION_BACKEND_ZELLIJ
+        ? SESSION_BACKEND_TMUX
+        : SESSION_BACKEND_ZELLIJ;
+    update_session_new_labels(app);
+    return TRUE;
+}
+
 void create_session_kill_overlay_content(GtkWidget *parent_container, AppData *app) {
     GtkWidget *vbox = create_session_form_box(parent_container);
 
@@ -69,9 +110,28 @@ void create_session_rename_overlay_content(GtkWidget *parent_container, AppData 
 }
 
 void create_session_new_overlay_content(GtkWidget *parent_container, AppData *app) {
-    (void)app;
-    create_session_entry_form(parent_container, "New tmux session", "",
-                           "Enter=create in home  Esc=cancel");
+    GtkWidget *vbox = create_session_form_box(parent_container);
+
+    GtkWidget *title_label = gtk_label_new("");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), app->session_new.session_name);
+    gtk_editable_select_region(GTK_EDITABLE(entry), 0, -1);
+    gtk_widget_set_size_request(entry, 360, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
+
+    GtkWidget *inst = create_centered_label("");
+    gtk_widget_set_opacity(inst, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", entry);
+    g_object_set_data(G_OBJECT(parent_container), "title_label", title_label);
+    g_object_set_data(G_OBJECT(parent_container), "instructions_label", inst);
+    g_signal_connect(entry, "key-press-event",
+                     G_CALLBACK(on_session_new_entry_key_press), app);
+    update_session_new_labels(app);
 }
 
 static void refresh_sessions_tab(AppData *app) {
@@ -153,7 +213,9 @@ gboolean handle_session_new_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    CofiActionStatus status = sessions_new_tmux_session(app, session_name);
+    CofiActionStatus status = sessions_new_session(app, session_name,
+                                                   app->session_new.backend,
+                                                   app->session_new.start_dir);
     hide_overlay(app);
     if (status == COFI_HANDLED_HIDE) {
         hide_window(app);

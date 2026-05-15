@@ -61,6 +61,12 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->session_rename.session_name[0] = '\0';
     }
 
+    if (type == OVERLAY_SESSION_NEW) {
+        app->session_new.backend = SESSION_BACKEND_TMUX;
+        app->session_new.session_name[0] = '\0';
+        app->session_new.start_dir[0] = '\0';
+    }
+
     if (type == OVERLAY_HOTKEY_REBIND) {
         memset(&app->hotkey_rebind, 0, sizeof(app->hotkey_rebind));
         app->hotkey_rebind.conflict_index = -1;

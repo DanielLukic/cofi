@@ -47,8 +47,12 @@ static int g_show_session_rename_calls;
 static int g_show_session_new_calls;
 static char g_last_session_name[MAX_SESSION_NAME_LEN];
 static SessionBackend g_last_session_backend;
+static char g_last_session_start_dir[1024];
+static char g_last_session_initial_name[MAX_SESSION_NAME_LEN];
 static SessionEntry g_stub_selected_session;
 static gboolean g_stub_has_selected_session;
+static SessionFolder g_stub_selected_folder;
+static gboolean g_stub_has_selected_folder;
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -316,6 +320,11 @@ SessionEntry *sessions_selected_session(AppData *app) {
     return g_stub_has_selected_session ? &g_stub_selected_session : NULL;
 }
 
+SessionFolder *sessions_selected_folder(AppData *app) {
+    (void)app;
+    return g_stub_has_selected_folder ? &g_stub_selected_folder : NULL;
+}
+
 void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend) {
     (void)app;
     g_show_session_kill_calls++;
@@ -333,9 +342,20 @@ void show_session_rename_overlay(AppData *app, const char *session_name) {
     g_last_session_name[sizeof(g_last_session_name) - 1] = '\0';
 }
 
-void show_session_new_overlay(AppData *app) {
+void show_session_new_overlay(AppData *app,
+                              SessionBackend backend,
+                              const char *start_dir,
+                              const char *initial_name) {
     (void)app;
+    (void)initial_name;
     g_show_session_new_calls++;
+    g_last_session_backend = backend;
+    strncpy(g_last_session_start_dir, start_dir ? start_dir : "",
+            sizeof(g_last_session_start_dir) - 1);
+    g_last_session_start_dir[sizeof(g_last_session_start_dir) - 1] = '\0';
+    strncpy(g_last_session_initial_name, initial_name ? initial_name : "",
+            sizeof(g_last_session_initial_name) - 1);
+    g_last_session_initial_name[sizeof(g_last_session_initial_name) - 1] = '\0';
 }
 
 #include "../src/key_handler.c"
@@ -366,9 +386,13 @@ static void reset_captures(void) {
     g_show_session_rename_calls = 0;
     g_show_session_new_calls = 0;
     g_last_session_name[0] = '\0';
+    g_last_session_start_dir[0] = '\0';
+    g_last_session_initial_name[0] = '\0';
     g_last_session_backend = SESSION_BACKEND_TMUX;
     memset(&g_stub_selected_session, 0, sizeof(g_stub_selected_session));
     g_stub_has_selected_session = FALSE;
+    memset(&g_stub_selected_folder, 0, sizeof(g_stub_selected_folder));
+    g_stub_has_selected_folder = FALSE;
 
     g_show_overlay_calls = 0;
     g_last_overlay_type = OVERLAY_NONE;
@@ -740,7 +764,16 @@ static void test_sessions_tab_shortcuts_open_session_overlays(void) {
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
     ASSERT_TRUE("Insert on Sessions opens new-session overlay", ins_handled == TRUE);
     ASSERT_TRUE("Insert on Sessions opens exactly one new-session overlay",
-                g_show_session_new_calls == 1);
+                g_show_session_new_calls == 1 &&
+                g_last_session_backend == SESSION_BACKEND_TMUX &&
+                strcmp(g_last_session_start_dir, "") == 0);
+
+    GdkEventKey shift_ins_ev = make_key(GDK_KEY_Insert, GDK_SHIFT_MASK);
+    gboolean shift_ins_handled = on_key_press(NULL, &shift_ins_ev, &app);
+    ASSERT_TRUE("Shift+Insert on Sessions opens new-session overlay", shift_ins_handled == TRUE);
+    ASSERT_TRUE("Shift+Insert preselects zellij",
+                g_show_session_new_calls == 2 &&
+                g_last_session_backend == SESSION_BACKEND_ZELLIJ);
 }
 
 static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) {
@@ -761,6 +794,13 @@ static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) 
                 g_show_session_kill_calls == 1 &&
                 g_last_session_backend == SESSION_BACKEND_ZELLIJ &&
                 strcmp(g_last_session_name, "zj work") == 0);
+
+    GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
+    gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
+    ASSERT_TRUE("Insert on zellij session handled", ins_handled == TRUE);
+    ASSERT_TRUE("Insert on zellij session preselects zellij",
+                g_show_session_new_calls == 1 &&
+                g_last_session_backend == SESSION_BACKEND_ZELLIJ);
 }
 
 static void test_sessions_tab_rename_ignores_zellij_session_row(void) {
@@ -799,6 +839,35 @@ static void test_sessions_tab_delete_and_rename_ignore_folder_rows(void) {
                 g_show_session_kill_calls == 0 && g_show_session_rename_calls == 0);
 }
 
+static void test_sessions_tab_insert_on_folder_uses_folder_dir(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_SESSIONS;
+    g_stub_has_selected_folder = TRUE;
+    g_stub_selected_folder.path = "/home/user/Projects/cofi";
+    g_stub_selected_folder.label = "cofi";
+
+    GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
+    gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
+    ASSERT_TRUE("Insert on folder opens new-session overlay", ins_handled == TRUE);
+    ASSERT_TRUE("Insert on folder uses tmux and folder path",
+                g_show_session_new_calls == 1 &&
+                g_last_session_backend == SESSION_BACKEND_TMUX &&
+                strcmp(g_last_session_start_dir, "/home/user/Projects/cofi") == 0 &&
+                strcmp(g_last_session_initial_name, "cofi") == 0);
+
+    GdkEventKey shift_ins_ev = make_key(GDK_KEY_Insert, GDK_SHIFT_MASK);
+    gboolean shift_ins_handled = on_key_press(NULL, &shift_ins_ev, &app);
+    ASSERT_TRUE("Shift+Insert on folder opens new-session overlay", shift_ins_handled == TRUE);
+    ASSERT_TRUE("Shift+Insert on folder preselects zellij and folder path",
+                g_show_session_new_calls == 2 &&
+                g_last_session_backend == SESSION_BACKEND_ZELLIJ &&
+                strcmp(g_last_session_start_dir, "/home/user/Projects/cofi") == 0 &&
+                strcmp(g_last_session_initial_name, "cofi") == 0);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Key handler tab-specific tests\n");
@@ -827,6 +896,7 @@ int main(int argc, char **argv) {
     test_sessions_tab_delete_on_zellij_session_opens_kill_overlay();
     test_sessions_tab_rename_ignores_zellij_session_row();
     test_sessions_tab_delete_and_rename_ignore_folder_rows();
+    test_sessions_tab_insert_on_folder_uses_folder_dir();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

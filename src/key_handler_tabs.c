@@ -14,6 +14,25 @@
 #include "overlay_manager.h"
 #include "rules_replay.h"
 #include "sessions.h"
+#include "sessions_parse.h"
+
+static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij) {
+    SessionBackend backend = prefer_zellij ? SESSION_BACKEND_ZELLIJ : SESSION_BACKEND_TMUX;
+    SessionEntry *session = sessions_selected_session(app);
+    if (!prefer_zellij && session && session->backend == SESSION_BACKEND_ZELLIJ) {
+        backend = SESSION_BACKEND_ZELLIJ;
+    }
+
+    SessionFolder *folder = sessions_selected_folder(app);
+    if (!folder) {
+        show_session_new_overlay(app, backend, "", "");
+        return;
+    }
+
+    gchar *session_name = sessions_build_folder_session_name(folder->path);
+    show_session_new_overlay(app, backend, folder->path, session_name);
+    g_free(session_name);
+}
 
 static gboolean clamp_names_selection(AppData *app) {
     if (app->filtered_names_count <= 0) {
@@ -270,7 +289,7 @@ gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
-        show_session_new_overlay(app);
+        show_new_session_for_selection(app, (event->state & GDK_SHIFT_MASK) != 0);
         return TRUE;
     }
 

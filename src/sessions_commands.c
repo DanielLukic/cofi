@@ -61,3 +61,16 @@ gchar *sessions_build_tmux_new_command(const char *session_name, const char *sta
     g_free(quoted_name);
     return command;
 }
+
+gchar *sessions_build_zellij_new_command(const char *session_name, const char *start_dir) {
+    if (!session_name || session_name[0] == '\0' || !start_dir || start_dir[0] == '\0') {
+        return NULL;
+    }
+    gchar *quoted_name = g_shell_quote(session_name);
+    gchar *quoted_dir = g_shell_quote(start_dir);
+    gchar *command = g_strdup_printf("cd %s && zellij attach --create %s",
+                                     quoted_dir, quoted_name);
+    g_free(quoted_dir);
+    g_free(quoted_name);
+    return command;
+}
