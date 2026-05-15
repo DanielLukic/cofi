@@ -10,15 +10,21 @@
 #include "tmux.h"
 #include "window_lifecycle.h"
 
-static GtkWidget *create_tmux_entry_form(GtkWidget *parent_container,
-                                         const char *title,
-                                         const char *initial_text,
-                                         const char *instructions) {
+static GtkWidget *create_tmux_form_box(GtkWidget *parent_container) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
     gtk_widget_set_margin_right(vbox, 20);
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    return vbox;
+}
+
+static GtkWidget *create_tmux_entry_form(GtkWidget *parent_container,
+                                         const char *title,
+                                         const char *initial_text,
+                                         const char *instructions) {
+    GtkWidget *vbox = create_tmux_form_box(parent_container);
 
     GtkWidget *title_label = gtk_label_new(title);
     gtk_widget_set_name(title_label, "overlay-title");
@@ -35,16 +41,11 @@ static GtkWidget *create_tmux_entry_form(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
 
     g_object_set_data(G_OBJECT(parent_container), "name_entry", entry);
-    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
     return entry;
 }
 
 void create_tmux_kill_overlay_content(GtkWidget *parent_container, AppData *app) {
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_margin_left(vbox, 20);
-    gtk_widget_set_margin_right(vbox, 20);
-    gtk_widget_set_margin_top(vbox, 20);
-    gtk_widget_set_margin_bottom(vbox, 20);
+    GtkWidget *vbox = create_tmux_form_box(parent_container);
 
     GtkWidget *title_label = gtk_label_new("Kill Session?");
     gtk_widget_set_name(title_label, "overlay-title");
@@ -59,12 +60,10 @@ void create_tmux_kill_overlay_content(GtkWidget *parent_container, AppData *app)
     GtkWidget *inst = create_centered_label("Y or Delete = kill, N or Esc = cancel");
     gtk_widget_set_opacity(inst, 0.7);
     gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
 }
 
 void create_tmux_rename_overlay_content(GtkWidget *parent_container, AppData *app) {
-    create_tmux_entry_form(parent_container, "Rename Tmux Session",
+    create_tmux_entry_form(parent_container, "Rename Session",
                            app->tmux_rename.session_name,
                            "Enter=rename  Esc=cancel");
 }
@@ -90,9 +89,6 @@ gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
         TmuxSessionBackend backend = app->tmux_kill.backend;
         g_strlcpy(session_name, app->tmux_kill.session_name, sizeof(session_name));
         CofiActionStatus status = tmux_kill_session(app, session_name, backend);
-        app->tmux_kill.pending_kill = FALSE;
-        app->tmux_kill.backend = TMUX_SESSION_TMUX;
-        app->tmux_kill.session_name[0] = '\0';
         hide_overlay(app);
         if (status == COFI_HANDLED_REFRESH) {
             refresh_tmux_tab(app);
@@ -103,9 +99,6 @@ gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
     }
 
     if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        app->tmux_kill.pending_kill = FALSE;
-        app->tmux_kill.backend = TMUX_SESSION_TMUX;
-        app->tmux_kill.session_name[0] = '\0';
         hide_overlay(app);
         update_display(app);
         return TRUE;
@@ -134,8 +127,6 @@ gboolean handle_tmux_rename_key_press(AppData *app, GdkEventKey *event) {
     char old_name[MAX_TMUX_SESSION_NAME_LEN];
     g_strlcpy(old_name, app->tmux_rename.session_name, sizeof(old_name));
     CofiActionStatus status = tmux_rename_session(app, old_name, new_name);
-    app->tmux_rename.pending_rename = FALSE;
-    app->tmux_rename.session_name[0] = '\0';
     hide_overlay(app);
     if (status == COFI_HANDLED_REFRESH) {
         refresh_tmux_tab(app);

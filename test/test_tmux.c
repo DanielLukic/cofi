@@ -90,34 +90,37 @@ static void test_parse_zoxide_folders(void) {
     ASSERT_STR_EQ("first zoxide label", "cofi", folders[0].label);
     ASSERT_STR_EQ("second zoxide label", "codex-msgnr", folders[1].label);
     ASSERT_STR_EQ("zoxide parse no error", "", error);
-    for (int i = 0; i < count; i++) {
-        g_free(folders[i].path);
-        g_free(folders[i].label);
-    }
+    clear_zoxide_folders(folders, count);
 }
 
 static void test_folder_session_command_uses_start_directory(void) {
-    gchar *cmd = tmux_build_folder_session_command("/home/user/Projects/cofi");
+    gchar *session_name = build_folder_session_name("/home/user/Projects/cofi");
+    gchar *cmd = tmux_build_new_session_command(session_name, "/home/user/Projects/cofi");
 
     ASSERT_STR_EQ("folder command creates or attaches in directory",
                   "tmux new-session -A -s 'cofi' -c '/home/user/Projects/cofi'", cmd);
     g_free(cmd);
+    g_free(session_name);
 }
 
 static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
-    gchar *cmd = tmux_build_folder_session_command("/tmp/work:api session");
+    gchar *session_name = build_folder_session_name("/tmp/work:api session");
+    gchar *cmd = tmux_build_new_session_command(session_name, "/tmp/work:api session");
 
     ASSERT_STR_EQ("folder command quotes path and sanitizes session name",
                   "tmux new-session -A -s 'work_api_session' -c '/tmp/work:api session'", cmd);
     g_free(cmd);
+    g_free(session_name);
 }
 
 static void test_folder_session_name_replaces_tmux_separators(void) {
-    gchar *cmd = tmux_build_folder_session_command("/tmp/my.project");
+    gchar *session_name = build_folder_session_name("/tmp/my.project");
+    gchar *cmd = tmux_build_new_session_command(session_name, "/tmp/my.project");
 
     ASSERT_STR_EQ("folder command replaces dot in session name",
                   "tmux new-session -A -s 'my_project' -c '/tmp/my.project'", cmd);
     g_free(cmd);
+    g_free(session_name);
 }
 
 static void test_kill_command_uses_exact_target(void) {

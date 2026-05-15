@@ -136,7 +136,6 @@ static gchar *folder_label_from_path(const char *path) {
     return len > 0 ? g_strndup(base, len) : g_strdup("zoxide");
 }
 
-#ifndef COFI_TMUX_PARSER_TEST
 static void clear_zoxide_folders(TmuxFolder *folders, int count) {
     if (!folders || count <= 0) return;
     for (int i = 0; i < count; i++) {
@@ -144,7 +143,6 @@ static void clear_zoxide_folders(TmuxFolder *folders, int count) {
         g_clear_pointer(&folders[i].label, g_free);
     }
 }
-#endif
 
 static int parse_zoxide_folder_list(const char *output,
                                     TmuxFolder *out,
@@ -272,19 +270,6 @@ gchar *tmux_build_zellij_kill_command(const char *session_name) {
     return command;
 }
 
-gchar *tmux_build_folder_session_command(const char *path) {
-    if (!path || path[0] == '\0') return NULL;
-    gchar *session_name = build_folder_session_name(path);
-    gchar *quoted_session = g_shell_quote(session_name);
-    gchar *quoted_path = g_shell_quote(path);
-    gchar *command = g_strdup_printf("tmux new-session -A -s %s -c %s",
-                                     quoted_session, quoted_path);
-    g_free(quoted_path);
-    g_free(quoted_session);
-    g_free(session_name);
-    return command;
-}
-
 gchar *tmux_build_kill_command(const char *session_name) {
     if (!session_name || session_name[0] == '\0') return NULL;
     gchar *target = g_strconcat("=", session_name, NULL);
@@ -409,7 +394,10 @@ static CofiActionStatus zellij_attach_session(AppData *app, const char *session_
 
 static CofiActionStatus tmux_open_folder(AppData *app, const char *path) {
     (void)app;
-    gchar *command = tmux_build_folder_session_command(path);
+    if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
+    gchar *session_name = build_folder_session_name(path);
+    gchar *command = tmux_build_new_session_command(session_name, path);
+    g_free(session_name);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
@@ -499,15 +487,7 @@ void tmux_filter(AppData *app, const char *query) {
     }
 }
 
-void tmux_refresh(AppData *app) {
-    if (!app) return;
-    TmuxMode *mode = &app->tmux_mode;
-    clear_zoxide_folders(mode->folders, mode->folder_count);
-    mode->session_count = 0;
-    mode->folder_count = 0;
-    mode->filtered_count = 0;
-    mode->last_error[0] = '\0';
-
+static void refresh_tmux_sessions(TmuxMode *mode) {
     gchar *tmux = g_find_program_in_path("tmux");
     if (tmux) {
         gchar *argv[] = {
@@ -550,32 +530,40 @@ void tmux_refresh(AppData *app) {
     } else {
         g_strlcpy(mode->last_error, "tmux not found", sizeof(mode->last_error));
     }
+}
 
+static void refresh_zellij_sessions(TmuxMode *mode) {
     gchar *zellij = g_find_program_in_path("zellij");
-    if (zellij && mode->session_count < MAX_TMUX_SESSIONS) {
-        gchar *argv[] = {zellij, "list-sessions", "--short", NULL};
-        gchar *stdout_str = NULL;
-        gint wait_status = 0;
-        GError *error = NULL;
-
-        gboolean spawned = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL,
-                                        NULL, NULL, &stdout_str, NULL, &wait_status, &error);
-        if (spawned && g_spawn_check_wait_status(wait_status, &error)) {
-            char parse_error[256];
-            int added = parse_zellij_session_list(stdout_str,
-                                                  mode->sessions + mode->session_count,
-                                                  MAX_TMUX_SESSIONS - mode->session_count,
-                                                  parse_error, sizeof(parse_error));
-            mode->session_count += added;
-            if (added > 0) {
-                mode->last_error[0] = '\0';
-            }
-        }
-        g_clear_error(&error);
-        g_free(stdout_str);
+    if (!zellij) return;
+    if (mode->session_count >= MAX_TMUX_SESSIONS) {
         g_free(zellij);
+        return;
     }
 
+    gchar *argv[] = {zellij, "list-sessions", "--short", NULL};
+    gchar *stdout_str = NULL;
+    gint wait_status = 0;
+    GError *error = NULL;
+
+    gboolean spawned = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL,
+                                    NULL, NULL, &stdout_str, NULL, &wait_status, &error);
+    if (spawned && g_spawn_check_wait_status(wait_status, &error)) {
+        char parse_error[256];
+        int added = parse_zellij_session_list(stdout_str,
+                                              mode->sessions + mode->session_count,
+                                              MAX_TMUX_SESSIONS - mode->session_count,
+                                              parse_error, sizeof(parse_error));
+        mode->session_count += added;
+        if (added > 0) {
+            mode->last_error[0] = '\0';
+        }
+    }
+    g_clear_error(&error);
+    g_free(stdout_str);
+    g_free(zellij);
+}
+
+static void refresh_zoxide_folders(TmuxMode *mode) {
     gchar *zoxide = g_find_program_in_path("zoxide");
     if (zoxide) {
         gchar *argv[] = {zoxide, "query", "-l", NULL};
@@ -595,6 +583,20 @@ void tmux_refresh(AppData *app) {
         g_free(stdout_str);
         g_free(zoxide);
     }
+}
+
+void tmux_refresh(AppData *app) {
+    if (!app) return;
+    TmuxMode *mode = &app->tmux_mode;
+    clear_zoxide_folders(mode->folders, mode->folder_count);
+    mode->session_count = 0;
+    mode->folder_count = 0;
+    mode->filtered_count = 0;
+    mode->last_error[0] = '\0';
+
+    refresh_tmux_sessions(mode);
+    refresh_zellij_sessions(mode);
+    refresh_zoxide_folders(mode);
 
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
     tmux_filter(app, query);
@@ -819,43 +821,9 @@ CofiActionStatus tmux_attach_named(AppData *app, const char *name) {
     }
     return COFI_ACTION_ERROR;
 }
-
-#ifdef COFI_TESTING
-int tmux_parse_session_list_test_hook(const char *output,
-                                      TmuxSession *out,
-                                      int max_out,
-                                      char *error_out,
-                                      size_t error_size) {
-    return parse_tmux_session_list(output, out, max_out, error_out, error_size);
-}
-
-int tmux_parse_zoxide_list_test_hook(const char *output,
-                                     TmuxFolder *out,
-                                     int max_out,
-                                     char *error_out,
-                                     size_t error_size) {
-    return parse_zoxide_folder_list(output, out, max_out, error_out, error_size);
-}
-
-int tmux_parse_zellij_session_list_test_hook(const char *output,
-                                             TmuxSession *out,
-                                             int max_out,
-                                             char *error_out,
-                                             size_t error_size) {
-    return parse_zellij_session_list(output, out, max_out, error_out, error_size);
-}
-
-void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
-    s_launch_in_terminal = impl ? impl : default_launch_in_terminal;
-}
-
-void tmux_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
-    s_run_tmux_command = impl ? impl : default_run_tmux_command;
-}
-#endif
 #endif /* COFI_TMUX_PARSER_TEST */
 
-#ifdef COFI_TMUX_PARSER_TEST
+#if defined(COFI_TESTING) || defined(COFI_TMUX_PARSER_TEST)
 int tmux_parse_session_list_test_hook(const char *output,
                                       TmuxSession *out,
                                       int max_out,
@@ -891,5 +859,15 @@ void tmux_format_folder_match_text_test_hook(const TmuxFolder *folder,
                                              size_t out_size) {
     tmux_format_folder_match_text(folder, out, out_size);
 }
+
+#ifndef COFI_TMUX_PARSER_TEST
+void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
+    s_launch_in_terminal = impl ? impl : default_launch_in_terminal;
+}
+
+void tmux_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
+    s_run_tmux_command = impl ? impl : default_run_tmux_command;
+}
+#endif
 
 #endif

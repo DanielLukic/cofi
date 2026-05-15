@@ -75,7 +75,6 @@ CofiActionStatus tmux_new_session(AppData *app, const char *session_name);
 TmuxSession *tmux_selected_session(AppData *app);
 gchar *tmux_build_attach_command(const char *session_name);
 gchar *tmux_build_zellij_attach_command(const char *session_name);
-gchar *tmux_build_folder_session_command(const char *path);
 gchar *tmux_build_kill_command(const char *session_name);
 gchar *tmux_build_zellij_kill_command(const char *session_name);
 gchar *tmux_build_rename_command(const char *old_name, const char *new_name);
@@ -97,6 +96,12 @@ int tmux_parse_zellij_session_list_test_hook(const char *output,
                                              int max_out,
                                              char *error_out,
                                              size_t error_size);
+void tmux_format_session_match_text_test_hook(const TmuxSession *session,
+                                              char *out,
+                                              size_t out_size);
+void tmux_format_folder_match_text_test_hook(const TmuxFolder *folder,
+                                             char *out,
+                                             size_t out_size);
 void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command));
 void tmux_set_command_impl_test_hook(gboolean (*impl)(const char *command));
 #endif

@@ -33,9 +33,6 @@ void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionB
 void show_tmux_rename_overlay(AppData *app, const char *session_name);
 void show_tmux_new_overlay(AppData *app);
 
-// Note: Content creation functions are now static within overlay_manager.c
-// following the new overlay pattern where content is added directly to parent_container
-
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
     return type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||

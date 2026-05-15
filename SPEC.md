@@ -146,7 +146,7 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 - `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
-## Tmux Tab
+## Sessions Tab
 
 Hidden Sessions surface triggered via `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessions`, `:show tmux`, or `:show sessions`.
 
