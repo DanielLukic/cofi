@@ -11,10 +11,12 @@
 #include "sessions_commands.h"
 #include "sessions_folder_windows.h"
 #include "sessions_parse.h"
+#include "sessions_zellij_windows.h"
 #include "window_list.h"
 
 #include <gtk/gtk.h>
 #include <X11/Xatom.h>
+
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
 }
@@ -94,7 +96,8 @@ static CofiActionStatus attach_tmux_session(AppData *app, const char *session_na
 }
 
 static CofiActionStatus zellij_attach_session(AppData *app, const char *session_name) {
-    (void)app;
+    if (sessions_activate_zellij_window(app, session_name)) return COFI_HANDLED_HIDE;
+
     gchar *command = sessions_build_zellij_attach_command(session_name);
     if (!command) return COFI_ACTION_ERROR;
 

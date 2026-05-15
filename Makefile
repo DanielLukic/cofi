@@ -52,6 +52,7 @@ SOURCES = src/main.c \
           src/sessions_parse.c \
           src/sessions_commands.c \
           src/sessions_folder_windows.c \
+          src/sessions_zellij_windows.c \
           src/system_actions.c \
           src/path_binaries.c \
           src/detach_launch.c \
@@ -411,7 +412,7 @@ test_sinks: test/test_sinks.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks test/test_sinks.c $(LDFLAGS)
 
 # Build sessions tab parser and command tests
-test_sessions: test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o
+test_sessions: test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o src/sessions_zellij_windows.c src/sessions_zellij_windows.h
 	$(CC) $(CFLAGS) -o test/test_sessions test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o $(LDFLAGS)
 
 # Build PATH binaries tests

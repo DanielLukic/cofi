@@ -6,6 +6,22 @@
 #include "../src/sessions_commands.h"
 #include "../src/sessions_folder_windows.h"
 #include "../src/sessions_parse.h"
+#include "../src/sessions_zellij_windows.h"
+#include "../src/log.h"
+
+void activate_window(Display *display, Window window_id) {
+    (void)display;
+    (void)window_id;
+}
+
+void log_log(int level, const char *file, int line, const char *fmt, ...) {
+    (void)level;
+    (void)file;
+    (void)line;
+    (void)fmt;
+}
+
+#include "../src/sessions_zellij_windows.c"
 
 static int pass = 0;
 static int fail = 0;
@@ -17,6 +33,9 @@ static int fail = 0;
 
 #define ASSERT_EQ_INT(name, expected, actual) \
     ASSERT_TRUE(name, (expected) == (actual))
+
+#define ASSERT_EQ_ULONG(name, expected, actual) \
+    ASSERT_TRUE(name, (unsigned long)(expected) == (unsigned long)(actual))
 
 #define ASSERT_STR_EQ(name, expected, actual) \
     ASSERT_TRUE(name, strcmp((expected), (actual)) == 0)
@@ -186,6 +205,75 @@ static void test_zellij_new_command_starts_in_directory(void) {
     g_free(cmd);
 }
 
+static void test_zellij_cmdline_matches_short_attach(void) {
+    const char cmdline[] = "/usr/bin/zellij\0a\0coiner-dev\0";
+
+    ASSERT_TRUE("zellij short attach cmdline matches session",
+                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "coiner-dev"));
+}
+
+static void test_zellij_cmdline_matches_attach_create(void) {
+    const char cmdline[] = "zellij\0attach\0--create\0work api\0";
+
+    ASSERT_TRUE("zellij attach create cmdline matches session",
+                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "work api"));
+}
+
+static void test_zellij_cmdline_matches_session_option(void) {
+    const char cmdline[] = "zellij\0--session\0coiner-dev\0";
+
+    ASSERT_TRUE("zellij session option cmdline matches session",
+                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "coiner-dev"));
+}
+
+static void test_zellij_cmdline_rejects_server_and_other_session(void) {
+    const char server[] = "zellij\0--server\0/run/user/1000/zellij/coiner-dev\0";
+    const char other[] = "zellij\0attach\0--create\0other\0";
+
+    ASSERT_TRUE("zellij server cmdline rejected",
+                !sessions_zellij_cmdline_matches_session(server, sizeof(server),
+                                                         "coiner-dev"));
+    ASSERT_TRUE("zellij other session cmdline rejected",
+                !sessions_zellij_cmdline_matches_session(other, sizeof(other),
+                                                         "coiner-dev"));
+}
+
+static void test_zellij_cmdline_rejects_action_with_session_option(void) {
+    const char cmdline[] = "zellij\0--session\0coiner-dev\0action\0list-clients\0";
+
+    ASSERT_TRUE("zellij action cmdline rejected",
+                !sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                         "coiner-dev"));
+}
+
+static void test_zellij_windowid_from_environ(void) {
+    const char environ_data[] = "TERM=xterm\0WINDOWID=64284440\0";
+    Window window = 0;
+
+    ASSERT_TRUE("zellij environ windowid parsed",
+                sessions_windowid_from_environ(environ_data, sizeof(environ_data),
+                                               &window));
+    ASSERT_EQ_ULONG("zellij environ windowid value", 64284440UL, window);
+}
+
+static void test_zellij_windowid_rejects_invalid_environ(void) {
+    const char invalid[] = "WINDOWID=not-a-number\0";
+    const char zero[] = "WINDOWID=0\0";
+    Window window = 123;
+
+    ASSERT_TRUE("zellij invalid windowid rejected",
+                !sessions_windowid_from_environ(invalid, sizeof(invalid), &window));
+    ASSERT_EQ_ULONG("zellij invalid clears windowid", 0UL, window);
+
+    window = 123;
+    ASSERT_TRUE("zellij zero windowid rejected",
+                !sessions_windowid_from_environ(zero, sizeof(zero), &window));
+    ASSERT_EQ_ULONG("zellij zero clears windowid", 0UL, window);
+}
+
 static void test_match_text_includes_short_backend_markers(void) {
     SessionEntry tmux_session = {
         .backend = SESSION_BACKEND_TMUX,
@@ -348,6 +436,13 @@ int main(void) {
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();
     test_zellij_new_command_starts_in_directory();
+    test_zellij_cmdline_matches_short_attach();
+    test_zellij_cmdline_matches_attach_create();
+    test_zellij_cmdline_matches_session_option();
+    test_zellij_cmdline_rejects_server_and_other_session();
+    test_zellij_cmdline_rejects_action_with_session_option();
+    test_zellij_windowid_from_environ();
+    test_zellij_windowid_rejects_invalid_environ();
     test_match_text_includes_short_backend_markers();
     test_slot_payloads_are_typed();
     test_parse_slot_payloads();
