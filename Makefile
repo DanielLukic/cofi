@@ -47,11 +47,14 @@ SOURCES = src/main.c \
           src/apps.c \
           src/sinks.c \
           src/proc.c \
+          src/process_windows.c \
           src/sessions.c \
           src/sessions_refresh.c \
           src/sessions_parse.c \
           src/sessions_commands.c \
           src/sessions_folder_windows.c \
+          src/sessions_window_env.c \
+          src/sessions_tmux_windows.c \
           src/sessions_zellij_windows.c \
           src/system_actions.c \
           src/path_binaries.c \
@@ -412,7 +415,7 @@ test_sinks: test/test_sinks.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks test/test_sinks.c $(LDFLAGS)
 
 # Build sessions tab parser and command tests
-test_sessions: test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o src/sessions_zellij_windows.c src/sessions_zellij_windows.h
+test_sessions: test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o src/sessions_window_env.c src/sessions_window_env.h src/sessions_tmux_windows.c src/sessions_tmux_windows.h src/sessions_zellij_windows.c src/sessions_zellij_windows.h
 	$(CC) $(CFLAGS) -o test/test_sessions test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o $(LDFLAGS)
 
 # Build PATH binaries tests

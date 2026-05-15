@@ -93,6 +93,7 @@ void activate_window(Display *display, Window window_id) {
 }
 
 #define COFI_TESTING
+#include "../src/process_windows.c"
 #include "../src/proc.c"
 
 static int fake_kill(pid_t pid, int sig) {

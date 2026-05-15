@@ -6,6 +6,8 @@
 #include "../src/sessions_commands.h"
 #include "../src/sessions_folder_windows.h"
 #include "../src/sessions_parse.h"
+#include "../src/sessions_tmux_windows.h"
+#include "../src/sessions_window_env.h"
 #include "../src/sessions_zellij_windows.h"
 #include "../src/log.h"
 
@@ -21,6 +23,23 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)fmt;
 }
 
+void get_window_list(AppData *app) {
+    (void)app;
+}
+
+gboolean process_find_window_for_pid_ancestry(AppData *app,
+                                              pid_t pid,
+                                              int max_depth,
+                                              Window *window_out) {
+    (void)app;
+    (void)pid;
+    (void)max_depth;
+    if (window_out) *window_out = 0;
+    return FALSE;
+}
+
+#include "../src/sessions_window_env.c"
+#include "../src/sessions_tmux_windows.c"
 #include "../src/sessions_zellij_windows.c"
 
 static int pass = 0;
@@ -203,6 +222,23 @@ static void test_zellij_new_command_starts_in_directory(void) {
     ASSERT_STR_EQ("zellij new command changes directory before attach",
                   "cd '/tmp/work api' && zellij attach --create 'work api'", cmd);
     g_free(cmd);
+}
+
+static void test_tmux_client_pid_parser(void) {
+    pid_t pids[4];
+    int count = sessions_parse_tmux_client_pids("123\nbad\n1\n456\n", pids, 4);
+
+    ASSERT_EQ_INT("tmux client pid count", 2, count);
+    ASSERT_EQ_INT("tmux first client pid", 123, (int)pids[0]);
+    ASSERT_EQ_INT("tmux second client pid", 456, (int)pids[1]);
+}
+
+static void test_tmux_client_pid_parser_ignores_empty_output(void) {
+    pid_t pids[2] = {99, 88};
+    int count = sessions_parse_tmux_client_pids("\n\n", pids, 2);
+
+    ASSERT_EQ_INT("tmux empty client pid count", 0, count);
+    ASSERT_EQ_INT("tmux empty leaves first pid untouched", 99, (int)pids[0]);
 }
 
 static void test_zellij_cmdline_matches_short_attach(void) {
@@ -436,6 +472,8 @@ int main(void) {
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();
     test_zellij_new_command_starts_in_directory();
+    test_tmux_client_pid_parser();
+    test_tmux_client_pid_parser_ignores_empty_output();
     test_zellij_cmdline_matches_short_attach();
     test_zellij_cmdline_matches_attach_create();
     test_zellij_cmdline_matches_session_option();

@@ -16,9 +16,9 @@
 #include "fzf_algo.h"
 #include "log.h"
 #include "match.h"
+#include "process_windows.h"
 #include "selection.h"
 #include "window_lifecycle.h"
-#include "x11_utils.h"
 #endif
 
 static void safe_copy(char *dest, size_t size, const char *src) {
@@ -1100,40 +1100,6 @@ static gboolean signal_single_target(AppData *app, int raw, int sig, gboolean up
     return TRUE;
 }
 
-static int default_find_window_for_pid(AppData *app, pid_t pid, Window *window_out) {
-    if (!app || pid <= 0 || !window_out) return 0;
-    for (int i = 0; i < app->window_count; i++) {
-        if (get_window_pid(app->display, app->windows[i].id) == (int)pid) {
-            *window_out = app->windows[i].id;
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int read_parent_pid(pid_t pid) {
-    char path[PATH_MAX];
-    char line[256];
-    FILE *f = NULL;
-    int ppid = 0;
-
-    g_snprintf(path, sizeof(path), "/proc/%d/status", (int)pid);
-    f = fopen(path, "r");
-    if (!f) return 0;
-    while (fgets(line, sizeof(line), f)) {
-        if (g_str_has_prefix(line, "PPid:")) {
-            char *ptr = line + 5;
-            while (*ptr == ' ' || *ptr == '\t') ptr++;
-            ppid = (int)strtol(ptr, NULL, 10);
-            break;
-        }
-    }
-    fclose(f);
-    return ppid;
-}
-
-static int (*find_window_for_pid_impl)(AppData *, pid_t, Window *) = default_find_window_for_pid;
-static int (*read_parent_pid_impl)(pid_t) = read_parent_pid;
 #ifdef COFI_TESTING
 static int show_max_depth = 32;
 #endif
@@ -1143,31 +1109,21 @@ static gboolean show_single_target(AppData *app, int raw, gboolean update_ui_on_
         return FALSE;
     }
 
-    pid_t target_pid = app->proc_mode.procs[raw].pid;
     int max_depth = 32;
 #ifdef COFI_TESTING
     max_depth = show_max_depth;
 #endif
 
-    for (int depth = 0; depth < max_depth; depth++) {
-        Window win = 0;
-        if (find_window_for_pid_impl(app, target_pid, &win)) {
-            activate_window(app->display, win);
-            hide_window(app);
-            return TRUE;
-        }
-        int ppid = read_parent_pid_impl(target_pid);
-        if (ppid <= 1) {
-            set_error(&app->proc_mode, "No window found for process ancestry");
-            log_warn("proc: no window found for pid=%d", (int)app->proc_mode.procs[raw].pid);
-            if (update_ui_on_error) update_display(app);
-            return FALSE;
-        }
-        target_pid = (pid_t)ppid;
+    Window win = 0;
+    if (process_find_window_for_pid_ancestry(app, app->proc_mode.procs[raw].pid,
+                                             max_depth, &win)) {
+        activate_window(app->display, win);
+        hide_window(app);
+        return TRUE;
     }
 
-    set_error(&app->proc_mode, "No window found (depth limit)");
-    log_warn("proc: show action depth limit for pid=%d", (int)app->proc_mode.procs[raw].pid);
+    set_error(&app->proc_mode, "No window found for process ancestry");
+    log_warn("proc: no window found for pid=%d", (int)app->proc_mode.procs[raw].pid);
     if (update_ui_on_error) update_display(app);
     return FALSE;
 }
@@ -1315,8 +1271,7 @@ void proc_format_cmd_column_test_hook(const char *cmdline, int width, char *out,
 void proc_set_show_resolvers_test_hook(int (*window_for_pid)(AppData *, pid_t, Window *),
                                        int (*parent_pid)(pid_t),
                                        int max_depth) {
-    find_window_for_pid_impl = window_for_pid ? window_for_pid : default_find_window_for_pid;
-    read_parent_pid_impl = parent_pid ? parent_pid : read_parent_pid;
+    process_set_window_resolvers_test_hook(window_for_pid, parent_pid);
     show_max_depth = (max_depth > 0) ? max_depth : 32;
 }
 #endif

@@ -11,6 +11,7 @@
 #include "sessions_commands.h"
 #include "sessions_folder_windows.h"
 #include "sessions_parse.h"
+#include "sessions_tmux_windows.h"
 #include "sessions_zellij_windows.h"
 #include "window_list.h"
 
@@ -81,7 +82,8 @@ static SessionFolder *folder_at_visible(AppData *app, int visible_idx) {
 }
 
 static CofiActionStatus attach_tmux_session(AppData *app, const char *session_name) {
-    (void)app;
+    if (sessions_activate_tmux_window(app, session_name)) return COFI_HANDLED_HIDE;
+
     gchar *command = sessions_build_tmux_attach_command(session_name);
     if (!command) return COFI_ACTION_ERROR;
 

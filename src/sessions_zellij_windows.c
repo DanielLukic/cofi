@@ -1,7 +1,5 @@
 #include "sessions_zellij_windows.h"
 
-#include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <X11/Xlib.h>
@@ -9,6 +7,7 @@
 #include "app_data.h"
 #include "display.h"
 #include "log.h"
+#include "sessions_window_env.h"
 
 static const char *next_arg(const char *data, size_t len, size_t *offset) {
     while (*offset < len && data[*offset] == '\0') (*offset)++;
@@ -97,29 +96,6 @@ gboolean sessions_zellij_cmdline_matches_session(const char *cmdline,
     }
 
     return session_option_matches;
-}
-
-gboolean sessions_windowid_from_environ(const char *environ_data,
-                                        size_t len,
-                                        Window *window_out) {
-    if (window_out) *window_out = 0;
-    if (!environ_data || len == 0) return FALSE;
-
-    size_t offset = 0;
-    const char *entry;
-    while ((entry = next_arg(environ_data, len, &offset)) != NULL) {
-        if (strncmp(entry, "WINDOWID=", 9) != 0) continue;
-
-        errno = 0;
-        char *end = NULL;
-        unsigned long id = strtoul(entry + 9, &end, 10);
-        if (errno != 0 || end == entry + 9 || *end != '\0' || id == 0) return FALSE;
-
-        if (window_out) *window_out = (Window)id;
-        return TRUE;
-    }
-
-    return FALSE;
 }
 
 static gboolean read_proc_file(const char *path, gchar **contents, gsize *len) {
