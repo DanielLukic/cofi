@@ -44,25 +44,27 @@ static GtkWidget *create_session_entry_form(GtkWidget *parent_container,
     return entry;
 }
 
-static const char *session_backend_name(SessionBackend backend) {
-    return backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux";
-}
-
 static void update_session_new_labels(AppData *app) {
     GtkWidget *title = g_object_get_data(G_OBJECT(app->dialog_container), "title_label");
+    GtkWidget *backend_tabs = g_object_get_data(G_OBJECT(app->dialog_container), "backend_tabs_label");
     GtkWidget *instructions = g_object_get_data(G_OBJECT(app->dialog_container), "instructions_label");
-    char title_text[64];
+    char backend_text[64];
     char instruction_text[160];
-    const char *backend = session_backend_name(app->session_new.backend);
 
-    g_snprintf(title_text, sizeof(title_text), "New %s session", backend);
+    if (app->session_new.backend == SESSION_BACKEND_ZELLIJ) {
+        g_strlcpy(backend_text, " Tmux   [ZELLIJ]", sizeof(backend_text));
+    } else {
+        g_strlcpy(backend_text, "[TMUX]   Zellij ", sizeof(backend_text));
+    }
     g_snprintf(instruction_text, sizeof(instruction_text),
-               "Enter=create in %s  Tab=%s  Esc=cancel",
-               app->session_new.start_dir[0] ? "folder" : "home",
-               app->session_new.backend == SESSION_BACKEND_ZELLIJ ? "tmux" : "zellij");
+               "Enter=create in %s  Tab=toggle  Esc=cancel",
+               app->session_new.start_dir[0] ? "folder" : "home");
 
     if (title) {
-        gtk_label_set_text(GTK_LABEL(title), title_text);
+        gtk_label_set_text(GTK_LABEL(title), "New session");
+    }
+    if (backend_tabs) {
+        gtk_label_set_text(GTK_LABEL(backend_tabs), backend_text);
     }
     if (instructions) {
         gtk_label_set_text(GTK_LABEL(instructions), instruction_text);
@@ -116,6 +118,12 @@ void create_session_new_overlay_content(GtkWidget *parent_container, AppData *ap
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
+    GtkWidget *backend_tabs = create_centered_label("");
+    PangoFontDescription *tab_font = pango_font_description_from_string("monospace 12");
+    gtk_widget_override_font(backend_tabs, tab_font);
+    pango_font_description_free(tab_font);
+    gtk_box_pack_start(GTK_BOX(vbox), backend_tabs, FALSE, FALSE, 0);
+
     GtkWidget *entry = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(entry), app->session_new.session_name);
     gtk_editable_select_region(GTK_EDITABLE(entry), 0, -1);
@@ -128,6 +136,7 @@ void create_session_new_overlay_content(GtkWidget *parent_container, AppData *ap
 
     g_object_set_data(G_OBJECT(parent_container), "name_entry", entry);
     g_object_set_data(G_OBJECT(parent_container), "title_label", title_label);
+    g_object_set_data(G_OBJECT(parent_container), "backend_tabs_label", backend_tabs);
     g_object_set_data(G_OBJECT(parent_container), "instructions_label", inst);
     g_signal_connect(entry, "key-press-event",
                      G_CALLBACK(on_session_new_entry_key_press), app);

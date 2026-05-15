@@ -347,7 +347,6 @@ void show_session_new_overlay(AppData *app,
                               const char *start_dir,
                               const char *initial_name) {
     (void)app;
-    (void)initial_name;
     g_show_session_new_calls++;
     g_last_session_backend = backend;
     strncpy(g_last_session_start_dir, start_dir ? start_dir : "",
