@@ -19,7 +19,7 @@
 #include "rules.h"
 #include "sinks.h"
 #include "proc.h"
-#include "tmux.h"
+#include "sessions.h"
 
 void init_tab_visibility(AppData *app) {
     if (!app) {
@@ -103,7 +103,7 @@ void init_app_data(AppData *app) {
     memset(&app->calc_mode, 0, sizeof(app->calc_mode));
     init_sinks_mode(&app->sinks_mode);
     init_proc_mode(&app->proc_mode);
-    init_tmux_mode(&app->tmux_mode);
+    init_sessions_mode(&app->sessions_mode);
     
     // Initialize window visibility state
     app->window_visible = FALSE;

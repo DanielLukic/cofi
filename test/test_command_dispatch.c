@@ -20,7 +20,7 @@ STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
 STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
-STUB(cmd_sinks) STUB(cmd_proc) STUB(cmd_tmux) STUB(cmd_run) STUB(cmd_help)
+STUB(cmd_sinks) STUB(cmd_proc) STUB(cmd_sessions) STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;

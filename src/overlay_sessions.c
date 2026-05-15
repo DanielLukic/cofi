@@ -1,4 +1,4 @@
-#include "overlay_tmux.h"
+#include "overlay_sessions.h"
 
 #include <string.h>
 
@@ -7,10 +7,10 @@
 #include "log.h"
 #include "overlay_manager.h"
 #include "selection.h"
-#include "tmux.h"
+#include "sessions.h"
 #include "window_lifecycle.h"
 
-static GtkWidget *create_tmux_form_box(GtkWidget *parent_container) {
+static GtkWidget *create_session_form_box(GtkWidget *parent_container) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
     gtk_widget_set_margin_right(vbox, 20);
@@ -20,11 +20,11 @@ static GtkWidget *create_tmux_form_box(GtkWidget *parent_container) {
     return vbox;
 }
 
-static GtkWidget *create_tmux_entry_form(GtkWidget *parent_container,
+static GtkWidget *create_session_entry_form(GtkWidget *parent_container,
                                          const char *title,
                                          const char *initial_text,
                                          const char *instructions) {
-    GtkWidget *vbox = create_tmux_form_box(parent_container);
+    GtkWidget *vbox = create_session_form_box(parent_container);
 
     GtkWidget *title_label = gtk_label_new(title);
     gtk_widget_set_name(title_label, "overlay-title");
@@ -44,15 +44,15 @@ static GtkWidget *create_tmux_entry_form(GtkWidget *parent_container,
     return entry;
 }
 
-void create_tmux_kill_overlay_content(GtkWidget *parent_container, AppData *app) {
-    GtkWidget *vbox = create_tmux_form_box(parent_container);
+void create_session_kill_overlay_content(GtkWidget *parent_container, AppData *app) {
+    GtkWidget *vbox = create_session_form_box(parent_container);
 
     GtkWidget *title_label = gtk_label_new("Kill Session?");
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
     char info[512];
-    g_snprintf(info, sizeof(info), "Session: %s", app->tmux_kill.session_name);
+    g_snprintf(info, sizeof(info), "Session: %s", app->session_kill.session_name);
     GtkWidget *info_label = gtk_label_new(info);
     gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
@@ -62,36 +62,36 @@ void create_tmux_kill_overlay_content(GtkWidget *parent_container, AppData *app)
     gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
 }
 
-void create_tmux_rename_overlay_content(GtkWidget *parent_container, AppData *app) {
-    create_tmux_entry_form(parent_container, "Rename Session",
-                           app->tmux_rename.session_name,
+void create_session_rename_overlay_content(GtkWidget *parent_container, AppData *app) {
+    create_session_entry_form(parent_container, "Rename Session",
+                           app->session_rename.session_name,
                            "Enter=rename  Esc=cancel");
 }
 
-void create_tmux_new_overlay_content(GtkWidget *parent_container, AppData *app) {
+void create_session_new_overlay_content(GtkWidget *parent_container, AppData *app) {
     (void)app;
-    create_tmux_entry_form(parent_container, "New Tmux Session", "",
+    create_session_entry_form(parent_container, "New tmux session", "",
                            "Enter=create in home  Esc=cancel");
 }
 
-static void refresh_tmux_tab(AppData *app) {
-    tmux_refresh(app);
+static void refresh_sessions_tab(AppData *app) {
+    sessions_refresh(app);
     validate_selection(app);
     update_scroll_position(app);
     update_display(app);
 }
 
-gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
+gboolean handle_session_kill_key_press(AppData *app, GdkEventKey *event) {
     gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
                        event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete;
     if (confirm) {
-        char session_name[MAX_TMUX_SESSION_NAME_LEN];
-        TmuxSessionBackend backend = app->tmux_kill.backend;
-        g_strlcpy(session_name, app->tmux_kill.session_name, sizeof(session_name));
-        CofiActionStatus status = tmux_kill_session(app, session_name, backend);
+        char session_name[MAX_SESSION_NAME_LEN];
+        SessionBackend backend = app->session_kill.backend;
+        g_strlcpy(session_name, app->session_kill.session_name, sizeof(session_name));
+        CofiActionStatus status = sessions_kill_session(app, session_name, backend);
         hide_overlay(app);
         if (status == COFI_HANDLED_REFRESH) {
-            refresh_tmux_tab(app);
+            refresh_sessions_tab(app);
         } else {
             update_display(app);
         }
@@ -107,7 +107,7 @@ gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
     return FALSE;
 }
 
-gboolean handle_tmux_rename_key_press(AppData *app, GdkEventKey *event) {
+gboolean handle_session_rename_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
         return FALSE;
     }
@@ -124,19 +124,19 @@ gboolean handle_tmux_rename_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    char old_name[MAX_TMUX_SESSION_NAME_LEN];
-    g_strlcpy(old_name, app->tmux_rename.session_name, sizeof(old_name));
-    CofiActionStatus status = tmux_rename_session(app, old_name, new_name);
+    char old_name[MAX_SESSION_NAME_LEN];
+    g_strlcpy(old_name, app->session_rename.session_name, sizeof(old_name));
+    CofiActionStatus status = sessions_rename_tmux_session(app, old_name, new_name);
     hide_overlay(app);
     if (status == COFI_HANDLED_REFRESH) {
-        refresh_tmux_tab(app);
+        refresh_sessions_tab(app);
     } else {
         update_display(app);
     }
     return TRUE;
 }
 
-gboolean handle_tmux_new_key_press(AppData *app, GdkEventKey *event) {
+gboolean handle_session_new_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
         return FALSE;
     }
@@ -153,12 +153,12 @@ gboolean handle_tmux_new_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    CofiActionStatus status = tmux_new_session(app, session_name);
+    CofiActionStatus status = sessions_new_tmux_session(app, session_name);
     hide_overlay(app);
     if (status == COFI_HANDLED_HIDE) {
         hide_window(app);
     } else {
-        refresh_tmux_tab(app);
+        refresh_sessions_tab(app);
     }
     return TRUE;
 }

@@ -259,7 +259,7 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
     {
         .primary = "tmux",
         .aliases = {"tx", "zj", "zellij", "sessions", NULL},
-        .handler = cmd_tmux,
+        .handler = cmd_sessions,
         .description = "Switch to sessions tab",
         .help_format = "tmux, tx, zj, zellij, sessions [SESSION]",
         .keeps_open_on_hotkey_auto = 1

@@ -20,7 +20,7 @@
 #include "apps.h"
 #include "sinks.h"
 #include "proc.h"
-#include "tmux.h"
+#include "sessions.h"
 #include "daemon_socket.h"
 #include "calc.h"
 
@@ -38,7 +38,7 @@ typedef enum {
     TAB_SINKS,
     TAB_RUN,
     TAB_PROC,
-    TAB_TMUX,
+    TAB_SESSIONS,
     TAB_COUNT
 } TabMode;
 
@@ -68,9 +68,9 @@ typedef enum {
     OVERLAY_RULE_ADD,
     OVERLAY_RULE_EDIT,
     OVERLAY_RULE_DELETE,
-    OVERLAY_TMUX_KILL,
-    OVERLAY_TMUX_RENAME,
-    OVERLAY_TMUX_NEW
+    OVERLAY_SESSION_KILL,
+    OVERLAY_SESSION_RENAME,
+    OVERLAY_SESSION_NEW
 } OverlayType;
 
 // Entry mode definitions
@@ -200,7 +200,7 @@ typedef struct AppData {
     // Sinks tab data
     SinksMode sinks_mode;
     ProcMode proc_mode;
-    TmuxMode tmux_mode;
+    SessionsMode sessions_mode;
     AppsMode apps_mode;
 
     // Edit state for harpoon
@@ -229,17 +229,17 @@ typedef struct AppData {
         int rule_index;
     } rules_delete;
 
-    // Tmux tab overlay state
+    // Sessions tab overlay state
     struct {
         gboolean pending_kill;
-        TmuxSessionBackend backend;
-        char session_name[MAX_TMUX_SESSION_NAME_LEN];
-    } tmux_kill;
+        SessionBackend backend;
+        char session_name[MAX_SESSION_NAME_LEN];
+    } session_kill;
 
     struct {
         gboolean pending_rename;
-        char session_name[MAX_TMUX_SESSION_NAME_LEN];
-    } tmux_rename;
+        char session_name[MAX_SESSION_NAME_LEN];
+    } session_rename;
 
     // Rebind state (Hotkeys tab Ctrl+B)
     struct {

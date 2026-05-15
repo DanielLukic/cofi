@@ -8,7 +8,7 @@
 #include "overlay_manager.h"
 #include "overlay_name.h"
 #include "overlay_rules.h"
-#include "overlay_tmux.h"
+#include "overlay_sessions.h"
 #include "overlay_workspace.h"
 #include "tiling_overlay.h"
 #include "workspace_overlay.h"
@@ -69,14 +69,14 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_RULE_DELETE:
             create_rule_delete_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_TMUX_KILL:
-            create_tmux_kill_overlay_content(app->dialog_container, app);
+        case OVERLAY_SESSION_KILL:
+            create_session_kill_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_TMUX_RENAME:
-            create_tmux_rename_overlay_content(app->dialog_container, app);
+        case OVERLAY_SESSION_RENAME:
+            create_session_rename_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_TMUX_NEW:
-            create_tmux_new_overlay_content(app->dialog_container, app);
+        case OVERLAY_SESSION_NEW:
+            create_session_new_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_NONE:
         default:
@@ -121,12 +121,12 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_rule_edit_key_press(app, event);
         case OVERLAY_RULE_DELETE:
             return handle_rule_delete_key_press(app, event);
-        case OVERLAY_TMUX_KILL:
-            return handle_tmux_kill_key_press(app, event);
-        case OVERLAY_TMUX_RENAME:
-            return handle_tmux_rename_key_press(app, event);
-        case OVERLAY_TMUX_NEW:
-            return handle_tmux_new_key_press(app, event);
+        case OVERLAY_SESSION_KILL:
+            return handle_session_kill_key_press(app, event);
+        case OVERLAY_SESSION_RENAME:
+            return handle_session_rename_key_press(app, event);
+        case OVERLAY_SESSION_NEW:
+            return handle_session_new_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -198,21 +198,21 @@ void show_rule_delete_overlay(AppData *app, int rule_index) {
     show_overlay(app, OVERLAY_RULE_DELETE, NULL);
 }
 
-void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend) {
-    app->tmux_kill.pending_kill = TRUE;
-    app->tmux_kill.backend = backend;
-    g_strlcpy(app->tmux_kill.session_name, session_name ? session_name : "",
-              sizeof(app->tmux_kill.session_name));
-    show_overlay(app, OVERLAY_TMUX_KILL, NULL);
+void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend) {
+    app->session_kill.pending_kill = TRUE;
+    app->session_kill.backend = backend;
+    g_strlcpy(app->session_kill.session_name, session_name ? session_name : "",
+              sizeof(app->session_kill.session_name));
+    show_overlay(app, OVERLAY_SESSION_KILL, NULL);
 }
 
-void show_tmux_rename_overlay(AppData *app, const char *session_name) {
-    app->tmux_rename.pending_rename = TRUE;
-    g_strlcpy(app->tmux_rename.session_name, session_name ? session_name : "",
-              sizeof(app->tmux_rename.session_name));
-    show_overlay(app, OVERLAY_TMUX_RENAME, NULL);
+void show_session_rename_overlay(AppData *app, const char *session_name) {
+    app->session_rename.pending_rename = TRUE;
+    g_strlcpy(app->session_rename.session_name, session_name ? session_name : "",
+              sizeof(app->session_rename.session_name));
+    show_overlay(app, OVERLAY_SESSION_RENAME, NULL);
 }
 
-void show_tmux_new_overlay(AppData *app) {
-    show_overlay(app, OVERLAY_TMUX_NEW, NULL);
+void show_session_new_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_SESSION_NEW, NULL);
 }

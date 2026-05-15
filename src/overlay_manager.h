@@ -29,9 +29,9 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);
-void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend);
-void show_tmux_rename_overlay(AppData *app, const char *session_name);
-void show_tmux_new_overlay(AppData *app);
+void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend);
+void show_session_rename_overlay(AppData *app, const char *session_name);
+void show_session_new_overlay(AppData *app);
 
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
@@ -39,8 +39,8 @@ static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
            type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
            type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
-           type == OVERLAY_RULE_EDIT || type == OVERLAY_TMUX_RENAME ||
-           type == OVERLAY_TMUX_NEW;
+           type == OVERLAY_RULE_EDIT || type == OVERLAY_SESSION_RENAME ||
+           type == OVERLAY_SESSION_NEW;
 }
 
 #endif // OVERLAY_MANAGER_H

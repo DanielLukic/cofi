@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define COFI_TMUX_PARSER_TEST
-#include "../src/tmux.c"
+#include "../src/sessions.h"
+#include "../src/sessions_commands.h"
+#include "../src/sessions_parse.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -24,11 +25,11 @@ static void test_parse_formatted_sessions(void) {
         "cofi\t2\t1\n"
         "linear work\t1\t0\n"
         "scrcpy:debug\t3\t2\n";
-    TmuxSession sessions[MAX_TMUX_SESSIONS];
+    SessionEntry sessions[MAX_SESSIONS];
     char error[256];
 
-    int count = tmux_parse_session_list_test_hook(output, sessions, MAX_TMUX_SESSIONS,
-                                                  error, sizeof(error));
+    int count = sessions_parse_tmux_list(output, sessions, MAX_SESSIONS,
+                                         error, sizeof(error));
 
     ASSERT_EQ_INT("parse count", 3, count);
     ASSERT_STR_EQ("first session name", "cofi", sessions[0].name);
@@ -40,11 +41,11 @@ static void test_parse_formatted_sessions(void) {
 }
 
 static void test_empty_output_reports_no_sessions(void) {
-    TmuxSession sessions[MAX_TMUX_SESSIONS];
+    SessionEntry sessions[MAX_SESSIONS];
     char error[256];
 
-    int count = tmux_parse_session_list_test_hook("", sessions, MAX_TMUX_SESSIONS,
-                                                  error, sizeof(error));
+    int count = sessions_parse_tmux_list("", sessions, MAX_SESSIONS,
+                                         error, sizeof(error));
 
     ASSERT_EQ_INT("empty output count", 0, count);
     ASSERT_STR_EQ("empty output message", "No tmux sessions", error);
@@ -55,11 +56,11 @@ static void test_malformed_lines_are_ignored(void) {
         "not enough fields\n"
         "bad\tNaN\t0\n"
         "valid\t4\t0\n";
-    TmuxSession sessions[MAX_TMUX_SESSIONS];
+    SessionEntry sessions[MAX_SESSIONS];
     char error[256];
 
-    int count = tmux_parse_session_list_test_hook(output, sessions, MAX_TMUX_SESSIONS,
-                                                  error, sizeof(error));
+    int count = sessions_parse_tmux_list(output, sessions, MAX_SESSIONS,
+                                         error, sizeof(error));
 
     ASSERT_EQ_INT("malformed lines skipped", 1, count);
     ASSERT_STR_EQ("valid line parsed", "valid", sessions[0].name);
@@ -68,7 +69,7 @@ static void test_malformed_lines_are_ignored(void) {
 }
 
 static void test_attach_command_uses_exact_shell_quoted_target(void) {
-    gchar *cmd = tmux_build_attach_command("work:api session");
+    gchar *cmd = sessions_build_tmux_attach_command("work:api session");
 
     ASSERT_STR_EQ("attach command exact target quoted",
                   "tmux attach-session -t '=work:api session'", cmd);
@@ -79,23 +80,23 @@ static void test_parse_zoxide_folders(void) {
     const char *output =
         "/home/user/Projects/cofi\n"
         "/home/user/Projects/codex-msgnr\n";
-    TmuxFolder folders[MAX_TMUX_FOLDERS];
+    SessionFolder folders[MAX_SESSION_FOLDERS];
     char error[256];
 
-    int count = tmux_parse_zoxide_list_test_hook(output, folders, MAX_TMUX_FOLDERS,
-                                                 error, sizeof(error));
+    int count = sessions_parse_zoxide_list(output, folders, MAX_SESSION_FOLDERS,
+                                           error, sizeof(error));
 
     ASSERT_EQ_INT("zoxide folder count", 2, count);
     ASSERT_STR_EQ("first zoxide path", "/home/user/Projects/cofi", folders[0].path);
     ASSERT_STR_EQ("first zoxide label", "cofi", folders[0].label);
     ASSERT_STR_EQ("second zoxide label", "codex-msgnr", folders[1].label);
     ASSERT_STR_EQ("zoxide parse no error", "", error);
-    clear_zoxide_folders(folders, count);
+    sessions_clear_folders(folders, count);
 }
 
 static void test_folder_session_command_uses_start_directory(void) {
-    gchar *session_name = build_folder_session_name("/home/user/Projects/cofi");
-    gchar *cmd = tmux_build_new_session_command(session_name, "/home/user/Projects/cofi");
+    gchar *session_name = sessions_build_folder_session_name("/home/user/Projects/cofi");
+    gchar *cmd = sessions_build_tmux_new_command(session_name, "/home/user/Projects/cofi");
 
     ASSERT_STR_EQ("folder command creates or attaches in directory",
                   "tmux new-session -A -s 'cofi' -c '/home/user/Projects/cofi'", cmd);
@@ -104,8 +105,8 @@ static void test_folder_session_command_uses_start_directory(void) {
 }
 
 static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
-    gchar *session_name = build_folder_session_name("/tmp/work:api session");
-    gchar *cmd = tmux_build_new_session_command(session_name, "/tmp/work:api session");
+    gchar *session_name = sessions_build_folder_session_name("/tmp/work:api session");
+    gchar *cmd = sessions_build_tmux_new_command(session_name, "/tmp/work:api session");
 
     ASSERT_STR_EQ("folder command quotes path and sanitizes session name",
                   "tmux new-session -A -s 'work_api_session' -c '/tmp/work:api session'", cmd);
@@ -114,8 +115,8 @@ static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
 }
 
 static void test_folder_session_name_replaces_tmux_separators(void) {
-    gchar *session_name = build_folder_session_name("/tmp/my.project");
-    gchar *cmd = tmux_build_new_session_command(session_name, "/tmp/my.project");
+    gchar *session_name = sessions_build_folder_session_name("/tmp/my.project");
+    gchar *cmd = sessions_build_tmux_new_command(session_name, "/tmp/my.project");
 
     ASSERT_STR_EQ("folder command replaces dot in session name",
                   "tmux new-session -A -s 'my_project' -c '/tmp/my.project'", cmd);
@@ -124,7 +125,7 @@ static void test_folder_session_name_replaces_tmux_separators(void) {
 }
 
 static void test_kill_command_uses_exact_target(void) {
-    gchar *cmd = tmux_build_kill_command("work:api session");
+    gchar *cmd = sessions_build_tmux_kill_command("work:api session");
 
     ASSERT_STR_EQ("kill command exact target quoted",
                   "tmux kill-session -t '=work:api session'", cmd);
@@ -132,7 +133,7 @@ static void test_kill_command_uses_exact_target(void) {
 }
 
 static void test_rename_command_quotes_old_and_new_names(void) {
-    gchar *cmd = tmux_build_rename_command("work:api session", "renamed session");
+    gchar *cmd = sessions_build_tmux_rename_command("work:api session", "renamed session");
 
     ASSERT_STR_EQ("rename command quotes exact target and new name",
                   "tmux rename-session -t '=work:api session' 'renamed session'", cmd);
@@ -140,7 +141,7 @@ static void test_rename_command_quotes_old_and_new_names(void) {
 }
 
 static void test_new_session_command_uses_home_directory(void) {
-    gchar *cmd = tmux_build_new_session_command("scratch", "/home/user");
+    gchar *cmd = sessions_build_tmux_new_command("scratch", "/home/user");
 
     ASSERT_STR_EQ("new session command starts in home",
                   "tmux new-session -A -s 'scratch' -c '/home/user'", cmd);
@@ -148,20 +149,20 @@ static void test_new_session_command_uses_home_directory(void) {
 }
 
 static void test_parse_zellij_sessions(void) {
-    TmuxSession sessions[4];
+    SessionEntry sessions[4];
     char error[128];
-    int count = tmux_parse_zellij_session_list_test_hook(
+    int count = sessions_parse_zellij_list(
         "home\nwork api\ncofi\n", sessions, 4, error, sizeof(error));
 
     ASSERT_EQ_INT("zellij parse count", 3, count);
     ASSERT_STR_EQ("zellij first session name", "home", sessions[0].name);
     ASSERT_STR_EQ("zellij preserves spaces", "work api", sessions[1].name);
-    ASSERT_EQ_INT("zellij backend marker", TMUX_SESSION_ZELLIJ, sessions[0].backend);
+    ASSERT_EQ_INT("zellij backend marker", SESSION_BACKEND_ZELLIJ, sessions[0].backend);
     ASSERT_STR_EQ("zellij parse no error", "", error);
 }
 
 static void test_zellij_attach_command_quotes_name(void) {
-    gchar *cmd = tmux_build_zellij_attach_command("work api");
+    gchar *cmd = sessions_build_zellij_attach_command("work api");
 
     ASSERT_STR_EQ("zellij attach command creates missing session",
                   "zellij attach --create 'work api'", cmd);
@@ -169,7 +170,7 @@ static void test_zellij_attach_command_quotes_name(void) {
 }
 
 static void test_zellij_kill_command_quotes_name(void) {
-    gchar *cmd = tmux_build_zellij_kill_command("work api");
+    gchar *cmd = sessions_build_zellij_kill_command("work api");
 
     ASSERT_STR_EQ("zellij kill command quotes name",
                   "zellij kill-session 'work api'", cmd);
@@ -177,41 +178,41 @@ static void test_zellij_kill_command_quotes_name(void) {
 }
 
 static void test_match_text_includes_short_backend_markers(void) {
-    TmuxSession tmux_session = {
-        .backend = TMUX_SESSION_TMUX,
+    SessionEntry tmux_session = {
+        .backend = SESSION_BACKEND_TMUX,
         .windows = 2,
         .attached = 1,
     };
     g_strlcpy(tmux_session.name, "cofi", sizeof(tmux_session.name));
 
-    TmuxSession zellij_session = {
-        .backend = TMUX_SESSION_ZELLIJ,
+    SessionEntry zellij_session = {
+        .backend = SESSION_BACKEND_ZELLIJ,
         .windows = -1,
         .attached = -1,
     };
     g_strlcpy(zellij_session.name, "cofi", sizeof(zellij_session.name));
 
-    TmuxFolder folder = {
+    SessionFolder folder = {
         .path = "/home/user/Projects/cofi",
         .label = "cofi",
     };
 
     char text[256];
-    tmux_format_session_match_text_test_hook(&tmux_session, text, sizeof(text));
+    sessions_format_session_match_text(&tmux_session, text, sizeof(text));
     ASSERT_STR_EQ("tmux match row has [t] marker",
                   "[t] cofi 2 wins 1 client", text);
 
-    tmux_format_session_match_text_test_hook(&zellij_session, text, sizeof(text));
+    sessions_format_session_match_text(&zellij_session, text, sizeof(text));
     ASSERT_STR_EQ("zellij match row has [z] marker", "[z] cofi", text);
 
-    tmux_format_folder_match_text_test_hook(&folder, text, sizeof(text));
+    sessions_format_folder_match_text(&folder, text, sizeof(text));
     ASSERT_STR_EQ("folder match row has [d] marker",
                   "[d] cofi /home/user/Projects/cofi", text);
 }
 
 int main(void) {
-    printf("tmux session parser tests\n");
-    printf("=========================\n\n");
+    printf("sessions parser tests\n");
+    printf("=====================\n\n");
 
     test_parse_formatted_sessions();
     test_empty_output_reports_no_sessions();

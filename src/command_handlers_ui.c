@@ -177,7 +177,7 @@ gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
-gboolean cmd_tmux(AppData *app, WindowInfo *window __attribute__((unused)),
+gboolean cmd_sessions(AppData *app, WindowInfo *window __attribute__((unused)),
                   const char *args) {
     exit_command_mode(app);
     const CofiTabProvider *provider = cofi_get_provider_for_command("tmux");

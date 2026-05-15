@@ -335,7 +335,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_SINKS,
         TAB_RUN,
         TAB_PROC,
-        TAB_TMUX,
+        TAB_SESSIONS,
         TAB_WINDOWS
     };
 
@@ -357,7 +357,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
-        TAB_TMUX,
+        TAB_SESSIONS,
         TAB_PROC,
         TAB_RUN,
         TAB_SINKS,

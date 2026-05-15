@@ -42,13 +42,13 @@ static int g_save_named_windows_calls;
 static int g_cleanup_hotkeys_calls;
 static int g_replay_selected_rule_calls;
 static int g_replay_all_rules_calls;
-static int g_show_tmux_kill_calls;
-static int g_show_tmux_rename_calls;
-static int g_show_tmux_new_calls;
-static char g_last_tmux_session_name[MAX_TMUX_SESSION_NAME_LEN];
-static TmuxSessionBackend g_last_tmux_session_backend;
-static TmuxSession g_stub_tmux_selected_session;
-static gboolean g_stub_tmux_has_selected_session;
+static int g_show_session_kill_calls;
+static int g_show_session_rename_calls;
+static int g_show_session_new_calls;
+static char g_last_session_name[MAX_SESSION_NAME_LEN];
+static SessionBackend g_last_session_backend;
+static SessionEntry g_stub_selected_session;
+static gboolean g_stub_has_selected_session;
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -311,31 +311,31 @@ void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
-TmuxSession *tmux_selected_session(AppData *app) {
+SessionEntry *sessions_selected_session(AppData *app) {
     (void)app;
-    return g_stub_tmux_has_selected_session ? &g_stub_tmux_selected_session : NULL;
+    return g_stub_has_selected_session ? &g_stub_selected_session : NULL;
 }
 
-void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend) {
+void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend) {
     (void)app;
-    g_show_tmux_kill_calls++;
-    g_last_tmux_session_backend = backend;
-    strncpy(g_last_tmux_session_name, session_name ? session_name : "",
-            sizeof(g_last_tmux_session_name) - 1);
-    g_last_tmux_session_name[sizeof(g_last_tmux_session_name) - 1] = '\0';
+    g_show_session_kill_calls++;
+    g_last_session_backend = backend;
+    strncpy(g_last_session_name, session_name ? session_name : "",
+            sizeof(g_last_session_name) - 1);
+    g_last_session_name[sizeof(g_last_session_name) - 1] = '\0';
 }
 
-void show_tmux_rename_overlay(AppData *app, const char *session_name) {
+void show_session_rename_overlay(AppData *app, const char *session_name) {
     (void)app;
-    g_show_tmux_rename_calls++;
-    strncpy(g_last_tmux_session_name, session_name ? session_name : "",
-            sizeof(g_last_tmux_session_name) - 1);
-    g_last_tmux_session_name[sizeof(g_last_tmux_session_name) - 1] = '\0';
+    g_show_session_rename_calls++;
+    strncpy(g_last_session_name, session_name ? session_name : "",
+            sizeof(g_last_session_name) - 1);
+    g_last_session_name[sizeof(g_last_session_name) - 1] = '\0';
 }
 
-void show_tmux_new_overlay(AppData *app) {
+void show_session_new_overlay(AppData *app) {
     (void)app;
-    g_show_tmux_new_calls++;
+    g_show_session_new_calls++;
 }
 
 #include "../src/key_handler.c"
@@ -362,13 +362,13 @@ static void reset_captures(void) {
     g_cleanup_hotkeys_calls = 0;
     g_replay_selected_rule_calls = 0;
     g_replay_all_rules_calls = 0;
-    g_show_tmux_kill_calls = 0;
-    g_show_tmux_rename_calls = 0;
-    g_show_tmux_new_calls = 0;
-    g_last_tmux_session_name[0] = '\0';
-    g_last_tmux_session_backend = TMUX_SESSION_TMUX;
-    memset(&g_stub_tmux_selected_session, 0, sizeof(g_stub_tmux_selected_session));
-    g_stub_tmux_has_selected_session = FALSE;
+    g_show_session_kill_calls = 0;
+    g_show_session_rename_calls = 0;
+    g_show_session_new_calls = 0;
+    g_last_session_name[0] = '\0';
+    g_last_session_backend = SESSION_BACKEND_TMUX;
+    memset(&g_stub_selected_session, 0, sizeof(g_stub_selected_session));
+    g_stub_has_selected_session = FALSE;
 
     g_show_overlay_calls = 0;
     g_last_overlay_type = OVERLAY_NONE;
@@ -710,93 +710,93 @@ static void test_rules_tab_shortcuts_crud_and_replay(void) {
     ASSERT_TRUE("Ctrl+Shift+x on Rules replays all", g_replay_all_rules_calls == 1);
 }
 
-static void test_tmux_tab_shortcuts_open_session_overlays(void) {
+static void test_sessions_tab_shortcuts_open_session_overlays(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_TMUX;
-    g_stub_tmux_has_selected_session = TRUE;
-    g_stub_tmux_selected_session.backend = TMUX_SESSION_TMUX;
-    strncpy(g_stub_tmux_selected_session.name, "work:api session",
-            sizeof(g_stub_tmux_selected_session.name) - 1);
+    app.current_tab = TAB_SESSIONS;
+    g_stub_has_selected_session = TRUE;
+    g_stub_selected_session.backend = SESSION_BACKEND_TMUX;
+    strncpy(g_stub_selected_session.name, "work:api session",
+            sizeof(g_stub_selected_session.name) - 1);
 
     GdkEventKey del_ev = make_key(GDK_KEY_Delete, 0);
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
-    ASSERT_TRUE("Delete on Tmux session handled", del_handled == TRUE);
-    ASSERT_TRUE("Delete on Tmux session opens kill overlay",
-                g_show_tmux_kill_calls == 1 &&
-                g_last_tmux_session_backend == TMUX_SESSION_TMUX &&
-                strcmp(g_last_tmux_session_name, "work:api session") == 0);
+    ASSERT_TRUE("Delete on tmux session handled", del_handled == TRUE);
+    ASSERT_TRUE("Delete on tmux session opens kill overlay",
+                g_show_session_kill_calls == 1 &&
+                g_last_session_backend == SESSION_BACKEND_TMUX &&
+                strcmp(g_last_session_name, "work:api session") == 0);
 
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
-    ASSERT_TRUE("F2 on Tmux session handled", f2_handled == TRUE);
-    ASSERT_TRUE("F2 on Tmux session opens rename overlay",
-                g_show_tmux_rename_calls == 1 &&
-                strcmp(g_last_tmux_session_name, "work:api session") == 0);
+    ASSERT_TRUE("F2 on tmux session handled", f2_handled == TRUE);
+    ASSERT_TRUE("F2 on tmux session opens rename overlay",
+                g_show_session_rename_calls == 1 &&
+                strcmp(g_last_session_name, "work:api session") == 0);
 
     GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
-    ASSERT_TRUE("Insert on Tmux opens new-session overlay", ins_handled == TRUE);
-    ASSERT_TRUE("Insert on Tmux opens exactly one new-session overlay",
-                g_show_tmux_new_calls == 1);
+    ASSERT_TRUE("Insert on Sessions opens new-session overlay", ins_handled == TRUE);
+    ASSERT_TRUE("Insert on Sessions opens exactly one new-session overlay",
+                g_show_session_new_calls == 1);
 }
 
-static void test_tmux_tab_delete_on_zellij_session_opens_kill_overlay(void) {
+static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_TMUX;
-    g_stub_tmux_has_selected_session = TRUE;
-    g_stub_tmux_selected_session.backend = TMUX_SESSION_ZELLIJ;
-    strncpy(g_stub_tmux_selected_session.name, "zj work",
-            sizeof(g_stub_tmux_selected_session.name) - 1);
+    app.current_tab = TAB_SESSIONS;
+    g_stub_has_selected_session = TRUE;
+    g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
+    strncpy(g_stub_selected_session.name, "zj work",
+            sizeof(g_stub_selected_session.name) - 1);
 
     GdkEventKey del_ev = make_key(GDK_KEY_Delete, 0);
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     ASSERT_TRUE("Delete on zellij session handled", del_handled == TRUE);
     ASSERT_TRUE("Delete on zellij session opens kill overlay",
-                g_show_tmux_kill_calls == 1 &&
-                g_last_tmux_session_backend == TMUX_SESSION_ZELLIJ &&
-                strcmp(g_last_tmux_session_name, "zj work") == 0);
+                g_show_session_kill_calls == 1 &&
+                g_last_session_backend == SESSION_BACKEND_ZELLIJ &&
+                strcmp(g_last_session_name, "zj work") == 0);
 }
 
-static void test_tmux_tab_rename_ignores_zellij_session_row(void) {
+static void test_sessions_tab_rename_ignores_zellij_session_row(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_TMUX;
-    g_stub_tmux_has_selected_session = TRUE;
-    g_stub_tmux_selected_session.backend = TMUX_SESSION_ZELLIJ;
-    strncpy(g_stub_tmux_selected_session.name, "zj work",
-            sizeof(g_stub_tmux_selected_session.name) - 1);
+    app.current_tab = TAB_SESSIONS;
+    g_stub_has_selected_session = TRUE;
+    g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
+    strncpy(g_stub_selected_session.name, "zj work",
+            sizeof(g_stub_selected_session.name) - 1);
 
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
     ASSERT_TRUE("F2 on zellij session not handled", f2_handled == FALSE);
     ASSERT_TRUE("F2 on zellij session does not open rename overlay",
-                g_show_tmux_rename_calls == 0);
+                g_show_session_rename_calls == 0);
 }
 
-static void test_tmux_tab_delete_and_rename_ignore_folder_rows(void) {
+static void test_sessions_tab_delete_and_rename_ignore_folder_rows(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_TMUX;
+    app.current_tab = TAB_SESSIONS;
 
     GdkEventKey del_ev = make_key(GDK_KEY_Delete, 0);
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
 
-    ASSERT_TRUE("Delete on Tmux folder/error row not handled", del_handled == FALSE);
-    ASSERT_TRUE("F2 on Tmux folder/error row not handled", f2_handled == FALSE);
-    ASSERT_TRUE("Tmux folder/error row does not open kill/rename overlay",
-                g_show_tmux_kill_calls == 0 && g_show_tmux_rename_calls == 0);
+    ASSERT_TRUE("Delete on sessions folder/error row not handled", del_handled == FALSE);
+    ASSERT_TRUE("F2 on sessions folder/error row not handled", f2_handled == FALSE);
+    ASSERT_TRUE("Sessions folder/error row does not open kill/rename overlay",
+                g_show_session_kill_calls == 0 && g_show_session_rename_calls == 0);
 }
 
 int main(int argc, char **argv) {
@@ -823,10 +823,10 @@ int main(int argc, char **argv) {
     test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs();
     test_ctrl_d_hotkeys_last_row_clamps_selection();
     test_rules_tab_shortcuts_crud_and_replay();
-    test_tmux_tab_shortcuts_open_session_overlays();
-    test_tmux_tab_delete_on_zellij_session_opens_kill_overlay();
-    test_tmux_tab_rename_ignores_zellij_session_row();
-    test_tmux_tab_delete_and_rename_ignore_folder_rows();
+    test_sessions_tab_shortcuts_open_session_overlays();
+    test_sessions_tab_delete_on_zellij_session_opens_kill_overlay();
+    test_sessions_tab_rename_ignores_zellij_session_row();
+    test_sessions_tab_delete_and_rename_ignore_folder_rows();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

@@ -14,7 +14,7 @@ const char *tab_display_name(TabMode tab) {
         case TAB_SINKS:      return "Sinks";
         case TAB_RUN:        return "Run";
         case TAB_PROC:       return "Proc";
-        case TAB_TMUX:       return "Sessions";
+        case TAB_SESSIONS:       return "Sessions";
         case TAB_COUNT:      return NULL;
     }
     return NULL;
@@ -34,7 +34,7 @@ const char *tab_active_name(TabMode tab) {
         case TAB_SINKS:      return "SINKS";
         case TAB_RUN:        return "RUN";
         case TAB_PROC:       return "PROC";
-        case TAB_TMUX:       return "SESSIONS";
+        case TAB_SESSIONS:       return "SESSIONS";
         case TAB_COUNT:      return NULL;
     }
     return NULL;
@@ -54,7 +54,7 @@ const char *tab_log_name(TabMode tab) {
         case TAB_SINKS:      return "sinks";
         case TAB_RUN:        return "run";
         case TAB_PROC:       return "proc";
-        case TAB_TMUX:       return "sessions";
+        case TAB_SESSIONS:       return "sessions";
         case TAB_COUNT:      return NULL;
     }
     return NULL;

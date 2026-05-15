@@ -13,7 +13,7 @@
 #include "named_window_config.h"
 #include "overlay_manager.h"
 #include "rules_replay.h"
-#include "tmux.h"
+#include "sessions.h"
 
 static gboolean clamp_names_selection(AppData *app) {
     if (app->filtered_names_count <= 0) {
@@ -264,31 +264,31 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-gboolean handle_tmux_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_TMUX) {
+gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_SESSIONS) {
         return FALSE;
     }
 
     if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
-        show_tmux_new_overlay(app);
+        show_session_new_overlay(app);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
-        TmuxSession *session = tmux_selected_session(app);
+        SessionEntry *session = sessions_selected_session(app);
         if (!session) {
             return FALSE;
         }
-        show_tmux_kill_overlay(app, session->name, session->backend);
+        show_session_kill_overlay(app, session->name, session->backend);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_F2) {
-        TmuxSession *session = tmux_selected_session(app);
-        if (!session || session->backend != TMUX_SESSION_TMUX) {
+        SessionEntry *session = sessions_selected_session(app);
+        if (!session || session->backend != SESSION_BACKEND_TMUX) {
             return FALSE;
         }
-        show_tmux_rename_overlay(app, session->name);
+        show_session_rename_overlay(app, session->name);
         return TRUE;
     }
 
