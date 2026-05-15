@@ -18,6 +18,12 @@ static gboolean default_launch_in_terminal(const char *command) {
 
 static gboolean (*s_launch_in_terminal)(const char *command) = default_launch_in_terminal;
 
+static gboolean default_launch_argv(const char *const *argv) {
+    return detach_launch_argv_array(argv);
+}
+
+static gboolean (*s_launch_argv)(const char *const *argv) = default_launch_argv;
+
 static gboolean default_run_session_command(const char *command) {
     if (!command || command[0] == '\0') return FALSE;
 
@@ -123,6 +129,42 @@ static CofiActionStatus open_folder_session(AppData *app, const char *path, Sess
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+static gboolean program_available(const char *program) {
+    gchar *path = g_find_program_in_path(program);
+    if (!path) return FALSE;
+    g_free(path);
+    return TRUE;
+}
+
+static gboolean launch_folder_opener(const char *program, const char *arg, const char *path) {
+    if (!program_available(program)) return FALSE;
+    gboolean ok = FALSE;
+    if (arg) {
+        const char *argv[] = {program, arg, path, NULL};
+        ok = s_launch_argv(argv);
+    } else {
+        const char *argv[] = {program, path, NULL};
+        ok = s_launch_argv(argv);
+    }
+    if (ok) log_info("USER: opened folder via %s: %s", program, path);
+    else log_warn("Failed to open folder via %s: %s", program, path);
+    return ok;
+}
+
+CofiActionStatus sessions_open_folder(AppData *app, const char *path) {
+    (void)app;
+    if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
+
+    if (launch_folder_opener("caja", NULL, path) ||
+        launch_folder_opener("xdg-open", NULL, path) ||
+        launch_folder_opener("gio", "open", path)) {
+        return COFI_HANDLED_HIDE;
+    }
+
+    log_warn("No file manager opener found for folder: %s", path);
+    return COFI_ACTION_ERROR;
+}
+
 static void add_filtered_row(SessionsMode *mode, SessionRowType type, int index) {
     int max_rows = MAX_SESSIONS + MAX_SESSION_FOLDERS;
     if (!mode || mode->filtered_count >= max_rows) return;
@@ -224,7 +266,7 @@ void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
         out->cells[1].text = folder->label;
         out->cells[1].width_hint = 24;
         out->cells[2].text = folder->path;
-        out->row_flags = COFI_ROW_ACTIONABLE;
+        out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
         return;
     }
     SessionEntry *session = session_at_visible(app, visible_idx);
@@ -263,7 +305,7 @@ void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
         out->cells[3].width_hint = 10;
         out->cells[3].align = 1;
     }
-    out->row_flags = COFI_ROW_ACTIONABLE;
+    out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
 }
 
 const char *sessions_match_string(AppData *app, int visible_idx) {
@@ -348,7 +390,7 @@ CofiActionStatus sessions_attach_visible(AppData *app, int visible_idx) {
             : attach_tmux_session(app, session->name);
     }
     SessionFolder *folder = folder_at_visible(app, visible_idx);
-    return folder ? open_folder_session(app, folder->path, SESSION_BACKEND_TMUX) : COFI_ACTION_ERROR;
+    return folder ? sessions_open_folder(app, folder->path) : COFI_ACTION_ERROR;
 }
 
 static CofiActionStatus run_session_admin_command(const char *command) {
@@ -429,13 +471,50 @@ SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx) {
 
 const char *sessions_get_shortcut_hint(AppData *app) {
     if (sessions_selected_folder(app)) {
-        return "Actions: Enter/Insert=New session";
+        return "Actions: Enter=Open folder  Insert=New session  Ctrl+key=Slot  Alt+key=Recall";
     }
     SessionEntry *session = sessions_selected_session(app);
     if (session && session->backend == SESSION_BACKEND_ZELLIJ) {
-        return "Actions: Enter=Open  Delete=Kill  Insert=New";
+        return "Actions: Enter=Open  Delete=Kill  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
     }
-    return "Actions: Enter=Open  Delete=Kill  F2=Rename  Insert=New";
+    return "Actions: Enter=Open  Delete=Kill  F2=Rename  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
+}
+
+const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
+    static char payload_buf[1024];
+    payload_buf[0] = '\0';
+    SessionEntry *session = session_at_visible(app, visible_idx);
+    SessionFolder *folder = folder_at_visible(app, visible_idx);
+    gchar *payload = NULL;
+
+    if (session) {
+        payload = sessions_build_session_slot_payload(session->backend, session->name);
+    } else if (folder) {
+        payload = sessions_build_folder_slot_payload(folder->path);
+    }
+    if (!payload) return NULL;
+
+    g_strlcpy(payload_buf, payload, sizeof(payload_buf));
+    g_free(payload);
+    return payload_buf;
+}
+
+CofiActionStatus sessions_slot_recall(AppData *app, const char *payload) {
+    SessionSlotTarget target;
+    if (!sessions_parse_slot_payload(payload, &target)) {
+        log_warn("Sessions slot has invalid payload: %s", payload ? payload : "(null)");
+        return COFI_ACTION_ERROR;
+    }
+
+    if (target.kind == SESSION_SLOT_FOLDER) {
+        return sessions_open_folder(app, target.value);
+    }
+    if (target.kind == SESSION_SLOT_SESSION) {
+        return target.backend == SESSION_BACKEND_ZELLIJ
+            ? zellij_attach_session(app, target.value)
+            : attach_tmux_session(app, target.value);
+    }
+    return COFI_ACTION_ERROR;
 }
 
 CofiActionStatus sessions_attach_named(AppData *app, const char *name) {
@@ -450,6 +529,16 @@ CofiActionStatus sessions_attach_named(AppData *app, const char *name) {
     return COFI_ACTION_ERROR;
 }
 
+gboolean sessions_has_named(AppData *app, const char *name) {
+    if (!app || !name || name[0] == '\0') return FALSE;
+    for (int i = 0; i < app->sessions_mode.session_count; i++) {
+        if (strcmp(app->sessions_mode.sessions[i].name, name) == 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 #ifdef COFI_TESTING
 void sessions_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
     s_launch_in_terminal = impl ? impl : default_launch_in_terminal;
@@ -457,5 +546,9 @@ void sessions_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
 
 void sessions_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
     s_run_session_command = impl ? impl : default_run_session_command;
+}
+
+void sessions_set_argv_launch_impl_test_hook(gboolean (*impl)(const char *const *argv)) {
+    s_launch_argv = impl ? impl : default_launch_argv;
 }
 #endif

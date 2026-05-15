@@ -74,6 +74,20 @@ char slot_key_from_index(int slot_index) {
     return '\0';
 }
 
+bool slot_parse_single_key_arg(const char *args, char *slot_key) {
+    if (!args) return false;
+    while (g_ascii_isspace(*args)) args++;
+    if (!args[0]) return false;
+
+    char key = args[0];
+    args++;
+    while (g_ascii_isspace(*args)) args++;
+    if (*args != '\0' || slot_index_from_key(key) < 0) return false;
+
+    if (slot_key) *slot_key = key;
+    return true;
+}
+
 static SlotEntry *find_entry(SlotStore *store,
                              const char *tab_id,
                              char slot_key) {

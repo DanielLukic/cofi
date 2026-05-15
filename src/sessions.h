@@ -67,6 +67,8 @@ void sessions_on_query_changed(AppData *app, const char *query);
 void sessions_on_tick(AppData *app, int generation);
 CofiActionStatus sessions_attach_visible(AppData *app, int visible_idx);
 CofiActionStatus sessions_attach_named(AppData *app, const char *name);
+gboolean sessions_has_named(AppData *app, const char *name);
+CofiActionStatus sessions_open_folder(AppData *app, const char *path);
 CofiActionStatus sessions_kill_session(AppData *app,
                                    const char *session_name,
                                    SessionBackend backend);
@@ -79,10 +81,13 @@ SessionEntry *sessions_selected_session(AppData *app);
 SessionFolder *sessions_selected_folder(AppData *app);
 SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx);
 const char *sessions_get_shortcut_hint(AppData *app);
+const char *sessions_slot_payload_for(AppData *app, int visible_idx);
+CofiActionStatus sessions_slot_recall(AppData *app, const char *payload);
 
 #ifdef COFI_TESTING
 void sessions_set_launch_impl_test_hook(gboolean (*impl)(const char *command));
 void sessions_set_command_impl_test_hook(gboolean (*impl)(const char *command));
+void sessions_set_argv_launch_impl_test_hook(gboolean (*impl)(const char *const *argv));
 #endif
 
 #endif /* SESSIONS_H */

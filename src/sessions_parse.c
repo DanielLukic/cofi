@@ -191,6 +191,52 @@ gchar *sessions_build_folder_session_name(const char *path) {
     return g_string_free(name, FALSE);
 }
 
+gchar *sessions_build_session_slot_payload(SessionBackend backend, const char *name) {
+    if (!name || name[0] == '\0') return NULL;
+    return g_strdup_printf("session:%s:%s",
+                           backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                           name);
+}
+
+gchar *sessions_build_folder_slot_payload(const char *path) {
+    if (!path || path[0] == '\0') return NULL;
+    return g_strdup_printf("folder:%s", path);
+}
+
+gboolean sessions_parse_slot_payload(const char *payload, SessionSlotTarget *out) {
+    if (out) {
+        memset(out, 0, sizeof(*out));
+        out->kind = SESSION_SLOT_INVALID;
+    }
+    if (!payload || payload[0] == '\0' || !out) return FALSE;
+
+    const char *tmux_prefix = "session:tmux:";
+    const char *zellij_prefix = "session:zellij:";
+    const char *folder_prefix = "folder:";
+
+    if (g_str_has_prefix(payload, tmux_prefix)) {
+        out->kind = SESSION_SLOT_SESSION;
+        out->backend = SESSION_BACKEND_TMUX;
+        out->value = payload + strlen(tmux_prefix);
+    } else if (g_str_has_prefix(payload, zellij_prefix)) {
+        out->kind = SESSION_SLOT_SESSION;
+        out->backend = SESSION_BACKEND_ZELLIJ;
+        out->value = payload + strlen(zellij_prefix);
+    } else if (g_str_has_prefix(payload, folder_prefix)) {
+        out->kind = SESSION_SLOT_FOLDER;
+        out->backend = SESSION_BACKEND_TMUX;
+        out->value = payload + strlen(folder_prefix);
+    } else {
+        return FALSE;
+    }
+
+    if (!out->value || out->value[0] == '\0') {
+        out->kind = SESSION_SLOT_INVALID;
+        return FALSE;
+    }
+    return TRUE;
+}
+
 const char *sessions_session_marker(SessionBackend backend) {
     return backend == SESSION_BACKEND_ZELLIJ ? "[z]" : "[t]";
 }

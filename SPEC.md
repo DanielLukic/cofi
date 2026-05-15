@@ -159,14 +159,18 @@ Hidden Sessions surface triggered via `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessio
 - Missing session tools or empty session lists show a non-actionable status row only when there are no zoxide folder rows
 - Enter on a tmux session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
 - Enter on a zellij session launches a detected terminal detached from cofi, then runs `zellij attach --create <session>`
-- Enter on a folder launches a detected terminal detached from cofi, then runs `tmux new-session -A -s <folder-name> -c <folder-path>`
+- Enter on a folder opens the folder in Caja when available, otherwise the system file opener
 - `Delete` on a tmux or zellij session opens a kill confirmation dialog; folder and status rows are ignored
 - `F2` on a tmux session opens a rename dialog; zellij, folder, and status rows are ignored
-- `Insert` opens a new tmux-session dialog and starts the session in `$HOME`
+- `Insert` opens a new-session dialog; on folder rows it starts in that folder, otherwise it starts in `$HOME`
+- `Shift+Insert` opens the new-session dialog with zellij preselected
+- `Ctrl+key` assigns a per-Sessions slot for the selected tmux session, zellij session, or folder
+- `Alt+key` recalls a per-Sessions slot; session slots open the session and folder slots open the folder
 - Tmux session names are treated as exact tmux targets and shell-quoted before launch
 - Zellij session names are shell-quoted before attach or kill commands
 - Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
 - `:tmux <session>` attaches an existing session by exact name; it does not create sessions
+- `:tmux <key>` recalls a Sessions slot only when no exact session named `<key>` exists
 
 ## Single Instance
 

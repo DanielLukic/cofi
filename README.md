@@ -185,7 +185,7 @@ Press `!` to enter run mode for detached shell commands. `!` is the mode indicat
 
 ### Sessions
 
-Use `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessions`, or `:show sessions` to open the hidden Sessions tab. It lists existing tmux sessions, zellij sessions, and zoxide folders when `zoxide` is available. Rows are marked `[t]`, `[z]`, or `[d]`, and filtering matches the full rendered row so `tcofi` and `zcofi` can disambiguate matching session names. Enter on a tmux or zellij session opens it in a detected terminal; Enter on a folder creates or attaches a tmux session named after that folder and starts it in the folder path. `Delete` kills a selected tmux or zellij session after confirmation; `F2` and `Insert` currently operate on tmux sessions only. `:tmux <session>` and its aliases attach an existing session by exact name; they do not create sessions.
+Use `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessions`, or `:show sessions` to open the hidden Sessions tab. It lists existing tmux sessions, zellij sessions, and zoxide folders when `zoxide` is available. Rows are marked `[t]`, `[z]`, or `[d]`, and filtering matches the full rendered row so `tcofi` and `zcofi` can disambiguate matching session names. Enter on a tmux or zellij session opens it in a detected terminal; Enter on a folder opens it in Caja or the system file opener. `Insert` creates a new session, using the selected folder as its start directory when a folder row is selected. `Delete` kills a selected tmux or zellij session after confirmation; `F2` renames tmux sessions. `Ctrl+key` assigns per-Sessions slots and `Alt+key` recalls them without affecting window or sinks slots. `:tmux <session>` and its aliases attach an existing session by exact name; they do not create sessions.
 
 ### Apps Tab
 

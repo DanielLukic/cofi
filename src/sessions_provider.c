@@ -2,11 +2,8 @@
 
 #include "app_data.h"
 #include "cofi_tab_provider.h"
-#include "overlay_manager.h"
 #include "sessions.h"
-#include "sessions_parse.h"
-
-#include <gtk/gtk.h>
+#include "slot_store.h"
 
 static CofiActionStatus sessions_provider_on_enter_pressed(AppData *app, int filtered_idx,
                                                        int raw_idx,
@@ -14,16 +11,11 @@ static CofiActionStatus sessions_provider_on_enter_pressed(AppData *app, int fil
                                                        int modifier_state) {
     (void)filtered_idx;
     (void)entry_text;
+    (void)modifier_state;
     /* raw_idx is visible here: Sessions exposes its filtered list directly to the provider renderer. */
     SessionFolder *folder = sessions_folder_at_visible(app, raw_idx);
     if (folder) {
-        SessionBackend backend = (modifier_state & GDK_SHIFT_MASK)
-            ? SESSION_BACKEND_ZELLIJ
-            : SESSION_BACKEND_TMUX;
-        gchar *session_name = sessions_build_folder_session_name(folder->path);
-        show_session_new_overlay(app, backend, folder->path, session_name);
-        g_free(session_name);
-        return COFI_NO_OP;
+        return sessions_open_folder(app, folder->path);
     }
     return sessions_attach_visible(app, raw_idx);
 }
@@ -32,7 +24,18 @@ static CofiActionStatus sessions_provider_on_command_args(AppData *app, const ch
     if (!app) return COFI_NO_OP;
     if (!args || args[0] == '\0') return COFI_NO_OP;
     sessions_refresh(app);
-    return sessions_attach_named(app, args);
+
+    if (sessions_has_named(app, args)) {
+        return sessions_attach_named(app, args);
+    }
+
+    char slot = '\0';
+    if (slot_parse_single_key_arg(args, &slot)) {
+        const char *payload = slot_lookup(&app->harpoon.store, "sessions", slot);
+        if (!payload) return COFI_ACTION_ERROR;
+        return sessions_slot_recall(app, payload);
+    }
+    return COFI_ACTION_ERROR;
 }
 
 static const char *const s_sessions_aliases[] = {"tx", "zj", "zellij", "sessions", NULL};
@@ -60,5 +63,8 @@ void sessions_provider_register(void) {
     s_sessions_provider.tick_interval_ms = 1500;
     s_sessions_provider.on_enter_pressed = sessions_provider_on_enter_pressed;
     s_sessions_provider.on_command_args = sessions_provider_on_command_args;
+    s_sessions_provider.slot_store_enabled = 1;
+    s_sessions_provider.slot_payload_for = sessions_slot_payload_for;
+    s_sessions_provider.slot_recall = sessions_slot_recall;
     cofi_register_tab_provider(&s_sessions_provider);
 }

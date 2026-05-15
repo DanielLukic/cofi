@@ -29,6 +29,7 @@ void slot_store_free(SlotStore *store);
 
 int slot_index_from_key(char slot_key);
 char slot_key_from_index(int slot_index);
+bool slot_parse_single_key_arg(const char *args, char *slot_key);
 
 void slot_assign(SlotStore *store, char slot_key,
                  const char *tab_id, const char *payload);

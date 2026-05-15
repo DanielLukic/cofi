@@ -218,6 +218,48 @@ static void test_match_text_includes_short_backend_markers(void) {
                   "[d] cofi /home/user/Projects/cofi", text);
 }
 
+static void test_slot_payloads_are_typed(void) {
+    gchar *tmux = sessions_build_session_slot_payload(SESSION_BACKEND_TMUX, "cofi");
+    gchar *zellij = sessions_build_session_slot_payload(SESSION_BACKEND_ZELLIJ, "cofi");
+    gchar *folder = sessions_build_folder_slot_payload("/home/user/Projects/cofi");
+
+    ASSERT_STR_EQ("tmux slot payload includes backend",
+                  "session:tmux:cofi", tmux);
+    ASSERT_STR_EQ("zellij slot payload includes backend",
+                  "session:zellij:cofi", zellij);
+    ASSERT_STR_EQ("folder slot payload stores path",
+                  "folder:/home/user/Projects/cofi", folder);
+
+    g_free(tmux);
+    g_free(zellij);
+    g_free(folder);
+}
+
+static void test_parse_slot_payloads(void) {
+    SessionSlotTarget target;
+
+    ASSERT_TRUE("parse tmux slot payload",
+                sessions_parse_slot_payload("session:tmux:work:api", &target));
+    ASSERT_EQ_INT("tmux slot kind", SESSION_SLOT_SESSION, target.kind);
+    ASSERT_EQ_INT("tmux slot backend", SESSION_BACKEND_TMUX, target.backend);
+    ASSERT_STR_EQ("tmux slot value preserves colon", "work:api", target.value);
+
+    ASSERT_TRUE("parse zellij slot payload",
+                sessions_parse_slot_payload("session:zellij:work", &target));
+    ASSERT_EQ_INT("zellij slot backend", SESSION_BACKEND_ZELLIJ, target.backend);
+    ASSERT_STR_EQ("zellij slot value", "work", target.value);
+
+    ASSERT_TRUE("parse folder slot payload",
+                sessions_parse_slot_payload("folder:/home/user/Projects/cofi", &target));
+    ASSERT_EQ_INT("folder slot kind", SESSION_SLOT_FOLDER, target.kind);
+    ASSERT_STR_EQ("folder slot value", "/home/user/Projects/cofi", target.value);
+
+    ASSERT_TRUE("reject empty typed payload",
+                !sessions_parse_slot_payload("session:tmux:", &target));
+    ASSERT_TRUE("reject unknown typed payload",
+                !sessions_parse_slot_payload("tmux:cofi", &target));
+}
+
 int main(void) {
     printf("sessions parser tests\n");
     printf("=====================\n\n");
@@ -238,6 +280,8 @@ int main(void) {
     test_zellij_kill_command_quotes_name();
     test_zellij_new_command_starts_in_directory();
     test_match_text_includes_short_backend_markers();
+    test_slot_payloads_are_typed();
+    test_parse_slot_payloads();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

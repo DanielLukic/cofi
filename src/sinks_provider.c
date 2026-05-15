@@ -10,7 +10,6 @@
 #include "slot_store.h"
 #include "window_lifecycle.h"
 
-#include <ctype.h>
 #include <gtk/gtk.h>
 #include <string.h>
 
@@ -105,25 +104,13 @@ static CofiActionStatus sinks_on_enter_pressed(AppData *app, int filtered_idx,
     return sinks_switch_name(app, sink->name) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-static gboolean is_single_slot_key(const char *args, char *slot) {
-    if (!args) return FALSE;
-    while (g_ascii_isspace(*args)) args++;
-    if (!args[0]) return FALSE;
-    char key = args[0];
-    args++;
-    while (g_ascii_isspace(*args)) args++;
-    if (*args != '\0' || slot_index_from_key(key) < 0) return FALSE;
-    *slot = key;
-    return TRUE;
-}
-
 static CofiActionStatus sinks_slot_recall(AppData *app, const char *payload) {
     return sinks_switch_name(app, payload) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
 static CofiActionStatus sinks_on_command_args(AppData *app, const char *args) {
     char slot = '\0';
-    if (is_single_slot_key(args, &slot)) {
+    if (slot_parse_single_key_arg(args, &slot)) {
         const char *payload = slot_lookup(&app->harpoon.store, "sinks", slot);
         if (!payload) return COFI_ACTION_ERROR;
         return sinks_slot_recall(app, payload);
