@@ -9,9 +9,12 @@
 #include "log.h"
 #include "selection.h"
 #include "sessions_commands.h"
+#include "sessions_folder_windows.h"
 #include "sessions_parse.h"
+#include "window_list.h"
 
 #include <gtk/gtk.h>
+#include <X11/Xatom.h>
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
 }
@@ -151,9 +154,56 @@ static gboolean launch_folder_opener(const char *program, const char *arg, const
     return ok;
 }
 
+static Window *get_stacking_order(Display *display, unsigned long *count) {
+    if (count) *count = 0;
+    if (!display) return NULL;
+
+    Atom atom = XInternAtom(display, "_NET_CLIENT_LIST_STACKING", False);
+    Atom actual_type;
+    int actual_format;
+    unsigned long n_items;
+    unsigned long bytes_after;
+    unsigned char *prop = NULL;
+
+    if (XGetWindowProperty(display, DefaultRootWindow(display), atom,
+                           0, 4096, False, XA_WINDOW,
+                           &actual_type, &actual_format, &n_items, &bytes_after,
+                           &prop) != Success || !prop) {
+        return NULL;
+    }
+
+    if (count) *count = n_items;
+    return (Window *)prop;
+}
+
+static gboolean activate_existing_caja_folder(AppData *app, const char *path) {
+    if (!app || !app->display || !path || path[0] == '\0') return FALSE;
+
+    get_window_list(app);
+
+    unsigned long stack_count = 0;
+    Window *stack = get_stacking_order(app->display, &stack_count);
+    Window window = 0;
+    gboolean found = sessions_find_caja_folder_window(app->windows,
+                                                      app->window_count,
+                                                      stack,
+                                                      stack_count,
+                                                      path,
+                                                      &window);
+    if (stack) XFree(stack);
+    if (!found) return FALSE;
+
+    activate_window(app->display, window);
+    log_info("USER: activated Caja folder window for %s", path);
+    return TRUE;
+}
+
 CofiActionStatus sessions_open_folder(AppData *app, const char *path) {
-    (void)app;
     if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
+
+    if (activate_existing_caja_folder(app, path)) {
+        return COFI_HANDLED_HIDE;
+    }
 
     if (launch_folder_opener("caja", NULL, path) ||
         launch_folder_opener("xdg-open", NULL, path) ||

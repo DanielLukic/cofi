@@ -4,6 +4,7 @@
 
 #include "../src/sessions.h"
 #include "../src/sessions_commands.h"
+#include "../src/sessions_folder_windows.h"
 #include "../src/sessions_parse.h"
 
 static int pass = 0;
@@ -260,6 +261,74 @@ static void test_parse_slot_payloads(void) {
                 !sessions_parse_slot_payload("tmux:cofi", &target));
 }
 
+static WindowInfo test_window(Window id,
+                              const char *title,
+                              const char *instance,
+                              const char *class_name,
+                              const char *type) {
+    WindowInfo win;
+    memset(&win, 0, sizeof(win));
+    win.id = id;
+    g_strlcpy(win.title, title, sizeof(win.title));
+    g_strlcpy(win.instance, instance, sizeof(win.instance));
+    g_strlcpy(win.class_name, class_name, sizeof(win.class_name));
+    g_strlcpy(win.type, type, sizeof(win.type));
+    return win;
+}
+
+static void test_caja_folder_window_matches_exact_basename(void) {
+    WindowInfo windows[] = {
+        test_window(10, "cofi", "mate-terminal", "Mate-terminal", WINDOW_TYPE_NORMAL),
+        test_window(11, "cofi", "caja", "Caja", WINDOW_TYPE_NORMAL),
+        test_window(12, "cofi-old", "caja", "Caja", WINDOW_TYPE_NORMAL),
+    };
+    Window found = 0;
+
+    ASSERT_TRUE("find caja folder by exact basename",
+                sessions_find_caja_folder_window(windows, 3, NULL, 0,
+                                                 "/home/user/Projects/cofi", &found));
+    ASSERT_EQ_INT("exact basename window selected", 11, (int)found);
+}
+
+static void test_caja_folder_window_ignores_desktop_window(void) {
+    WindowInfo windows[] = {
+        test_window(20, "user", "desktop_window", "Caja", WINDOW_TYPE_NORMAL),
+        test_window(21, "user", "caja", "Caja", WINDOW_TYPE_NORMAL),
+    };
+    Window found = 0;
+
+    ASSERT_TRUE("desktop window ignored for caja folder",
+                sessions_find_caja_folder_window(windows, 2, NULL, 0,
+                                                 "/home/user", &found));
+    ASSERT_EQ_INT("normal caja window selected", 21, (int)found);
+}
+
+static void test_caja_folder_window_uses_topmost_duplicate(void) {
+    WindowInfo windows[] = {
+        test_window(30, "user", "caja", "Caja", WINDOW_TYPE_NORMAL),
+        test_window(31, "user", "caja", "Caja", WINDOW_TYPE_NORMAL),
+    };
+    Window stack[] = {31, 30}; /* bottom-to-top */
+    Window found = 0;
+
+    ASSERT_TRUE("duplicate caja folders choose topmost",
+                sessions_find_caja_folder_window(windows, 2, stack, 2,
+                                                 "/home/user", &found));
+    ASSERT_EQ_INT("topmost duplicate selected", 30, (int)found);
+}
+
+static void test_caja_folder_window_rejects_substring_match(void) {
+    WindowInfo windows[] = {
+        test_window(40, "dl-work", "caja", "Caja", WINDOW_TYPE_NORMAL),
+    };
+    Window found = 0;
+
+    ASSERT_TRUE("no substring match for caja folder",
+                !sessions_find_caja_folder_window(windows, 1, NULL, 0,
+                                                  "/home/user", &found));
+    ASSERT_EQ_INT("no substring window", 0, (int)found);
+}
+
 int main(void) {
     printf("sessions parser tests\n");
     printf("=====================\n\n");
@@ -282,6 +351,10 @@ int main(void) {
     test_match_text_includes_short_backend_markers();
     test_slot_payloads_are_typed();
     test_parse_slot_payloads();
+    test_caja_folder_window_matches_exact_basename();
+    test_caja_folder_window_ignores_desktop_window();
+    test_caja_folder_window_uses_topmost_duplicate();
+    test_caja_folder_window_rejects_substring_match();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
