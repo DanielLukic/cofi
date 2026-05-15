@@ -146,6 +146,7 @@ void sinks_provider_register(void) {
     s_sinks_provider.tab_mode = TAB_SINKS;
     s_sinks_provider.id = "sinks";
     s_sinks_provider.display_name = "SINKS";
+    s_sinks_provider.shortcut_hint = "Shortcuts: Ctrl+key=Assign sink slot  Alt+key=Activate sink slot";
     s_sinks_provider.primary_cmd = "sinks";
     s_sinks_provider.aliases = s_sinks_aliases;
     s_sinks_provider.prefix_char = 0;

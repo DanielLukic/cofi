@@ -187,12 +187,77 @@ gchar *tmux_build_folder_session_command(const char *path) {
     return command;
 }
 
+gchar *tmux_build_kill_command(const char *session_name) {
+    if (!session_name || session_name[0] == '\0') return NULL;
+    gchar *target = g_strconcat("=", session_name, NULL);
+    gchar *quoted_target = g_shell_quote(target);
+    gchar *command = g_strdup_printf("tmux kill-session -t %s", quoted_target);
+    g_free(quoted_target);
+    g_free(target);
+    return command;
+}
+
+gchar *tmux_build_rename_command(const char *old_name, const char *new_name) {
+    if (!old_name || old_name[0] == '\0' || !new_name || new_name[0] == '\0') return NULL;
+    gchar *target = g_strconcat("=", old_name, NULL);
+    gchar *quoted_target = g_shell_quote(target);
+    gchar *quoted_new_name = g_shell_quote(new_name);
+    gchar *command = g_strdup_printf("tmux rename-session -t %s %s",
+                                     quoted_target, quoted_new_name);
+    g_free(quoted_new_name);
+    g_free(quoted_target);
+    g_free(target);
+    return command;
+}
+
+gchar *tmux_build_new_session_command(const char *session_name, const char *start_dir) {
+    if (!session_name || session_name[0] == '\0' || !start_dir || start_dir[0] == '\0') return NULL;
+    gchar *quoted_name = g_shell_quote(session_name);
+    gchar *quoted_dir = g_shell_quote(start_dir);
+    gchar *command = g_strdup_printf("tmux new-session -A -s %s -c %s",
+                                     quoted_name, quoted_dir);
+    g_free(quoted_dir);
+    g_free(quoted_name);
+    return command;
+}
+
 #ifndef COFI_TMUX_PARSER_TEST
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
 }
 
 static gboolean (*s_launch_in_terminal)(const char *command) = default_launch_in_terminal;
+
+static gboolean default_run_tmux_command(const char *command) {
+    if (!command || command[0] == '\0') return FALSE;
+
+    gchar *stderr_str = NULL;
+    gint wait_status = 0;
+    GError *error = NULL;
+    gboolean spawned = g_spawn_command_line_sync(command, NULL, &stderr_str,
+                                                 &wait_status, &error);
+    if (!spawned) {
+        log_warn("tmux command spawn failed: %s", error ? error->message : "unknown error");
+        g_clear_error(&error);
+        g_free(stderr_str);
+        return FALSE;
+    }
+
+    gboolean ok = g_spawn_check_wait_status(wait_status, &error);
+    if (!ok) {
+        if (stderr_str && stderr_str[0]) {
+            g_strstrip(stderr_str);
+            log_warn("tmux command failed: %s", stderr_str);
+        } else {
+            log_warn("tmux command failed: %s", error ? error->message : "unknown error");
+        }
+    }
+    g_clear_error(&error);
+    g_free(stderr_str);
+    return ok;
+}
+
+static gboolean (*s_run_tmux_command)(const char *command) = default_run_tmux_command;
 
 static TmuxSession *tmux_session_at_visible(AppData *app, int visible_idx) {
     if (!app) return NULL;
@@ -490,6 +555,56 @@ CofiActionStatus tmux_attach_visible(AppData *app, int visible_idx) {
     return folder ? tmux_open_folder(app, folder->path) : COFI_ACTION_ERROR;
 }
 
+static CofiActionStatus run_tmux_admin_command(const char *command) {
+    if (!command) return COFI_ACTION_ERROR;
+    gboolean ok = s_run_tmux_command(command);
+    return ok ? COFI_HANDLED_REFRESH : COFI_ACTION_ERROR;
+}
+
+CofiActionStatus tmux_kill_session(AppData *app, const char *session_name) {
+    (void)app;
+    gchar *command = tmux_build_kill_command(session_name);
+    CofiActionStatus status = run_tmux_admin_command(command);
+    if (status == COFI_HANDLED_REFRESH) {
+        log_info("USER: tmux: killed session '%s'", session_name);
+    }
+    g_free(command);
+    return status;
+}
+
+CofiActionStatus tmux_rename_session(AppData *app, const char *old_name, const char *new_name) {
+    (void)app;
+    gchar *command = tmux_build_rename_command(old_name, new_name);
+    CofiActionStatus status = run_tmux_admin_command(command);
+    if (status == COFI_HANDLED_REFRESH) {
+        log_info("USER: tmux: renamed session '%s' to '%s'", old_name, new_name);
+    }
+    g_free(command);
+    return status;
+}
+
+CofiActionStatus tmux_new_session(AppData *app, const char *session_name) {
+    (void)app;
+    const char *home = g_get_home_dir();
+    gchar *command = tmux_build_new_session_command(session_name, home ? home : "/");
+    if (!command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(command);
+    if (ok) {
+        log_info("USER: tmux: created/attached session '%s'", session_name);
+    } else {
+        log_warn("tmux: failed to create/attach session '%s'", session_name);
+    }
+    g_free(command);
+    return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
+}
+
+const char *tmux_selected_session_name(AppData *app) {
+    if (!app) return NULL;
+    TmuxSession *session = tmux_session_at_visible(app, app->selection.provider_index);
+    return session ? session->name : NULL;
+}
+
 CofiActionStatus tmux_attach_named(AppData *app, const char *name) {
     if (!app || !name || name[0] == '\0') return COFI_NO_OP;
     for (int i = 0; i < app->tmux_mode.session_count; i++) {
@@ -519,6 +634,10 @@ int tmux_parse_zoxide_list_test_hook(const char *output,
 
 void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
     s_launch_in_terminal = impl ? impl : default_launch_in_terminal;
+}
+
+void tmux_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
+    s_run_tmux_command = impl ? impl : default_run_tmux_command;
 }
 #endif
 #endif /* COFI_TMUX_PARSER_TEST */

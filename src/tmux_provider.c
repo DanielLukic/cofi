@@ -32,6 +32,7 @@ void tmux_provider_register(void) {
     s_tmux_provider.tab_mode = TAB_TMUX;
     s_tmux_provider.id = "tmux";
     s_tmux_provider.display_name = "TMUX";
+    s_tmux_provider.shortcut_hint = "Shortcuts: Delete=Kill session  F2=Rename session  Insert=New session";
     s_tmux_provider.primary_cmd = "tmux";
     s_tmux_provider.aliases = s_tmux_aliases;
     s_tmux_provider.prefix_char = 0;

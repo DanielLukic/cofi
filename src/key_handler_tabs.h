@@ -10,5 +10,6 @@ gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app);
 gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app);
 gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app);
 gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app);
+gboolean handle_tmux_tab_keys(GdkEventKey *event, AppData *app);
 
 #endif

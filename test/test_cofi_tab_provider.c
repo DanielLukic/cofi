@@ -40,6 +40,7 @@ static void test_init_defaults(void) {
     ASSERT_EQ("init: modal_policy=HIDE_ON_ESC", p.modal_policy, COFI_MODAL_HIDE_ON_ESC);
     ASSERT_NULL("init: row_count=NULL", (void *)p.row_count);
     ASSERT_NULL("init: id=NULL", (void *)p.id);
+    ASSERT_NULL("init: shortcut_hint=NULL", (void *)p.shortcut_hint);
     ASSERT_NULL("init: on_enter_pressed=NULL", (void *)p.on_enter_pressed);
     ASSERT_EQ("init: tick_interval_ms=0", p.tick_interval_ms, 0);
     ASSERT_EQ("init: initial_selection_index=0", p.initial_selection_index, 0);

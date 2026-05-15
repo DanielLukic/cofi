@@ -120,6 +120,30 @@ static void test_folder_session_name_replaces_tmux_separators(void) {
     g_free(cmd);
 }
 
+static void test_kill_command_uses_exact_target(void) {
+    gchar *cmd = tmux_build_kill_command("work:api session");
+
+    ASSERT_STR_EQ("kill command exact target quoted",
+                  "tmux kill-session -t '=work:api session'", cmd);
+    g_free(cmd);
+}
+
+static void test_rename_command_quotes_old_and_new_names(void) {
+    gchar *cmd = tmux_build_rename_command("work:api session", "renamed session");
+
+    ASSERT_STR_EQ("rename command quotes exact target and new name",
+                  "tmux rename-session -t '=work:api session' 'renamed session'", cmd);
+    g_free(cmd);
+}
+
+static void test_new_session_command_uses_home_directory(void) {
+    gchar *cmd = tmux_build_new_session_command("scratch", "/home/user");
+
+    ASSERT_STR_EQ("new session command starts in home",
+                  "tmux new-session -A -s 'scratch' -c '/home/user'", cmd);
+    g_free(cmd);
+}
+
 int main(void) {
     printf("tmux session parser tests\n");
     printf("=========================\n\n");
@@ -132,6 +156,9 @@ int main(void) {
     test_folder_session_command_uses_start_directory();
     test_folder_session_command_quotes_path_and_sanitizes_name();
     test_folder_session_name_replaces_tmux_separators();
+    test_kill_command_uses_exact_target();
+    test_rename_command_quotes_old_and_new_names();
+    test_new_session_command_uses_home_directory();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

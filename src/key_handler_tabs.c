@@ -13,6 +13,7 @@
 #include "named_window_config.h"
 #include "overlay_manager.h"
 #include "rules_replay.h"
+#include "tmux.h"
 
 static gboolean clamp_names_selection(AppData *app) {
     if (app->filtered_names_count <= 0) {
@@ -257,6 +258,37 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
             return FALSE;
         }
         replay_selected_filtered_rule(app);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+gboolean handle_tmux_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_TMUX) {
+        return FALSE;
+    }
+
+    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
+        show_tmux_new_overlay(app);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
+        const char *session_name = tmux_selected_session_name(app);
+        if (!session_name) {
+            return FALSE;
+        }
+        show_tmux_kill_overlay(app, session_name);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_F2) {
+        const char *session_name = tmux_selected_session_name(app);
+        if (!session_name) {
+            return FALSE;
+        }
+        show_tmux_rename_overlay(app, session_name);
         return TRUE;
     }
 

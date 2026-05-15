@@ -50,6 +50,16 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->rules_delete.rule_index = -1;
     }
 
+    if (type == OVERLAY_TMUX_KILL) {
+        app->tmux_kill.pending_kill = FALSE;
+        app->tmux_kill.session_name[0] = '\0';
+    }
+
+    if (type == OVERLAY_TMUX_RENAME) {
+        app->tmux_rename.pending_rename = FALSE;
+        app->tmux_rename.session_name[0] = '\0';
+    }
+
     if (type == OVERLAY_HOTKEY_REBIND) {
         memset(&app->hotkey_rebind, 0, sizeof(app->hotkey_rebind));
         app->hotkey_rebind.conflict_index = -1;

@@ -67,7 +67,10 @@ typedef enum {
     OVERLAY_HOTKEY_REBIND,
     OVERLAY_RULE_ADD,
     OVERLAY_RULE_EDIT,
-    OVERLAY_RULE_DELETE
+    OVERLAY_RULE_DELETE,
+    OVERLAY_TMUX_KILL,
+    OVERLAY_TMUX_RENAME,
+    OVERLAY_TMUX_NEW
 } OverlayType;
 
 // Entry mode definitions
@@ -225,6 +228,17 @@ typedef struct AppData {
         gboolean pending_delete;
         int rule_index;
     } rules_delete;
+
+    // Tmux tab overlay state
+    struct {
+        gboolean pending_kill;
+        char session_name[MAX_TMUX_SESSION_NAME_LEN];
+    } tmux_kill;
+
+    struct {
+        gboolean pending_rename;
+        char session_name[MAX_TMUX_SESSION_NAME_LEN];
+    } tmux_rename;
 
     // Rebind state (Hotkeys tab Ctrl+B)
     struct {

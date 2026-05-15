@@ -157,6 +157,9 @@ Hidden tmux surface triggered via `:tmux` or `:show tmux`.
 - Missing `tmux` or no running tmux server shows a non-actionable status row only when there are no zoxide folder rows
 - Enter on a session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
 - Enter on a folder launches a detected terminal detached from cofi, then runs `tmux new-session -A -s <folder-name> -c <folder-path>`
+- `Delete` on a session opens a kill confirmation dialog; folder and status rows are ignored
+- `F2` on a session opens a rename dialog; folder and status rows are ignored
+- `Insert` opens a new-session dialog and starts the session in `$HOME`
 - Session names are treated as exact tmux targets and shell-quoted before launch
 - Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
 - `:tmux <session>` attaches an existing session by exact name; it does not create sessions

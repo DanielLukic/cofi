@@ -185,7 +185,7 @@ Press `!` to enter run mode for detached shell commands. `!` is the mode indicat
 
 ### Tmux Sessions
 
-Use `:tmux` or `:show tmux` to open the hidden tmux tab. It lists existing tmux sessions plus zoxide folders when `zoxide` is available. Enter on a session opens it in a detected terminal; Enter on a folder creates or attaches a tmux session named after that folder and starts it in the folder path. `:tmux <session>` attaches an existing session by exact name; it does not create sessions.
+Use `:tmux` or `:show tmux` to open the hidden tmux tab. It lists existing tmux sessions plus zoxide folders when `zoxide` is available. Enter on a session opens it in a detected terminal; Enter on a folder creates or attaches a tmux session named after that folder and starts it in the folder path. `Delete` kills a selected session after confirmation, `F2` renames a selected session, and `Insert` creates a new session in `$HOME`. `:tmux <session>` attaches an existing session by exact name; it does not create sessions.
 
 ### Apps Tab
 

@@ -59,6 +59,7 @@ typedef struct CofiTabProvider {
 
     const char *id;
     const char *display_name;
+    const char *shortcut_hint;
     const char *primary_cmd;
     const char *const *aliases;   /* NULL-terminated */
     char prefix_char;

@@ -751,6 +751,12 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         }
         g_string_append_c(text, '\n');
     }
+
+    if (p->shortcut_hint && p->shortcut_hint[0] != '\0') {
+        g_string_append_c(text, '\n');
+        g_string_append(text, p->shortcut_hint);
+        g_string_append_c(text, '\n');
+    }
 }
 
 
