@@ -144,6 +144,68 @@ static void test_new_session_command_uses_home_directory(void) {
     g_free(cmd);
 }
 
+static void test_parse_zellij_sessions(void) {
+    TmuxSession sessions[4];
+    char error[128];
+    int count = tmux_parse_zellij_session_list_test_hook(
+        "home\nwork api\ncofi\n", sessions, 4, error, sizeof(error));
+
+    ASSERT_EQ_INT("zellij parse count", 3, count);
+    ASSERT_STR_EQ("zellij first session name", "home", sessions[0].name);
+    ASSERT_STR_EQ("zellij preserves spaces", "work api", sessions[1].name);
+    ASSERT_EQ_INT("zellij backend marker", TMUX_SESSION_ZELLIJ, sessions[0].backend);
+    ASSERT_STR_EQ("zellij parse no error", "", error);
+}
+
+static void test_zellij_attach_command_quotes_name(void) {
+    gchar *cmd = tmux_build_zellij_attach_command("work api");
+
+    ASSERT_STR_EQ("zellij attach command creates missing session",
+                  "zellij attach --create 'work api'", cmd);
+    g_free(cmd);
+}
+
+static void test_zellij_kill_command_quotes_name(void) {
+    gchar *cmd = tmux_build_zellij_kill_command("work api");
+
+    ASSERT_STR_EQ("zellij kill command quotes name",
+                  "zellij kill-session 'work api'", cmd);
+    g_free(cmd);
+}
+
+static void test_match_text_includes_short_backend_markers(void) {
+    TmuxSession tmux_session = {
+        .backend = TMUX_SESSION_TMUX,
+        .windows = 2,
+        .attached = 1,
+    };
+    g_strlcpy(tmux_session.name, "cofi", sizeof(tmux_session.name));
+
+    TmuxSession zellij_session = {
+        .backend = TMUX_SESSION_ZELLIJ,
+        .windows = -1,
+        .attached = -1,
+    };
+    g_strlcpy(zellij_session.name, "cofi", sizeof(zellij_session.name));
+
+    TmuxFolder folder = {
+        .path = "/home/user/Projects/cofi",
+        .label = "cofi",
+    };
+
+    char text[256];
+    tmux_format_session_match_text_test_hook(&tmux_session, text, sizeof(text));
+    ASSERT_STR_EQ("tmux match row has [t] marker",
+                  "[t] cofi 2 wins 1 client", text);
+
+    tmux_format_session_match_text_test_hook(&zellij_session, text, sizeof(text));
+    ASSERT_STR_EQ("zellij match row has [z] marker", "[z] cofi", text);
+
+    tmux_format_folder_match_text_test_hook(&folder, text, sizeof(text));
+    ASSERT_STR_EQ("folder match row has [d] marker",
+                  "[d] cofi /home/user/Projects/cofi", text);
+}
+
 int main(void) {
     printf("tmux session parser tests\n");
     printf("=========================\n\n");
@@ -159,6 +221,10 @@ int main(void) {
     test_kill_command_uses_exact_target();
     test_rename_command_quotes_old_and_new_names();
     test_new_session_command_uses_home_directory();
+    test_parse_zellij_sessions();
+    test_zellij_attach_command_quotes_name();
+    test_zellij_kill_command_quotes_name();
+    test_match_text_includes_short_backend_markers();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

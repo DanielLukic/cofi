@@ -8,6 +8,7 @@
 #include "app_data.h"
 #include "detach_launch.h"
 #include "display.h"
+#include "fzf_algo.h"
 #include "log.h"
 #include "selection.h"
 
@@ -64,6 +65,7 @@ static int parse_tmux_session_list(const char *output,
                     parse_int_field(attached_buf, &attached)) {
                     copy_field(out[count].name, sizeof(out[count].name), line,
                                (size_t)(tab1 - line));
+                    out[count].backend = TMUX_SESSION_TMUX;
                     out[count].windows = windows;
                     out[count].attached = attached;
                     count++;
@@ -75,6 +77,43 @@ static int parse_tmux_session_list(const char *output,
 
     if (count == 0 && error_out && error_size > 0) {
         g_strlcpy(error_out, "No tmux sessions", error_size);
+    }
+    return count;
+}
+
+static int parse_zellij_session_list(const char *output,
+                                     TmuxSession *out,
+                                     int max_out,
+                                     char *error_out,
+                                     size_t error_size) {
+    if (error_out && error_size > 0) error_out[0] = '\0';
+    if (!out || max_out <= 0) return 0;
+    if (!output || output[0] == '\0') {
+        if (error_out && error_size > 0)
+            g_strlcpy(error_out, "No zellij sessions", error_size);
+        return 0;
+    }
+
+    int count = 0;
+    const char *line = output;
+    while (*line && count < max_out) {
+        const char *line_end = strchr(line, '\n');
+        if (!line_end) line_end = line + strlen(line);
+        if (line_end > line) {
+            copy_field(out[count].name, sizeof(out[count].name), line,
+                       (size_t)(line_end - line));
+            if (out[count].name[0] != '\0') {
+                out[count].backend = TMUX_SESSION_ZELLIJ;
+                out[count].windows = -1;
+                out[count].attached = -1;
+                count++;
+            }
+        }
+        line = (*line_end == '\n') ? line_end + 1 : line_end;
+    }
+
+    if (count == 0 && error_out && error_size > 0) {
+        g_strlcpy(error_out, "No zellij sessions", error_size);
     }
     return count;
 }
@@ -164,6 +203,49 @@ static gchar *build_folder_session_name(const char *path) {
     return g_string_free(name, FALSE);
 }
 
+static const char *tmux_session_marker(TmuxSessionBackend backend) {
+    return backend == TMUX_SESSION_ZELLIJ ? "[z]" : "[t]";
+}
+
+static const char *tmux_folder_marker(void) {
+    return "[d]";
+}
+
+static void tmux_format_session_match_text(const TmuxSession *session,
+                                           char *out,
+                                           size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (!session) {
+        out[0] = '\0';
+        return;
+    }
+    if (session->backend == TMUX_SESSION_ZELLIJ) {
+        g_snprintf(out, out_size, "%s %s", tmux_session_marker(session->backend),
+                   session->name);
+        return;
+    }
+    g_snprintf(out, out_size, "%s %s %d %s %d %s",
+               tmux_session_marker(session->backend),
+               session->name,
+               session->windows,
+               session->windows == 1 ? "win" : "wins",
+               session->attached,
+               session->attached == 1 ? "client" : "clients");
+}
+
+static void tmux_format_folder_match_text(const TmuxFolder *folder,
+                                          char *out,
+                                          size_t out_size) {
+    if (!out || out_size == 0) return;
+    if (!folder) {
+        out[0] = '\0';
+        return;
+    }
+    g_snprintf(out, out_size, "%s %s %s", tmux_folder_marker(),
+               folder->label ? folder->label : "",
+               folder->path ? folder->path : "");
+}
+
 gchar *tmux_build_attach_command(const char *session_name) {
     if (!session_name || session_name[0] == '\0') return NULL;
     gchar *target = g_strconcat("=", session_name, NULL);
@@ -171,6 +253,22 @@ gchar *tmux_build_attach_command(const char *session_name) {
     gchar *command = g_strdup_printf("tmux attach-session -t %s", quoted_target);
     g_free(quoted_target);
     g_free(target);
+    return command;
+}
+
+gchar *tmux_build_zellij_attach_command(const char *session_name) {
+    if (!session_name || session_name[0] == '\0') return NULL;
+    gchar *quoted_session = g_shell_quote(session_name);
+    gchar *command = g_strdup_printf("zellij attach --create %s", quoted_session);
+    g_free(quoted_session);
+    return command;
+}
+
+gchar *tmux_build_zellij_kill_command(const char *session_name) {
+    if (!session_name || session_name[0] == '\0') return NULL;
+    gchar *quoted_session = g_shell_quote(session_name);
+    gchar *command = g_strdup_printf("zellij kill-session %s", quoted_session);
+    g_free(quoted_session);
     return command;
 }
 
@@ -294,6 +392,21 @@ static CofiActionStatus tmux_attach_session(AppData *app, const char *session_na
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+static CofiActionStatus zellij_attach_session(AppData *app, const char *session_name) {
+    (void)app;
+    gchar *command = tmux_build_zellij_attach_command(session_name);
+    if (!command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(command);
+    if (ok) {
+        log_info("USER: zellij: attaching session '%s'", session_name);
+    } else {
+        log_warn("zellij: failed to launch session '%s'", session_name);
+    }
+    g_free(command);
+    return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
+}
+
 static CofiActionStatus tmux_open_folder(AppData *app, const char *path) {
     (void)app;
     gchar *command = tmux_build_folder_session_command(path);
@@ -317,6 +430,22 @@ static void tmux_add_filtered_row(TmuxMode *mode, TmuxRowType type, int index) {
     mode->filtered_count++;
 }
 
+typedef struct {
+    TmuxRowType type;
+    int index;
+    int order;
+    score_t score;
+} TmuxFilterHit;
+
+static int compare_tmux_filter_hits(const void *a, const void *b) {
+    const TmuxFilterHit *ha = a;
+    const TmuxFilterHit *hb = b;
+    if (ha->score != hb->score) {
+        return hb->score - ha->score;
+    }
+    return ha->order - hb->order;
+}
+
 void tmux_filter(AppData *app, const char *query) {
     if (!app) return;
     TmuxMode *mode = &app->tmux_mode;
@@ -332,24 +461,42 @@ void tmux_filter(AppData *app, const char *query) {
         return;
     }
 
-    gchar *query_lower = g_utf8_strdown(query, -1);
+    TmuxFilterHit hits[MAX_TMUX_SESSIONS + MAX_TMUX_FOLDERS];
+    int hit_count = 0;
+    int order = 0;
     for (int i = 0; i < mode->session_count && i < MAX_TMUX_SESSIONS; i++) {
-        gchar *name_lower = g_utf8_strdown(mode->sessions[i].name, -1);
-        if (g_strrstr(name_lower, query_lower)) {
-            tmux_add_filtered_row(mode, TMUX_ROW_SESSION, i);
+        char match_text[384];
+        tmux_format_session_match_text(&mode->sessions[i], match_text, sizeof(match_text));
+        if (fzf_has_match(query, match_text)) {
+            hits[hit_count++] = (TmuxFilterHit){
+                .type = TMUX_ROW_SESSION,
+                .index = i,
+                .order = order,
+                .score = fzf_fuzzy_match(query, match_text),
+            };
         }
-        g_free(name_lower);
+        order++;
     }
     for (int i = 0; i < mode->folder_count && i < MAX_TMUX_FOLDERS; i++) {
-        gchar *path_lower = g_utf8_strdown(mode->folders[i].path, -1);
-        gchar *label_lower = g_utf8_strdown(mode->folders[i].label, -1);
-        if (g_strrstr(path_lower, query_lower) || g_strrstr(label_lower, query_lower)) {
-            tmux_add_filtered_row(mode, TMUX_ROW_FOLDER, i);
+        char match_text[512];
+        tmux_format_folder_match_text(&mode->folders[i], match_text, sizeof(match_text));
+        if (fzf_has_match(query, match_text)) {
+            hits[hit_count++] = (TmuxFilterHit){
+                .type = TMUX_ROW_FOLDER,
+                .index = i,
+                .order = order,
+                .score = fzf_fuzzy_match(query, match_text),
+            };
         }
-        g_free(path_lower);
-        g_free(label_lower);
+        order++;
     }
-    g_free(query_lower);
+
+    if (hit_count > 1) {
+        qsort(hits, (size_t)hit_count, sizeof(hits[0]), compare_tmux_filter_hits);
+    }
+    for (int i = 0; i < hit_count; i++) {
+        tmux_add_filtered_row(mode, hits[i].type, hits[i].index);
+    }
 }
 
 void tmux_refresh(AppData *app) {
@@ -404,6 +551,31 @@ void tmux_refresh(AppData *app) {
         g_strlcpy(mode->last_error, "tmux not found", sizeof(mode->last_error));
     }
 
+    gchar *zellij = g_find_program_in_path("zellij");
+    if (zellij && mode->session_count < MAX_TMUX_SESSIONS) {
+        gchar *argv[] = {zellij, "list-sessions", "--short", NULL};
+        gchar *stdout_str = NULL;
+        gint wait_status = 0;
+        GError *error = NULL;
+
+        gboolean spawned = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL,
+                                        NULL, NULL, &stdout_str, NULL, &wait_status, &error);
+        if (spawned && g_spawn_check_wait_status(wait_status, &error)) {
+            char parse_error[256];
+            int added = parse_zellij_session_list(stdout_str,
+                                                  mode->sessions + mode->session_count,
+                                                  MAX_TMUX_SESSIONS - mode->session_count,
+                                                  parse_error, sizeof(parse_error));
+            mode->session_count += added;
+            if (added > 0) {
+                mode->last_error[0] = '\0';
+            }
+        }
+        g_clear_error(&error);
+        g_free(stdout_str);
+        g_free(zellij);
+    }
+
     gchar *zoxide = g_find_program_in_path("zoxide");
     if (zoxide) {
         gchar *argv[] = {zoxide, "query", "-l", NULL};
@@ -447,8 +619,8 @@ void tmux_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
 
     if (folder) {
         out->cell_count = 3;
-        out->cells[0].text = "[dir]";
-        out->cells[0].width_hint = 5;
+        out->cells[0].text = tmux_folder_marker();
+        out->cells[0].width_hint = 3;
         out->cells[1].text = folder->label;
         out->cells[1].width_hint = 24;
         out->cells[2].text = folder->path;
@@ -459,12 +631,12 @@ void tmux_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
     if (!session) {
         out->cell_count = 1;
         if (mode->session_count + mode->folder_count > 0) {
-            out->cells[0].text = "No matching tmux entries";
+            out->cells[0].text = "No matching sessions";
         } else if (mode->last_error[0] != '\0') {
             out->cells[0].text = mode->last_error;
             out->row_flags = COFI_ROW_ERROR;
         } else {
-            out->cells[0].text = "No tmux sessions or zoxide folders";
+            out->cells[0].text = "No tmux/zellij sessions or zoxide folders";
         }
         return;
     }
@@ -475,23 +647,38 @@ void tmux_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
                session->attached, session->attached == 1 ? "client" : "clients");
 
     out->cell_count = 4;
-    out->cells[0].text = "[tmx]";
-    out->cells[0].width_hint = 5;
+    out->cells[0].text = tmux_session_marker(session->backend);
+    out->cells[0].width_hint = 3;
     out->cells[1].text = session->name;
-    out->cells[2].text = windows_buf;
-    out->cells[2].width_hint = 7;
-    out->cells[2].align = 1;
-    out->cells[3].text = attached_buf;
-    out->cells[3].width_hint = 10;
-    out->cells[3].align = 1;
+    if (session->backend == TMUX_SESSION_ZELLIJ) {
+        out->cells[2].text = "";
+        out->cells[2].width_hint = 7;
+        out->cells[3].text = "";
+        out->cells[3].width_hint = 10;
+    } else {
+        out->cells[2].text = windows_buf;
+        out->cells[2].width_hint = 7;
+        out->cells[2].align = 1;
+        out->cells[3].text = attached_buf;
+        out->cells[3].width_hint = 10;
+        out->cells[3].align = 1;
+    }
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
 const char *tmux_match_string(AppData *app, int visible_idx) {
     TmuxSession *session = tmux_session_at_visible(app, visible_idx);
     TmuxFolder *folder = tmux_folder_at_visible(app, visible_idx);
-    if (folder) return folder->path;
-    return session ? session->name : "";
+    static char match_text[512];
+    if (folder) {
+        tmux_format_folder_match_text(folder, match_text, sizeof(match_text));
+        return match_text;
+    }
+    if (session) {
+        tmux_format_session_match_text(session, match_text, sizeof(match_text));
+        return match_text;
+    }
+    return "";
 }
 
 const char *tmux_row_identity(AppData *app, int visible_idx) {
@@ -504,7 +691,7 @@ const char *tmux_row_identity(AppData *app, int visible_idx) {
 void tmux_on_enter(AppData *app) {
     if (!app) return;
     if (app->entry) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "tmux sessions...");
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "sessions...");
     }
     tmux_refresh(app);
 }
@@ -518,11 +705,13 @@ void tmux_on_tick(AppData *app, int generation) {
     (void)generation;
     if (!app) return;
     TmuxRowType selected_type = TMUX_ROW_SESSION;
+    TmuxSessionBackend selected_backend = TMUX_SESSION_TMUX;
     gchar *selected_identity = NULL;
     TmuxSession *selected_session = tmux_session_at_visible(app, app->selection.provider_index);
     TmuxFolder *selected_folder = tmux_folder_at_visible(app, app->selection.provider_index);
     if (selected_session) {
         selected_type = TMUX_ROW_SESSION;
+        selected_backend = selected_session->backend;
         selected_identity = g_strdup(selected_session->name);
     } else if (selected_folder) {
         selected_type = TMUX_ROW_FOLDER;
@@ -537,7 +726,10 @@ void tmux_on_tick(AppData *app, int generation) {
             const char *identity = row.type == TMUX_ROW_SESSION
                 ? app->tmux_mode.sessions[row.index].name
                 : app->tmux_mode.folders[row.index].path;
-            if (row.type == selected_type && strcmp(identity, selected_identity) == 0) {
+            gboolean same_backend = row.type != TMUX_ROW_SESSION ||
+                app->tmux_mode.sessions[row.index].backend == selected_backend;
+            if (row.type == selected_type && same_backend &&
+                strcmp(identity, selected_identity) == 0) {
                 app->selection.provider_index = i;
                 break;
             }
@@ -550,7 +742,11 @@ void tmux_on_tick(AppData *app, int generation) {
 
 CofiActionStatus tmux_attach_visible(AppData *app, int visible_idx) {
     TmuxSession *session = tmux_session_at_visible(app, visible_idx);
-    if (session) return tmux_attach_session(app, session->name);
+    if (session) {
+        return session->backend == TMUX_SESSION_ZELLIJ
+            ? zellij_attach_session(app, session->name)
+            : tmux_attach_session(app, session->name);
+    }
     TmuxFolder *folder = tmux_folder_at_visible(app, visible_idx);
     return folder ? tmux_open_folder(app, folder->path) : COFI_ACTION_ERROR;
 }
@@ -561,12 +757,20 @@ static CofiActionStatus run_tmux_admin_command(const char *command) {
     return ok ? COFI_HANDLED_REFRESH : COFI_ACTION_ERROR;
 }
 
-CofiActionStatus tmux_kill_session(AppData *app, const char *session_name) {
+CofiActionStatus tmux_kill_session(AppData *app,
+                                   const char *session_name,
+                                   TmuxSessionBackend backend) {
     (void)app;
-    gchar *command = tmux_build_kill_command(session_name);
+    if (!session_name || session_name[0] == '\0') return COFI_ACTION_ERROR;
+
+    gchar *command = backend == TMUX_SESSION_ZELLIJ
+        ? tmux_build_zellij_kill_command(session_name)
+        : tmux_build_kill_command(session_name);
     CofiActionStatus status = run_tmux_admin_command(command);
     if (status == COFI_HANDLED_REFRESH) {
-        log_info("USER: tmux: killed session '%s'", session_name);
+        log_info("USER: %s: killed session '%s'",
+                 backend == TMUX_SESSION_ZELLIJ ? "zellij" : "tmux",
+                 session_name);
     }
     g_free(command);
     return status;
@@ -599,17 +803,18 @@ CofiActionStatus tmux_new_session(AppData *app, const char *session_name) {
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-const char *tmux_selected_session_name(AppData *app) {
+TmuxSession *tmux_selected_session(AppData *app) {
     if (!app) return NULL;
-    TmuxSession *session = tmux_session_at_visible(app, app->selection.provider_index);
-    return session ? session->name : NULL;
+    return tmux_session_at_visible(app, app->selection.provider_index);
 }
 
 CofiActionStatus tmux_attach_named(AppData *app, const char *name) {
     if (!app || !name || name[0] == '\0') return COFI_NO_OP;
     for (int i = 0; i < app->tmux_mode.session_count; i++) {
         if (strcmp(app->tmux_mode.sessions[i].name, name) == 0) {
-            return tmux_attach_session(app, name);
+            return app->tmux_mode.sessions[i].backend == TMUX_SESSION_ZELLIJ
+                ? zellij_attach_session(app, name)
+                : tmux_attach_session(app, name);
         }
     }
     return COFI_ACTION_ERROR;
@@ -630,6 +835,14 @@ int tmux_parse_zoxide_list_test_hook(const char *output,
                                      char *error_out,
                                      size_t error_size) {
     return parse_zoxide_folder_list(output, out, max_out, error_out, error_size);
+}
+
+int tmux_parse_zellij_session_list_test_hook(const char *output,
+                                             TmuxSession *out,
+                                             int max_out,
+                                             char *error_out,
+                                             size_t error_size) {
+    return parse_zellij_session_list(output, out, max_out, error_out, error_size);
 }
 
 void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
@@ -657,6 +870,26 @@ int tmux_parse_zoxide_list_test_hook(const char *output,
                                      char *error_out,
                                      size_t error_size) {
     return parse_zoxide_folder_list(output, out, max_out, error_out, error_size);
+}
+
+int tmux_parse_zellij_session_list_test_hook(const char *output,
+                                             TmuxSession *out,
+                                             int max_out,
+                                             char *error_out,
+                                             size_t error_size) {
+    return parse_zellij_session_list(output, out, max_out, error_out, error_size);
+}
+
+void tmux_format_session_match_text_test_hook(const TmuxSession *session,
+                                              char *out,
+                                              size_t out_size) {
+    tmux_format_session_match_text(session, out, out_size);
+}
+
+void tmux_format_folder_match_text_test_hook(const TmuxFolder *folder,
+                                             char *out,
+                                             size_t out_size) {
+    tmux_format_folder_match_text(folder, out, out_size);
 }
 
 #endif

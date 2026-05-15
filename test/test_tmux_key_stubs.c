@@ -1,13 +1,14 @@
 #include "../src/app_data.h"
 
-const char *tmux_selected_session_name(AppData *app) {
+TmuxSession *tmux_selected_session(AppData *app) {
     (void)app;
     return NULL;
 }
 
-void show_tmux_kill_overlay(AppData *app, const char *session_name) {
+void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend) {
     (void)app;
     (void)session_name;
+    (void)backend;
 }
 
 void show_tmux_rename_overlay(AppData *app, const char *session_name) {

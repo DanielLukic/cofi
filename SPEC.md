@@ -148,19 +148,23 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 
 ## Tmux Tab
 
-Hidden tmux surface triggered via `:tmux` or `:show tmux`.
+Hidden Sessions surface triggered via `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessions`, `:show tmux`, or `:show sessions`.
 
 - Sessions are listed from `tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
+- Zellij sessions are listed from `zellij list-sessions --short` when `zellij` is available
 - Zoxide folders are listed from `zoxide query -l` when `zoxide` is available
-- The logical list keeps tmux sessions first, then zoxide folders; because cofi renders provider rows bottom-up, folders appear above sessions
-- Sessions are marked `[tmx]`; folders are marked `[dir]`
-- Missing `tmux` or no running tmux server shows a non-actionable status row only when there are no zoxide folder rows
-- Enter on a session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
+- The logical list keeps tmux sessions first, then zellij sessions, then zoxide folders; because cofi renders provider rows bottom-up, folders appear above sessions
+- Tmux sessions are marked `[t]`; zellij sessions are marked `[z]`; folders are marked `[d]`
+- Filtering is fzf-style over the full rendered row, including the marker, so `tcofi` and `zcofi` can disambiguate matching tmux and zellij session names
+- Missing session tools or empty session lists show a non-actionable status row only when there are no zoxide folder rows
+- Enter on a tmux session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
+- Enter on a zellij session launches a detected terminal detached from cofi, then runs `zellij attach --create <session>`
 - Enter on a folder launches a detected terminal detached from cofi, then runs `tmux new-session -A -s <folder-name> -c <folder-path>`
-- `Delete` on a session opens a kill confirmation dialog; folder and status rows are ignored
-- `F2` on a session opens a rename dialog; folder and status rows are ignored
-- `Insert` opens a new-session dialog and starts the session in `$HOME`
-- Session names are treated as exact tmux targets and shell-quoted before launch
+- `Delete` on a tmux or zellij session opens a kill confirmation dialog; folder and status rows are ignored
+- `F2` on a tmux session opens a rename dialog; zellij, folder, and status rows are ignored
+- `Insert` opens a new tmux-session dialog and starts the session in `$HOME`
+- Tmux session names are treated as exact tmux targets and shell-quoted before launch
+- Zellij session names are shell-quoted before attach or kill commands
 - Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
 - `:tmux <session>` attaches an existing session by exact name; it does not create sessions
 
@@ -452,6 +456,7 @@ Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tab
 6. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
 7. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
 8. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
+9. **Sessions** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 

@@ -46,7 +46,7 @@ void create_tmux_kill_overlay_content(GtkWidget *parent_container, AppData *app)
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title_label = gtk_label_new("Kill Tmux Session?");
+    GtkWidget *title_label = gtk_label_new("Kill Session?");
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
@@ -87,9 +87,11 @@ gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
                        event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete;
     if (confirm) {
         char session_name[MAX_TMUX_SESSION_NAME_LEN];
+        TmuxSessionBackend backend = app->tmux_kill.backend;
         g_strlcpy(session_name, app->tmux_kill.session_name, sizeof(session_name));
-        CofiActionStatus status = tmux_kill_session(app, session_name);
+        CofiActionStatus status = tmux_kill_session(app, session_name, backend);
         app->tmux_kill.pending_kill = FALSE;
+        app->tmux_kill.backend = TMUX_SESSION_TMUX;
         app->tmux_kill.session_name[0] = '\0';
         hide_overlay(app);
         if (status == COFI_HANDLED_REFRESH) {
@@ -102,6 +104,7 @@ gboolean handle_tmux_kill_key_press(AppData *app, GdkEventKey *event) {
 
     if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
         app->tmux_kill.pending_kill = FALSE;
+        app->tmux_kill.backend = TMUX_SESSION_TMUX;
         app->tmux_kill.session_name[0] = '\0';
         hide_overlay(app);
         update_display(app);

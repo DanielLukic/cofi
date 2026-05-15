@@ -198,8 +198,9 @@ void show_rule_delete_overlay(AppData *app, int rule_index) {
     show_overlay(app, OVERLAY_RULE_DELETE, NULL);
 }
 
-void show_tmux_kill_overlay(AppData *app, const char *session_name) {
+void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend) {
     app->tmux_kill.pending_kill = TRUE;
+    app->tmux_kill.backend = backend;
     g_strlcpy(app->tmux_kill.session_name, session_name ? session_name : "",
               sizeof(app->tmux_kill.session_name));
     show_overlay(app, OVERLAY_TMUX_KILL, NULL);

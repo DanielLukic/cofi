@@ -53,6 +53,10 @@ int main(void) {
         ASSERT_TRUE("log name lowercase", all_lower_ascii(tab_log_name((TabMode)tab)));
     }
 
+    ASSERT_TRUE("sessions tab display name", strcmp(tab_display_name(TAB_TMUX), "Sessions") == 0);
+    ASSERT_TRUE("sessions tab active name", strcmp(tab_active_name(TAB_TMUX), "SESSIONS") == 0);
+    ASSERT_TRUE("sessions tab log name", strcmp(tab_log_name(TAB_TMUX), "sessions") == 0);
+
     ASSERT_TRUE("TAB_COUNT has no display name", tab_display_name(TAB_COUNT) == NULL);
     ASSERT_TRUE("TAB_COUNT has no active name", tab_active_name(TAB_COUNT) == NULL);
     ASSERT_TRUE("TAB_COUNT has no log name", tab_log_name(TAB_COUNT) == NULL);

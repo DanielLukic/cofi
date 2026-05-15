@@ -18,7 +18,13 @@ typedef enum {
     TMUX_ROW_FOLDER,
 } TmuxRowType;
 
+typedef enum {
+    TMUX_SESSION_TMUX,
+    TMUX_SESSION_ZELLIJ,
+} TmuxSessionBackend;
+
 typedef struct {
+    TmuxSessionBackend backend;
     char name[MAX_TMUX_SESSION_NAME_LEN];
     int windows;
     int attached;
@@ -61,13 +67,17 @@ void tmux_on_query_changed(AppData *app, const char *query);
 void tmux_on_tick(AppData *app, int generation);
 CofiActionStatus tmux_attach_visible(AppData *app, int visible_idx);
 CofiActionStatus tmux_attach_named(AppData *app, const char *name);
-CofiActionStatus tmux_kill_session(AppData *app, const char *session_name);
+CofiActionStatus tmux_kill_session(AppData *app,
+                                   const char *session_name,
+                                   TmuxSessionBackend backend);
 CofiActionStatus tmux_rename_session(AppData *app, const char *old_name, const char *new_name);
 CofiActionStatus tmux_new_session(AppData *app, const char *session_name);
-const char *tmux_selected_session_name(AppData *app);
+TmuxSession *tmux_selected_session(AppData *app);
 gchar *tmux_build_attach_command(const char *session_name);
+gchar *tmux_build_zellij_attach_command(const char *session_name);
 gchar *tmux_build_folder_session_command(const char *path);
 gchar *tmux_build_kill_command(const char *session_name);
+gchar *tmux_build_zellij_kill_command(const char *session_name);
 gchar *tmux_build_rename_command(const char *old_name, const char *new_name);
 gchar *tmux_build_new_session_command(const char *session_name, const char *start_dir);
 
@@ -82,6 +92,11 @@ int tmux_parse_zoxide_list_test_hook(const char *output,
                                      int max_out,
                                      char *error_out,
                                      size_t error_size);
+int tmux_parse_zellij_session_list_test_hook(const char *output,
+                                             TmuxSession *out,
+                                             int max_out,
+                                             char *error_out,
+                                             size_t error_size);
 void tmux_set_launch_impl_test_hook(gboolean (*impl)(const char *command));
 void tmux_set_command_impl_test_hook(gboolean (*impl)(const char *command));
 #endif

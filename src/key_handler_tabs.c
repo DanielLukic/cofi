@@ -275,20 +275,20 @@ gboolean handle_tmux_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
-        const char *session_name = tmux_selected_session_name(app);
-        if (!session_name) {
+        TmuxSession *session = tmux_selected_session(app);
+        if (!session) {
             return FALSE;
         }
-        show_tmux_kill_overlay(app, session_name);
+        show_tmux_kill_overlay(app, session->name, session->backend);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_F2) {
-        const char *session_name = tmux_selected_session_name(app);
-        if (!session_name) {
+        TmuxSession *session = tmux_selected_session(app);
+        if (!session || session->backend != TMUX_SESSION_TMUX) {
             return FALSE;
         }
-        show_tmux_rename_overlay(app, session_name);
+        show_tmux_rename_overlay(app, session->name);
         return TRUE;
     }
 

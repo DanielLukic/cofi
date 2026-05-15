@@ -345,6 +345,9 @@ static void test_commands_without_compact_form(void) {
     check("tmux bare", "tmux", "tmux", "");
     check("tmux with session", "tmux work:api", "tmux", "work:api");
     check("tmux alias with session", "tx work:api", "tx", "work:api");
+    check("zellij alias with session", "zellij work api", "zellij", "work api");
+    check("zj alias with session", "zj work api", "zj", "work api");
+    check("sessions alias with session", "sessions work api", "sessions", "work api");
 }
 
 static void test_multi_digit_args(void) {

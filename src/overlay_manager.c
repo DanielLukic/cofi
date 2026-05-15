@@ -52,6 +52,7 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
 
     if (type == OVERLAY_TMUX_KILL) {
         app->tmux_kill.pending_kill = FALSE;
+        app->tmux_kill.backend = TMUX_SESSION_TMUX;
         app->tmux_kill.session_name[0] = '\0';
     }
 

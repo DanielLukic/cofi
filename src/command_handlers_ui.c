@@ -182,7 +182,7 @@ gboolean cmd_tmux(AppData *app, WindowInfo *window __attribute__((unused)),
     exit_command_mode(app);
     const CofiTabProvider *provider = cofi_get_provider_for_command("tmux");
     if (!provider) {
-        show_error_in_display(app, "Tmux provider not available.");
+        show_error_in_display(app, "Sessions provider not available.");
         return FALSE;
     }
 
@@ -192,7 +192,7 @@ gboolean cmd_tmux(AppData *app, WindowInfo *window __attribute__((unused)),
         if (status == COFI_HANDLED_HIDE) {
             hide_window(app);
         } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
-            show_error_in_display(app, "No matching tmux session.");
+            show_error_in_display(app, "No matching tmux/zellij session.");
         }
         return FALSE;
     }

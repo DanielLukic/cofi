@@ -232,6 +232,7 @@ typedef struct AppData {
     // Tmux tab overlay state
     struct {
         gboolean pending_kill;
+        TmuxSessionBackend backend;
         char session_name[MAX_TMUX_SESSION_NAME_LEN];
     } tmux_kill;
 

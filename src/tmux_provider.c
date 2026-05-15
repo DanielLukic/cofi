@@ -24,15 +24,15 @@ static CofiActionStatus tmux_provider_on_command_args(AppData *app, const char *
     return tmux_attach_named(app, args);
 }
 
-static const char *const s_tmux_aliases[] = {"tx", NULL};
+static const char *const s_tmux_aliases[] = {"tx", "zj", "zellij", "sessions", NULL};
 static CofiTabProvider s_tmux_provider;
 
 void tmux_provider_register(void) {
     cofi_init_provider_defaults(&s_tmux_provider);
     s_tmux_provider.tab_mode = TAB_TMUX;
     s_tmux_provider.id = "tmux";
-    s_tmux_provider.display_name = "TMUX";
-    s_tmux_provider.shortcut_hint = "Shortcuts: Delete=Kill session  F2=Rename session  Insert=New session";
+    s_tmux_provider.display_name = "SESSIONS";
+    s_tmux_provider.shortcut_hint = "Shortcuts: Delete=Kill session  F2=Rename session (tmux only)  Insert=New tmux session";
     s_tmux_provider.primary_cmd = "tmux";
     s_tmux_provider.aliases = s_tmux_aliases;
     s_tmux_provider.prefix_char = 0;

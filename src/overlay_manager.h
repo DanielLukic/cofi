@@ -29,7 +29,7 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);
-void show_tmux_kill_overlay(AppData *app, const char *session_name);
+void show_tmux_kill_overlay(AppData *app, const char *session_name, TmuxSessionBackend backend);
 void show_tmux_rename_overlay(AppData *app, const char *session_name);
 void show_tmux_new_overlay(AppData *app);
 
