@@ -5,6 +5,7 @@
 #include "rules_config.h"
 
 void rules_provider_register(void);
+gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app);
 
 void  filter_rules(AppData *app, const char *filter);
 Rule *rules_selected_rule(AppData *app);

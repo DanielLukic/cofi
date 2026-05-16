@@ -1,10 +1,12 @@
 #include "hotkeys_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "display.h"
 #include "hotkey_config.h"
-#include "key_handler_tabs.h"
+#include "hotkeys.h"
 #include "log.h"
 #include "match.h"
+#include "overlay_manager.h"
 #include "selection.h"
 
 #include <gtk/gtk.h>
@@ -127,6 +129,72 @@ void hotkeys_select_key(AppData *app, const char *key) {
         }
     }
     app->selection.provider_index = 0;
+}
+
+gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_HOTKEYS) {
+        return FALSE;
+    }
+
+    if (event->keyval == GDK_KEY_a && (event->state & GDK_CONTROL_MASK)) {
+        cleanup_hotkeys(app);
+        app->hotkey_capture_active = TRUE;
+        show_overlay(app, OVERLAY_HOTKEY_ADD, NULL);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        HotkeyBinding *binding = hotkeys_selected_binding(app, NULL);
+        if (binding) {
+            char deleted_key[sizeof(binding->key)];
+            g_strlcpy(deleted_key, binding->key, sizeof(deleted_key));
+            remove_hotkey_binding(&app->hotkey_config, deleted_key);
+            save_hotkey_config(&app->hotkey_config);
+            regrab_hotkeys(app);
+
+            const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+            filter_hotkeys(app, current_filter);
+            if (app->selection.provider_index >= app->filtered_hotkeys_count &&
+                app->filtered_hotkeys_count > 0) {
+                app->selection.provider_index = app->filtered_hotkeys_count - 1;
+            } else if (app->filtered_hotkeys_count <= 0) {
+                app->selection.provider_index = 0;
+            }
+
+            update_display(app);
+            log_info("USER: Deleted hotkey binding '%s'", deleted_key);
+        }
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (hotkeys_selected_binding(app, NULL)) {
+            show_overlay(app, OVERLAY_HOTKEY_EDIT, NULL);
+            return TRUE;
+        }
+    }
+
+    if (event->keyval == GDK_KEY_b && (event->state & GDK_CONTROL_MASK)) {
+        int master_idx = -1;
+        HotkeyBinding *binding = hotkeys_selected_binding(app, &master_idx);
+        if (!binding || master_idx < 0) {
+            return FALSE;
+        }
+        app->hotkey_rebind.active = TRUE;
+        app->hotkey_rebind.target_index = master_idx;
+        g_strlcpy(app->hotkey_rebind.target_key, binding->key,
+                  sizeof(app->hotkey_rebind.target_key));
+        g_strlcpy(app->hotkey_rebind.target_command, binding->command,
+                  sizeof(app->hotkey_rebind.target_command));
+        app->hotkey_rebind.awaiting_confirm = FALSE;
+        app->hotkey_rebind.conflict_index = -1;
+        cleanup_hotkeys(app);
+        app->hotkey_capture_active = TRUE;
+        show_overlay(app, OVERLAY_HOTKEY_REBIND, NULL);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static CofiTabProvider s_hotkeys_provider;

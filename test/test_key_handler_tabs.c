@@ -4,8 +4,14 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/config_provider.h"
+#include "../src/hotkeys_provider.h"
 #include "../src/key_handler.h"
 #include "../src/key_handler_tabs.h"
+#include "../src/names_provider.h"
+#include "../src/rules_provider.h"
+#include "../src/sessions_parse.h"
+#include "../src/sessions_provider.h"
 
 /*
  * Testability strategy:
@@ -67,6 +73,19 @@ static char g_last_get_next_enum_value[64];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
+}
+
+int has_match(const char *pattern, const char *text) {
+    return !pattern || pattern[0] == '\0' || (text && strstr(text, pattern) != NULL);
+}
+
+void cofi_init_provider_defaults(CofiTabProvider *provider) {
+    if (provider) memset(provider, 0, sizeof(*provider));
+}
+
+int cofi_register_tab_provider(const CofiTabProvider *provider) {
+    (void)provider;
+    return 0;
 }
 
 /* --- Stubs required by key_handler.c --- */
@@ -207,31 +226,6 @@ void filter_names(AppData *app, const char *filter) {
     }
 }
 
-NamedWindow *names_selected_entry(AppData *app) {
-    if (!app || app->filtered_names_count <= 0) return NULL;
-    int idx = app->selection.provider_index;
-    if (idx < 0) idx = 0;
-    if (idx >= app->filtered_names_count) idx = app->filtered_names_count - 1;
-    app->selection.provider_index = idx;
-    return &app->filtered_names[idx];
-}
-
-int names_selected_manager_index(AppData *app) {
-    NamedWindow *named = names_selected_entry(app);
-    if (!app || !named) return -1;
-    int idx = -1;
-    if (named->id != 0) {
-        idx = find_named_window_index(&app->names, named->id);
-    }
-    if (idx < 0) idx = find_named_window_by_name(&app->names, named->custom_name);
-    return idx;
-}
-
-void names_select_custom_name(AppData *app, const char *custom_name) {
-    (void)app;
-    (void)custom_name;
-}
-
 void show_harpoon_delete_overlay(AppData *app, int slot) {
     (void)app;
     g_show_harpoon_delete_calls++;
@@ -279,55 +273,21 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     return 0;
 }
 
-void filter_config(AppData *app, const char *filter) {
-    (void)filter;
+void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
+    *count = 2;
+    strcpy(entries[0].key, "close_on_focus_loss");
+    strcpy(entries[0].value, config->close_on_focus_loss ? "true" : "false");
+    entries[0].type = CONFIG_TYPE_BOOL;
 
-    if (app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_config_count) {
-        ConfigEntry *entry = &app->filtered_config[app->selection.provider_index];
-        if (strcmp(entry->key, "close_on_focus_loss") == 0) {
-            strcpy(entry->value, app->config.close_on_focus_loss ? "true" : "false");
-            entry->type = CONFIG_TYPE_BOOL;
-            return;
-        }
-        if (strcmp(entry->key, "digit_slot_mode") == 0) {
-            const char *v = "default";
-            if (app->config.digit_slot_mode == DIGIT_MODE_PER_WORKSPACE) v = "per-workspace";
-            if (app->config.digit_slot_mode == DIGIT_MODE_WORKSPACES) v = "workspaces";
-            strcpy(entry->value, v);
-            entry->type = CONFIG_TYPE_ENUM;
-            return;
-        }
+    strcpy(entries[1].key, "digit_slot_mode");
+    if (config->digit_slot_mode == DIGIT_MODE_PER_WORKSPACE) {
+        strcpy(entries[1].value, "per-workspace");
+    } else if (config->digit_slot_mode == DIGIT_MODE_WORKSPACES) {
+        strcpy(entries[1].value, "workspaces");
+    } else {
+        strcpy(entries[1].value, "default");
     }
-
-    app->filtered_config_count = 1;
-    strcpy(app->filtered_config[0].key, "close_on_focus_loss");
-    strcpy(app->filtered_config[0].value, app->config.close_on_focus_loss ? "true" : "false");
-    app->filtered_config[0].type = CONFIG_TYPE_BOOL;
-}
-
-ConfigEntry *config_selected_entry(AppData *app) {
-    if (!app || app->filtered_config_count <= 0) return NULL;
-    if (app->selection.provider_index < 0) app->selection.provider_index = 0;
-    if (app->selection.provider_index >= app->filtered_config_count) {
-        app->selection.provider_index = app->filtered_config_count - 1;
-    }
-    return &app->filtered_config[app->selection.provider_index];
-}
-
-void config_select_key(AppData *app, const char *key) {
-    if (!app || !key) return;
-    for (int i = 0; i < app->filtered_config_count; i++) {
-        if (strcmp(app->filtered_config[i].key, key) == 0) {
-            app->selection.provider_index = i;
-            return;
-        }
-    }
-    app->selection.provider_index = 0;
-}
-
-int config_entry_allows_edit(const ConfigEntry *entry) {
-    return entry && (entry->type == CONFIG_TYPE_INT ||
-                     entry->type == CONFIG_TYPE_STRING);
+    entries[1].type = CONFIG_TYPE_ENUM;
 }
 
 void show_overlay(AppData *app, OverlayType type, void *data) {
@@ -381,54 +341,9 @@ void regrab_hotkeys(AppData *app) { (void)app; g_regrab_hotkeys_calls++; }
 int replay_all_rules_against_open_windows(AppData *app) { (void)app; g_replay_all_rules_calls++; return 0; }
 gboolean replay_selected_filtered_rule(AppData *app) { (void)app; g_replay_selected_rule_calls++; return TRUE; }
 
-Rule *rules_selected_rule(AppData *app) {
-    if (!app || app->filtered_rules_count <= 0) return NULL;
-    int idx = app->selection.provider_index;
-    if (idx < 0) idx = 0;
-    if (idx >= app->filtered_rules_count) idx = app->filtered_rules_count - 1;
-    app->selection.provider_index = idx;
-    return &app->filtered_rules[idx];
-}
-
-int rules_selected_config_index(AppData *app) {
-    if (!rules_selected_rule(app)) return -1;
-    return app->filtered_rule_indices[app->selection.provider_index];
-}
-
-void rules_select_config_index(AppData *app, int config_index) {
-    (void)app;
-    (void)config_index;
-}
-
-void filter_hotkeys(AppData *app, const char *filter) {
-    (void)filter;
-    app->filtered_hotkeys_count = app->hotkey_config.count;
-    for (int i = 0; i < app->hotkey_config.count; i++) {
-        app->filtered_hotkeys[i] = app->hotkey_config.bindings[i];
-        app->filtered_hotkeys_indices[i] = i;
-    }
-}
-
-HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
-    if (master_idx_out) *master_idx_out = -1;
-    if (!app || app->filtered_hotkeys_count <= 0) return NULL;
-    int idx = app->selection.provider_index;
-    if (idx < 0) idx = 0;
-    if (idx >= app->filtered_hotkeys_count) idx = app->filtered_hotkeys_count - 1;
-    app->selection.provider_index = idx;
-    if (master_idx_out) *master_idx_out = app->filtered_hotkeys_indices[idx];
-    return &app->filtered_hotkeys[idx];
-}
-
-void hotkeys_select_key(AppData *app, const char *key) {
-    (void)app;
-    (void)key;
-}
-
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }
-void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
@@ -472,6 +387,51 @@ void show_session_new_overlay(AppData *app,
     strncpy(g_last_session_initial_name, initial_name ? initial_name : "",
             sizeof(g_last_session_initial_name) - 1);
     g_last_session_initial_name[sizeof(g_last_session_initial_name) - 1] = '\0';
+}
+
+gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_SESSIONS) {
+        return FALSE;
+    }
+
+    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
+        SessionBackend backend =
+            (event->state & GDK_SHIFT_MASK) ? SESSION_BACKEND_ZELLIJ : SESSION_BACKEND_TMUX;
+        SessionEntry *session = sessions_selected_session(app);
+        if (!(event->state & GDK_SHIFT_MASK) && session &&
+            session->backend == SESSION_BACKEND_ZELLIJ) {
+            backend = SESSION_BACKEND_ZELLIJ;
+        }
+        SessionFolder *folder = sessions_selected_folder(app);
+        if (!folder) {
+            show_session_new_overlay(app, backend, "", "");
+            return TRUE;
+        }
+        gchar *session_name = sessions_build_folder_session_name(folder->path);
+        show_session_new_overlay(app, backend, folder->path, session_name);
+        g_free(session_name);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
+        SessionEntry *session = sessions_selected_session(app);
+        if (!session) {
+            return FALSE;
+        }
+        show_session_kill_overlay(app, session->name, session->backend);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_F2) {
+        SessionEntry *session = sessions_selected_session(app);
+        if (!session || session->backend != SESSION_BACKEND_TMUX) {
+            return FALSE;
+        }
+        show_session_rename_overlay(app, session->name);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 #include "../src/key_handler.c"
@@ -718,7 +678,8 @@ static void test_ctrl_t_config_tab_cycles_enum_and_saves(void) {
                 strcmp(g_last_get_next_enum_value, "default") == 0);
     ASSERT_TRUE("Ctrl+t on Config enum cycles to next value",
                 app.config.digit_slot_mode == DIGIT_MODE_PER_WORKSPACE &&
-                strcmp(app.filtered_config[0].value, "per-workspace") == 0);
+                strcmp(app.filtered_config[app.selection.provider_index].value,
+                       "per-workspace") == 0);
     ASSERT_TRUE("Ctrl+t on Config enum saves config", g_save_config_calls == 1);
 }
 

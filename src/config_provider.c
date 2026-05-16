@@ -2,8 +2,10 @@
 
 #include "cofi_tab_provider.h"
 #include "config.h"
-#include "key_handler_tabs.h"
+#include "display.h"
+#include "log.h"
 #include "match.h"
+#include "overlay_manager.h"
 #include "selection.h"
 
 #include <gtk/gtk.h>
@@ -131,6 +133,50 @@ void config_select_key(AppData *app, const char *key) {
         }
     }
     app->selection.provider_index = 0;
+}
+
+gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_CONFIG) {
+        return FALSE;
+    }
+
+    if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
+        ConfigEntry *entry = config_selected_entry(app);
+        if (entry) {
+            const char *new_value = NULL;
+            if (entry->type == CONFIG_TYPE_BOOL) {
+                new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
+            } else if (entry->type == CONFIG_TYPE_ENUM) {
+                new_value = get_next_enum_value(entry->key, entry->value);
+            }
+
+            if (new_value) {
+                char selected_key[sizeof(entry->key)];
+                g_strlcpy(selected_key, entry->key, sizeof(selected_key));
+                char err_buf[128];
+                if (apply_config_setting(&app->config, selected_key, new_value, err_buf, sizeof(err_buf))) {
+                    save_config(&app->config);
+                    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+                    filter_config(app, current_filter);
+                    config_select_key(app, selected_key);
+                    update_display(app);
+                    log_info("USER: Cycled config '%s' to %s", selected_key, new_value);
+                } else {
+                    log_error("Failed to cycle config '%s': %s", selected_key, err_buf);
+                }
+                return TRUE;
+            }
+        }
+    }
+
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (config_entry_allows_edit(config_selected_entry(app))) {
+            show_overlay(app, OVERLAY_CONFIG_EDIT, NULL);
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
 static CofiTabProvider s_config_provider;

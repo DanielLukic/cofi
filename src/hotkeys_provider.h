@@ -5,6 +5,7 @@
 
 void hotkeys_provider_register(void);
 void filter_hotkeys(AppData *app, const char *filter);
+gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app);
 
 HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out);
 void hotkeys_select_key(AppData *app, const char *key);

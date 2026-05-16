@@ -2,9 +2,10 @@
 
 #include "cofi_tab_provider.h"
 #include "filter_names.h"
-#include "key_handler_tabs.h"
+#include "log.h"
 #include "match.h"
 #include "named_window.h"
+#include "overlay_manager.h"
 #include "selection.h"
 
 #include <gtk/gtk.h>
@@ -116,6 +117,37 @@ void names_select_custom_name(AppData *app, const char *custom_name) {
         }
     }
     app->selection.provider_index = 0;
+}
+
+gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_NAMES) {
+        return FALSE;
+    }
+
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (!names_selected_entry(app)) {
+            return FALSE;
+        }
+        show_name_edit_overlay(app);
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        NamedWindow *named = names_selected_entry(app);
+        if (!named) {
+            log_debug("Names Ctrl+D ignored: no rows to delete");
+            return FALSE;
+        }
+
+        int manager_index = names_selected_manager_index(app);
+        log_info("Names Ctrl+D: showing delete confirm for '%s' (mgr_idx=%d, sel=%d/%d)",
+                 named->custom_name, manager_index,
+                 app->selection.provider_index, app->filtered_names_count);
+        show_name_delete_overlay(app, named->custom_name, manager_index);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static CofiTabProvider s_names_provider;

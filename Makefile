@@ -358,8 +358,8 @@ test_key_handler_core: test/test_key_handler_core.c test/test_sessions_key_stubs
 test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
 	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/key_handler_tabs.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)

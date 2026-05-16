@@ -43,11 +43,20 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
-gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
-    (void)event;
-    (void)app;
-    return FALSE;
+void cleanup_hotkeys(AppData *app) { (void)app; }
+void show_overlay(AppData *app, OverlayType type, void *data) {
+    (void)app; (void)type; (void)data;
 }
+int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
+    (void)config; (void)key;
+    return 1;
+}
+int save_hotkey_config(const HotkeyConfig *config) {
+    (void)config;
+    return 1;
+}
+void regrab_hotkeys(AppData *app) { (void)app; }
+void update_display(AppData *app) { (void)app; }
 
 #include "../src/hotkeys_provider.c"
 

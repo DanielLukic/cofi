@@ -43,10 +43,16 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
-gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
-    (void)event;
+void show_overlay(AppData *app, OverlayType type, void *data) {
+    (void)app; (void)type; (void)data;
+}
+int replay_all_rules_against_open_windows(AppData *app) {
     (void)app;
-    return FALSE;
+    return 0;
+}
+gboolean replay_selected_filtered_rule(AppData *app) {
+    (void)app;
+    return TRUE;
 }
 
 #include "../src/rules_provider.c"

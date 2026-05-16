@@ -1,8 +1,9 @@
 #include "rules_provider.h"
 
 #include "cofi_tab_provider.h"
-#include "key_handler_tabs.h"
 #include "match.h"
+#include "overlay_manager.h"
+#include "rules_replay.h"
 #include "selection.h"
 
 #include <gtk/gtk.h>
@@ -124,6 +125,57 @@ void rules_select_config_index(AppData *app, int config_index) {
         }
     }
     app->selection.provider_index = 0;
+}
+
+gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TAB_RULES) {
+        return FALSE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_a || event->keyval == GDK_KEY_A)) {
+        show_overlay(app, OVERLAY_RULE_ADD, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E)) {
+        if (!rules_selected_rule(app)) {
+            return FALSE;
+        }
+        show_overlay(app, OVERLAY_RULE_EDIT, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D)) {
+        int rule_index = rules_selected_config_index(app);
+        if (rule_index < 0) {
+            return FALSE;
+        }
+        app->rules_delete.pending_delete = TRUE;
+        app->rules_delete.rule_index = rule_index;
+        show_overlay(app, OVERLAY_RULE_DELETE, NULL);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
+        replay_all_rules_against_open_windows(app);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
+        if (!rules_selected_rule(app)) {
+            return FALSE;
+        }
+        replay_selected_filtered_rule(app);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static CofiTabProvider s_rules_provider;

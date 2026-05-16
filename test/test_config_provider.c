@@ -26,12 +26,6 @@ int cofi_register_tab_provider(const CofiTabProvider *provider) {
     return 0;
 }
 
-gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
-    (void)event;
-    (void)app;
-    return FALSE;
-}
-
 int has_match(const char *pattern, const char *text) {
     if (!pattern || !*pattern) return 1;
     return text && strstr(text, pattern) != NULL;
@@ -51,6 +45,27 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     g_strlcpy(entries[2].key, "tile_columns", sizeof(entries[2].key));
     g_strlcpy(entries[2].value, "3", sizeof(entries[2].value));
     entries[2].type = CONFIG_TYPE_INT;
+}
+
+void log_log(int level, const char *file, int line, const char *fmt, ...) {
+    (void)level; (void)file; (void)line; (void)fmt;
+}
+
+void save_config(const CofiConfig *config) { (void)config; }
+void update_display(AppData *app) { (void)app; }
+void show_overlay(AppData *app, OverlayType type, void *data) {
+    (void)app; (void)type; (void)data;
+}
+
+const char *get_next_enum_value(const char *key, const char *current_value) {
+    (void)key;
+    return current_value;
+}
+
+int apply_config_setting(CofiConfig *config, const char *key, const char *value,
+                         char *err_buf, size_t err_size) {
+    (void)config; (void)key; (void)value; (void)err_buf; (void)err_size;
+    return 1;
 }
 
 #include "../src/config_provider.c"
