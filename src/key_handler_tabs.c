@@ -7,6 +7,7 @@
 #include "filter.h"
 #include "filter_names.h"
 #include "hotkey_config.h"
+#include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "log.h"
 #include "named_window.h"
@@ -184,38 +185,42 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.hotkeys_index < app->filtered_hotkeys_count) {
-            HotkeyBinding *binding = &app->filtered_hotkeys[app->selection.hotkeys_index];
-            remove_hotkey_binding(&app->hotkey_config, binding->key);
+        HotkeyBinding *binding = hotkeys_selected_binding(app, NULL);
+        if (binding) {
+            char deleted_key[sizeof(binding->key)];
+            g_strlcpy(deleted_key, binding->key, sizeof(deleted_key));
+            remove_hotkey_binding(&app->hotkey_config, deleted_key);
             save_hotkey_config(&app->hotkey_config);
             regrab_hotkeys(app);
 
             const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
             filter_hotkeys(app, current_filter);
-
-            if (app->selection.hotkeys_index >= app->filtered_hotkeys_count && app->filtered_hotkeys_count > 0) {
-                app->selection.hotkeys_index = app->filtered_hotkeys_count - 1;
+            if (app->selection.provider_index >= app->filtered_hotkeys_count &&
+                app->filtered_hotkeys_count > 0) {
+                app->selection.provider_index = app->filtered_hotkeys_count - 1;
+            } else if (app->filtered_hotkeys_count <= 0) {
+                app->selection.provider_index = 0;
             }
 
             update_display(app);
-            log_info("USER: Deleted hotkey binding '%s'", binding->key);
+            log_info("USER: Deleted hotkey binding '%s'", deleted_key);
         }
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.hotkeys_index < app->filtered_hotkeys_count) {
+        if (hotkeys_selected_binding(app, NULL)) {
             show_overlay(app, OVERLAY_HOTKEY_EDIT, NULL);
             return TRUE;
         }
     }
 
     if (event->keyval == GDK_KEY_b && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.hotkeys_index >= app->filtered_hotkeys_count) {
+        int master_idx = -1;
+        HotkeyBinding *binding = hotkeys_selected_binding(app, &master_idx);
+        if (!binding || master_idx < 0) {
             return FALSE;
         }
-        int master_idx = app->filtered_hotkeys_indices[app->selection.hotkeys_index];
-        HotkeyBinding *binding = &app->hotkey_config.bindings[master_idx];
         app->hotkey_rebind.active = TRUE;
         app->hotkey_rebind.target_index = master_idx;
         g_strlcpy(app->hotkey_rebind.target_key, binding->key,

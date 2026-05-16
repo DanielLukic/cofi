@@ -3,20 +3,19 @@
 #include <string.h>
 
 #include "display.h"
-#include "filter.h"
+#include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "selection.h"
 
 void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    if (app->current_tab != TAB_HOTKEYS || app->filtered_hotkeys_count == 0) {
+    HotkeyBinding *binding = hotkeys_selected_binding(app, NULL);
+    if (app->current_tab != TAB_HOTKEYS || !binding) {
         GtkWidget *error_label = gtk_label_new("No hotkey binding selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
     }
-
-    HotkeyBinding *binding = &app->filtered_hotkeys[app->selection.hotkeys_index];
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);

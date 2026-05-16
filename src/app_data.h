@@ -117,7 +117,6 @@ typedef struct {
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 
     int config_index;                       // Selected index in config tab
-    int hotkeys_index;                      // Selected index in hotkeys tab
     int rules_index;                        // Selected index in rules tab
     int provider_index;                     // Selected index for any registered provider tab
     int sinks_index;                        // Selected index in sinks tab
@@ -129,7 +128,6 @@ typedef struct {
     int harpoon_scroll_offset;              // First visible item index for harpoon tab
     int names_scroll_offset;               // First visible item index for names tab
     int config_scroll_offset;              // First visible item index for config tab
-    int hotkeys_scroll_offset;             // First visible item index for hotkeys tab
     int rules_scroll_offset;               // First visible item index for rules tab
     int provider_scroll_offset;            // First visible item index for any registered provider tab
     int sinks_scroll_offset;               // First visible item index for sinks tab

@@ -83,9 +83,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_CONFIG) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter config options...");
         filter_config(app, "");
-    } else if (target_tab == TAB_HOTKEYS) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter hotkey bindings...");
-        filter_hotkeys(app, "");
     } else if (target_tab == TAB_RULES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter rules...");
         filter_rules(app, "");
@@ -243,31 +240,6 @@ void filter_config(AppData *app, const char *filter) {
         snprintf(searchable, sizeof(searchable), "%s %s", all_entries[i].key, all_entries[i].value);
         if (has_match(filter, searchable)) {
             app->filtered_config[app->filtered_config_count++] = all_entries[i];
-        }
-    }
-}
-
-void filter_hotkeys(AppData *app, const char *filter) {
-    app->filtered_hotkeys_count = 0;
-
-    if (!filter || !*filter) {
-        for (int i = 0; i < app->hotkey_config.count; i++) {
-            app->filtered_hotkeys[app->filtered_hotkeys_count] = app->hotkey_config.bindings[i];
-            app->filtered_hotkeys_indices[app->filtered_hotkeys_count] = i;
-            app->filtered_hotkeys_count++;
-        }
-        return;
-    }
-
-    for (int i = 0; i < app->hotkey_config.count; i++) {
-        char searchable[512];
-        snprintf(searchable, sizeof(searchable), "%s %s",
-                 app->hotkey_config.bindings[i].key,
-                 app->hotkey_config.bindings[i].command);
-        if (has_match(filter, searchable)) {
-            app->filtered_hotkeys[app->filtered_hotkeys_count] = app->hotkey_config.bindings[i];
-            app->filtered_hotkeys_indices[app->filtered_hotkeys_count] = i;
-            app->filtered_hotkeys_count++;
         }
     }
 }

@@ -30,6 +30,7 @@
 #include "gtk_window.h"
 #include "harpoon_config.h"
 #include "history.h"
+#include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "key_handler.h"
 #include "log.h"
@@ -351,6 +352,7 @@ int run_cofi(int argc, char *argv[]) {
     init_app_data(&app);
     apps_provider_register();
     calc_provider_register();
+    hotkeys_provider_register();
     sinks_provider_register();
     run_provider_register();
     proc_provider_register();

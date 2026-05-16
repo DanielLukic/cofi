@@ -76,6 +76,11 @@ void __wrap_filter_hotkeys(AppData *app, const char *query) {
     }
 }
 
+void __wrap_hotkeys_select_key(AppData *app, const char *key) {
+    (void)key;
+    app->selection.provider_index = 0;
+}
+
 void __wrap_validate_selection(AppData *app) {
     (void)app;
     g_validate_selection_calls++;

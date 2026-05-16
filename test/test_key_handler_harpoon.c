@@ -217,6 +217,12 @@ void regrab_hotkeys(AppData *app) { (void)app; }
 int replay_all_rules_against_open_windows(AppData *app) { (void)app; return 0; }
 gboolean replay_selected_filtered_rule(AppData *app) { (void)app; return TRUE; }
 void filter_hotkeys(AppData *app, const char *filter) { (void)app; (void)filter; }
+HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
+    (void)app;
+    if (master_idx_out) *master_idx_out = -1;
+    return NULL;
+}
+void hotkeys_select_key(AppData *app, const char *key) { (void)app; (void)key; }
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }

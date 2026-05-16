@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "display.h"
-#include "filter.h"
+#include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "log.h"
 #include "overlay_manager.h"
@@ -17,18 +17,7 @@ static void finish_hotkey_capture_add(AppData *app, const char *hotkey) {
 
     filter_hotkeys(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
 
-    gboolean found = FALSE;
-    for (int i = 0; i < app->filtered_hotkeys_count; i++) {
-        if (strcmp(app->filtered_hotkeys[i].key, hotkey) == 0) {
-            app->selection.hotkeys_index = i;
-            found = TRUE;
-            break;
-        }
-    }
-
-    if (!found) {
-        app->selection.hotkeys_index = 0;
-    }
+    hotkeys_select_key(app, hotkey);
 
     validate_selection(app);
     update_scroll_position(app);

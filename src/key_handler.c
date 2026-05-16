@@ -199,8 +199,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_names(app, text);
     } else if (app->current_tab == TAB_CONFIG) {
         filter_config(app, text);
-    } else if (app->current_tab == TAB_HOTKEYS) {
-        filter_hotkeys(app, text);
     } else if (app->current_tab == TAB_RULES) {
         filter_rules(app, text);
     } else {

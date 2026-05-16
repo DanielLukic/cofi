@@ -87,6 +87,7 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 void filter_apps(AppData *app, const char *query);
+void filter_hotkeys(AppData *app, const char *filter);
 void reset_selection(AppData *app);
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
@@ -302,6 +303,11 @@ static void mock_apps_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
+static void mock_hotkeys_query_changed(AppData *app, const char *query) {
+    filter_hotkeys(app, query);
+    reset_selection(app);
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == TAB_APPS && target_tab != TAB_APPS)
         app->apps_mode = APPS_MODE_DEFAULT;
@@ -369,6 +375,17 @@ void filter_hotkeys(AppData *app, const char *filter) {
     (void)app;
     g_filter_hotkeys_calls++;
     strncpy(g_last_filter_hotkeys, filter ? filter : "", sizeof(g_last_filter_hotkeys) - 1);
+}
+
+HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
+    if (master_idx_out) *master_idx_out = -1;
+    if (!app || app->filtered_hotkeys_count <= 0) return NULL;
+    return &app->filtered_hotkeys[0];
+}
+
+void hotkeys_select_key(AppData *app, const char *key) {
+    (void)app;
+    (void)key;
 }
 void filter_rules(AppData *app, const char *filter) {
     (void)app;
@@ -822,7 +839,19 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         memset(&apps_provider, 0, sizeof(apps_provider));
         apps_provider.tab_mode = TAB_APPS;
         apps_provider.on_query_changed = mock_apps_query_changed;
-        g_provider_for_tab = tabs[i] == TAB_APPS ? &apps_provider : NULL;
+
+        CofiTabProvider hotkeys_provider;
+        memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
+        hotkeys_provider.tab_mode = TAB_HOTKEYS;
+        hotkeys_provider.on_query_changed = mock_hotkeys_query_changed;
+
+        if (tabs[i] == TAB_APPS) {
+            g_provider_for_tab = &apps_provider;
+        } else if (tabs[i] == TAB_HOTKEYS) {
+            g_provider_for_tab = &hotkeys_provider;
+        } else {
+            g_provider_for_tab = NULL;
+        }
         app.current_tab = tabs[i];
         gtk_entry_set_text(GTK_ENTRY(app.entry), "query");
         on_entry_changed(GTK_ENTRY(app.entry), &app);

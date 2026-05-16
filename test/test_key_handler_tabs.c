@@ -267,9 +267,9 @@ void show_overlay(AppData *app, OverlayType type, void *data) {
     }
 
     if (type == OVERLAY_HOTKEY_EDIT &&
-        app->selection.hotkeys_index >= 0 && app->selection.hotkeys_index < app->filtered_hotkeys_count) {
+        app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_hotkeys_count) {
         strncpy(g_last_overlay_hotkey_key,
-                app->filtered_hotkeys[app->selection.hotkeys_index].key,
+                app->filtered_hotkeys[app->selection.provider_index].key,
                 sizeof(g_last_overlay_hotkey_key) - 1);
     }
 }
@@ -305,7 +305,24 @@ void filter_hotkeys(AppData *app, const char *filter) {
     app->filtered_hotkeys_count = app->hotkey_config.count;
     for (int i = 0; i < app->hotkey_config.count; i++) {
         app->filtered_hotkeys[i] = app->hotkey_config.bindings[i];
+        app->filtered_hotkeys_indices[i] = i;
     }
+}
+
+HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
+    if (master_idx_out) *master_idx_out = -1;
+    if (!app || app->filtered_hotkeys_count <= 0) return NULL;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_hotkeys_count) idx = app->filtered_hotkeys_count - 1;
+    app->selection.provider_index = idx;
+    if (master_idx_out) *master_idx_out = app->filtered_hotkeys_indices[idx];
+    return &app->filtered_hotkeys[idx];
+}
+
+void hotkeys_select_key(AppData *app, const char *key) {
+    (void)app;
+    (void)key;
 }
 
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
@@ -431,6 +448,9 @@ static void seed_hotkeys(AppData *app) {
     app->filtered_hotkeys[0] = app->hotkey_config.bindings[0];
     app->filtered_hotkeys[1] = app->hotkey_config.bindings[1];
     app->filtered_hotkeys[2] = app->hotkey_config.bindings[2];
+    app->filtered_hotkeys_indices[0] = 0;
+    app->filtered_hotkeys_indices[1] = 1;
+    app->filtered_hotkeys_indices[2] = 2;
 }
 
 static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
@@ -645,7 +665,7 @@ static void test_ctrl_e_hotkeys_tab_opens_edit_for_selected_binding(void) {
 
     app.current_tab = TAB_HOTKEYS;
     seed_hotkeys(&app);
-    app.selection.hotkeys_index = 1;
+    app.selection.provider_index = 1;
 
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -662,7 +682,7 @@ static void test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs(void) {
 
     app.current_tab = TAB_HOTKEYS;
     seed_hotkeys(&app);
-    app.selection.hotkeys_index = 0;
+    app.selection.provider_index = 0;
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -681,7 +701,7 @@ static void test_ctrl_d_hotkeys_last_row_clamps_selection(void) {
 
     app.current_tab = TAB_HOTKEYS;
     seed_hotkeys(&app);
-    app.selection.hotkeys_index = 2;
+    app.selection.provider_index = 2;
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -689,7 +709,7 @@ static void test_ctrl_d_hotkeys_last_row_clamps_selection(void) {
     ASSERT_TRUE("Ctrl+d on Hotkeys last row handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+d on Hotkeys last row removes selected binding",
                 app.hotkey_config.count == 2 && strcmp(app.hotkey_config.bindings[1].key, "Mod4+c") == 0);
-    ASSERT_TRUE("Ctrl+d on Hotkeys last row clamps selection index", app.selection.hotkeys_index == 1);
+    ASSERT_TRUE("Ctrl+d on Hotkeys last row clamps selection index", app.selection.provider_index == 1);
 }
 
 static void test_rules_tab_shortcuts_crud_and_replay(void) {
