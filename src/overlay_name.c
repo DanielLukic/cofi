@@ -105,8 +105,6 @@ void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app)
     gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
 
     g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
-    g_object_set_data(G_OBJECT(parent_container), "named_window_index",
-                      GINT_TO_POINTER(app->selection.provider_index));
 
     GtkWidget *inst_label = gtk_label_new("Press Enter to save changes, Escape to cancel");
     gtk_widget_set_opacity(inst_label, 0.7);
@@ -197,8 +195,6 @@ gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
     }
 
     GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
-    int named_index = GPOINTER_TO_INT(
-        g_object_get_data(G_OBJECT(app->dialog_container), "named_window_index"));
 
     if (!name_entry) {
         log_error("Name entry widget not found");
@@ -213,17 +209,7 @@ gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    if (named_index < 0 || named_index >= app->filtered_names_count) {
-        log_error("Invalid named window index: %d", named_index);
-        hide_overlay(app);
-        return TRUE;
-    }
-
-    NamedWindow *named_window = &app->filtered_names[named_index];
-    int manager_index = find_named_window_index(&app->names, named_window->id);
-    if (manager_index < 0) {
-        manager_index = find_named_window_by_name(&app->names, named_window->custom_name);
-    }
+    int manager_index = names_selected_manager_index(app);
     if (manager_index < 0) {
         log_error("Named window not found in manager");
         hide_overlay(app);

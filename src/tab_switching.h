@@ -12,6 +12,5 @@ gboolean tab_is_visible(AppData *app, TabMode tab);
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app);
 void filter_workspaces(AppData *app, const char *filter);
 void filter_harpoon(AppData *app, const char *filter);
-void filter_rules(AppData *app, const char *filter);
 
 #endif

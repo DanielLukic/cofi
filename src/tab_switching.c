@@ -211,28 +211,3 @@ void filter_harpoon(AppData *app, const char *filter) {
         }
     }
 }
-
-void filter_rules(AppData *app, const char *filter) {
-    app->filtered_rules_count = 0;
-
-    if (!filter || !*filter) {
-        for (int i = 0; i < app->rules_config.count; i++) {
-            app->filtered_rules[app->filtered_rules_count] = app->rules_config.rules[i];
-            app->filtered_rule_indices[app->filtered_rules_count] = i;
-            app->filtered_rules_count++;
-        }
-        return;
-    }
-
-    for (int i = 0; i < app->rules_config.count; i++) {
-        char searchable[600];
-        snprintf(searchable, sizeof(searchable), "%s %s",
-                 app->rules_config.rules[i].pattern,
-                 app->rules_config.rules[i].commands);
-        if (has_match(filter, searchable)) {
-            app->filtered_rules[app->filtered_rules_count] = app->rules_config.rules[i];
-            app->filtered_rule_indices[app->filtered_rules_count] = i;
-            app->filtered_rules_count++;
-        }
-    }
-}

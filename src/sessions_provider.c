@@ -38,7 +38,7 @@ static CofiActionStatus sessions_provider_on_command_args(AppData *app, const ch
     return COFI_ACTION_ERROR;
 }
 
-static const char *const s_sessions_aliases[] = {"tx", "zj", "zellij", "sessions", NULL};
+static const char *const s_sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 static CofiTabProvider s_sessions_provider;
 
 void sessions_provider_register(void) {
@@ -47,7 +47,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.id = "sessions";
     s_sessions_provider.display_name = "SESSIONS";
     s_sessions_provider.get_shortcut_hint = sessions_get_shortcut_hint;
-    s_sessions_provider.primary_cmd = "tmux";
+    s_sessions_provider.primary_cmd = "sessions";
     s_sessions_provider.aliases = s_sessions_aliases;
     s_sessions_provider.prefix_char = 0;
     s_sessions_provider.hidden_by_default = 1;

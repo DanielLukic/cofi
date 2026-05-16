@@ -8,7 +8,6 @@
 #include "overlay_manager.h"
 #include "rules_provider.h"
 #include "selection.h"
-#include "tab_switching.h"
 
 static GtkWidget *create_message_label(const char *text) {
     GtkWidget *label = gtk_label_new(text);

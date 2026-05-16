@@ -40,10 +40,8 @@ void init_app_data(AppData *app) {
     app->active_window_id = -1; // Use -1 to force initial active window to be moved to front
     app->command_target_id = 0;
 
-    // Initialize tab mode - always reset to windows unless explicitly set by startup delegate flags
-    if (app->current_tab != TAB_WORKSPACES && app->current_tab != TAB_HARPOON &&
-        app->current_tab != TAB_NAMES && app->current_tab != TAB_RULES &&
-        app->current_tab != TAB_APPS) {
+    // Preserve any startup delegate tab; reset only invalid values to windows.
+    if (app->current_tab < TAB_WINDOWS || app->current_tab >= TAB_COUNT) {
         app->current_tab = TAB_WINDOWS;
     }
 

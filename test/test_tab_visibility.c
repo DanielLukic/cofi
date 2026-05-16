@@ -164,6 +164,13 @@ const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     (void)command; return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+void cofi_init_provider_defaults(CofiTabProvider *p) {
+    if (p) memset(p, 0, sizeof(*p));
+}
+int cofi_register_tab_provider(const CofiTabProvider *p) {
+    (void)p;
+    return 0;
+}
 int cofi_next_generation(int provider_id) { (void)provider_id; return -1; }
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
     (void)provider_id; (void)app; (void)args; return COFI_NO_OP;
@@ -285,6 +292,7 @@ int get_active_window_id(Display *display) {
 #endif
 #define GTK_ENTRY(widget) ((GtkEntry *)(widget))
 
+#include "../src/rules_provider.c"
 #include "../src/tab_switching.c"
 #include "../src/command_handlers_ui.c"
 #include "../src/daemon_socket_runtime.c"

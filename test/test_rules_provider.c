@@ -43,21 +43,6 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
-void filter_rules(AppData *app, const char *filter) {
-    app->filtered_rules_count = 0;
-    for (int i = 0; i < app->rules_config.count; i++) {
-        Rule *rule = &app->rules_config.rules[i];
-        char searchable[600];
-        snprintf(searchable, sizeof(searchable), "%s %s",
-                 rule->pattern, rule->commands);
-        if (has_match(filter, searchable)) {
-            app->filtered_rules[app->filtered_rules_count] = *rule;
-            app->filtered_rule_indices[app->filtered_rules_count] = i;
-            app->filtered_rules_count++;
-        }
-    }
-}
-
 #include "../src/rules_provider.c"
 
 static void reset_state(AppData *app) {
@@ -121,6 +106,18 @@ static void test_query_resets_selection(void) {
     ASSERT_TRUE("query resets selection", g_reset_selection_calls == 1);
 }
 
+static void test_on_enter_filters_all_rules(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+
+    rules_on_enter(&app);
+
+    ASSERT_TRUE("on enter filters rules", app.filtered_rules_count == 2);
+    ASSERT_TRUE("on enter keeps first rule",
+                strcmp(app.filtered_rules[0].pattern, "*term*") == 0);
+}
+
 static void test_selected_rule_and_config_index(void) {
     AppData app;
     reset_state(&app);
@@ -146,6 +143,7 @@ int main(void) {
     test_filter_and_format_row();
     test_empty_row();
     test_query_resets_selection();
+    test_on_enter_filters_all_rules();
     test_selected_rule_and_config_index();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);

@@ -1,8 +1,8 @@
 #include "rules_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "match.h"
 #include "selection.h"
-#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -54,10 +54,41 @@ static const char *rules_row_identity(AppData *app, int raw_idx) {
     return identity;
 }
 
+void filter_rules(AppData *app, const char *filter) {
+    if (!app) return;
+
+    app->filtered_rules_count = 0;
+
+    if (!filter || !*filter) {
+        for (int i = 0; i < app->rules_config.count; i++) {
+            app->filtered_rules[app->filtered_rules_count] =
+                app->rules_config.rules[i];
+            app->filtered_rule_indices[app->filtered_rules_count] = i;
+            app->filtered_rules_count++;
+        }
+        return;
+    }
+
+    for (int i = 0; i < app->rules_config.count; i++) {
+        char searchable[600];
+        snprintf(searchable, sizeof(searchable), "%s %s",
+                 app->rules_config.rules[i].pattern,
+                 app->rules_config.rules[i].commands);
+        if (has_match(filter, searchable)) {
+            app->filtered_rules[app->filtered_rules_count] =
+                app->rules_config.rules[i];
+            app->filtered_rule_indices[app->filtered_rules_count] = i;
+            app->filtered_rules_count++;
+        }
+    }
+}
+
 static void rules_on_enter(AppData *app) {
-    if (!app || !app->entry) return;
-    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry),
-                                   "Type to filter rules...");
+    if (!app) return;
+    if (app->entry) {
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry),
+                                       "Type to filter rules...");
+    }
     filter_rules(app, "");
 }
 

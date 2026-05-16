@@ -114,6 +114,30 @@ static void test_init_app_data_initializes_hotkey_grab_state(void) {
                 app.hotkey_grab_state.grabbed_hotkeys[0].key_name[0] == '\0');
 }
 
+static void test_init_app_data_preserves_startup_provider_tab(void) {
+    printf("\n--- init_app_data preserves startup provider tab ---\n");
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    app.current_tab = TAB_SESSIONS;
+
+    init_app_data(&app);
+
+    ASSERT_TRUE("startup sessions tab preserved", app.current_tab == TAB_SESSIONS);
+}
+
+static void test_init_app_data_resets_invalid_tab(void) {
+    printf("\n--- init_app_data resets invalid tab ---\n");
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    app.current_tab = TAB_COUNT;
+
+    init_app_data(&app);
+
+    ASSERT_TRUE("invalid tab resets to windows", app.current_tab == TAB_WINDOWS);
+}
+
 int main(void) {
     printf("Hotkey grab state tests\n");
     printf("=======================\n");
@@ -121,6 +145,8 @@ int main(void) {
     test_init_hotkey_grab_state_resets_fields();
     test_populate_hotkey_grab_state_counts_valid_bindings();
     test_init_app_data_initializes_hotkey_grab_state();
+    test_init_app_data_preserves_startup_provider_tab();
+    test_init_app_data_resets_invalid_tab();
 
     printf("\n=== Summary: %d/%d passed ===\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
