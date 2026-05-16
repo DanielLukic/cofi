@@ -108,9 +108,8 @@ COFI saves configuration to `~/.config/cofi/`:
   - `digit_slot_mode` - What Alt+digit does: `"default"` (harpoon), `"per-workspace"` (window slots by position), `"workspaces"` (switch workspace)
   - `slot_overlay_duration_ms` - Duration of slot number overlays in ms (default 750, 0 = disabled)
   - `ripple_enabled` - Show circle ripple on window activation (boolean, default true)
-  - `hotkey_windows` - System hotkey for windows mode (default `"Mod1+Tab"`, `""` = disabled)
-  - `hotkey_command` - System hotkey for command mode (default `"Mod1+grave"`)
-  - `hotkey_workspaces` - System hotkey for workspaces mode (default `"Mod1+BackSpace"`)
+- **`~/.config/cofi/hotkeys.json`** - Global hotkey bindings managed by the Hotkeys tab
+  - Defaults: `Mod1+Tab` -> `show windows!`, `Mod1+grave` -> `show command!`, `Mod1+BackSpace` -> `show workspaces!`
 - **`~/.config/cofi/harpoon.json`** - Window assignments
   - Slots 0-9: Ctrl+0-9 / Alt+0-9
   - Slots a-z: Ctrl+a-z / Alt+a-z (excluding h,j,k,l,u)

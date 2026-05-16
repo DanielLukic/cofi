@@ -43,6 +43,12 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
+gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    return FALSE;
+}
+
 #include "../src/rules_provider.c"
 
 static void reset_state(AppData *app) {

@@ -112,6 +112,19 @@ static void test_add_remove_bindings(void) {
     ASSERT_INT("remove nonexistent", 0, remove_hotkey_binding(&config, "Mod1+Tab"));
 }
 
+static void test_default_bindings(void) {
+    HotkeyConfig config;
+    init_default_hotkey_config(&config);
+
+    ASSERT_INT("defaults count", 3, config.count);
+    ASSERT_STR("default windows key", "Mod1+Tab", config.bindings[0].key);
+    ASSERT_STR("default windows command", "show windows!", config.bindings[0].command);
+    ASSERT_STR("default command key", "Mod1+grave", config.bindings[1].key);
+    ASSERT_STR("default command command", "show command!", config.bindings[1].command);
+    ASSERT_STR("default workspaces key", "Mod1+BackSpace", config.bindings[2].key);
+    ASSERT_STR("default workspaces command", "show workspaces!", config.bindings[2].command);
+}
+
 static void test_save_load_roundtrip(void) {
     // Use temp dir
     char tmpdir[] = "/tmp/cofi_hk_test_XXXXXX";
@@ -183,6 +196,7 @@ int main(void) {
 
     test_parse_hotkey_command();
     test_add_remove_bindings();
+    test_default_bindings();
     test_save_load_roundtrip();
     test_format_display();
 

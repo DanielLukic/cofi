@@ -5,6 +5,7 @@
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 #include "../src/key_handler.h"
+#include "../src/key_handler_tabs.h"
 
 /*
  * Testability strategy:
@@ -89,7 +90,37 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
-const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    static CofiTabProvider names_provider;
+    static CofiTabProvider config_provider;
+    static CofiTabProvider hotkeys_provider;
+    static CofiTabProvider rules_provider;
+    static CofiTabProvider sessions_provider;
+    memset(&names_provider, 0, sizeof(names_provider));
+    memset(&config_provider, 0, sizeof(config_provider));
+    memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
+    memset(&rules_provider, 0, sizeof(rules_provider));
+    memset(&sessions_provider, 0, sizeof(sessions_provider));
+    names_provider.tab_mode = TAB_NAMES;
+    names_provider.handle_key = handle_names_tab_keys;
+    config_provider.tab_mode = TAB_CONFIG;
+    config_provider.handle_key = handle_config_tab_keys;
+    hotkeys_provider.tab_mode = TAB_HOTKEYS;
+    hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
+    rules_provider.tab_mode = TAB_RULES;
+    rules_provider.handle_key = handle_rules_tab_keys;
+    sessions_provider.tab_mode = TAB_SESSIONS;
+    sessions_provider.handle_key = handle_sessions_tab_keys;
+
+    switch ((TabMode)tab_mode) {
+        case TAB_NAMES: return &names_provider;
+        case TAB_CONFIG: return &config_provider;
+        case TAB_HOTKEYS: return &hotkeys_provider;
+        case TAB_RULES: return &rules_provider;
+        case TAB_SESSIONS: return &sessions_provider;
+        default: return NULL;
+    }
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
 

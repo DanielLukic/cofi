@@ -102,10 +102,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
     fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
     fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
-    fprintf(file, "    \"slot_occlusion_threshold\": %d,\n", config->slot_occlusion_threshold_pct);
-    fprintf(file, "    \"hotkey_windows\": \"%s\",\n", config->hotkey_windows);
-    fprintf(file, "    \"hotkey_command\": \"%s\",\n", config->hotkey_command);
-    fprintf(file, "    \"hotkey_workspaces\": \"%s\"\n", config->hotkey_workspaces);
+    fprintf(file, "    \"slot_occlusion_threshold\": %d\n", config->slot_occlusion_threshold_pct);
     fprintf(file, "  }");
 }
 
@@ -123,9 +120,6 @@ void init_config_defaults(CofiConfig *config) {
     config->slot_occlusion_threshold_pct = 5;
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     config->window_order_mode = WINDOW_ORDER_COFI;
-    strncpy(config->hotkey_windows,    "Mod1+Tab",       sizeof(config->hotkey_windows) - 1);
-    strncpy(config->hotkey_command,    "Mod1+grave",     sizeof(config->hotkey_command) - 1);
-    strncpy(config->hotkey_workspaces, "Mod1+BackSpace", sizeof(config->hotkey_workspaces) - 1);
 }
 
 void save_config(const CofiConfig *config) {
@@ -222,17 +216,6 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         char val[16] = {0};
         if (extract_json_string(line, val, sizeof(val)))
             config->window_order_mode = string_to_window_order_mode(val);
-    } else if (strstr(line, "\"hotkey_windows\":") || strstr(line, "\"hotkey_command\":") ||
-               strstr(line, "\"hotkey_workspaces\":")) {
-        char val[64] = {0};
-        if (extract_json_string(line, val, sizeof(val))) {
-            if (strstr(line, "\"hotkey_windows\":"))
-                strncpy(config->hotkey_windows, val, sizeof(config->hotkey_windows) - 1);
-            else if (strstr(line, "\"hotkey_command\":"))
-                strncpy(config->hotkey_command, val, sizeof(config->hotkey_command) - 1);
-            else
-                strncpy(config->hotkey_workspaces, val, sizeof(config->hotkey_workspaces) - 1);
-        }
     } else if (strstr(line, "\"quick_workspace_slots\":")) {
         if (strstr(line, "true"))
             config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
@@ -379,7 +362,6 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         return 1;
     }
 
-    // String: hotkeys
     // Enum: log_level (applies immediately)
     if (strcmp(key, "log_level") == 0) {
         int level = -1;
@@ -396,22 +378,6 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         strncpy(config->log_level, value, sizeof(config->log_level) - 1);
         config->log_level[sizeof(config->log_level) - 1] = '\0';
         log_set_level(level);
-        return 1;
-    }
-
-    if (strcmp(key, "hotkey_windows") == 0) {
-        strncpy(config->hotkey_windows, value, sizeof(config->hotkey_windows) - 1);
-        config->hotkey_windows[sizeof(config->hotkey_windows) - 1] = '\0';
-        return 1;
-    }
-    if (strcmp(key, "hotkey_command") == 0) {
-        strncpy(config->hotkey_command, value, sizeof(config->hotkey_command) - 1);
-        config->hotkey_command[sizeof(config->hotkey_command) - 1] = '\0';
-        return 1;
-    }
-    if (strcmp(key, "hotkey_workspaces") == 0) {
-        strncpy(config->hotkey_workspaces, value, sizeof(config->hotkey_workspaces) - 1);
-        config->hotkey_workspaces[sizeof(config->hotkey_workspaces) - 1] = '\0';
         return 1;
     }
 

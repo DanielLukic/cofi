@@ -40,9 +40,6 @@ static void test_defaults_roundtrip(void) {
     ASSERT_INT("defaults: digit_slot_mode", original.digit_slot_mode, loaded.digit_slot_mode);
     ASSERT_INT("defaults: slot_overlay_duration_ms", original.slot_overlay_duration_ms, loaded.slot_overlay_duration_ms);
     ASSERT_INT("defaults: ripple_enabled", original.ripple_enabled, loaded.ripple_enabled);
-    ASSERT_STR("defaults: hotkey_windows", original.hotkey_windows, loaded.hotkey_windows);
-    ASSERT_STR("defaults: hotkey_command", original.hotkey_command, loaded.hotkey_command);
-    ASSERT_STR("defaults: hotkey_workspaces", original.hotkey_workspaces, loaded.hotkey_workspaces);
 }
 
 // Test 2: non-default values round-trip
@@ -58,9 +55,6 @@ static void test_nondefault_roundtrip(void) {
     original.digit_slot_mode = DIGIT_MODE_PER_WORKSPACE;
     original.slot_overlay_duration_ms = 1500;
     original.ripple_enabled = 0;
-    strncpy(original.hotkey_windows, "Mod4+w", sizeof(original.hotkey_windows) - 1);
-    strncpy(original.hotkey_command, "Mod4+space", sizeof(original.hotkey_command) - 1);
-    strncpy(original.hotkey_workspaces, "", sizeof(original.hotkey_workspaces) - 1);
 
     save_config(&original);
     load_config(&loaded);
@@ -72,9 +66,6 @@ static void test_nondefault_roundtrip(void) {
     ASSERT_INT("nondefault: digit_slot_mode", DIGIT_MODE_PER_WORKSPACE, loaded.digit_slot_mode);
     ASSERT_INT("nondefault: slot_overlay_duration_ms", 1500, loaded.slot_overlay_duration_ms);
     ASSERT_INT("nondefault: ripple_enabled", 0, loaded.ripple_enabled);
-    ASSERT_STR("nondefault: hotkey_windows", "Mod4+w", loaded.hotkey_windows);
-    ASSERT_STR("nondefault: hotkey_command", "Mod4+space", loaded.hotkey_command);
-    ASSERT_STR("nondefault: hotkey_workspaces", "", loaded.hotkey_workspaces);
 }
 
 // Test 3: all alignment values round-trip

@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "hotkey_config.h"
+#include "key_handler_tabs.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
@@ -144,6 +145,7 @@ void hotkeys_provider_register(void) {
     s_hotkeys_provider.row_identity = hotkeys_row_identity;
     s_hotkeys_provider.on_enter = hotkeys_on_enter;
     s_hotkeys_provider.on_query_changed = hotkeys_on_query_changed;
+    s_hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     s_hotkeys_provider.get_shortcut_hint = hotkeys_shortcut_hint;
     cofi_register_tab_provider(&s_hotkeys_provider);
 }

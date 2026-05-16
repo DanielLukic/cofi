@@ -1,6 +1,7 @@
 #include "rules_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "key_handler_tabs.h"
 #include "match.h"
 #include "selection.h"
 
@@ -143,6 +144,7 @@ void rules_provider_register(void) {
     s_rules_provider.row_identity = rules_row_identity;
     s_rules_provider.on_enter = rules_on_enter;
     s_rules_provider.on_query_changed = rules_on_query_changed;
+    s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
         "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
     cofi_register_tab_provider(&s_rules_provider);

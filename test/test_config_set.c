@@ -129,18 +129,13 @@ static void test_enum_fields(void) {
     ASSERT_ERR("set digit_slot_mode garbage", c, "digit_slot_mode", "garbage");
 }
 
-static void test_string_fields(void) {
+static void test_removed_hotkey_fields(void) {
     CofiConfig c;
     init_config_defaults(&c);
 
-    ASSERT_OK("set hotkey_windows Mod4+w", c, "hotkey_windows", "Mod4+w");
-    ASSERT_STR("hotkey_windows is Mod4+w", "Mod4+w", c.hotkey_windows);
-
-    ASSERT_OK("set hotkey_command empty", c, "hotkey_command", "");
-    ASSERT_STR("hotkey_command is empty", "", c.hotkey_command);
-
-    ASSERT_OK("set hotkey_workspaces Mod1+BackSpace", c, "hotkey_workspaces", "Mod1+BackSpace");
-    ASSERT_STR("hotkey_workspaces set", "Mod1+BackSpace", c.hotkey_workspaces);
+    ASSERT_ERR("set hotkey_windows rejected", c, "hotkey_windows", "Mod4+w");
+    ASSERT_ERR("set hotkey_command rejected", c, "hotkey_command", "Mod4+space");
+    ASSERT_ERR("set hotkey_workspaces rejected", c, "hotkey_workspaces", "Mod1+BackSpace");
 }
 
 static void test_unknown_key(void) {
@@ -157,7 +152,7 @@ int main(void) {
     test_boolean_fields();
     test_integer_fields();
     test_enum_fields();
-    test_string_fields();
+    test_removed_hotkey_fields();
     test_unknown_key();
 
     printf("\n=====================================\n");

@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "config.h"
+#include "key_handler_tabs.h"
 #include "match.h"
 #include "selection.h"
 
@@ -148,6 +149,7 @@ void config_provider_register(void) {
     s_config_provider.row_identity = config_row_identity;
     s_config_provider.on_enter = config_on_enter;
     s_config_provider.on_query_changed = config_on_query_changed;
+    s_config_provider.handle_key = handle_config_tab_keys;
     s_config_provider.get_shortcut_hint = config_shortcut_hint;
     cofi_register_tab_provider(&s_config_provider);
 }

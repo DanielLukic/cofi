@@ -26,6 +26,12 @@ int cofi_register_tab_provider(const CofiTabProvider *provider) {
     return 0;
 }
 
+gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    return FALSE;
+}
+
 int has_match(const char *pattern, const char *text) {
     if (!pattern || !*pattern) return 1;
     return text && strstr(text, pattern) != NULL;

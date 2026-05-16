@@ -123,14 +123,13 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
             return TRUE;
         }
     }
+    const CofiTabProvider *current_provider =
+        cofi_get_provider_for_tab(app->current_tab);
     if (handle_harpoon_assignment(event, app) ||
         handle_harpoon_workspace_switching(event, app) ||
         handle_harpoon_tab_keys(event, app) ||
-        handle_names_tab_keys(event, app) ||
-        handle_config_tab_keys(event, app) ||
-        handle_hotkeys_tab_keys(event, app) ||
-        handle_rules_tab_keys(event, app) ||
-        handle_sessions_tab_keys(event, app)) {
+        (current_provider && current_provider->handle_key &&
+         current_provider->handle_key(event, app))) {
         return TRUE;
     }
     if (app->current_tab == TAB_WINDOWS && (event->state & GDK_MOD1_MASK)) {

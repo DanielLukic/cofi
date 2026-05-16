@@ -113,30 +113,6 @@ static CofiActionStatus zellij_attach_session(AppData *app, const char *session_
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-static CofiActionStatus open_folder_session(AppData *app, const char *path, SessionBackend backend) {
-    (void)app;
-    if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
-    gchar *session_name = sessions_build_folder_session_name(path);
-    gchar *command = backend == SESSION_BACKEND_ZELLIJ
-        ? sessions_build_zellij_new_command(session_name, path)
-        : sessions_build_tmux_new_command(session_name, path);
-    g_free(session_name);
-    if (!command) return COFI_ACTION_ERROR;
-
-    gboolean ok = s_launch_in_terminal(command);
-    if (ok) {
-        log_info("USER: %s: opening folder '%s'",
-                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
-                 path);
-    } else {
-        log_warn("%s: failed to open folder '%s'",
-                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
-                 path);
-    }
-    g_free(command);
-    return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
-}
-
 static gboolean program_available(const char *program) {
     gchar *path = g_find_program_in_path(program);
     if (!path) return FALSE;

@@ -64,9 +64,6 @@ typedef struct {
     int slot_overlay_duration_ms;  // Duration of slot number overlays (0 = disabled)
     int ripple_enabled;            // Whether to show ripple effect on window activation (1=on, 0=off)
     SlotSortOrder slot_sort_order; // How to number per-workspace slots: row-first or column-first
-    char hotkey_windows[64];       // Hotkey for windows mode, e.g. "Mod1+Tab" ("" = disabled)
-    char hotkey_command[64];       // Hotkey for command mode, e.g. "Mod1+grave"
-    char hotkey_workspaces[64];    // Hotkey for workspaces mode, e.g. "Mod1+BackSpace"
     char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
     WindowOrderMode window_order_mode; // How to order windows in the list
     int slot_occlusion_threshold_pct;   // Min visible percent for workspace slots (1-100, default 5)

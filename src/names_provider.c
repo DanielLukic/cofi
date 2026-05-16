@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "filter_names.h"
+#include "key_handler_tabs.h"
 #include "match.h"
 #include "named_window.h"
 #include "selection.h"
@@ -133,6 +134,7 @@ void names_provider_register(void) {
     s_names_provider.row_identity = names_row_identity;
     s_names_provider.on_enter = names_on_enter;
     s_names_provider.on_query_changed = names_on_query_changed;
+    s_names_provider.handle_key = handle_names_tab_keys;
     s_names_provider.shortcut_hint = "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name";
     cofi_register_tab_provider(&s_names_provider);
 }

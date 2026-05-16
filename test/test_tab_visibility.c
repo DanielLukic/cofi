@@ -287,6 +287,12 @@ int get_active_window_id(Display *display) {
     return 0;
 }
 
+gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    return FALSE;
+}
+
 #ifdef GTK_ENTRY
 #undef GTK_ENTRY
 #endif

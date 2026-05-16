@@ -60,10 +60,8 @@ void init_app_data(AppData *app) {
     init_hotkey_config(&app->hotkey_config);
     init_hotkey_grab_state(&app->hotkey_grab_state);
     if (!load_hotkey_config(&app->hotkey_config)) {
-        // No hotkeys.json yet — create defaults from legacy config
-        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_windows, "show windows!");
-        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_command, "show command!");
-        add_hotkey_binding(&app->hotkey_config, app->config.hotkey_workspaces, "show workspaces!");
+        // No hotkeys.json yet — create defaults owned by the hotkeys subsystem.
+        init_default_hotkey_config(&app->hotkey_config);
         save_hotkey_config(&app->hotkey_config);
     }
     

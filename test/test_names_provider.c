@@ -43,6 +43,12 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
+gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
+    (void)event;
+    (void)app;
+    return FALSE;
+}
+
 int find_named_window_index(const NamedWindowManager *manager, Window id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {

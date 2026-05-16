@@ -1,6 +1,8 @@
 #ifndef COFI_TAB_PROVIDER_H
 #define COFI_TAB_PROVIDER_H
 
+#include <glib.h>
+
 /* Provider API — types + registry.
  * AppData is forward-declared here; providers that need full AppData access
  * include app_data.h in their own .c files. */
@@ -9,6 +11,7 @@
 typedef struct AppData AppData;
 #define APPDATA_TYPEDEF_DEFINED
 #endif
+typedef struct _GdkEventKey GdkEventKey;
 
 typedef enum {
     COFI_HANDLED_HIDE,     /* core hides cofi window */
@@ -80,6 +83,7 @@ typedef struct CofiTabProvider {
     void (*on_leave)(AppData *);
     void (*on_query_changed)(AppData *, const char *query);
     void (*on_selection_changed)(AppData *, int filtered_idx);
+    gboolean (*handle_key)(GdkEventKey *, AppData *);
 
     void (*on_tick)(AppData *, int generation);
     int  tick_interval_ms;

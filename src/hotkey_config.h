@@ -16,6 +16,7 @@ typedef struct {
 } HotkeyConfig;
 
 void init_hotkey_config(HotkeyConfig *config);
+void init_default_hotkey_config(HotkeyConfig *config);
 int save_hotkey_config(const HotkeyConfig *config);
 int load_hotkey_config(HotkeyConfig *config);
 int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command);

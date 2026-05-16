@@ -24,6 +24,13 @@ void init_hotkey_config(HotkeyConfig *config) {
     memset(config, 0, sizeof(HotkeyConfig));
 }
 
+void init_default_hotkey_config(HotkeyConfig *config) {
+    init_hotkey_config(config);
+    add_hotkey_binding(config, "Mod1+Tab", "show windows!");
+    add_hotkey_binding(config, "Mod1+grave", "show command!");
+    add_hotkey_binding(config, "Mod1+BackSpace", "show workspaces!");
+}
+
 int find_hotkey_binding(const HotkeyConfig *config, const char *key) {
     if (!config || !key) return -1;
     for (int i = 0; i < config->count; i++) {

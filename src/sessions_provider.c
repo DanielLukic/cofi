@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "cofi_tab_provider.h"
+#include "key_handler_tabs.h"
 #include "sessions.h"
 #include "slot_store.h"
 
@@ -63,6 +64,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.tick_interval_ms = 1500;
     s_sessions_provider.on_enter_pressed = sessions_provider_on_enter_pressed;
     s_sessions_provider.on_command_args = sessions_provider_on_command_args;
+    s_sessions_provider.handle_key = handle_sessions_tab_keys;
     s_sessions_provider.slot_store_enabled = 1;
     s_sessions_provider.slot_payload_for = sessions_slot_payload_for;
     s_sessions_provider.slot_recall = sessions_slot_recall;

@@ -61,11 +61,8 @@ void init_workspace_slots(WorkspaceSlotManager *manager) { (void)manager; }
 void init_slot_overlay_state(SlotOverlayState *state) { (void)state; }
 void init_window_highlight(WindowHighlight *highlight) { (void)highlight; }
 void init_hotkey_config(HotkeyConfig *config) { config->count = 0; }
+void init_default_hotkey_config(HotkeyConfig *config) { config->count = 3; }
 gboolean load_hotkey_config(HotkeyConfig *config) { (void)config; return TRUE; }
-int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command) {
-    (void)config; (void)key; (void)command;
-    return 1;
-}
 gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return TRUE; }
 void init_named_window_manager(NamedWindowManager *manager) { (void)manager; }
 void load_named_windows(NamedWindowManager *manager) { (void)manager; }
