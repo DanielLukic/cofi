@@ -87,6 +87,7 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 void filter_apps(AppData *app, const char *query);
+void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void reset_selection(AppData *app);
 
@@ -308,6 +309,11 @@ static void mock_hotkeys_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
+static void mock_config_query_changed(AppData *app, const char *query) {
+    filter_config(app, query);
+    reset_selection(app);
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == TAB_APPS && target_tab != TAB_APPS)
         app->apps_mode = APPS_MODE_DEFAULT;
@@ -371,6 +377,17 @@ void filter_config(AppData *app, const char *filter) {
     g_filter_config_calls++;
     strncpy(g_last_filter_config, filter ? filter : "", sizeof(g_last_filter_config) - 1);
 }
+
+ConfigEntry *config_selected_entry(AppData *app) {
+    if (!app || app->filtered_config_count <= 0) return NULL;
+    return &app->filtered_config[0];
+}
+
+void config_select_key(AppData *app, const char *key) {
+    (void)app;
+    (void)key;
+}
+
 void filter_hotkeys(AppData *app, const char *filter) {
     (void)app;
     g_filter_hotkeys_calls++;
@@ -845,8 +862,15 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         hotkeys_provider.tab_mode = TAB_HOTKEYS;
         hotkeys_provider.on_query_changed = mock_hotkeys_query_changed;
 
+        CofiTabProvider config_provider;
+        memset(&config_provider, 0, sizeof(config_provider));
+        config_provider.tab_mode = TAB_CONFIG;
+        config_provider.on_query_changed = mock_config_query_changed;
+
         if (tabs[i] == TAB_APPS) {
             g_provider_for_tab = &apps_provider;
+        } else if (tabs[i] == TAB_CONFIG) {
+            g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TAB_HOTKEYS) {
             g_provider_for_tab = &hotkeys_provider;
         } else {

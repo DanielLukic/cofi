@@ -1,6 +1,7 @@
 #include "app_setup.h"
 #include "apps_provider.h"
 #include "calc_provider.h"
+#include "config_provider.h"
 #include "path_binaries.h"
 #include "run_mode.h"
 #include "run_provider.h"
@@ -352,6 +353,7 @@ int run_cofi(int argc, char *argv[]) {
     init_app_data(&app);
     apps_provider_register();
     calc_provider_register();
+    config_provider_register();
     hotkeys_provider_register();
     sinks_provider_register();
     run_provider_register();

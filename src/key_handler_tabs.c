@@ -3,8 +3,8 @@
 #include <string.h>
 
 #include "config.h"
+#include "config_provider.h"
 #include "display.h"
-#include "filter.h"
 #include "filter_names.h"
 #include "hotkey_config.h"
 #include "hotkeys_provider.h"
@@ -123,8 +123,8 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.config_index < app->filtered_config_count) {
-            ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+        ConfigEntry *entry = config_selected_entry(app);
+        if (entry) {
             const char *new_value = NULL;
             if (entry->type == CONFIG_TYPE_BOOL) {
                 new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
@@ -133,15 +133,18 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
             }
 
             if (new_value) {
+                char selected_key[sizeof(entry->key)];
+                g_strlcpy(selected_key, entry->key, sizeof(selected_key));
                 char err_buf[128];
-                if (apply_config_setting(&app->config, entry->key, new_value, err_buf, sizeof(err_buf))) {
+                if (apply_config_setting(&app->config, selected_key, new_value, err_buf, sizeof(err_buf))) {
                     save_config(&app->config);
                     const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
                     filter_config(app, current_filter);
+                    config_select_key(app, selected_key);
                     update_display(app);
-                    log_info("USER: Cycled config '%s' to %s", entry->key, new_value);
+                    log_info("USER: Cycled config '%s' to %s", selected_key, new_value);
                 } else {
-                    log_error("Failed to cycle config '%s': %s", entry->key, err_buf);
+                    log_error("Failed to cycle config '%s': %s", selected_key, err_buf);
                 }
                 return TRUE;
             }
@@ -149,7 +152,7 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (app->selection.config_index < app->filtered_config_count) {
+        if (config_selected_entry(app)) {
             show_overlay(app, OVERLAY_CONFIG_EDIT, NULL);
             return TRUE;
         }

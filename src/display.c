@@ -525,47 +525,6 @@ static void format_names_display(AppData *app, GString *text, gint selected_idx)
     g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
 }
 
-static void render_config_item(gpointer context, gint index,
-                               gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    ConfigEntry *entry = &app->filtered_config[index];
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-
-    char key_col[33], value_col[61];
-    fit_column(entry->key, 32, key_col);
-    fit_column(entry->value, 60, value_col);
-
-    g_string_append(text, key_col);
-    g_string_append(text, " ");
-    g_string_append(text, value_col);
-    g_string_append(text, "\n");
-}
-
-static void format_config_display_tab(AppData *app, GString *text,
-                                      gint selected_idx) {
-    if (app->filtered_config_count == 0) {
-        g_string_append(text, "No matching config options found\n\n");
-        g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->filtered_config_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_config_item;
-
-    render_display_pipeline(&request, text);
-    g_string_append(text, "\n");
-    g_string_append(text, "Shortcuts: Ctrl+T=Toggle bool  Ctrl+E=Edit value\n");
-}
-
 static void render_rules_item(gpointer context, gint index,
                               gint selected_idx, GString *text) {
     AppData *app = (AppData *)context;
@@ -720,9 +679,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_NAMES:
                 format_names_display(app, text, selected_idx);
-                break;
-            case TAB_CONFIG:
-                format_config_display_tab(app, text, selected_idx);
                 break;
             case TAB_RULES:
                 format_rules_display(app, text, selected_idx);

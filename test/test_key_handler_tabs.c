@@ -226,8 +226,8 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
 void filter_config(AppData *app, const char *filter) {
     (void)filter;
 
-    if (app->selection.config_index >= 0 && app->selection.config_index < app->filtered_config_count) {
-        ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+    if (app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_config_count) {
+        ConfigEntry *entry = &app->filtered_config[app->selection.provider_index];
         if (strcmp(entry->key, "close_on_focus_loss") == 0) {
             strcpy(entry->value, app->config.close_on_focus_loss ? "true" : "false");
             entry->type = CONFIG_TYPE_BOOL;
@@ -249,6 +249,26 @@ void filter_config(AppData *app, const char *filter) {
     app->filtered_config[0].type = CONFIG_TYPE_BOOL;
 }
 
+ConfigEntry *config_selected_entry(AppData *app) {
+    if (!app || app->filtered_config_count <= 0) return NULL;
+    if (app->selection.provider_index < 0) app->selection.provider_index = 0;
+    if (app->selection.provider_index >= app->filtered_config_count) {
+        app->selection.provider_index = app->filtered_config_count - 1;
+    }
+    return &app->filtered_config[app->selection.provider_index];
+}
+
+void config_select_key(AppData *app, const char *key) {
+    if (!app || !key) return;
+    for (int i = 0; i < app->filtered_config_count; i++) {
+        if (strcmp(app->filtered_config[i].key, key) == 0) {
+            app->selection.provider_index = i;
+            return;
+        }
+    }
+    app->selection.provider_index = 0;
+}
+
 void show_overlay(AppData *app, OverlayType type, void *data) {
     g_show_overlay_calls++;
     g_last_overlay_type = type;
@@ -260,9 +280,9 @@ void show_overlay(AppData *app, OverlayType type, void *data) {
     if (!app) return;
 
     if (type == OVERLAY_CONFIG_EDIT &&
-        app->selection.config_index >= 0 && app->selection.config_index < app->filtered_config_count) {
+        app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_config_count) {
         strncpy(g_last_overlay_config_key,
-                app->filtered_config[app->selection.config_index].key,
+                app->filtered_config[app->selection.provider_index].key,
                 sizeof(g_last_overlay_config_key) - 1);
     }
 
@@ -579,7 +599,7 @@ static void test_ctrl_t_config_tab_cycles_bool_and_saves(void) {
     reset_captures();
 
     app.current_tab = TAB_CONFIG;
-    app.selection.config_index = 0;
+    app.selection.provider_index = 0;
     app.filtered_config_count = 1;
     strcpy(app.filtered_config[0].key, "close_on_focus_loss");
     strcpy(app.filtered_config[0].value, "true");
@@ -601,7 +621,7 @@ static void test_ctrl_t_config_tab_cycles_enum_and_saves(void) {
     reset_captures();
 
     app.current_tab = TAB_CONFIG;
-    app.selection.config_index = 0;
+    app.selection.provider_index = 0;
     app.filtered_config_count = 1;
     strcpy(app.filtered_config[0].key, "digit_slot_mode");
     strcpy(app.filtered_config[0].value, "default");
@@ -629,7 +649,7 @@ static void test_ctrl_e_config_tab_shows_edit_overlay_for_selected_entry(void) {
 
     app.current_tab = TAB_CONFIG;
     app.filtered_config_count = 2;
-    app.selection.config_index = 1;
+    app.selection.provider_index = 1;
     strcpy(app.filtered_config[0].key, "close_on_focus_loss");
     strcpy(app.filtered_config[1].key, "digit_slot_mode");
 

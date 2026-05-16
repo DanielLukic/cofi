@@ -209,6 +209,8 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     (void)config; (void)key; (void)value; (void)err_buf; (void)err_size; return 0;
 }
 void filter_config(AppData *app, const char *filter) { (void)app; (void)filter; }
+ConfigEntry *config_selected_entry(AppData *app) { (void)app; return NULL; }
+void config_select_key(AppData *app, const char *key) { (void)app; (void)key; }
 void show_overlay(AppData *app, OverlayType type, void *data) { (void)app; (void)type; (void)data; }
 void cleanup_hotkeys(AppData *app) { (void)app; }
 int remove_hotkey_binding(HotkeyConfig *config, const char *key) { (void)config; (void)key; return 0; }

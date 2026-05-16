@@ -12,7 +12,6 @@ void init_selection(AppData *app) {
     app->selection.workspace_index = 0;
     app->selection.harpoon_index = 0;
     app->selection.names_index = 0;
-    app->selection.config_index = 0;
     app->selection.rules_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
@@ -24,7 +23,6 @@ void init_selection(AppData *app) {
     app->selection.workspace_scroll_offset = 0;
     app->selection.harpoon_scroll_offset = 0;
     app->selection.names_scroll_offset = 0;
-    app->selection.config_scroll_offset = 0;
     app->selection.rules_scroll_offset = 0;
     app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
@@ -56,9 +54,6 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_NAMES) {
         app->selection.names_index = 0;
         app->selection.names_scroll_offset = 0;
-    } else if (app->current_tab == TAB_CONFIG) {
-        app->selection.config_index = 0;
-        app->selection.config_scroll_offset = 0;
     } else if (app->current_tab == TAB_RULES) {
         app->selection.rules_index = 0;
         app->selection.rules_scroll_offset = 0;
@@ -113,8 +108,6 @@ int get_selected_index(AppData *app) {
         return app->selection.harpoon_index;
     } else if (app->current_tab == TAB_NAMES) {
         return app->selection.names_index;
-    } else if (app->current_tab == TAB_CONFIG) {
-        return app->selection.config_index;
     } else if (app->current_tab == TAB_RULES) {
         return app->selection.rules_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
@@ -184,19 +177,6 @@ void move_selection_up(AppData *app) {
             log_info("USER: Selection UP -> Named window[%d] '%s'",
                      app->selection.names_index,
                      app->filtered_names[app->selection.names_index].custom_name);
-        }
-    } else if (app->current_tab == TAB_CONFIG) {
-        if (app->filtered_config_count > 0) {
-            if (app->selection.config_index < app->filtered_config_count - 1) {
-                app->selection.config_index++;
-            } else {
-                app->selection.config_index = 0;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Config[%d] '%s'",
-                     app->selection.config_index,
-                     app->filtered_config[app->selection.config_index].key);
         }
     } else if (app->current_tab == TAB_RULES) {
         if (app->filtered_rules_count > 0) {
@@ -292,19 +272,6 @@ void move_selection_down(AppData *app) {
             log_info("USER: Selection DOWN -> Named window[%d] '%s'",
                      app->selection.names_index,
                      app->filtered_names[app->selection.names_index].custom_name);
-        }
-    } else if (app->current_tab == TAB_CONFIG) {
-        if (app->filtered_config_count > 0) {
-            if (app->selection.config_index > 0) {
-                app->selection.config_index--;
-            } else {
-                app->selection.config_index = app->filtered_config_count - 1;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Config[%d] '%s'",
-                     app->selection.config_index,
-                     app->filtered_config[app->selection.config_index].key);
         }
     } else if (app->current_tab == TAB_RULES) {
         if (app->filtered_rules_count > 0) {
@@ -438,8 +405,6 @@ int get_scroll_offset(AppData *app) {
             return app->selection.harpoon_scroll_offset;
         case TAB_NAMES:
             return app->selection.names_scroll_offset;
-        case TAB_CONFIG:
-            return app->selection.config_scroll_offset;
         case TAB_RULES:
             return app->selection.rules_scroll_offset;
         default:
@@ -465,9 +430,6 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_NAMES:
             app->selection.names_scroll_offset = offset;
-            break;
-        case TAB_CONFIG:
-            app->selection.config_scroll_offset = offset;
             break;
         case TAB_RULES:
             app->selection.rules_scroll_offset = offset;
@@ -500,9 +462,6 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_NAMES:
             total_count = app->filtered_names_count;
-            break;
-        case TAB_CONFIG:
-            total_count = app->filtered_config_count;
             break;
         case TAB_RULES:
             total_count = app->filtered_rules_count;
@@ -584,11 +543,6 @@ void validate_selection(AppData *app) {
     if (app->current_tab == TAB_NAMES && app->filtered_names_count > 0 &&
         app->selection.names_index >= app->filtered_names_count) {
         app->selection.names_index = app->filtered_names_count - 1;
-    }
-
-    if (app->current_tab == TAB_CONFIG && app->filtered_config_count > 0 &&
-        app->selection.config_index >= app->filtered_config_count) {
-        app->selection.config_index = app->filtered_config_count - 1;
     }
 
     if (app->current_tab == TAB_RULES && app->filtered_rules_count > 0 &&

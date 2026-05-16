@@ -1,19 +1,25 @@
 #include "overlay_config.h"
 
+#include "config_provider.h"
 #include "display.h"
-#include "filter.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "selection.h"
 
 void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    if (app->current_tab != TAB_CONFIG || app->filtered_config_count == 0) {
+    if (app->current_tab != TAB_CONFIG) {
         GtkWidget *error_label = gtk_label_new("No config option selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
     }
 
-    ConfigEntry *entry = &app->filtered_config[app->selection.config_index];
+    ConfigEntry *entry = config_selected_entry(app);
+    if (!entry) {
+        GtkWidget *error_label = gtk_label_new("No config option selected");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
     gtk_widget_set_margin_right(vbox, 20);
@@ -75,10 +81,13 @@ gboolean handle_config_edit_key_press(AppData *app, GdkEventKey *event) {
         log_error("Failed to set config '%s': %s", config_key, err_buf);
     }
 
+    char selected_key[CONFIG_KEY_LEN];
+    g_strlcpy(selected_key, config_key, sizeof(selected_key));
     hide_overlay(app);
 
     const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
     filter_config(app, current_filter);
+    config_select_key(app, selected_key);
     validate_selection(app);
     update_scroll_position(app);
     update_display(app);
