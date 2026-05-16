@@ -358,10 +358,11 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_RUN,
         TAB_PROC,
         TAB_SESSIONS,
+        TAB_PROFILES,
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 14; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("forward tab switch handled", handled == TRUE);
 
@@ -379,6 +380,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
+        TAB_PROFILES,
         TAB_SESSIONS,
         TAB_PROC,
         TAB_RUN,
@@ -394,7 +396,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TAB_WINDOWS
     };
 
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 14; i++) {
         gboolean handled = handle_tab_switching(&event, &app);
         ASSERT_TRUE("backward tab switch handled", handled == TRUE);
 

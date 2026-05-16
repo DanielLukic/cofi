@@ -7,6 +7,7 @@
 #include "run_provider.h"
 #include "sinks_provider.h"
 #include "proc_provider.h"
+#include "profiles_provider.h"
 #include "sessions_provider.h"
 
 #include <gdk/gdkx.h>
@@ -359,6 +360,7 @@ int run_cofi(int argc, char *argv[]) {
     run_provider_register();
     proc_provider_register();
     sessions_provider_register();
+    profiles_provider_register();
     init_x11_connection(&app);
 
     load_config(&app.config);

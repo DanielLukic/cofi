@@ -218,6 +218,14 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
+        .primary = "profiles",
+        .aliases = {"chrome", "browser", "browsers", NULL},
+        .handler = cmd_profiles,
+        .description = "Switch to browser profiles tab",
+        .help_format = "profiles, chrome [PROFILE]",
+        .keeps_open_on_hotkey_auto = 1
+    },
+    {
         .primary = "run",
         .aliases = {"r", NULL},
         .handler = cmd_run,

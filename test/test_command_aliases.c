@@ -348,6 +348,10 @@ static void test_commands_without_compact_form(void) {
     check("zellij alias with session", "zellij work api", "zellij", "work api");
     check("zj alias with session", "zj work api", "zj", "work api");
     check("sessions alias with session", "sessions work api", "sessions", "work api");
+    check("profiles bare", "profiles", "profiles", "");
+    check("profiles with query", "profiles gs", "profiles", "gs");
+    check("chrome alias with query", "chrome gs", "chrome", "gs");
+    check("browser alias with query", "browser dario", "browser", "dario");
 }
 
 static void test_multi_digit_args(void) {

@@ -217,6 +217,31 @@ gboolean cmd_sessions(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
+gboolean cmd_profiles(AppData *app, WindowInfo *window __attribute__((unused)),
+                      const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("profiles");
+    if (!provider) {
+        show_error_in_display(app, "Profiles provider not available.");
+        return FALSE;
+    }
+
+    if (args && args[0] != '\0') {
+        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
+        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            show_error_in_display(app, "No matching browser profile.");
+        }
+        return FALSE;
+    }
+
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)provider->tab_mode);
+    return FALSE;
+}
+
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
                  const char *args) {
     exit_command_mode(app);

@@ -59,6 +59,7 @@ void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 static int g_enter_modal_calls_cmd = 0;
 static CofiTabProvider g_stub_run_provider;
 static CofiTabProvider g_stub_calc_provider;
+static CofiTabProvider g_stub_profiles_provider;
 static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
@@ -75,6 +76,7 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
 }
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     if (command && strcmp(command, "calc") == 0) return &g_stub_calc_provider;
+    if (command && strcmp(command, "profiles") == 0) return &g_stub_profiles_provider;
     return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
@@ -477,6 +479,35 @@ static void test_cmd_calc_behavior(void) {
     ASSERT_TRUE("calc without arg does not dispatch args", g_cmd_args_calls == 0);
 }
 
+static void test_cmd_profiles_behavior(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    memset(&g_stub_profiles_provider, 0, sizeof(g_stub_profiles_provider));
+    g_stub_profiles_provider.tab_mode = TAB_PROFILES;
+
+    const CommandDef *cmd = find_command("profiles");
+    ASSERT_TRUE("profiles command exists", cmd != NULL);
+    if (!cmd) return;
+
+    g_cmd_args_calls = 0;
+    hide_window_calls = 0;
+    g_cmd_args_result = COFI_HANDLED_HIDE;
+    gboolean result = cmd->handler(&app, NULL, "gs");
+    ASSERT_TRUE("profiles with arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("profiles with arg dispatches to provider", g_cmd_args_calls == 1);
+    ASSERT_TRUE("profiles with arg passes query", strcmp(g_cmd_args_last, "gs") == 0);
+    ASSERT_TRUE("profiles with arg hides after provider hide status", hide_window_calls == 1);
+
+    g_cmd_args_calls = 0;
+    hide_window_calls = 0;
+    app.current_tab = TAB_WINDOWS;
+    result = cmd->handler(&app, NULL, "");
+    ASSERT_TRUE("profiles without arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("profiles without arg does not dispatch args", g_cmd_args_calls == 0);
+    ASSERT_TRUE("profiles without arg surfaces tab", app.current_tab == TAB_PROFILES);
+    ASSERT_TRUE("profiles without arg does not hide", hide_window_calls == 0);
+}
+
 int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
@@ -489,6 +520,7 @@ int main(void) {
     test_ui_handler_behavior();
     test_cmd_run_behavior();
     test_cmd_calc_behavior();
+    test_cmd_profiles_behavior();
 
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);
