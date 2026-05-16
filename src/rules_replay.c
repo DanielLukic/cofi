@@ -2,15 +2,11 @@
 
 #include "command_api.h"
 #include "log.h"
+#include "rules_provider.h"
 #include "window_matcher.h"
 
 static int rule_index_from_filtered(AppData *app) {
-    if (!app || app->selection.rules_index < 0 ||
-        app->selection.rules_index >= app->filtered_rules_count) {
-        return -1;
-    }
-
-    return app->filtered_rule_indices[app->selection.rules_index];
+    return rules_selected_config_index(app);
 }
 
 int replay_rule_against_open_windows(AppData *app, const Rule *rule) {

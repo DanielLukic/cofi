@@ -11,7 +11,6 @@ void init_selection(AppData *app) {
     app->selection.window_index = 0;
     app->selection.workspace_index = 0;
     app->selection.harpoon_index = 0;
-    app->selection.rules_index = 0;
     app->selection.selected_window_id = 0;
     app->selection.selected_workspace_id = -1;
     app->selection.provider_index = 0;
@@ -21,7 +20,6 @@ void init_selection(AppData *app) {
     app->selection.window_scroll_offset = 0;
     app->selection.workspace_scroll_offset = 0;
     app->selection.harpoon_scroll_offset = 0;
-    app->selection.rules_scroll_offset = 0;
     app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
 
@@ -49,9 +47,6 @@ void reset_selection(AppData *app) {
     } else if (app->current_tab == TAB_HARPOON) {
         app->selection.harpoon_index = 0;
         app->selection.harpoon_scroll_offset = 0;
-    } else if (app->current_tab == TAB_RULES) {
-        app->selection.rules_index = 0;
-        app->selection.rules_scroll_offset = 0;
     } else {
         const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
         if (provider) {
@@ -101,8 +96,6 @@ int get_selected_index(AppData *app) {
         return app->selection.workspace_index;
     } else if (app->current_tab == TAB_HARPOON) {
         return app->selection.harpoon_index;
-    } else if (app->current_tab == TAB_RULES) {
-        return app->selection.rules_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         return app->selection.provider_index;
     }
@@ -157,19 +150,6 @@ void move_selection_up(AppData *app) {
             update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection UP -> Harpoon slot %d", app->selection.harpoon_index);
-        }
-    } else if (app->current_tab == TAB_RULES) {
-        if (app->filtered_rules_count > 0) {
-            if (app->selection.rules_index < app->filtered_rules_count - 1) {
-                app->selection.rules_index++;
-            } else {
-                app->selection.rules_index = 0;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Rule[%d] '%s'",
-                     app->selection.rules_index,
-                     app->filtered_rules[app->selection.rules_index].pattern);
         }
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -239,19 +219,6 @@ void move_selection_down(AppData *app) {
             update_scroll_position(app);
             update_display(app);
             log_info("USER: Selection DOWN -> Harpoon slot %d", app->selection.harpoon_index);
-        }
-    } else if (app->current_tab == TAB_RULES) {
-        if (app->filtered_rules_count > 0) {
-            if (app->selection.rules_index > 0) {
-                app->selection.rules_index--;
-            } else {
-                app->selection.rules_index = app->filtered_rules_count - 1;
-            }
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Rule[%d] '%s'",
-                     app->selection.rules_index,
-                     app->filtered_rules[app->selection.rules_index].pattern);
         }
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -370,8 +337,6 @@ int get_scroll_offset(AppData *app) {
             return app->selection.workspace_scroll_offset;
         case TAB_HARPOON:
             return app->selection.harpoon_scroll_offset;
-        case TAB_RULES:
-            return app->selection.rules_scroll_offset;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
                 return app->selection.provider_scroll_offset;
@@ -392,9 +357,6 @@ void set_scroll_offset(AppData *app, int offset) {
             break;
         case TAB_HARPOON:
             app->selection.harpoon_scroll_offset = offset;
-            break;
-        case TAB_RULES:
-            app->selection.rules_scroll_offset = offset;
             break;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
@@ -421,9 +383,6 @@ void update_scroll_position(AppData *app) {
             break;
         case TAB_HARPOON:
             total_count = app->filtered_harpoon_count;
-            break;
-        case TAB_RULES:
-            total_count = app->filtered_rules_count;
             break;
         default: {
             const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -497,11 +456,6 @@ void validate_selection(AppData *app) {
     if (app->current_tab == TAB_HARPOON && app->filtered_harpoon_count > 0 &&
         app->selection.harpoon_index >= app->filtered_harpoon_count) {
         app->selection.harpoon_index = app->filtered_harpoon_count - 1;
-    }
-
-    if (app->current_tab == TAB_RULES && app->filtered_rules_count > 0 &&
-        app->selection.rules_index >= app->filtered_rules_count) {
-        app->selection.rules_index = app->filtered_rules_count - 1;
     }
 
     const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);

@@ -350,6 +350,25 @@ void regrab_hotkeys(AppData *app) { (void)app; g_regrab_hotkeys_calls++; }
 int replay_all_rules_against_open_windows(AppData *app) { (void)app; g_replay_all_rules_calls++; return 0; }
 gboolean replay_selected_filtered_rule(AppData *app) { (void)app; g_replay_selected_rule_calls++; return TRUE; }
 
+Rule *rules_selected_rule(AppData *app) {
+    if (!app || app->filtered_rules_count <= 0) return NULL;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_rules_count) idx = app->filtered_rules_count - 1;
+    app->selection.provider_index = idx;
+    return &app->filtered_rules[idx];
+}
+
+int rules_selected_config_index(AppData *app) {
+    if (!rules_selected_rule(app)) return -1;
+    return app->filtered_rule_indices[app->selection.provider_index];
+}
+
+void rules_select_config_index(AppData *app, int config_index) {
+    (void)app;
+    (void)config_index;
+}
+
 void filter_hotkeys(AppData *app, const char *filter) {
     (void)filter;
     app->filtered_hotkeys_count = app->hotkey_config.count;
@@ -790,7 +809,7 @@ static void test_rules_tab_shortcuts_crud_and_replay(void) {
 
     app.current_tab = TAB_RULES;
     app.filtered_rules_count = 2;
-    app.selection.rules_index = 1;
+    app.selection.provider_index = 1;
     app.filtered_rule_indices[0] = 3;
     app.filtered_rule_indices[1] = 7;
 

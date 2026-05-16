@@ -188,8 +188,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_workspaces(app, text);
     } else if (app->current_tab == TAB_HARPOON) {
         filter_harpoon(app, text);
-    } else if (app->current_tab == TAB_RULES) {
-        filter_rules(app, text);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {

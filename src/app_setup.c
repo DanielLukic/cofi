@@ -37,6 +37,7 @@
 #include "log.h"
 #include "names_provider.h"
 #include "overlay_manager.h"
+#include "rules_provider.h"
 #include "selection.h"
 #include "version.h"
 #include "window_highlight.h"
@@ -357,6 +358,7 @@ int run_cofi(int argc, char *argv[]) {
     config_provider_register();
     hotkeys_provider_register();
     names_provider_register();
+    rules_provider_register();
     sinks_provider_register();
     run_provider_register();
     proc_provider_register();

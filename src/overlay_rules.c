@@ -6,6 +6,7 @@
 #include "display.h"
 #include "log.h"
 #include "overlay_manager.h"
+#include "rules_provider.h"
 #include "selection.h"
 #include "tab_switching.h"
 
@@ -145,14 +146,13 @@ void create_rule_add_overlay_content(GtkWidget *parent_container, AppData *app) 
 }
 
 void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    if (app->current_tab != TAB_RULES || app->filtered_rules_count <= 0) {
+    int config_index = rules_selected_config_index(app);
+    if (app->current_tab != TAB_RULES || config_index < 0) {
         GtkWidget *error_label = gtk_label_new("No rule selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
     }
 
-    int filtered_index = app->selection.rules_index;
-    int config_index = app->filtered_rule_indices[filtered_index];
     Rule *rule = &app->rules_config.rules[config_index];
 
     create_rule_overlay_form(parent_container, "Edit Rule",

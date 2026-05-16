@@ -29,6 +29,15 @@ gboolean execute_command_background(const char *command, AppData *app, WindowInf
     return TRUE;
 }
 
+int rules_selected_config_index(AppData *app) {
+    if (!app || app->filtered_rules_count <= 0) return -1;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_rules_count) idx = app->filtered_rules_count - 1;
+    app->selection.provider_index = idx;
+    return app->filtered_rule_indices[idx];
+}
+
 static void reset_exec_log(void) {
     g_exec_calls = 0;
     memset(g_exec_log, 0, sizeof(g_exec_log));
@@ -52,7 +61,7 @@ static void test_replay_selected_rule_matches_all_windows(void) {
 
     app.filtered_rules_count = 1;
     app.filtered_rule_indices[0] = 0;
-    app.selection.rules_index = 0;
+    app.selection.provider_index = 0;
 
     reset_exec_log();
     gboolean handled = replay_selected_filtered_rule(&app);

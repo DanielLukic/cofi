@@ -63,13 +63,32 @@ void filter_rules(AppData *app, const char *filter) {
 
 void validate_selection(AppData *app) {
     if (app->current_tab == TAB_RULES && app->filtered_rules_count > 0 &&
-        app->selection.rules_index >= app->filtered_rules_count) {
-        app->selection.rules_index = app->filtered_rules_count - 1;
+        app->selection.provider_index >= app->filtered_rules_count) {
+        app->selection.provider_index = app->filtered_rules_count - 1;
     }
 }
 
 void update_scroll_position(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
+
+Rule *rules_selected_rule(AppData *app) {
+    if (!app || app->filtered_rules_count <= 0) return NULL;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_rules_count) idx = app->filtered_rules_count - 1;
+    app->selection.provider_index = idx;
+    return &app->filtered_rules[idx];
+}
+
+int rules_selected_config_index(AppData *app) {
+    if (!rules_selected_rule(app)) return -1;
+    return app->filtered_rule_indices[app->selection.provider_index];
+}
+
+void rules_select_config_index(AppData *app, int config_index) {
+    (void)app;
+    (void)config_index;
+}
 
 static GdkEventKey enter_event(void) {
     GdkEventKey event;
@@ -143,7 +162,7 @@ static void test_edit_rule_updates_entry(void) {
     strcpy(app.rules_config.rules[0].commands, "sb on");
     app.filtered_rules_count = 1;
     app.filtered_rule_indices[0] = 0;
-    app.selection.rules_index = 0;
+    app.selection.provider_index = 0;
 
     create_rule_edit_overlay_content(app.dialog_container, &app);
     GtkWidget *commands = g_object_get_data(G_OBJECT(app.dialog_container), "rule_commands_entry");
@@ -171,7 +190,7 @@ static void test_delete_rule_clamps_selection(void) {
     app.filtered_rules_count = 2;
     app.filtered_rule_indices[0] = 0;
     app.filtered_rule_indices[1] = 1;
-    app.selection.rules_index = 1;
+    app.selection.provider_index = 1;
     app.rules_delete.rule_index = 1;
 
     create_rule_delete_overlay_content(app.dialog_container, &app);
@@ -181,7 +200,7 @@ static void test_delete_rule_clamps_selection(void) {
 
     ASSERT_TRUE("rule delete handled", handled == TRUE);
     ASSERT_TRUE("rule delete reduced count", app.rules_config.count == 1);
-    ASSERT_TRUE("rule delete clamped selection", app.selection.rules_index == 0);
+    ASSERT_TRUE("rule delete clamped selection", app.selection.provider_index == 0);
     ASSERT_TRUE("rule delete persisted", g_save_rules_calls == 1);
 }
 

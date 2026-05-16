@@ -472,48 +472,6 @@ static void format_harpoon_display(AppData *app, GString *text,
         "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
 }
 
-static void render_rules_item(gpointer context, gint index,
-                              gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    Rule *rule = &app->filtered_rules[index];
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-
-    char pattern_col[41], commands_col[65];
-    fit_column(rule->pattern, 40, pattern_col);
-    fit_column(rule->commands, 64, commands_col);
-
-    g_string_append(text, pattern_col);
-    g_string_append(text, " ");
-    g_string_append(text, commands_col);
-    g_string_append(text, "\n");
-}
-
-static void format_rules_display(AppData *app, GString *text, gint selected_idx) {
-    if (app->filtered_rules_count == 0) {
-        g_string_append(text, "No rules found\n\n");
-        g_string_append(text,
-            "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->filtered_rules_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_rules_item;
-
-    render_display_pipeline(&request, text);
-    g_string_append(text, "\n");
-    g_string_append(text,
-        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all\n");
-}
-
 static void format_provider_display(AppData *app, GString *text, gint selected_idx,
                                      int tab_mode) {
     const CofiTabProvider *p = cofi_get_provider_for_tab(tab_mode);
@@ -623,9 +581,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_HARPOON:
                 format_harpoon_display(app, text, selected_idx);
-                break;
-            case TAB_RULES:
-                format_rules_display(app, text, selected_idx);
                 break;
             default:
                 break;

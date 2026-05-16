@@ -90,6 +90,7 @@ void filter_apps(AppData *app, const char *query);
 void filter_names(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
+void filter_rules(AppData *app, const char *filter);
 void reset_selection(AppData *app);
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
@@ -320,6 +321,11 @@ static void mock_names_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
+static void mock_rules_query_changed(AppData *app, const char *query) {
+    filter_rules(app, query);
+    reset_selection(app);
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == TAB_APPS && target_tab != TAB_APPS)
         app->apps_mode = APPS_MODE_DEFAULT;
@@ -424,6 +430,21 @@ void filter_rules(AppData *app, const char *filter) {
     (void)app;
     g_filter_rules_calls++;
     strncpy(g_last_filter_rules, filter ? filter : "", sizeof(g_last_filter_rules) - 1);
+}
+
+Rule *rules_selected_rule(AppData *app) {
+    if (!app || app->filtered_rules_count <= 0) return NULL;
+    return &app->filtered_rules[0];
+}
+
+int rules_selected_config_index(AppData *app) {
+    (void)app;
+    return 0;
+}
+
+void rules_select_config_index(AppData *app, int config_index) {
+    (void)app;
+    (void)config_index;
 }
 void filter_apps(AppData *app, const char *query) {
     (void)app;
@@ -910,6 +931,11 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         names_provider.tab_mode = TAB_NAMES;
         names_provider.on_query_changed = mock_names_query_changed;
 
+        CofiTabProvider rules_provider;
+        memset(&rules_provider, 0, sizeof(rules_provider));
+        rules_provider.tab_mode = TAB_RULES;
+        rules_provider.on_query_changed = mock_rules_query_changed;
+
         if (tabs[i] == TAB_APPS) {
             g_provider_for_tab = &apps_provider;
         } else if (tabs[i] == TAB_NAMES) {
@@ -918,6 +944,8 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
             g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TAB_HOTKEYS) {
             g_provider_for_tab = &hotkeys_provider;
+        } else if (tabs[i] == TAB_RULES) {
+            g_provider_for_tab = &rules_provider;
         } else {
             g_provider_for_tab = NULL;
         }

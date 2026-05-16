@@ -222,6 +222,9 @@ int save_hotkey_config(const HotkeyConfig *config) { (void)config; return 0; }
 void regrab_hotkeys(AppData *app) { (void)app; }
 int replay_all_rules_against_open_windows(AppData *app) { (void)app; return 0; }
 gboolean replay_selected_filtered_rule(AppData *app) { (void)app; return TRUE; }
+Rule *rules_selected_rule(AppData *app) { (void)app; return NULL; }
+int rules_selected_config_index(AppData *app) { (void)app; return -1; }
+void rules_select_config_index(AppData *app, int config_index) { (void)app; (void)config_index; }
 void filter_hotkeys(AppData *app, const char *filter) { (void)app; (void)filter; }
 HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
     (void)app;

@@ -77,9 +77,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_HARPOON) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
         filter_harpoon(app, "");
-    } else if (target_tab == TAB_RULES) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter rules...");
-        filter_rules(app, "");
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)

@@ -15,6 +15,7 @@
 #include "named_window_config.h"
 #include "overlay_manager.h"
 #include "rules_replay.h"
+#include "rules_provider.h"
 #include "sessions.h"
 #include "sessions_parse.h"
 
@@ -142,20 +143,6 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-static gboolean clamp_rules_selection(AppData *app) {
-    if (app->filtered_rules_count <= 0) {
-        return FALSE;
-    }
-
-    if (app->selection.rules_index < 0) {
-        app->selection.rules_index = 0;
-    }
-    if (app->selection.rules_index >= app->filtered_rules_count) {
-        app->selection.rules_index = app->filtered_rules_count - 1;
-    }
-    return TRUE;
-}
-
 gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
     if (app->current_tab != TAB_HOTKEYS) {
         return FALSE;
@@ -235,7 +222,7 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
 
     if ((event->state & GDK_CONTROL_MASK) &&
         (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E)) {
-        if (!clamp_rules_selection(app)) {
+        if (!rules_selected_rule(app)) {
             return FALSE;
         }
         show_overlay(app, OVERLAY_RULE_EDIT, NULL);
@@ -244,11 +231,12 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
 
     if ((event->state & GDK_CONTROL_MASK) &&
         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D)) {
-        if (!clamp_rules_selection(app)) {
+        int rule_index = rules_selected_config_index(app);
+        if (rule_index < 0) {
             return FALSE;
         }
         app->rules_delete.pending_delete = TRUE;
-        app->rules_delete.rule_index = app->filtered_rule_indices[app->selection.rules_index];
+        app->rules_delete.rule_index = rule_index;
         show_overlay(app, OVERLAY_RULE_DELETE, NULL);
         return TRUE;
     }
@@ -262,7 +250,7 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
 
     if ((event->state & GDK_CONTROL_MASK) &&
         (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
-        if (!clamp_rules_selection(app)) {
+        if (!rules_selected_rule(app)) {
             return FALSE;
         }
         replay_selected_filtered_rule(app);
