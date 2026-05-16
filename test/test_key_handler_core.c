@@ -87,6 +87,7 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 void filter_apps(AppData *app, const char *query);
+void filter_names(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void reset_selection(AppData *app);
@@ -314,6 +315,11 @@ static void mock_config_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
+static void mock_names_query_changed(AppData *app, const char *query) {
+    filter_names(app, query);
+    reset_selection(app);
+}
+
 void switch_to_tab(AppData *app, TabMode target_tab) {
     if (app->current_tab == TAB_APPS && target_tab != TAB_APPS)
         app->apps_mode = APPS_MODE_DEFAULT;
@@ -372,6 +378,11 @@ void filter_names(AppData *app, const char *filter) {
     g_filter_names_calls++;
     strncpy(g_last_filter_names, filter ? filter : "", sizeof(g_last_filter_names) - 1);
 }
+
+NamedWindow *names_selected_entry(AppData *app) { (void)app; return NULL; }
+int names_selected_manager_index(AppData *app) { (void)app; return -1; }
+void names_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
+
 void filter_config(AppData *app, const char *filter) {
     (void)app;
     g_filter_config_calls++;
@@ -894,8 +905,15 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         config_provider.tab_mode = TAB_CONFIG;
         config_provider.on_query_changed = mock_config_query_changed;
 
+        CofiTabProvider names_provider;
+        memset(&names_provider, 0, sizeof(names_provider));
+        names_provider.tab_mode = TAB_NAMES;
+        names_provider.on_query_changed = mock_names_query_changed;
+
         if (tabs[i] == TAB_APPS) {
             g_provider_for_tab = &apps_provider;
+        } else if (tabs[i] == TAB_NAMES) {
+            g_provider_for_tab = &names_provider;
         } else if (tabs[i] == TAB_CONFIG) {
             g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TAB_HOTKEYS) {

@@ -120,9 +120,9 @@ void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 
 void show_name_edit_overlay(AppData *app) {
     g_show_name_edit_calls++;
-    g_last_name_edit_index = app ? app->selection.names_index : -1;
-    if (app && app->selection.names_index >= 0 && app->selection.names_index < app->filtered_names_count) {
-        g_last_name_edit_named = app->filtered_names[app->selection.names_index];
+    g_last_name_edit_index = app ? app->selection.provider_index : -1;
+    if (app && app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_names_count) {
+        g_last_name_edit_named = app->filtered_names[app->selection.provider_index];
     } else {
         memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
     }
@@ -174,6 +174,31 @@ void filter_names(AppData *app, const char *filter) {
     for (int i = 0; i < app->names.count; i++) {
         app->filtered_names[i] = app->names.entries[i];
     }
+}
+
+NamedWindow *names_selected_entry(AppData *app) {
+    if (!app || app->filtered_names_count <= 0) return NULL;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_names_count) idx = app->filtered_names_count - 1;
+    app->selection.provider_index = idx;
+    return &app->filtered_names[idx];
+}
+
+int names_selected_manager_index(AppData *app) {
+    NamedWindow *named = names_selected_entry(app);
+    if (!app || !named) return -1;
+    int idx = -1;
+    if (named->id != 0) {
+        idx = find_named_window_index(&app->names, named->id);
+    }
+    if (idx < 0) idx = find_named_window_by_name(&app->names, named->custom_name);
+    return idx;
+}
+
+void names_select_custom_name(AppData *app, const char *custom_name) {
+    (void)app;
+    (void)custom_name;
 }
 
 void show_harpoon_delete_overlay(AppData *app, int slot) {
@@ -485,7 +510,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
 
     app.current_tab = TAB_NAMES;
     app.filtered_names_count = 2;
-    app.selection.names_index = 1;
+    app.selection.provider_index = 1;
     strcpy(app.filtered_names[0].custom_name, "alpha");
     strcpy(app.filtered_names[1].custom_name, "beta");
     app.filtered_names[1].id = (Window)0xBEEF;
@@ -511,7 +536,7 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     strcpy(app.names.entries[0].custom_name, "alpha");
     strcpy(app.names.entries[1].custom_name, "beta");
     app.filtered_names_count = 1;
-    app.selection.names_index = 0;
+    app.selection.provider_index = 0;
     strcpy(app.filtered_names[0].custom_name, "beta");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
@@ -534,7 +559,7 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     app.current_tab = TAB_NAMES;
     app.names.count = 0;
     app.filtered_names_count = 1;
-    app.selection.names_index = 0;
+    app.selection.provider_index = 0;
     app.filtered_names[0].id = (Window)0xDEAD;
     strcpy(app.filtered_names[0].custom_name, "orphan");
 

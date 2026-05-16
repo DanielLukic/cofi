@@ -6,6 +6,7 @@
 #include "filter.h"
 #include "filter_names.h"
 #include "log.h"
+#include "names_provider.h"
 #include "named_window.h"
 #include "named_window_config.h"
 #include "overlay_manager.h"
@@ -73,13 +74,13 @@ void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *ap
 }
 
 void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    if (app->current_tab != TAB_NAMES || app->filtered_names_count == 0) {
+    NamedWindow *selected = names_selected_entry(app);
+    if (app->current_tab != TAB_NAMES || !selected) {
         GtkWidget *error_label = gtk_label_new("No named window selected for editing");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
     }
 
-    NamedWindow *selected = &app->filtered_names[app->selection.names_index];
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
     gtk_widget_set_margin_right(vbox, 20);
@@ -105,7 +106,7 @@ void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app)
 
     g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
     g_object_set_data(G_OBJECT(parent_container), "named_window_index",
-                      GINT_TO_POINTER(app->selection.names_index));
+                      GINT_TO_POINTER(app->selection.provider_index));
 
     GtkWidget *inst_label = gtk_label_new("Press Enter to save changes, Escape to cancel");
     gtk_widget_set_opacity(inst_label, 0.7);
@@ -265,8 +266,8 @@ gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
 
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
         filter_names(app, current_filter);
-        if (app->selection.names_index >= app->filtered_names_count && app->filtered_names_count > 0) {
-            app->selection.names_index = app->filtered_names_count - 1;
+        if (app->selection.provider_index >= app->filtered_names_count && app->filtered_names_count > 0) {
+            app->selection.provider_index = app->filtered_names_count - 1;
         }
         clear_name_delete_state(app);
         hide_overlay(app);
@@ -277,8 +278,8 @@ gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
         filter_names(app, current_filter);
-        if (app->selection.names_index >= app->filtered_names_count && app->filtered_names_count > 0) {
-            app->selection.names_index = app->filtered_names_count - 1;
+        if (app->selection.provider_index >= app->filtered_names_count && app->filtered_names_count > 0) {
+            app->selection.provider_index = app->filtered_names_count - 1;
         }
         clear_name_delete_state(app);
         hide_overlay(app);

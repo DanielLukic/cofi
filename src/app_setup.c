@@ -35,6 +35,7 @@
 #include "hotkeys.h"
 #include "key_handler.h"
 #include "log.h"
+#include "names_provider.h"
 #include "overlay_manager.h"
 #include "selection.h"
 #include "version.h"
@@ -355,6 +356,7 @@ int run_cofi(int argc, char *argv[]) {
     calc_provider_register();
     config_provider_register();
     hotkeys_provider_register();
+    names_provider_register();
     sinks_provider_register();
     run_provider_register();
     proc_provider_register();

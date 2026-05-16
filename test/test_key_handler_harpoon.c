@@ -202,6 +202,9 @@ int find_named_window_by_name(const NamedWindowManager *manager, const char *cus
 void delete_custom_name(NamedWindowManager *manager, int index) { (void)manager; (void)index; }
 void save_named_windows(const NamedWindowManager *manager) { (void)manager; }
 void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
+NamedWindow *names_selected_entry(AppData *app) { (void)app; return NULL; }
+int names_selected_manager_index(AppData *app) { (void)app; return -1; }
+void names_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }

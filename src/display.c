@@ -472,59 +472,6 @@ static void format_harpoon_display(AppData *app, GString *text,
         "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
 }
 
-static void render_names_item(gpointer context, gint index,
-                              gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    NamedWindow *named = &app->filtered_names[index];
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-
-    char custom_name_col[21], original_title_col[46], class_col[19];
-    char window_id[12];
-
-    fit_column(named->custom_name, 20, custom_name_col);
-    fit_column(named->original_title, 45, original_title_col);
-    fit_column(named->class_name, 18, class_col);
-
-    if (named->assigned) {
-        snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
-    } else {
-        strcpy(window_id, "* NONE *");
-    }
-
-    g_string_append(text, custom_name_col);
-    g_string_append(text, " ");
-    g_string_append(text, original_title_col);
-    g_string_append(text, " ");
-    g_string_append(text, class_col);
-    g_string_append(text, " ");
-    g_string_append(text, window_id);
-    g_string_append(text, "\n");
-}
-
-static void format_names_display(AppData *app, GString *text, gint selected_idx) {
-    if (app->filtered_names_count == 0) {
-        g_string_append(text, "No named windows found\n\n");
-        g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->filtered_names_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_names_item;
-
-    render_display_pipeline(&request, text);
-    g_string_append(text, "\n");
-    g_string_append(text, "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name\n");
-}
-
 static void render_rules_item(gpointer context, gint index,
                               gint selected_idx, GString *text) {
     AppData *app = (AppData *)context;
@@ -676,9 +623,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_HARPOON:
                 format_harpoon_display(app, text, selected_idx);
-                break;
-            case TAB_NAMES:
-                format_names_display(app, text, selected_idx);
                 break;
             case TAB_RULES:
                 format_rules_display(app, text, selected_idx);

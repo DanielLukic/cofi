@@ -10,6 +10,7 @@
 #include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "log.h"
+#include "names_provider.h"
 #include "named_window.h"
 #include "named_window_config.h"
 #include "overlay_manager.h"
@@ -35,27 +36,13 @@ static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij)
     g_free(session_name);
 }
 
-static gboolean clamp_names_selection(AppData *app) {
-    if (app->filtered_names_count <= 0) {
-        return FALSE;
-    }
-
-    if (app->selection.names_index < 0) {
-        app->selection.names_index = 0;
-    }
-    if (app->selection.names_index >= app->filtered_names_count) {
-        app->selection.names_index = app->filtered_names_count - 1;
-    }
-    return TRUE;
-}
-
 gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
     if (app->current_tab != TAB_NAMES) {
         return FALSE;
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (!clamp_names_selection(app)) {
+        if (!names_selected_entry(app)) {
             return FALSE;
         }
         show_name_edit_overlay(app);
@@ -63,23 +50,17 @@ gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
-        if (!clamp_names_selection(app)) {
+        NamedWindow *named = names_selected_entry(app);
+        if (!named) {
             log_debug("Names Ctrl+D ignored: no rows to delete");
             return FALSE;
         }
 
-        NamedWindow *named = &app->filtered_names[app->selection.names_index];
-        int manager_index = -1;
-        if (named->id != 0) {
-            manager_index = find_named_window_index(&app->names, named->id);
-        }
-        if (manager_index < 0) {
-            manager_index = find_named_window_by_name(&app->names, named->custom_name);
-        }
+        int manager_index = names_selected_manager_index(app);
 
         log_info("Names Ctrl+D: showing delete confirm for '%s' (mgr_idx=%d, sel=%d/%d)",
                  named->custom_name, manager_index,
-                 app->selection.names_index, app->filtered_names_count);
+                 app->selection.provider_index, app->filtered_names_count);
         show_name_delete_overlay(app, named->custom_name, manager_index);
         return TRUE;
     }

@@ -163,6 +163,25 @@ void filter_names(AppData *app, const char *filter) {
     }
 }
 
+NamedWindow *names_selected_entry(AppData *app) {
+    if (!app || app->filtered_names_count <= 0) return NULL;
+    int idx = app->selection.provider_index;
+    if (idx < 0) idx = 0;
+    if (idx >= app->filtered_names_count) idx = app->filtered_names_count - 1;
+    app->selection.provider_index = idx;
+    return &app->filtered_names[idx];
+}
+
+int names_selected_manager_index(AppData *app) {
+    (void)app;
+    return -1;
+}
+
+void names_select_custom_name(AppData *app, const char *custom_name) {
+    (void)app;
+    (void)custom_name;
+}
+
 static void reset_captures(void) {
     g_hide_overlay_calls = 0;
     g_update_display_calls = 0;
@@ -246,7 +265,7 @@ static void test_name_delete_confirm_y_deletes_and_clamps_last_row(void) {
     app.name_delete.pending_delete = TRUE;
     app.name_delete.manager_index = 2;
     strcpy(app.name_delete.custom_name, "gamma");
-    app.selection.names_index = 2;
+    app.selection.provider_index = 2;
     gtk_entry_set_text(GTK_ENTRY(app.entry), "ga");
 
     reset_captures();
@@ -257,7 +276,7 @@ static void test_name_delete_confirm_y_deletes_and_clamps_last_row(void) {
     ASSERT_TRUE("Name delete Y handled", handled == TRUE);
     ASSERT_TRUE("Name delete Y removes target", app.names.count == 2 && strcmp(app.names.entries[1].custom_name, "beta") == 0);
     ASSERT_TRUE("Name delete Y persists + refilters", g_save_named_windows_calls == 1 && g_filter_names_calls == 1);
-    ASSERT_TRUE("Name delete Y clamps last-row selection", app.selection.names_index == 1);
+    ASSERT_TRUE("Name delete Y clamps last-row selection", app.selection.provider_index == 1);
     ASSERT_TRUE("Name delete Y clears pending state", app.name_delete.pending_delete == FALSE && app.name_delete.manager_index == -1);
     ASSERT_TRUE("Name delete Y hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
 }
