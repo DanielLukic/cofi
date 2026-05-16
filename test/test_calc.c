@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <locale.h>
 
 /* Stub log functions that calc.c calls */
 void log_debug(const char *fmt, ...) { (void)fmt; }
@@ -99,6 +100,34 @@ static void test_prepare_leading_whitespace_stripped(void) {
     ASSERT_STR("prepare strips leading whitespace before operator", out, "10+5");
 }
 
+static void test_prepare_strips_calc_prefix(void) {
+    CalcMode calc = {0};
+    char out[CALC_EXPR_LEN];
+    calc_prepare_expr(&calc, "=17+4", out, sizeof(out));
+    ASSERT_STR("prepare strips calc prefix", out, "17+4");
+}
+
+static void test_prepare_strips_spaced_calc_prefix(void) {
+    CalcMode calc = {0};
+    char out[CALC_EXPR_LEN];
+    calc_prepare_expr(&calc, "  = 17+4", out, sizeof(out));
+    ASSERT_STR("prepare strips spaced calc prefix", out, "17+4");
+}
+
+static void test_prepare_accepts_decimal_comma(void) {
+    CalcMode calc = {0};
+    char out[CALC_EXPR_LEN];
+    calc_prepare_expr(&calc, "1,3+2", out, sizeof(out));
+    ASSERT_STR("prepare normalizes decimal comma", out, "1.3+2");
+}
+
+static void test_prepare_preserves_function_argument_commas(void) {
+    CalcMode calc = {0};
+    char out[CALC_EXPR_LEN];
+    calc_prepare_expr(&calc, "pow(2,3)", out, sizeof(out));
+    ASSERT_STR("prepare preserves function argument comma", out, "pow(2,3)");
+}
+
 /* ---- calc_push / history ---- */
 
 static void test_push_newest_first(void) {
@@ -148,6 +177,64 @@ static void test_eval_basic_addition(void) {
     gboolean ok = calc_eval(&calc, "17+4", result);
     ASSERT_TRUE("eval 17+4 succeeds", ok);
     ASSERT_STR("eval 17+4 = 21", result, "21");
+}
+
+static void test_eval_decimal_dot_ignores_process_locale(void) {
+    const char *old_locale = setlocale(LC_NUMERIC, NULL);
+    char old_locale_buf[128] = {0};
+    if (old_locale) {
+        snprintf(old_locale_buf, sizeof(old_locale_buf), "%s", old_locale);
+    }
+
+    if (!setlocale(LC_NUMERIC, "de_DE.utf8")) {
+        ASSERT_TRUE("de_DE locale unavailable; decimal locale test skipped", TRUE);
+        return;
+    }
+
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "1.5+2.25", result);
+    ASSERT_TRUE("eval decimal dot succeeds under de_DE locale", ok);
+    ASSERT_STR("eval 1.5+2.25 = 3.75 under de_DE locale", result, "3.75");
+
+    setlocale(LC_NUMERIC, old_locale_buf[0] ? old_locale_buf : "C");
+}
+
+static void test_eval_decimal_comma_is_stable(void) {
+    const char *old_locale = setlocale(LC_NUMERIC, NULL);
+    char old_locale_buf[128] = {0};
+    if (old_locale) {
+        snprintf(old_locale_buf, sizeof(old_locale_buf), "%s", old_locale);
+    }
+
+    setlocale(LC_NUMERIC, "C");
+
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "1,3+2", result);
+    ASSERT_TRUE("eval decimal comma succeeds under C locale", ok);
+    ASSERT_STR("eval 1,3+2 = 3.3 under C locale", result, "3.3");
+    ASSERT_STR("history stores normalized decimal comma expression", calc.entries[0].expr, "1.3+2");
+
+    setlocale(LC_NUMERIC, old_locale_buf[0] ? old_locale_buf : "C");
+}
+
+static void test_eval_accepts_leading_calc_prefix(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "=17+4", result);
+    ASSERT_TRUE("eval =17+4 succeeds", ok);
+    ASSERT_STR("eval =17+4 = 21", result, "21");
+    ASSERT_STR("history stores prefix-stripped expression", calc.entries[0].expr, "17+4");
+}
+
+static void test_eval_operator_continuation_after_calc_prefix(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    calc_eval(&calc, "17+4", result);
+    calc_eval(&calc, "=*2", result);
+    ASSERT_STR("eval =*2 after 21 = 42", result, "42");
+    ASSERT_STR("history stores continuation expression", calc.entries[0].expr, "21*2");
 }
 
 static void test_eval_result_pushed_to_history(void) {
@@ -224,6 +311,10 @@ int main(void) {
     test_prepare_operator_with_last_result_prepends();
     test_prepare_operator_without_last_result_unchanged();
     test_prepare_leading_whitespace_stripped();
+    test_prepare_strips_calc_prefix();
+    test_prepare_strips_spaced_calc_prefix();
+    test_prepare_accepts_decimal_comma();
+    test_prepare_preserves_function_argument_commas();
 
     test_push_newest_first();
     test_push_updates_last_result_on_success();
@@ -231,6 +322,10 @@ int main(void) {
     test_push_respects_history_cap();
 
     test_eval_basic_addition();
+    test_eval_decimal_dot_ignores_process_locale();
+    test_eval_decimal_comma_is_stable();
+    test_eval_accepts_leading_calc_prefix();
+    test_eval_operator_continuation_after_calc_prefix();
     test_eval_result_pushed_to_history();
     test_eval_sets_last_result();
     test_eval_error_returns_false();

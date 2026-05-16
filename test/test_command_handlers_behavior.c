@@ -58,6 +58,7 @@ void switch_to_tab(AppData *app, TabMode target_tab) { (void)app; (void)target_t
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 static int g_enter_modal_calls_cmd = 0;
 static CofiTabProvider g_stub_run_provider;
+static CofiTabProvider g_stub_calc_provider;
 static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
@@ -72,7 +73,10 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     if (prefix == '!') return &g_stub_run_provider;
     return NULL;
 }
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) { (void)command; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
+    if (command && strcmp(command, "calc") == 0) return &g_stub_calc_provider;
+    return NULL;
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
     (void)provider_id; (void)app;
@@ -446,6 +450,33 @@ static void test_cmd_run_behavior(void) {
     ASSERT_TRUE("run without arg does not hide", hide_window_calls == 0);
 }
 
+static void test_cmd_calc_behavior(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    memset(&g_stub_calc_provider, 0, sizeof(g_stub_calc_provider));
+    g_stub_calc_provider.tab_mode = TAB_CALC;
+
+    const CommandDef *cmd = find_command("calc");
+    ASSERT_TRUE("calc command exists", cmd != NULL);
+    if (!cmd) return;
+
+    g_cmd_args_calls = 0;
+    g_enter_modal_calls_cmd = 0;
+    g_cmd_args_result = COFI_HANDLED_KEEP;
+    gboolean result = cmd->handler(&app, NULL, "1+1");
+    ASSERT_TRUE("calc with arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("calc with arg enters calc modal", g_enter_modal_calls_cmd == 1);
+    ASSERT_TRUE("calc with arg dispatches to provider", g_cmd_args_calls == 1);
+    ASSERT_TRUE("calc with arg passes expression", strcmp(g_cmd_args_last, "1+1") == 0);
+
+    g_cmd_args_calls = 0;
+    g_enter_modal_calls_cmd = 0;
+    result = cmd->handler(&app, NULL, "");
+    ASSERT_TRUE("calc without arg returns FALSE", result == FALSE);
+    ASSERT_TRUE("calc without arg enters calc modal", g_enter_modal_calls_cmd == 1);
+    ASSERT_TRUE("calc without arg does not dispatch args", g_cmd_args_calls == 0);
+}
+
 int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
@@ -457,6 +488,7 @@ int main(void) {
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
     test_cmd_run_behavior();
+    test_cmd_calc_behavior();
 
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

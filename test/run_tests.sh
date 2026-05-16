@@ -556,6 +556,15 @@ if [ -f test_calc ]; then
     fi
 fi
 
+if [ -f test_calc_provider ]; then
+    echo ""
+    echo "Running calculator provider tests..."
+    ./test_calc_provider
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_cofi_tab_provider ]; then
     echo ""
     echo "Running CofiTabProvider registry tests..."

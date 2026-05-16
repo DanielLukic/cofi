@@ -21,7 +21,7 @@ static void calc_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
 
     out->cell_count = 2;
     out->cells[0].text = e->result;
-    out->cells[0].width_hint = 20;
+    out->cells[0].width_hint = 24;
     out->cells[0].align = 0;   /* left, matches original %-20s */
     out->cells[1].text = expr_buf;
     out->cells[1].width_hint = 0;

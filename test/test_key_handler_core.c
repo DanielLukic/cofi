@@ -146,6 +146,8 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     if (app) {
         app->current_tab = TAB_CALC;
         app->command_mode.state = CMD_MODE_MODAL;
+        if (app->entry)
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
         if (app->mode_indicator)
             gtk_label_set_text(GTK_LABEL(app->mode_indicator), "=");
     }
@@ -837,6 +839,22 @@ static void test_on_entry_changed_leading_colon_claims_command_mode(void) {
     ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TAB_HARPOON);
 }
 
+static void test_on_entry_changed_provider_prefix_preserves_remainder(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TAB_WINDOWS;
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "=1.3+2");
+
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading '=' enters calc modal from entry change",
+                app.command_mode.state == CMD_MODE_MODAL && g_enter_modal_calls == 1);
+    ASSERT_TRUE("Leading '=' stores origin tab", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("Leading '=' preserves expression remainder",
+                strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "1.3+2") == 0);
+}
+
 
 static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
     AppData app;
@@ -1072,6 +1090,7 @@ int main(int argc, char **argv) {
     test_calc_mode_dispatch_precedence();
     test_on_entry_changed_routes_per_tab_filters();
     test_on_entry_changed_leading_colon_claims_command_mode();
+    test_on_entry_changed_provider_prefix_preserves_remainder();
     test_on_entry_changed_prefix_tabs_claim_and_restore_origin();
     test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty();
     test_tab_key_clears_prefix_claim_before_tab_switching();

@@ -130,9 +130,24 @@ gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
 }
 
 gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
-                  const char *args __attribute__((unused))) {
+                  const char *args) {
     exit_command_mode(app);
-    cofi_enter_modal(app, cofi_get_provider_for_command("calc"));
+    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
+    if (!provider) {
+        show_error_in_display(app, "Calc provider not available.");
+        return FALSE;
+    }
+
+    app->prefix_origin_tab = app->current_tab;
+    app->active_prefix_claim = '=';
+    cofi_enter_modal(app, provider);
+
+    if (args && args[0] != '\0') {
+        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
+        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
+        if (status == COFI_ACTION_ERROR || status == COFI_NO_OP)
+            show_error_in_display(app, "Invalid calc expression.");
+    }
     return FALSE;
 }
 

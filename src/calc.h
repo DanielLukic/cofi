@@ -29,8 +29,8 @@ void calc_push(CalcMode *calc, const char *expr, const char *result, gboolean is
 /* Format double to string, trimming trailing zeros; integers shown as integers. */
 void calc_format_double(double val, char *out, int out_len);
 
-/* If raw starts with an operator and last_result is set, prepend it.
- * Writes prepared expression to out. */
+/* Strip leading spaces and one optional calc prefix '='. If the remaining raw
+ * expression starts with an operator and last_result is set, prepend it. */
 void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len);
 
 #endif /* CALC_H */

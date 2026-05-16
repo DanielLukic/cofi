@@ -119,9 +119,14 @@ void apply_prefix_tab_claim(AppData *app, const char *entry_text) {
                 gtk_entry_set_text(GTK_ENTRY(app->entry), rest);
             return;
         }
-        if (app->active_prefix_claim == '\0') {
-            app->prefix_origin_tab = app->current_tab;
-            app->active_prefix_claim = entry_text[0];
+        const CofiTabProvider *provider = cofi_get_provider_for_prefix(entry_text[0]);
+        if (provider && app->active_prefix_claim == '\0') {
+            char *rest = g_strdup(entry_text + 1);
+            cofi_dispatch_prefix(app, entry_text[0]);
+            if (app->entry && rest && rest[0] != '\0')
+                gtk_entry_set_text(GTK_ENTRY(app->entry), rest);
+            g_free(rest);
+            return;
         }
         cofi_dispatch_prefix(app, entry_text[0]);
         return;

@@ -6,9 +6,40 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <locale.h>
 
 static int is_leading_operator(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^';
+}
+
+static char *push_c_numeric_locale(void) {
+    const char *current = setlocale(LC_NUMERIC, NULL);
+    char *saved = current ? g_strdup(current) : NULL;
+    setlocale(LC_NUMERIC, "C");
+    return saved;
+}
+
+static void pop_numeric_locale(char *saved) {
+    if (saved) {
+        setlocale(LC_NUMERIC, saved);
+        g_free(saved);
+    }
+}
+
+static void normalize_decimal_commas(char *expr) {
+    if (!expr) return;
+
+    for (const char *p = expr; *p; p++) {
+        if (isalpha((unsigned char)*p)) return;
+    }
+
+    for (char *p = expr + 1; *p && p[1]; p++) {
+        if (*p == ',' &&
+            isdigit((unsigned char)p[-1]) &&
+            isdigit((unsigned char)p[1])) {
+            *p = '.';
+        }
+    }
 }
 
 void calc_format_double(double val, char *out, int out_len) {
@@ -18,12 +49,15 @@ void calc_format_double(double val, char *out, int out_len) {
         return;
     }
     /* Show as integer when lossless */
+    char *saved_numeric_locale = push_c_numeric_locale();
     if (val == floor(val) && fabs(val) < 1e15) {
         snprintf(out, out_len, "%lld", (long long)val);
+        pop_numeric_locale(saved_numeric_locale);
         return;
     }
     /* Use %g to trim trailing zeros; 10 significant digits */
     snprintf(out, out_len, "%.10g", val);
+    pop_numeric_locale(saved_numeric_locale);
 }
 
 void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len) {
@@ -31,12 +65,17 @@ void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len) 
 
     const char *p = raw;
     while (*p == ' ') p++;
+    if (*p == '=') p++;
+    while (*p == ' ') p++;
 
+    char prepared[CALC_EXPR_LEN];
     if (*p != '\0' && is_leading_operator(*p) && calc->last_result[0] != '\0') {
-        snprintf(out, out_len, "%s%s", calc->last_result, p);
+        snprintf(prepared, sizeof(prepared), "%s%s", calc->last_result, p);
     } else {
-        snprintf(out, out_len, "%s", p);
+        snprintf(prepared, sizeof(prepared), "%s", p);
     }
+    normalize_decimal_commas(prepared);
+    snprintf(out, out_len, "%s", prepared);
 }
 
 void calc_push(CalcMode *calc, const char *expr, const char *result, gboolean is_error) {
@@ -69,7 +108,9 @@ gboolean calc_eval(CalcMode *calc, const char *raw_expr, char *result_out) {
     if (prepared[0] == '\0') return FALSE;
 
     int error = 0;
+    char *saved_numeric_locale = push_c_numeric_locale();
     double val = te_interp(prepared, &error);
+    pop_numeric_locale(saved_numeric_locale);
 
     if (error || isnan(val) || isinf(val)) {
         snprintf(result_out, CALC_RESULT_LEN, "[error: bad expression]");
