@@ -114,11 +114,18 @@ static void test_prepare_strips_spaced_calc_prefix(void) {
     ASSERT_STR("prepare strips spaced calc prefix", out, "17+4");
 }
 
-static void test_prepare_accepts_decimal_comma(void) {
+static void test_prepare_rejects_decimal_comma_policy(void) {
     CalcMode calc = {0};
     char out[CALC_EXPR_LEN];
     calc_prepare_expr(&calc, "1,3+2", out, sizeof(out));
-    ASSERT_STR("prepare normalizes decimal comma", out, "1.3+2");
+    ASSERT_STR("prepare leaves decimal comma as syntax", out, "1,3+2");
+}
+
+static void test_prepare_accepts_digit_separators(void) {
+    CalcMode calc = {0};
+    char out[CALC_EXPR_LEN];
+    calc_prepare_expr(&calc, "1_000.5+2", out, sizeof(out));
+    ASSERT_STR("prepare strips digit separators", out, "1000.5+2");
 }
 
 static void test_prepare_preserves_function_argument_commas(void) {
@@ -200,7 +207,7 @@ static void test_eval_decimal_dot_ignores_process_locale(void) {
     setlocale(LC_NUMERIC, old_locale_buf[0] ? old_locale_buf : "C");
 }
 
-static void test_eval_decimal_comma_is_stable(void) {
+static void test_eval_decimal_comma_is_error(void) {
     const char *old_locale = setlocale(LC_NUMERIC, NULL);
     char old_locale_buf[128] = {0};
     if (old_locale) {
@@ -212,11 +219,55 @@ static void test_eval_decimal_comma_is_stable(void) {
     CalcMode calc = {0};
     char result[CALC_RESULT_LEN];
     gboolean ok = calc_eval(&calc, "1,3+2", result);
-    ASSERT_TRUE("eval decimal comma succeeds under C locale", ok);
-    ASSERT_STR("eval 1,3+2 = 3.3 under C locale", result, "3.3");
-    ASSERT_STR("history stores normalized decimal comma expression", calc.entries[0].expr, "1.3+2");
+    ASSERT_TRUE("eval decimal comma fails under C locale", !ok);
+    ASSERT_STR("eval 1,3+2 reports bad expression", result, "[error: bad expression]");
+    ASSERT_STR("history stores decimal comma expression unchanged", calc.entries[0].expr, "1,3+2");
 
     setlocale(LC_NUMERIC, old_locale_buf[0] ? old_locale_buf : "C");
+}
+
+static void test_eval_accepts_digit_separators(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "1_000.5+2", result);
+    ASSERT_TRUE("eval digit separators succeeds", ok);
+    ASSERT_STR("eval 1_000.5+2 = 1002.5", result, "1002.5");
+    ASSERT_STR("history stores stripped digit separators", calc.entries[0].expr, "1000.5+2");
+}
+
+static void test_eval_accepts_repeated_digit_separators(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "1_000_000*10", result);
+    ASSERT_TRUE("eval repeated digit separators succeeds", ok);
+    ASSERT_STR("eval 1_000_000*10 = 10000000", result, "10000000");
+    ASSERT_STR("history stores repeated stripped digit separators",
+               calc.entries[0].expr, "1000000*10");
+}
+
+static void test_eval_allows_function_argument_commas(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "pow(2,3)", result);
+    ASSERT_TRUE("eval function argument comma succeeds", ok);
+    ASSERT_STR("eval pow(2,3) = 8", result, "8");
+}
+
+static void test_eval_allows_function_names_with_digits(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "atan2(0,1)", result);
+    ASSERT_TRUE("eval function name with digit succeeds", ok);
+    ASSERT_STR("eval atan2(0,1) = 0", result, "0");
+}
+
+static void test_eval_rejects_parenthesized_comma_list(void) {
+    CalcMode calc = {0};
+    char result[CALC_RESULT_LEN];
+    gboolean ok = calc_eval(&calc, "(1,3)+2", result);
+    ASSERT_TRUE("eval parenthesized comma list fails", !ok);
+    ASSERT_STR("eval parenthesized comma list reports bad expression",
+               result, "[error: bad expression]");
 }
 
 static void test_eval_accepts_leading_calc_prefix(void) {
@@ -313,7 +364,8 @@ int main(void) {
     test_prepare_leading_whitespace_stripped();
     test_prepare_strips_calc_prefix();
     test_prepare_strips_spaced_calc_prefix();
-    test_prepare_accepts_decimal_comma();
+    test_prepare_rejects_decimal_comma_policy();
+    test_prepare_accepts_digit_separators();
     test_prepare_preserves_function_argument_commas();
 
     test_push_newest_first();
@@ -323,7 +375,12 @@ int main(void) {
 
     test_eval_basic_addition();
     test_eval_decimal_dot_ignores_process_locale();
-    test_eval_decimal_comma_is_stable();
+    test_eval_decimal_comma_is_error();
+    test_eval_accepts_digit_separators();
+    test_eval_accepts_repeated_digit_separators();
+    test_eval_allows_function_argument_commas();
+    test_eval_allows_function_names_with_digits();
+    test_eval_rejects_parenthesized_comma_list();
     test_eval_accepts_leading_calc_prefix();
     test_eval_operator_continuation_after_calc_prefix();
     test_eval_result_pushed_to_history();

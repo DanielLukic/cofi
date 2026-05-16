@@ -26,20 +26,56 @@ static void pop_numeric_locale(char *saved) {
     }
 }
 
-static void normalize_decimal_commas(char *expr) {
+static void remove_digit_separators(char *expr) {
     if (!expr) return;
 
-    for (const char *p = expr; *p; p++) {
-        if (isalpha((unsigned char)*p)) return;
+    char *write = expr;
+    for (char *read = expr; *read; read++) {
+        if (*read == '_' &&
+            read > expr &&
+            read[1] != '\0' &&
+            isdigit((unsigned char)read[-1]) &&
+            isdigit((unsigned char)read[1])) {
+            continue;
+        }
+        *write++ = *read;
     }
+    *write = '\0';
+}
 
-    for (char *p = expr + 1; *p && p[1]; p++) {
-        if (*p == ',' &&
-            isdigit((unsigned char)p[-1]) &&
-            isdigit((unsigned char)p[1])) {
-            *p = '.';
+static gboolean commas_are_valid(const char *expr) {
+    gboolean function_parens[CALC_EXPR_LEN] = {0};
+    int depth = 0;
+
+    if (!expr) return FALSE;
+
+    for (const char *p = expr; *p; p++) {
+        if (*p == '(') {
+            const char *q = p;
+            while (q > expr && isspace((unsigned char)q[-1])) q--;
+            const char *name_start = q;
+            while (name_start > expr &&
+                   (isalnum((unsigned char)name_start[-1]) || name_start[-1] == '_')) {
+                name_start--;
+            }
+            gboolean is_function = name_start < q &&
+                (isalpha((unsigned char)*name_start) || *name_start == '_');
+            if (depth < CALC_EXPR_LEN) {
+                function_parens[depth] = is_function;
+            }
+            depth++;
+        } else if (*p == ')') {
+            if (depth > 0) depth--;
+        } else if (*p == ',') {
+            if (depth <= 0) return FALSE;
+            int paren_idx = depth - 1;
+            if (paren_idx >= CALC_EXPR_LEN || !function_parens[paren_idx]) {
+                return FALSE;
+            }
         }
     }
+
+    return TRUE;
 }
 
 void calc_format_double(double val, char *out, int out_len) {
@@ -74,7 +110,7 @@ void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len) 
     } else {
         snprintf(prepared, sizeof(prepared), "%s", p);
     }
-    normalize_decimal_commas(prepared);
+    remove_digit_separators(prepared);
     snprintf(out, out_len, "%s", prepared);
 }
 
@@ -106,6 +142,12 @@ gboolean calc_eval(CalcMode *calc, const char *raw_expr, char *result_out) {
     calc_prepare_expr(calc, raw_expr, prepared, sizeof(prepared));
 
     if (prepared[0] == '\0') return FALSE;
+    if (!commas_are_valid(prepared)) {
+        snprintf(result_out, CALC_RESULT_LEN, "[error: bad expression]");
+        calc_push(calc, prepared, result_out, TRUE);
+        log_debug("calc: eval error for '%s'", prepared);
+        return FALSE;
+    }
 
     int error = 0;
     char *saved_numeric_locale = push_c_numeric_locale();
