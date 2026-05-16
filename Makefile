@@ -10,6 +10,16 @@ LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0) -lm -lXrandr -lXfixes 
 BUILD_NUMBER ?= 0
 CFLAGS += -DBUILD_NUMBER=$(BUILD_NUMBER)
 
+# Debug-only PrintScr observer. Lets debug builds notice PrintScr even when a
+# desktop screenshot tool owns the normal key grab.
+XI_DEBUG_CFLAGS = -DCOFI_DEBUG_PRINTSCR_CAPTURE $(shell pkg-config --cflags xi)
+XI_DEBUG_LDFLAGS = $(shell pkg-config --libs xi)
+DEBUG_PRINTSCR_CAPTURE ?= 0
+ifeq ($(DEBUG_PRINTSCR_CAPTURE),1)
+CFLAGS += $(XI_DEBUG_CFLAGS)
+LDFLAGS += $(XI_DEBUG_LDFLAGS)
+endif
+
 # Source files
 SOURCES = src/main.c \
           src/x11_utils.c \
@@ -127,6 +137,13 @@ TARGET = cofi
 # Default target
 all: $(TARGET)
 
+# Release build used by copied installs. This intentionally rebuilds without
+# debug-only flags so a previous `make debug` cannot leak into `make install`.
+.PHONY: release
+release:
+	$(MAKE) clean
+	$(MAKE) DEBUG_PRINTSCR_CAPTURE=0 $(TARGET)
+
 # Build the executable
 $(TARGET): $(OBJECTS)
 	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
@@ -164,7 +181,7 @@ install-service:
 
 # Install copied binary + systemd user service (release mode)
 .PHONY: install
-install: $(TARGET)
+install: release
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)/
 	$(MAKE) install-service PREFIX="$(PREFIX)"
@@ -188,7 +205,8 @@ uninstall:
 	@echo "Uninstalled cofi"
 
 # Debug build with debug output enabled
-debug: CFLAGS += -DDEBUG
+debug: CFLAGS += -DDEBUG $(XI_DEBUG_CFLAGS)
+debug: LDFLAGS += $(XI_DEBUG_LDFLAGS)
 debug: clean $(TARGET)
 
 # Run the program

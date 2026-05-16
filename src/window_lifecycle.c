@@ -26,6 +26,12 @@
 static gboolean grab_focus_delayed(gpointer data);
 static gboolean show_initial_slot_overlays_idle(gpointer data);
 
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+static gboolean debug_printscr_suppression_active(AppData *app) {
+    return app && app->debug_printscr_keep_visible_until_us > g_get_monotonic_time();
+}
+#endif
+
 void maybe_show_initial_slot_overlays(AppData *app) {
     if (!app || !app->window_visible) {
         return;
@@ -57,6 +63,13 @@ gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app) {
 gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app) {
     (void)widget;
     (void)event;
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    if (debug_printscr_suppression_active(app)) {
+        log_info("Debug PrintScr observer suppressing focus-loss state reset");
+        return FALSE;
+    }
+#endif
 
     if (app->pending_hotkey_mode < 0) {
         if (app->command_mode.state == CMD_MODE_COMMAND) {
@@ -90,6 +103,13 @@ gboolean check_focus_loss_delayed(AppData *app) {
     if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
         return FALSE;
     }
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    if (debug_printscr_suppression_active(app)) {
+        log_info("Debug PrintScr observer suppressing focus-loss close");
+        return FALSE;
+    }
+#endif
 
     log_info("Window lost focus to external application, closing");
     hide_window(app);

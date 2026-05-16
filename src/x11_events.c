@@ -2,6 +2,11 @@
 #include "x11_events.h"
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+#include <X11/XKBlib.h>
+#include <X11/keysym.h>
+#include <X11/extensions/XInput2.h>
+#endif
 #include <gdk/gdkx.h>
 #include <string.h>
 #include "log.h"
@@ -22,6 +27,10 @@
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
 static guint workspace_switch_timer = 0;
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+static int debug_xi_opcode = -1;
+static gint64 debug_last_printscr_seen_us = 0;
+#endif
 
 typedef enum {
     WS_SWITCH_NONE,
@@ -30,6 +39,85 @@ typedef enum {
 } WorkspaceSwitchState;
 
 static WorkspaceSwitchState ws_switch_state = WS_SWITCH_NONE;
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+static void debug_note_printscr(AppData *app) {
+    if (!app || !app->window_visible) {
+        return;
+    }
+
+    gint64 now_us = g_get_monotonic_time();
+    if (now_us - debug_last_printscr_seen_us < 500000) {
+        return;
+    }
+    debug_last_printscr_seen_us = now_us;
+    app->debug_printscr_keep_visible_until_us = now_us + 2000000;
+    log_info("Debug PrintScr observer: preserving cofi focus/modal state for 2s");
+}
+
+static void setup_debug_printscr_capture(AppData *app) {
+    int event = 0;
+    int error = 0;
+
+    if (!XQueryExtension(app->display, "XInputExtension", &debug_xi_opcode, &event, &error)) {
+        log_warn("Debug PrintScr observer disabled: XInput2 extension unavailable");
+        debug_xi_opcode = -1;
+        return;
+    }
+
+    int major = 2;
+    int minor = 0;
+    if (XIQueryVersion(app->display, &major, &minor) != Success) {
+        log_warn("Debug PrintScr observer disabled: XI2 query failed");
+        debug_xi_opcode = -1;
+        return;
+    }
+
+    unsigned char mask[XIMaskLen(XI_RawKeyPress)];
+    memset(mask, 0, sizeof(mask));
+    XISetMask(mask, XI_RawKeyPress);
+
+    XIEventMask event_mask;
+    event_mask.deviceid = XIAllMasterDevices;
+    event_mask.mask_len = sizeof(mask);
+    event_mask.mask = mask;
+
+    Window root = DefaultRootWindow(app->display);
+    if (XISelectEvents(app->display, root, &event_mask, 1) != Success) {
+        log_warn("Debug PrintScr observer disabled: XISelectEvents failed");
+        debug_xi_opcode = -1;
+        return;
+    }
+
+    XFlush(app->display);
+    log_info("Debug PrintScr observer enabled via XInput2 %d.%d", major, minor);
+}
+
+static gboolean handle_debug_printscr_event(AppData *app, XEvent *event) {
+    if (debug_xi_opcode < 0 || event->type != GenericEvent ||
+        event->xcookie.extension != debug_xi_opcode) {
+        return FALSE;
+    }
+
+    if (!XGetEventData(app->display, &event->xcookie)) {
+        return FALSE;
+    }
+
+    gboolean handled = FALSE;
+    if (event->xcookie.evtype == XI_RawKeyPress) {
+        XIRawEvent *raw = (XIRawEvent *)event->xcookie.data;
+        KeySym primary = XkbKeycodeToKeysym(app->display, (KeyCode)raw->detail, 0, 0);
+        KeySym shifted = XkbKeycodeToKeysym(app->display, (KeyCode)raw->detail, 0, 1);
+        if (primary == XK_Print || shifted == XK_Print) {
+            debug_note_printscr(app);
+            handled = TRUE;
+        }
+    }
+
+    XFreeEventData(app->display, &event->xcookie);
+    return handled;
+}
+#endif
 
 void set_workspace_switch_state(int suppress) {
     ws_switch_state = suppress ? WS_SWITCH_SUPPRESS : WS_SWITCH_HIGHLIGHT;
@@ -177,6 +265,10 @@ void setup_x11_event_monitoring(AppData *app) {
     // Add watch for X11 events
     x11_watch_id = g_io_add_watch(x11_channel, G_IO_IN, process_x11_events, app);
 
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    setup_debug_printscr_capture(app);
+#endif
+
     // Subscribe to property changes on existing windows (for title change rules)
     subscribe_to_window_properties(app);
     apply_rules_to_windows(app);
@@ -217,6 +309,12 @@ gboolean process_x11_events(GIOChannel *source, GIOCondition condition, gpointer
 }
 
 void handle_x11_event(AppData *app, XEvent *event) {
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    if (handle_debug_printscr_event(app, event)) {
+        return;
+    }
+#endif
+
     switch (event->type) {
         case PropertyNotify: {
             XPropertyEvent *prop_event = &event->xproperty;

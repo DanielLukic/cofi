@@ -293,6 +293,9 @@ typedef struct AppData {
     
     // Window visibility state
     gboolean window_visible;                // Whether the window is currently visible
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    gint64 debug_printscr_keep_visible_until_us; // Suppress focus reset/close after PrintScr
+#endif
 
     // Fixed window sizing authority (TFD-100)
     gint fixed_cols;                        // Fixed text columns once initialized (0 = not initialized)
