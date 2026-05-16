@@ -7,7 +7,6 @@
 #include "config.h"
 #include "display.h"
 #include "filter.h"
-#include "filter_names.h"
 #include "match.h"
 #include "log.h"
 #include "selection.h"
@@ -74,9 +73,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_WORKSPACES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
         filter_workspaces(app, "");
-    } else if (target_tab == TAB_HARPOON) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
-        filter_harpoon(app, "");
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)
@@ -169,45 +165,6 @@ void filter_workspaces(AppData *app, const char *filter) {
 
         if (has_match(filter, searchable)) {
             app->filtered_workspaces[app->filtered_workspace_count++] = app->workspaces[i];
-        }
-    }
-}
-
-void filter_harpoon(AppData *app, const char *filter) {
-    app->filtered_harpoon_count = 0;
-
-    if (!filter || !*filter) {
-        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-            HarpoonSlot *slot = &app->harpoon.slots[i];
-            if (slot->assigned) {
-                app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
-                app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
-                app->filtered_harpoon_count++;
-            }
-        }
-        return;
-    }
-
-    char searchable[1024];
-    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-        HarpoonSlot *slot = &app->harpoon.slots[i];
-
-        char slot_name[4];
-        if (i < 10) {
-            snprintf(slot_name, sizeof(slot_name), "%d", i);
-        } else {
-            snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (i - 10));
-        }
-
-        if (slot->assigned) {
-            snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-                     slot_name, slot->title, slot->class_name, slot->instance);
-
-            if (has_match(filter, searchable)) {
-                app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
-                app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
-                app->filtered_harpoon_count++;
-            }
         }
     }
 }

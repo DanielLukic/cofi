@@ -11,7 +11,6 @@
 #include "filter.h"
 #include "filter_names.h"
 #include "key_handler_harpoon.h"
-#include "key_handler_tabs.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "prefix_tabs.h"
@@ -127,7 +126,6 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         cofi_get_provider_for_tab(app->current_tab);
     if (handle_harpoon_assignment(event, app) ||
         handle_harpoon_workspace_switching(event, app) ||
-        handle_harpoon_tab_keys(event, app) ||
         (current_provider && current_provider->handle_key &&
          current_provider->handle_key(event, app))) {
         return TRUE;
@@ -185,8 +183,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_windows(app, text);
     } else if (app->current_tab == TAB_WORKSPACES) {
         filter_workspaces(app, text);
-    } else if (app->current_tab == TAB_HARPOON) {
-        filter_harpoon(app, text);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {

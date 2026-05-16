@@ -5,9 +5,9 @@
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 #include "../src/config_provider.h"
+#include "../src/harpoon_provider.h"
 #include "../src/hotkeys_provider.h"
 #include "../src/key_handler.h"
-#include "../src/key_handler_tabs.h"
 #include "../src/names_provider.h"
 #include "../src/rules_provider.h"
 #include "../src/sessions_parse.h"
@@ -115,11 +115,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
     static CofiTabProvider sessions_provider;
+    static CofiTabProvider harpoon_provider;
     memset(&names_provider, 0, sizeof(names_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
     memset(&sessions_provider, 0, sizeof(sessions_provider));
+    memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     names_provider.tab_mode = TAB_NAMES;
     names_provider.handle_key = handle_names_tab_keys;
     config_provider.tab_mode = TAB_CONFIG;
@@ -130,8 +132,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     rules_provider.handle_key = handle_rules_tab_keys;
     sessions_provider.tab_mode = TAB_SESSIONS;
     sessions_provider.handle_key = handle_sessions_tab_keys;
+    harpoon_provider.tab_mode = TAB_HARPOON;
+    harpoon_provider.handle_key = handle_harpoon_tab_keys;
 
     switch ((TabMode)tab_mode) {
+        case TAB_HARPOON: return &harpoon_provider;
         case TAB_NAMES: return &names_provider;
         case TAB_CONFIG: return &config_provider;
         case TAB_HOTKEYS: return &hotkeys_provider;
@@ -343,7 +348,6 @@ gboolean replay_selected_filtered_rule(AppData *app) { (void)app; g_replay_selec
 
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
-void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
@@ -590,7 +594,7 @@ static void test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot(void) 
 
     app.current_tab = TAB_HARPOON;
     app.filtered_harpoon_count = 1;
-    app.selection.harpoon_index = 0;
+    app.selection.provider_index = 0;
     app.filtered_harpoon_indices[0] = 5;
 
     app.filtered_harpoon[0].assigned = 1;
@@ -615,7 +619,7 @@ static void test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot(void) {
 
     app.current_tab = TAB_HARPOON;
     app.filtered_harpoon_count = 1;
-    app.selection.harpoon_index = 0;
+    app.selection.provider_index = 0;
     app.filtered_harpoon_indices[0] = 12;
 
     app.filtered_harpoon[0].assigned = 1;

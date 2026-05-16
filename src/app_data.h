@@ -111,7 +111,6 @@ typedef enum { APPS_MODE_DEFAULT, APPS_MODE_PATH } AppsMode;
 typedef struct {
     int window_index;                       // Selected index in filtered windows array
     int workspace_index;                    // Selected index in filtered workspaces array
-    int harpoon_index;                      // Selected index in harpoon tab
     Window selected_window_id;              // ID of currently selected window (for persistence)
     int selected_workspace_id;              // ID of currently selected workspace (for persistence)
 
@@ -122,7 +121,6 @@ typedef struct {
     // Scroll state for each tab
     int window_scroll_offset;               // First visible item index for windows tab
     int workspace_scroll_offset;            // First visible item index for workspaces tab
-    int harpoon_scroll_offset;              // First visible item index for harpoon tab
     int provider_scroll_offset;            // First visible item index for any registered provider tab
     int sinks_scroll_offset;               // First visible item index for sinks tab
     int proc_scroll_offset;                // First visible item index for proc tab

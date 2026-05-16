@@ -30,6 +30,7 @@
 #include "dynamic_display.h"
 #include "gtk_window.h"
 #include "harpoon_config.h"
+#include "harpoon_provider.h"
 #include "history.h"
 #include "hotkeys_provider.h"
 #include "hotkeys.h"
@@ -190,8 +191,6 @@ void setup_application(AppData *app, WindowAlignment alignment) {
 
     if (app->current_tab == TAB_WORKSPACES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
-    } else if (app->current_tab == TAB_HARPOON) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter harpoon slots...");
     } else {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
     }
@@ -354,6 +353,7 @@ int run_cofi(int argc, char *argv[]) {
     apps_provider_register();
     calc_provider_register();
     config_provider_register();
+    harpoon_provider_register();
     hotkeys_provider_register();
     names_provider_register();
     rules_provider_register();

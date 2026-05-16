@@ -22,7 +22,6 @@ bool check_and_reassign_windows(HarpoonManager *harpoon, WindowInfo *windows, in
     { (void)harpoon; (void)windows; (void)window_count; return false; }
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
-void filter_harpoon(AppData *app, const char *query) { (void)app; (void)query; }
 void update_display(AppData *app) { (void)app; }
 static int init_fixed_window_size_calls = 0;
 void init_fixed_window_size(AppData *app) { (void)app; init_fixed_window_size_calls++; }

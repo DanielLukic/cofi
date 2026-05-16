@@ -421,57 +421,6 @@ static void format_workspaces_display(AppData *app, GString *text,
     render_display_pipeline(&request, text);
 }
 
-static void render_harpoon_item(gpointer context, gint index,
-                                gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    HarpoonSlot *slot = &app->filtered_harpoon[index];
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-
-    char slot_name[4];
-    gint slot_idx = app->filtered_harpoon_indices[index];
-    if (slot_idx < 10) {
-        snprintf(slot_name, sizeof(slot_name), "%d", slot_idx);
-    } else {
-        snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_idx - 10));
-    }
-
-    if (slot->assigned) {
-        char title_col[56], class_col[19], instance_col[21], type_col[9];
-        fit_column(slot->title, 55, title_col);
-        fit_column(slot->class_name, 18, class_col);
-        fit_column(slot->instance, 20, instance_col);
-        fit_column(slot->type, 8, type_col);
-
-        g_string_append_printf(text, "%-4s %s %s %s %s\n",
-                               slot_name, title_col, class_col,
-                               instance_col, type_col);
-        return;
-    }
-
-    g_string_append_printf(text, "%-4s %-55s %-18s %-20s %-8s\n",
-                           slot_name, "* EMPTY *", "-", "-", "-");
-}
-
-static void format_harpoon_display(AppData *app, GString *text,
-                                   gint selected_idx) {
-    DisplayPipelineRequest request = {
-        .total_count = app->filtered_harpoon_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_harpoon_item;
-
-    render_display_pipeline(&request, text);
-    g_string_append(text, "\n");
-    g_string_append(text,
-        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)\n");
-}
-
 static void format_provider_display(AppData *app, GString *text, gint selected_idx,
                                      int tab_mode) {
     const CofiTabProvider *p = cofi_get_provider_for_tab(tab_mode);
@@ -578,9 +527,6 @@ void update_display(AppData *app) {
                 break;
             case TAB_WORKSPACES:
                 format_workspaces_display(app, text, selected_idx);
-                break;
-            case TAB_HARPOON:
-                format_harpoon_display(app, text, selected_idx);
                 break;
             default:
                 break;

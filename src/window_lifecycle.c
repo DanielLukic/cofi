@@ -156,7 +156,6 @@ void hide_window(AppData *app) {
 
     app->selection.window_scroll_offset = 0;
     app->selection.workspace_scroll_offset = 0;
-    app->selection.harpoon_scroll_offset = 0;
     if (app->provider_tick_timer_id > 0) {
         g_source_remove(app->provider_tick_timer_id);
         app->provider_tick_timer_id = 0;
@@ -309,8 +308,6 @@ void show_window(AppData *app) {
         filter_windows(app, "");
     } else if (app->current_tab == TAB_WORKSPACES) {
         filter_workspaces(app, "");
-    } else if (app->current_tab == TAB_HARPOON) {
-        filter_harpoon(app, "");
     }
 
     gtk_widget_show_all(app->window);

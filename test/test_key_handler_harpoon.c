@@ -234,7 +234,6 @@ HotkeyBinding *hotkeys_selected_binding(AppData *app, int *master_idx_out) {
 void hotkeys_select_key(AppData *app, const char *key) { (void)app; (void)key; }
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
-void filter_harpoon(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }

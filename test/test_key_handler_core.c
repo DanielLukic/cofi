@@ -87,6 +87,7 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 void filter_apps(AppData *app, const char *query);
+void filter_harpoon(AppData *app, const char *filter);
 void filter_names(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
@@ -318,6 +319,11 @@ static void mock_config_query_changed(AppData *app, const char *query) {
 
 static void mock_names_query_changed(AppData *app, const char *query) {
     filter_names(app, query);
+    reset_selection(app);
+}
+
+static void mock_harpoon_query_changed(AppData *app, const char *query) {
+    filter_harpoon(app, query);
     reset_selection(app);
 }
 
@@ -936,8 +942,15 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         rules_provider.tab_mode = TAB_RULES;
         rules_provider.on_query_changed = mock_rules_query_changed;
 
+        CofiTabProvider harpoon_provider;
+        memset(&harpoon_provider, 0, sizeof(harpoon_provider));
+        harpoon_provider.tab_mode = TAB_HARPOON;
+        harpoon_provider.on_query_changed = mock_harpoon_query_changed;
+
         if (tabs[i] == TAB_APPS) {
             g_provider_for_tab = &apps_provider;
+        } else if (tabs[i] == TAB_HARPOON) {
+            g_provider_for_tab = &harpoon_provider;
         } else if (tabs[i] == TAB_NAMES) {
             g_provider_for_tab = &names_provider;
         } else if (tabs[i] == TAB_CONFIG) {
