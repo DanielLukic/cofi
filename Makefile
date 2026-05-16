@@ -50,6 +50,7 @@ SOURCES = src/main.c \
           src/prefix_tabs.c \
           src/key_handler_harpoon.c \
           src/harpoon_provider.c \
+          src/workspaces_provider.c \
           src/window_lifecycle.c \
           src/hotkey_dispatch.c \
           src/command_mode.c \
@@ -219,7 +220,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_hotkeys_provider test_names_provider test_rules_provider test_sinks test_proc test_sessions test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_workspaces_provider test_hotkeys_provider test_names_provider test_rules_provider test_sinks test_proc test_sessions test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_cofi_modal test_run_provider
 	cd test && ./run_tests.sh
 
 .PHONY: test-integration
@@ -443,6 +444,9 @@ test_config_provider: test/test_config_provider.c
 
 test_harpoon_provider: test/test_harpoon_provider.c
 	$(CC) $(CFLAGS) -o test/test_harpoon_provider test/test_harpoon_provider.c $(LDFLAGS)
+
+test_workspaces_provider: test/test_workspaces_provider.c
+	$(CC) $(CFLAGS) -o test/test_workspaces_provider test/test_workspaces_provider.c $(LDFLAGS)
 
 test_hotkeys_provider: test/test_hotkeys_provider.c
 	$(CC) $(CFLAGS) -o test/test_hotkeys_provider test/test_hotkeys_provider.c $(LDFLAGS)

@@ -113,7 +113,6 @@ WindowInfo *get_selected_window(AppData *app) {
     return &app->filtered[app->selection.window_index];
 }
 
-WorkspaceInfo *get_selected_workspace(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 int get_selected_index(AppData *app) { (void)app; return 0; }

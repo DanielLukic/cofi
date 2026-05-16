@@ -28,8 +28,9 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
                 break;
             case SHOW_MODE_WORKSPACES:
-                app->current_tab = TAB_WORKSPACES;
+                app->current_tab = TAB_WINDOWS;
                 show_window(app);
+                surface_tab(app, TAB_WORKSPACES);
                 break;
             default:
                 app->current_tab = TAB_WINDOWS;
@@ -70,10 +71,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             if (app->current_tab == TAB_WORKSPACES) {
                 return;
             }
-            app->current_tab = TAB_WORKSPACES;
-            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
-            filter_workspaces(app, "");
-            update_display(app);
+            surface_tab(app, TAB_WORKSPACES);
             gtk_widget_grab_focus(app->entry);
             break;
 

@@ -10,6 +10,5 @@ void surface_tab(AppData *app, TabMode tab);
 void clear_surfaced_tabs(AppData *app);
 gboolean tab_is_visible(AppData *app, TabMode tab);
 gboolean handle_tab_switching(GdkEventKey *event, AppData *app);
-void filter_workspaces(AppData *app, const char *filter);
 
 #endif

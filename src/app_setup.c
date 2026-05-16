@@ -45,6 +45,7 @@
 #include "window_list.h"
 #include "window_lifecycle.h"
 #include "workspace_slots.h"
+#include "workspaces_provider.h"
 #include "x11_events.h"
 #include "x11_utils.h"
 
@@ -189,11 +190,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
     app->entry = gtk_entry_new();
     gtk_widget_set_hexpand(app->entry, TRUE);
 
-    if (app->current_tab == TAB_WORKSPACES) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
-    } else {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
-    }
+    gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
 
     GtkStyleContext *entry_context = gtk_widget_get_style_context(app->entry);
     gtk_style_context_add_provider(entry_context,
@@ -357,6 +354,7 @@ int run_cofi(int argc, char *argv[]) {
     hotkeys_provider_register();
     names_provider_register();
     rules_provider_register();
+    workspaces_provider_register();
     sinks_provider_register();
     run_provider_register();
     proc_provider_register();

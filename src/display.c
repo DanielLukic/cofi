@@ -390,37 +390,6 @@ static void format_windows_display(AppData *app, GString *text, gint selected_id
     render_display_pipeline(&request, text);
 }
 
-static void render_workspaces_item(gpointer context, gint index,
-                                   gint selected_idx, GString *text) {
-    AppData *app = (AppData *)context;
-    WorkspaceInfo *ws = &app->filtered_workspaces[index];
-
-    g_string_append(text, (index == selected_idx) ? "> " : "  ");
-    g_string_append(text, ws->is_current ? "* " : "  ");
-    g_string_append_printf(text, "[%d] %s\n", ws->id + 1, ws->name);
-}
-
-static void format_workspaces_display(AppData *app, GString *text,
-                                      gint selected_idx) {
-    if (app->filtered_workspace_count == 0) {
-        g_string_append(text, "No matching workspaces found\n");
-        return;
-    }
-
-    DisplayPipelineRequest request = {
-        .total_count = app->filtered_workspace_count,
-        .max_lines = get_max_display_lines_dynamic(app),
-        .scroll_offset = get_scroll_offset(app),
-        .selected_idx = selected_idx,
-        .target_columns = get_display_columns(app),
-        .context = app,
-        .overlay_scrollbar = overlay_scrollbar_adapter,
-    };
-    request.render_item = render_workspaces_item;
-
-    render_display_pipeline(&request, text);
-}
-
 static void format_provider_display(AppData *app, GString *text, gint selected_idx,
                                      int tab_mode) {
     const CofiTabProvider *p = cofi_get_provider_for_tab(tab_mode);
@@ -524,9 +493,6 @@ void update_display(AppData *app) {
         switch (app->current_tab) {
             case TAB_WINDOWS:
                 format_windows_display(app, text, selected_idx);
-                break;
-            case TAB_WORKSPACES:
-                format_workspaces_display(app, text, selected_idx);
                 break;
             default:
                 break;

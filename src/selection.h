@@ -9,7 +9,6 @@ void reset_selection(AppData *app);
 
 // Get currently selected items
 WindowInfo* get_selected_window(AppData *app);
-WorkspaceInfo* get_selected_workspace(AppData *app);
 int get_selected_index(AppData *app);
 
 // Selection movement

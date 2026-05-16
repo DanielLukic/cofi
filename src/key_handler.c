@@ -63,13 +63,6 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                                status == COFI_ACTION_ERROR) {
                         update_display(app);
                     }
-                } else {
-                    WorkspaceInfo *ws = get_selected_workspace(app);
-                    if (ws) {
-                        log_info("USER: ENTER pressed -> Switching to workspace %d: %s", ws->id, ws->name);
-                        switch_to_desktop(app->display, ws->id);
-                        hide_window(app);
-                    }
                 }
             }
             return TRUE;
@@ -181,8 +174,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
     gboolean handled_by_provider = FALSE;
     if (app->current_tab == TAB_WINDOWS) {
         filter_windows(app, text);
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        filter_workspaces(app, text);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {

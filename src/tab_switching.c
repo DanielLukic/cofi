@@ -7,10 +7,10 @@
 #include "config.h"
 #include "display.h"
 #include "filter.h"
-#include "match.h"
 #include "log.h"
 #include "selection.h"
 #include "tab_metadata.h"
+#include "workspaces_provider.h"
 
 static gboolean provider_tick(gpointer data) {
     AppData *app = (AppData *)data;
@@ -70,9 +70,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     if (target_tab == TAB_WINDOWS) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter windows...");
         filter_windows(app, "");
-    } else if (target_tab == TAB_WORKSPACES) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter workspaces...");
-        filter_workspaces(app, "");
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)
@@ -146,25 +143,4 @@ gboolean handle_tab_switching(GdkEventKey *event, AppData *app) {
 
     switch_to_tab(app, next_tab);
     return TRUE;
-}
-
-void filter_workspaces(AppData *app, const char *filter) {
-    app->filtered_workspace_count = 0;
-
-    if (!filter || !*filter) {
-        for (int i = 0; i < app->workspace_count; i++) {
-            app->filtered_workspaces[app->filtered_workspace_count++] = app->workspaces[i];
-        }
-        return;
-    }
-
-    char searchable[512];
-    for (int i = 0; i < app->workspace_count; i++) {
-        snprintf(searchable, sizeof(searchable), "%d %s",
-                 app->workspaces[i].id + 1, app->workspaces[i].name);
-
-        if (has_match(filter, searchable)) {
-            app->filtered_workspaces[app->filtered_workspace_count++] = app->workspaces[i];
-        }
-    }
 }

@@ -4,6 +4,7 @@
 #include <X11/Xatom.h>
 
 #include "command_mode.h"
+#include "cofi_tab_provider.h"
 #include "config.h"
 #include "display.h"
 #include "dynamic_display.h"
@@ -155,7 +156,6 @@ void hide_window(AppData *app) {
     }
 
     app->selection.window_scroll_offset = 0;
-    app->selection.workspace_scroll_offset = 0;
     if (app->provider_tick_timer_id > 0) {
         g_source_remove(app->provider_tick_timer_id);
         app->provider_tick_timer_id = 0;
@@ -306,8 +306,12 @@ void show_window(AppData *app) {
     if (app->current_tab == TAB_WINDOWS) {
         reset_selection(app);
         filter_windows(app, "");
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        filter_workspaces(app, "");
+    } else {
+        const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+        if (provider && provider->on_enter) {
+            provider->on_enter(app);
+            reset_selection(app);
+        }
     }
 
     gtk_widget_show_all(app->window);

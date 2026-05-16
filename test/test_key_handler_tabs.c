@@ -149,7 +149,6 @@ int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
-WorkspaceInfo *get_selected_workspace(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 int get_selected_index(AppData *app) { (void)app; return 0; }

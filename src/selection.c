@@ -9,15 +9,12 @@ void init_selection(AppData *app) {
     if (!app) return;
 
     app->selection.window_index = 0;
-    app->selection.workspace_index = 0;
     app->selection.selected_window_id = 0;
-    app->selection.selected_workspace_id = -1;
     app->selection.provider_index = 0;
     app->selection.sinks_index = 0;
 
     // Initialize scroll offsets
     app->selection.window_scroll_offset = 0;
-    app->selection.workspace_scroll_offset = 0;
     app->selection.provider_scroll_offset = 0;
     app->selection.sinks_scroll_offset = 0;
 
@@ -34,13 +31,6 @@ void reset_selection(AppData *app) {
         app->selection.window_scroll_offset = 0;
         if (app->filtered_count > 0) {
             app->selection.selected_window_id = app->filtered[0].id;
-        }
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        app->selection.workspace_index = 0;
-        app->selection.selected_workspace_id = -1;
-        app->selection.workspace_scroll_offset = 0;
-        if (app->filtered_workspace_count > 0) {
-            app->selection.selected_workspace_id = app->filtered_workspaces[0].id;
         }
     } else {
         const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
@@ -70,25 +60,12 @@ WindowInfo* get_selected_window(AppData *app) {
     return &app->filtered[app->selection.window_index];
 }
 
-// Get currently selected workspace
-WorkspaceInfo* get_selected_workspace(AppData *app) {
-    if (!app || app->current_tab != TAB_WORKSPACES) return NULL;
-    if (app->filtered_workspace_count == 0) return NULL;
-    if (app->selection.workspace_index < 0 || app->selection.workspace_index >= app->filtered_workspace_count) {
-        return NULL;
-    }
-    
-    return &app->filtered_workspaces[app->selection.workspace_index];
-}
-
 // Get the appropriate selected index for current tab
 int get_selected_index(AppData *app) {
     if (!app) return 0;
     
     if (app->current_tab == TAB_WINDOWS) {
         return app->selection.window_index;
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        return app->selection.workspace_index;
     } else if (cofi_get_provider_for_tab(app->current_tab)) {
         return app->selection.provider_index;
     }
@@ -115,22 +92,6 @@ void move_selection_up(AppData *app) {
                      app->selection.window_index,
                      app->filtered[app->selection.window_index].title,
                      app->filtered[app->selection.window_index].id);
-        }
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        if (app->filtered_workspace_count > 0) {
-            if (app->selection.workspace_index < app->filtered_workspace_count - 1) {
-                app->selection.workspace_index++;
-            } else {
-                // Wrap around to the bottom
-                app->selection.workspace_index = 0;
-            }
-            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection UP -> Workspace[%d] '%s' (ID: %d)",
-                     app->selection.workspace_index,
-                     app->filtered_workspaces[app->selection.workspace_index].name,
-                     app->filtered_workspaces[app->selection.workspace_index].id);
         }
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -173,22 +134,6 @@ void move_selection_down(AppData *app) {
                      app->filtered[app->selection.window_index].title,
                      app->filtered[app->selection.window_index].id);
         }
-    } else if (app->current_tab == TAB_WORKSPACES) {
-        if (app->filtered_workspace_count > 0) {
-            if (app->selection.workspace_index > 0) {
-                app->selection.workspace_index--;
-            } else {
-                // Wrap around to the top (highest index)
-                app->selection.workspace_index = app->filtered_workspace_count - 1;
-            }
-            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
-            update_scroll_position(app);
-            update_display(app);
-            log_info("USER: Selection DOWN -> Workspace[%d] '%s' (ID: %d)",
-                     app->selection.workspace_index,
-                     app->filtered_workspaces[app->selection.workspace_index].name,
-                     app->filtered_workspaces[app->selection.workspace_index].id);
-        }
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p) {
@@ -220,13 +165,6 @@ void preserve_selection(AppData *app) {
             app->selection.selected_window_id = app->filtered[app->selection.window_index].id;
             log_trace("Preserved window selection: ID 0x%lx at index %d",
                       app->selection.selected_window_id, app->selection.window_index);
-        }
-    } else {
-        if (app->filtered_workspace_count > 0 && app->selection.workspace_index >= 0 && 
-            app->selection.workspace_index < app->filtered_workspace_count) {
-            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
-            log_debug("Preserved workspace selection: ID %d at index %d", 
-                      app->selection.selected_workspace_id, app->selection.workspace_index);
         }
     }
 }
@@ -261,34 +199,6 @@ void restore_selection(AppData *app) {
             app->selection.selected_window_id = (app->filtered_count > 0) ? app->filtered[0].id : 0;
             log_debug("No previous window selection, defaulting to index 0");
         }
-    } else {
-        if (app->selection.selected_workspace_id != -1) {
-            // Try to find the previously selected workspace
-            bool found = false;
-            for (int i = 0; i < app->filtered_workspace_count; i++) {
-                if (app->filtered_workspaces[i].id == app->selection.selected_workspace_id) {
-                    app->selection.workspace_index = i;
-                    log_debug("Restored workspace selection to index %d for workspace ID %d", 
-                              i, app->selection.selected_workspace_id);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                // Workspace no longer exists, reset to first
-                app->selection.workspace_index = 0;
-                app->selection.selected_workspace_id = (app->filtered_workspace_count > 0) ? 
-                    app->filtered_workspaces[0].id : -1;
-                log_debug("Previously selected workspace ID %d no longer exists, reset to 0", 
-                          app->selection.selected_workspace_id);
-            }
-        } else {
-            // No previous selection, select first workspace
-            app->selection.workspace_index = 0;
-            app->selection.selected_workspace_id = (app->filtered_workspace_count > 0) ? 
-                app->filtered_workspaces[0].id : -1;
-            log_debug("No previous workspace selection, defaulting to index 0");
-        }
     }
 
     // Update scroll position to keep selected item visible
@@ -302,8 +212,6 @@ int get_scroll_offset(AppData *app) {
     switch (app->current_tab) {
         case TAB_WINDOWS:
             return app->selection.window_scroll_offset;
-        case TAB_WORKSPACES:
-            return app->selection.workspace_scroll_offset;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
                 return app->selection.provider_scroll_offset;
@@ -318,9 +226,6 @@ void set_scroll_offset(AppData *app, int offset) {
     switch (app->current_tab) {
         case TAB_WINDOWS:
             app->selection.window_scroll_offset = offset;
-            break;
-        case TAB_WORKSPACES:
-            app->selection.workspace_scroll_offset = offset;
             break;
         default:
             if (cofi_get_provider_for_tab(app->current_tab))
@@ -341,9 +246,6 @@ void update_scroll_position(AppData *app) {
     switch (app->current_tab) {
         case TAB_WINDOWS:
             total_count = app->filtered_count;
-            break;
-        case TAB_WORKSPACES:
-            total_count = app->filtered_workspace_count;
             break;
         default: {
             const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
@@ -396,20 +298,6 @@ void validate_selection(AppData *app) {
         } else if (app->selection.window_index < 0) {
             app->selection.window_index = 0;
             app->selection.selected_window_id = app->filtered[0].id;
-        }
-        return;
-    }
-
-    if (app->current_tab == TAB_WORKSPACES) {
-        if (app->filtered_workspace_count <= 0) {
-            app->selection.workspace_index = 0;
-            app->selection.selected_workspace_id = -1;
-        } else if (app->selection.workspace_index >= app->filtered_workspace_count) {
-            app->selection.workspace_index = app->filtered_workspace_count - 1;
-            app->selection.selected_workspace_id = app->filtered_workspaces[app->selection.workspace_index].id;
-        } else if (app->selection.workspace_index < 0) {
-            app->selection.workspace_index = 0;
-            app->selection.selected_workspace_id = app->filtered_workspaces[0].id;
         }
         return;
     }
