@@ -67,6 +67,22 @@ static void config_on_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
+int config_entry_allows_edit(const ConfigEntry *entry) {
+    return entry && (entry->type == CONFIG_TYPE_INT ||
+                     entry->type == CONFIG_TYPE_STRING);
+}
+
+static const char *config_shortcut_hint(AppData *app) {
+    ConfigEntry *entry = config_selected_entry(app);
+    if (!entry) {
+        return "Shortcuts: Ctrl+T=Toggle bool/enum  Ctrl+E=Edit value";
+    }
+    if (entry->type == CONFIG_TYPE_BOOL || entry->type == CONFIG_TYPE_ENUM) {
+        return "Shortcuts: Ctrl+T=Cycle value";
+    }
+    return "Shortcuts: Ctrl+E=Edit value";
+}
+
 void filter_config(AppData *app, const char *filter) {
     if (!app) return;
 
@@ -132,6 +148,6 @@ void config_provider_register(void) {
     s_config_provider.row_identity = config_row_identity;
     s_config_provider.on_enter = config_on_enter;
     s_config_provider.on_query_changed = config_on_query_changed;
-    s_config_provider.shortcut_hint = "Shortcuts: Ctrl+T=Toggle bool/enum  Ctrl+E=Edit value";
+    s_config_provider.get_shortcut_hint = config_shortcut_hint;
     cofi_register_tab_provider(&s_config_provider);
 }

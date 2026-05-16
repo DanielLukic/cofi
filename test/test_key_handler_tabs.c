@@ -269,6 +269,11 @@ void config_select_key(AppData *app, const char *key) {
     app->selection.provider_index = 0;
 }
 
+int config_entry_allows_edit(const ConfigEntry *entry) {
+    return entry && (entry->type == CONFIG_TYPE_INT ||
+                     entry->type == CONFIG_TYPE_STRING);
+}
+
 void show_overlay(AppData *app, OverlayType type, void *data) {
     g_show_overlay_calls++;
     g_last_overlay_type = type;
@@ -642,7 +647,7 @@ static void test_ctrl_t_config_tab_cycles_enum_and_saves(void) {
     ASSERT_TRUE("Ctrl+t on Config enum saves config", g_save_config_calls == 1);
 }
 
-static void test_ctrl_e_config_tab_shows_edit_overlay_for_selected_entry(void) {
+static void test_ctrl_e_config_tab_shows_edit_overlay_for_value_entry(void) {
     AppData app;
     init_app(&app);
     reset_captures();
@@ -651,14 +656,35 @@ static void test_ctrl_e_config_tab_shows_edit_overlay_for_selected_entry(void) {
     app.filtered_config_count = 2;
     app.selection.provider_index = 1;
     strcpy(app.filtered_config[0].key, "close_on_focus_loss");
-    strcpy(app.filtered_config[1].key, "digit_slot_mode");
+    app.filtered_config[0].type = CONFIG_TYPE_BOOL;
+    strcpy(app.filtered_config[1].key, "tile_columns");
+    app.filtered_config[1].type = CONFIG_TYPE_INT;
 
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("Ctrl+e on Config handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+e on Config opens config-edit overlay", g_show_overlay_calls == 1 && g_last_overlay_type == OVERLAY_CONFIG_EDIT);
-    ASSERT_TRUE("Ctrl+e on Config overlay targets selected config entry", strcmp(g_last_overlay_config_key, "digit_slot_mode") == 0);
+    ASSERT_TRUE("Ctrl+e on Config overlay targets selected config entry", strcmp(g_last_overlay_config_key, "tile_columns") == 0);
+}
+
+static void test_ctrl_e_config_tab_ignores_enum_entry(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TAB_CONFIG;
+    app.filtered_config_count = 1;
+    app.selection.provider_index = 0;
+    strcpy(app.filtered_config[0].key, "digit_slot_mode");
+    strcpy(app.filtered_config[0].value, "default");
+    app.filtered_config[0].type = CONFIG_TYPE_ENUM;
+
+    GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+e on Config enum not handled", handled == FALSE);
+    ASSERT_TRUE("Ctrl+e on Config enum does not open overlay", g_show_overlay_calls == 0);
 }
 
 static void test_ctrl_a_hotkeys_tab_starts_capture_overlay(void) {
@@ -925,7 +951,8 @@ int main(int argc, char **argv) {
     test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot();
     test_ctrl_t_config_tab_cycles_bool_and_saves();
     test_ctrl_t_config_tab_cycles_enum_and_saves();
-    test_ctrl_e_config_tab_shows_edit_overlay_for_selected_entry();
+    test_ctrl_e_config_tab_shows_edit_overlay_for_value_entry();
+    test_ctrl_e_config_tab_ignores_enum_entry();
     test_ctrl_a_hotkeys_tab_starts_capture_overlay();
     test_ctrl_e_hotkeys_tab_opens_edit_for_selected_binding();
     test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs();

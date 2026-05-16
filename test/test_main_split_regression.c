@@ -66,6 +66,9 @@ static void test_filter_config_behavior(void) {
     ASSERT_TRUE("filter_config key search yields one entry", app.filtered_config_count == 1);
     ASSERT_TRUE("filter_config matched key is tile_columns",
                 strcmp(app.filtered_config[0].key, "tile_columns") == 0);
+
+    filter_config(&app, "hotkey_windows");
+    ASSERT_TRUE("filter_config hides legacy hotkey rows", app.filtered_config_count == 0);
 }
 
 static void test_hide_window_noop_when_already_hidden(void) {

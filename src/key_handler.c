@@ -33,13 +33,6 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                 update_display(app);
                 return TRUE;
             }
-            const CofiTabProvider *esc_provider = cofi_get_provider_for_tab(app->current_tab);
-            if (esc_provider) {
-                TabMode origin = app->prefix_origin_tab;
-                app->tab_visibility[(TabMode)esc_provider->tab_mode] = TAB_VIS_HIDDEN;
-                switch_to_tab(app, origin);
-                return TRUE;
-            }
             log_debug("USER: ESCAPE pressed -> Closing cofi");
             hide_window(app);
             return TRUE;

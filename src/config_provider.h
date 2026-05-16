@@ -8,5 +8,6 @@ void filter_config(AppData *app, const char *filter);
 
 ConfigEntry *config_selected_entry(AppData *app);
 void config_select_key(AppData *app, const char *key);
+int config_entry_allows_edit(const ConfigEntry *entry);
 
 #endif

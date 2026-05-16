@@ -152,7 +152,7 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (config_selected_entry(app)) {
+        if (config_entry_allows_edit(config_selected_entry(app))) {
             show_overlay(app, OVERLAY_CONFIG_EDIT, NULL);
             return TRUE;
         }

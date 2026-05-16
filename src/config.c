@@ -477,13 +477,6 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
         (*count)++; \
     } while(0)
 
-    #define ADD_STR(k, val) do { \
-        strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
-        strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
-        entries[*count].type = CONFIG_TYPE_STRING; \
-        (*count)++; \
-    } while(0)
-
     #define ADD_ENUM(k, val) do { \
         strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
         strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
@@ -501,13 +494,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_INT("slot_occlusion_threshold", config->slot_occlusion_threshold_pct);
-    ADD_STR("hotkey_windows", config->hotkey_windows);
-    ADD_STR("hotkey_command", config->hotkey_command);
-    ADD_STR("hotkey_workspaces", config->hotkey_workspaces);
-
     #undef ADD_BOOL
     #undef ADD_INT
-    #undef ADD_STR
     #undef ADD_ENUM
 }
-

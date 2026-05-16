@@ -14,7 +14,7 @@ void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *ap
     }
 
     ConfigEntry *entry = config_selected_entry(app);
-    if (!entry) {
+    if (!config_entry_allows_edit(entry)) {
         GtkWidget *error_label = gtk_label_new("No config option selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;

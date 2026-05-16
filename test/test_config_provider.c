@@ -82,6 +82,29 @@ static void test_empty_row_and_hint(void) {
                 strcmp(row.cells[0].text, "No matching config options found") == 0);
 }
 
+static void test_edit_policy_and_shortcut_hints(void) {
+    AppData app = {0};
+    filter_config(&app, "");
+
+    app.selection.provider_index = 0;
+    ASSERT_TRUE("bool config is not text-editable",
+                !config_entry_allows_edit(config_selected_entry(&app)));
+    ASSERT_TRUE("bool config hint uses cycle",
+                strcmp(config_shortcut_hint(&app), "Shortcuts: Ctrl+T=Cycle value") == 0);
+
+    app.selection.provider_index = 1;
+    ASSERT_TRUE("enum config is not text-editable",
+                !config_entry_allows_edit(config_selected_entry(&app)));
+    ASSERT_TRUE("enum config hint uses cycle",
+                strcmp(config_shortcut_hint(&app), "Shortcuts: Ctrl+T=Cycle value") == 0);
+
+    app.selection.provider_index = 2;
+    ASSERT_TRUE("integer config is text-editable",
+                config_entry_allows_edit(config_selected_entry(&app)));
+    ASSERT_TRUE("integer config hint uses edit",
+                strcmp(config_shortcut_hint(&app), "Shortcuts: Ctrl+E=Edit value") == 0);
+}
+
 static void test_query_changed_resets_selection(void) {
     AppData app = {0};
 
@@ -114,6 +137,7 @@ int main(void) {
 
     test_filter_and_format_row();
     test_empty_row_and_hint();
+    test_edit_policy_and_shortcut_hints();
     test_query_changed_resets_selection();
     test_selected_entry_clamps_and_select_key();
 

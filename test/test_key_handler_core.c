@@ -388,6 +388,11 @@ void config_select_key(AppData *app, const char *key) {
     (void)key;
 }
 
+int config_entry_allows_edit(const ConfigEntry *entry) {
+    return entry && (entry->type == CONFIG_TYPE_INT ||
+                     entry->type == CONFIG_TYPE_STRING);
+}
+
 void filter_hotkeys(AppData *app, const char *filter) {
     (void)app;
     g_filter_hotkeys_calls++;
@@ -507,6 +512,28 @@ static void test_escape_windows_hides(void) {
 
     ASSERT_TRUE("Escape on Windows tab handled", handled == TRUE);
     ASSERT_TRUE("Escape on Windows tab hides window", app.window_visible == FALSE && g_hide_calls == 1);
+}
+
+static void test_escape_provider_tab_hides(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    CofiTabProvider provider;
+    memset(&provider, 0, sizeof(provider));
+    provider.tab_mode = TAB_CONFIG;
+    g_provider_for_tab = &provider;
+
+    app.current_tab = TAB_CONFIG;
+    app.prefix_origin_tab = TAB_WINDOWS;
+    app.tab_visibility[TAB_CONFIG] = TAB_VIS_SURFACED;
+
+    GdkEventKey ev = make_key(GDK_KEY_Escape, 0);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Escape on provider tab handled", handled == TRUE);
+    ASSERT_TRUE("Escape on provider tab hides window", app.window_visible == FALSE && g_hide_calls == 1);
+    ASSERT_TRUE("Escape on provider tab does not switch origin", g_switch_calls == 0);
 }
 
 static void test_escape_harpoon_pending_delete_cancels_only(void) {
@@ -1152,6 +1179,7 @@ int main(int argc, char **argv) {
     printf("======================\n\n");
 
     test_escape_windows_hides();
+    test_escape_provider_tab_hides();
     test_escape_harpoon_pending_delete_cancels_only();
     test_return_windows_activates_selected_and_hides();
     test_return_apps_launches_selected_and_hides();
