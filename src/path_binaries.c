@@ -5,10 +5,10 @@
 #include <strings.h>
 
 #include "app_data.h"
+#include "apps_provider.h"
 #include "display.h"
 #include "log.h"
 #include "match.h"
-#include "tab_switching.h"
 
 typedef struct {
     AppData *app;

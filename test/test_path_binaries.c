@@ -25,7 +25,7 @@ static int tests_passed = 0;
 #define ASSERT_EQ_INT(msg, expected, actual) ASSERT_TRUE(msg, (expected) == (actual))
 #define ASSERT_STR_EQ(msg, expected, actual) ASSERT_TRUE(msg, strcmp((expected), (actual)) == 0)
 
-/* ---- stubs required by tab_switching.c and cofi_modal.c (routing tests) ---- */
+/* ---- stubs required by apps_provider.c/path_binaries.c routing tests ---- */
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
@@ -35,10 +35,6 @@ void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
 void reset_selection(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; }
 void apps_load(void) {}
-void sinks_start_polling(AppData *app) { (void)app; }
-void sinks_stop_polling(AppData *app) { (void)app; }
-void proc_start_polling(AppData *app) { (void)app; }
-void proc_stop_polling(AppData *app) { (void)app; }
 
 void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *count) {
     (void)config;
@@ -65,7 +61,17 @@ void apps_filter(const char *query, AppEntry *out, int *out_count) {
     stub_apps_filter(query, out, out_count);
 }
 
-#include "../src/tab_switching.c"
+void filter_apps(AppData *app, const char *filter) {
+    const char *query = filter ? filter : "";
+
+    if (app->apps_mode == APPS_MODE_PATH) {
+        path_binaries_ensure_loaded(app);
+        path_binaries_filter(query, app->filtered_apps, &app->filtered_apps_count);
+        return;
+    }
+
+    apps_filter(query, app->filtered_apps, &app->filtered_apps_count);
+}
 
 /* ---- helpers ---- */
 static AppEntry make_path_entry(const char *name, const char *exec_path) {

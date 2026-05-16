@@ -86,6 +86,9 @@ static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
+void filter_apps(AppData *app, const char *query);
+void reset_selection(AppData *app);
+
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
     (void)file;
@@ -176,8 +179,9 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     return NULL;
 }
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
-    (void)tab_mode;
-    return g_provider_for_tab;
+    if (g_provider_for_tab && g_provider_for_tab->tab_mode == tab_mode)
+        return g_provider_for_tab;
+    return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return 0; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) {
@@ -281,6 +285,21 @@ static CofiActionStatus mock_provider_enter_pressed(AppData *app, int filtered_i
     g_provider_enter_calls++;
     g_provider_enter_modifier_state = modifier_state;
     return COFI_NO_OP;
+}
+
+static CofiActionStatus mock_apps_enter_pressed(AppData *app, int filtered_idx, int raw_idx,
+                                                const char *entry_text, int modifier_state) {
+    (void)filtered_idx;
+    (void)entry_text;
+    (void)modifier_state;
+    if (raw_idx < 0 || raw_idx >= app->filtered_apps_count) return COFI_NO_OP;
+    apps_launch(&app->filtered_apps[raw_idx]);
+    return COFI_HANDLED_HIDE;
+}
+
+static void mock_apps_query_changed(AppData *app, const char *query) {
+    filter_apps(app, query);
+    reset_selection(app);
 }
 
 void switch_to_tab(AppData *app, TabMode target_tab) {
@@ -503,8 +522,13 @@ static void test_return_apps_launches_selected_and_hides(void) {
 
     app.current_tab = TAB_APPS;
     app.filtered_apps_count = 1;
-    app.selection.apps_index = 0;
+    app.selection.provider_index = 0;
     strcpy(app.filtered_apps[0].name, "Firefox");
+    CofiTabProvider provider;
+    memset(&provider, 0, sizeof(provider));
+    provider.tab_mode = TAB_APPS;
+    provider.on_enter_pressed = mock_apps_enter_pressed;
+    g_provider_for_tab = &provider;
 
     GdkEventKey ev = make_key(GDK_KEY_Return, 0);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -794,6 +818,11 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         g_reset_selection_calls = 0;
         g_update_display_calls = 0;
 
+        CofiTabProvider apps_provider;
+        memset(&apps_provider, 0, sizeof(apps_provider));
+        apps_provider.tab_mode = TAB_APPS;
+        apps_provider.on_query_changed = mock_apps_query_changed;
+        g_provider_for_tab = tabs[i] == TAB_APPS ? &apps_provider : NULL;
         app.current_tab = tabs[i];
         gtk_entry_set_text(GTK_ENTRY(app.entry), "query");
         on_entry_changed(GTK_ENTRY(app.entry), &app);

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "calc.h"
+#include "apps_provider.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
@@ -52,13 +53,6 @@ gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
                     set_workspace_switch_state(1);
                     activate_window(app->display, win->id);
                     highlight_window(app, win->id);
-                    hide_window(app);
-                }
-            } else if (app->current_tab == TAB_APPS) {
-                if (app->selection.apps_index < app->filtered_apps_count) {
-                    AppEntry *entry = &app->filtered_apps[app->selection.apps_index];
-                    log_info("USER: ENTER pressed -> Launching app '%s'", entry->name);
-                    apps_launch(entry);
                     hide_window(app);
                 }
             } else {
@@ -209,8 +203,6 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
         filter_hotkeys(app, text);
     } else if (app->current_tab == TAB_RULES) {
         filter_rules(app, text);
-    } else if (app->current_tab == TAB_APPS) {
-        filter_apps(app, text);
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {

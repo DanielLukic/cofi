@@ -15,6 +15,5 @@ void filter_harpoon(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void filter_rules(AppData *app, const char *filter);
-void filter_apps(AppData *app, const char *filter);
 
 #endif

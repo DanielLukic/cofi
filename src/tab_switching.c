@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "apps.h"
 #include "cofi_tab_provider.h"
 #include "config.h"
 #include "display.h"
@@ -12,7 +11,6 @@
 #include "match.h"
 #include "log.h"
 #include "selection.h"
-#include "path_binaries.h"
 #include "tab_metadata.h"
 
 static gboolean provider_tick(gpointer data) {
@@ -60,10 +58,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
         return;
     }
 
-    if (app->current_tab == TAB_APPS && target_tab != TAB_APPS) {
-        app->apps_mode = APPS_MODE_DEFAULT;
-    }
-
     TabMode previous_tab = app->current_tab;
     const CofiTabProvider *previous_provider = cofi_get_provider_for_tab(previous_tab);
     if (previous_provider && previous_tab != target_tab) {
@@ -95,10 +89,6 @@ void switch_to_tab(AppData *app, TabMode target_tab) {
     } else if (target_tab == TAB_RULES) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter rules...");
         filter_rules(app, "");
-    } else if (target_tab == TAB_APPS) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "Type to filter applications...");
-        apps_load();
-        filter_apps(app, "");
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(target_tab);
         if (p && p->on_enter)
@@ -305,16 +295,4 @@ void filter_rules(AppData *app, const char *filter) {
             app->filtered_rules_count++;
         }
     }
-}
-
-void filter_apps(AppData *app, const char *filter) {
-    const char *query = filter ? filter : "";
-
-    if (app->apps_mode == APPS_MODE_PATH) {
-        path_binaries_ensure_loaded(app);
-        path_binaries_filter(query, app->filtered_apps, &app->filtered_apps_count);
-        return;
-    }
-
-    apps_filter(query, app->filtered_apps, &app->filtered_apps_count);
 }

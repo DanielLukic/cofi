@@ -1,5 +1,6 @@
 #include "prefix_tabs.h"
 
+#include "apps_provider.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
