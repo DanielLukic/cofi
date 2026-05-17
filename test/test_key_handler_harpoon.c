@@ -43,6 +43,8 @@ static char g_last_sinks_slot;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
 
+#define TEST_SINKS_TAB ((TabMode)(TAB_COUNT + 1))
+
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
 }
@@ -99,7 +101,7 @@ static CofiActionStatus test_sink_slot_recall(AppData *app, const char *payload)
 
 static void enable_test_sinks_provider(void) {
     memset(&g_sinks_provider, 0, sizeof(g_sinks_provider));
-    g_sinks_provider.tab_mode = TAB_SINKS;
+    g_sinks_provider.tab_mode = TEST_SINKS_TAB;
     g_sinks_provider.id = "sinks";
     g_sinks_provider.slot_store_enabled = 1;
     g_sinks_provider.slot_payload_for = test_sink_slot_payload;
@@ -426,7 +428,7 @@ static void test_ctrl_a_on_sinks_assigns_sink_slot(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SINKS;
+    app.current_tab = TEST_SINKS_TAB;
     enable_test_sinks_provider();
 
     GdkEventKey ev = make_key(GDK_KEY_a, GDK_CONTROL_MASK);
@@ -443,7 +445,7 @@ static void test_alt_a_on_sinks_switches_sink_slot(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SINKS;
+    app.current_tab = TEST_SINKS_TAB;
     slot_assign(&app.harpoon.store, 'a', "sinks", "alsa_output.test");
     enable_test_sinks_provider();
 
@@ -460,7 +462,7 @@ static void test_ctrl_j_on_sinks_remains_navigation_key(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SINKS;
+    app.current_tab = TEST_SINKS_TAB;
 
     GdkEventKey ev = make_key(GDK_KEY_j, GDK_CONTROL_MASK);
     gboolean handled = handle_harpoon_assignment(&ev, &app);

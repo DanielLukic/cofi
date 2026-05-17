@@ -82,7 +82,7 @@ int cofi_register_command(const CommandSpec *spec) {
 static const CofiTabProvider *registered_sinks_provider(void) {
     cofi_registry_reset();
     sinks_provider_register();
-    return cofi_get_provider_for_tab(TAB_SINKS);
+    return cofi_get_provider(s_sinks_provider_id);
 }
 
 static void reset_capture(void) {
@@ -135,6 +135,7 @@ static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_sinks_provider();
 
     ASSERT_TRUE("sinks provider registered", p != NULL);
+    ASSERT_TRUE("sinks provider has dynamic tab", p->tab_mode >= TAB_COUNT);
     ASSERT_TRUE("sinks command primary", strcmp(s_sinks_command.primary, "sinks") == 0);
     ASSERT_TRUE("sinks command alias", strcmp(s_sinks_command.aliases[0], "sink") == 0);
     ASSERT_TRUE("sinks command help",
@@ -147,8 +148,9 @@ static void test_registered_command_metadata(void) {
 
 static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
-    registered_sinks_provider();
+    const CofiTabProvider *provider = registered_sinks_provider();
     setup_app(&app);
+    app.current_tab = TAB_APPS;
     reset_capture();
 
     gboolean result = s_sinks_command.handler(&app, NULL, "");
@@ -156,8 +158,9 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     ASSERT_TRUE("sinks command without args returns false", result == FALSE);
     ASSERT_TRUE("sinks command without args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("sinks command without args surfaces once", g_surface_tab_calls == 1);
-    ASSERT_TRUE("sinks command without args surfaces sinks tab", g_last_surface_tab == TAB_SINKS);
-    ASSERT_TRUE("sinks command without args keeps origin windows", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("sinks command without args surfaces sinks tab",
+                provider && g_last_surface_tab == (TabMode)provider->tab_mode);
+    ASSERT_TRUE("sinks command without args records origin tab", app.prefix_origin_tab == TAB_APPS);
     ASSERT_TRUE("sinks command without args does not hide", g_hide_window_calls == 0);
     teardown_app(&app);
 }

@@ -466,7 +466,6 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_HOTKEYS,
         TAB_RULES,
         TAB_APPS,
-        TAB_SINKS,
         TAB_PROC,
         TAB_SESSIONS,
         TAB_WINDOWS
@@ -493,7 +492,6 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     TabMode expected[] = {
         TAB_SESSIONS,
         TAB_PROC,
-        TAB_SINKS,
         TAB_APPS,
         TAB_RULES,
         TAB_HOTKEYS,

@@ -17,6 +17,12 @@
 #include <string.h>
 
 static CofiTabProvider s_sinks_provider;
+static int s_sinks_provider_id = -1;
+
+static TabMode sinks_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_sinks_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static int sinks_row_count(AppData *app) {
     if (!app) return 0;
@@ -152,9 +158,9 @@ static gboolean sinks_command_handler(AppData *app,
     }
 
     if (app) {
-        app->prefix_origin_tab = TAB_WINDOWS;
+        app->prefix_origin_tab = app->current_tab;
     }
-    surface_tab(app, (TabMode)s_sinks_provider.tab_mode);
+    surface_tab(app, sinks_tab_mode());
     return FALSE;
 }
 
@@ -170,7 +176,8 @@ static const CommandSpec s_sinks_command = {
 
 void sinks_provider_register(void) {
     cofi_init_provider_defaults(&s_sinks_provider);
-    s_sinks_provider.tab_mode = TAB_SINKS;
+    s_sinks_provider_id = -1;
+    s_sinks_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_sinks_provider.id = "sinks";
     s_sinks_provider.display_name = "SINKS";
     s_sinks_provider.shortcut_hint = "Shortcuts: Ctrl+key=Assign sink slot  Alt+key=Activate sink slot";
@@ -192,7 +199,8 @@ void sinks_provider_register(void) {
     s_sinks_provider.slot_store_enabled = 1;
     s_sinks_provider.slot_payload_for = sinks_slot_payload_for;
     s_sinks_provider.slot_recall = sinks_slot_recall;
-    if (cofi_register_tab_provider(&s_sinks_provider) >= 0) {
+    s_sinks_provider_id = cofi_register_tab_provider(&s_sinks_provider);
+    if (s_sinks_provider_id >= 0) {
         cofi_register_command(&s_sinks_command);
     }
 }
