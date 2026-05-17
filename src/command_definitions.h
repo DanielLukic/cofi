@@ -241,14 +241,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
-        .primary = "workspaces",
-        .aliases = {"ws", NULL},
-        .handler = cmd_workspaces,
-        .description = "Switch to Workspaces tab",
-        .help_format = "workspaces, ws",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "help",
         .aliases = {"h", "?", NULL},
         .handler = cmd_help,

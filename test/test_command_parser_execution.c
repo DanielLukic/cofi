@@ -12,6 +12,7 @@ static const char *run_aliases[] = {"r", NULL};
 static const char *sinks_aliases[] = {"sink", NULL};
 static const char *proc_aliases[] = {"ps", NULL};
 static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
+static const char *workspaces_aliases[] = {"ws", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -79,6 +80,17 @@ static void register_sessions_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_workspaces_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "workspaces";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "workspaces";
+    provider.aliases = workspaces_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
 static void assert_true(const char *name, int condition) {
     if (condition) {
         printf("PASS: %s\n", name);
@@ -140,6 +152,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias zellij resolves to sessions",
                 parse_command_for_execution("zellij work api", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "sessions") == 0 && strcmp(arg, "work api") == 0);
+
+    assert_true("provider alias ws resolves to workspaces",
+                parse_command_for_execution("ws", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "workspaces") == 0 && strcmp(arg, "") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -164,6 +180,7 @@ int main(void) {
     register_sinks_provider();
     register_proc_provider();
     register_sessions_provider();
+    register_workspaces_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

@@ -21,7 +21,10 @@ static int tests_passed = 0;
 
 static int g_reset_selection_calls;
 static int g_switch_desktop_calls;
+static int g_exit_command_mode_calls;
+static int g_surface_tab_calls;
 static int g_last_desktop = -1;
+static TabMode g_last_surface_tab = TAB_WINDOWS;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -34,6 +37,17 @@ int has_match(const char *needle, const char *haystack) {
 void reset_selection(AppData *app) {
     (void)app;
     g_reset_selection_calls++;
+}
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    (void)app;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
 }
 
 void cofi_init_provider_defaults(CofiTabProvider *p) {
@@ -57,7 +71,10 @@ static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
     g_reset_selection_calls = 0;
     g_switch_desktop_calls = 0;
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
     g_last_desktop = -1;
+    g_last_surface_tab = TAB_WINDOWS;
     app->current_tab = TAB_WORKSPACES;
 }
 
@@ -143,6 +160,33 @@ static void test_enter_pressed_switches_workspace(void) {
     ASSERT_TRUE("enter switches selected workspace", g_switch_desktop_calls == 1 && g_last_desktop == 1);
 }
 
+static void test_command_metadata(void) {
+    AppData app;
+    reset_state(&app);
+
+    ASSERT_TRUE("primary command is workspaces",
+                strcmp(s_workspaces_provider.primary_cmd, "workspaces") == 0);
+    ASSERT_TRUE("ws alias registered",
+                s_workspaces_provider.aliases && strcmp(s_workspaces_provider.aliases[0], "ws") == 0);
+    ASSERT_TRUE("command keeps hotkey open",
+                s_workspaces_provider.command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("command handler exists", s_workspaces_provider.command_handler != NULL);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app;
+    reset_state(&app);
+    app.current_tab = TAB_WINDOWS;
+
+    gboolean result = s_workspaces_provider.command_handler(&app, NULL, NULL);
+
+    ASSERT_TRUE("command handler returns false", result == FALSE);
+    ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("command stores prefix origin", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("command surfaces workspaces tab",
+                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_WORKSPACES);
+}
+
 int main(void) {
     printf("Workspaces provider tests\n");
     printf("=========================\n\n");
@@ -152,6 +196,8 @@ int main(void) {
     test_query_resets_selection();
     test_selected_workspace_clamps();
     test_enter_pressed_switches_workspace();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

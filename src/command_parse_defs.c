@@ -32,6 +32,5 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "tm",      {"toggle-monitor", NULL},                       NULL, COMMAND_OWNER_CORE },
     { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc", COMMAND_OWNER_CORE },
     { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL, COMMAND_OWNER_CORE },
-    { "workspaces", {"ws", NULL},                                NULL, "workspaces" },
     { NULL,        {NULL},                                           NULL, NULL }
 };

@@ -21,7 +21,7 @@ STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
+STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
 STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
@@ -33,6 +33,7 @@ static const char *run_aliases[] = {"r", NULL};
 static const char *sinks_aliases[] = {"sink", NULL};
 static const char *proc_aliases[] = {"ps", NULL};
 static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
+static const char *workspaces_aliases[] = {"ws", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -113,6 +114,20 @@ static void register_sessions_command_provider(void) {
     provider.aliases = sessions_aliases;
     provider.command_help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]";
     provider.command_description = "Switch to sessions tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_workspaces_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "workspaces";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "workspaces";
+    provider.aliases = workspaces_aliases;
+    provider.command_help_format = "workspaces, ws";
+    provider.command_description = "Switch to Workspaces tab";
     provider.command_keeps_open_on_hotkey_auto = 1;
     provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
     cofi_register_tab_provider(&provider);
@@ -206,7 +221,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("show",    0);   // show: switches view
     ASSERT_ACTIVATES("sw",      0);   // swap-windows: swaps geometry only
-    ASSERT_ACTIVATES("workspaces", 0); // workspaces: surfaces tab
 }
 
 // Verify no command is missing from the test
@@ -222,7 +236,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("harpoon", 1);
     ASSERT_KEEP_OPEN("names", 1);
     ASSERT_KEEP_OPEN("rules", 1);
-    ASSERT_KEEP_OPEN("workspaces", 1);
 
     ASSERT_KEEP_OPEN("jw", 0);
     ASSERT_KEEP_OPEN("cw", 0);
@@ -283,6 +296,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("sessions")) { printf("PASS: sessions provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: sessions provider command should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("workspaces")) { printf("PASS: workspaces provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: workspaces provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("ws")) { printf("PASS: workspaces provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: workspaces provider alias should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -294,6 +313,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("tmux")) { printf("PASS: disabled sessions alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled sessions alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(sessions_id, 1);
+
+    int workspaces_id = cofi_get_provider_id("workspaces");
+    cofi_set_provider_enabled(workspaces_id, 0);
+    if (!should_keep_open_on_hotkey_auto("ws")) { printf("PASS: disabled workspaces alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled workspaces alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(workspaces_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -479,6 +504,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias zj did not resolve to sessions\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("ws", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "workspaces") == 0) {
+        printf("PASS: provider alias ws resolves to workspaces\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias ws did not resolve to workspaces\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -501,13 +535,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 19 legacy non-activating = 30 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, and Sessions are provider-owned and intentionally absent.
-    if (table_count == 30) {
+    // 11 activating + 18 legacy non-activating = 29 central commands.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, and Workspaces are provider-owned and intentionally absent.
+    if (table_count == 29) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 30 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 29 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -523,6 +557,7 @@ int main(void) {
     register_sinks_command_provider();
     register_proc_command_provider();
     register_sessions_command_provider();
+    register_workspaces_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

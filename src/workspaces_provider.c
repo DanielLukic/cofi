@@ -3,11 +3,30 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
+#include "tab_switching.h"
 #include "x11_utils.h"
+
+static const char *s_workspaces_aliases[] = {"ws", NULL};
+static gboolean workspaces_command_handler(AppData *app, WindowInfo *window, const char *args);
+
+static CofiTabProvider s_workspaces_provider = {
+    .tab_mode = TAB_WORKSPACES,
+    .id = "workspaces",
+    .display_name = "WORKSPACES",
+    .primary_cmd = "workspaces",
+    .aliases = s_workspaces_aliases,
+    .command_description = "Switch to Workspaces tab",
+    .command_help_format = "workspaces, ws",
+    .command_handler = workspaces_command_handler,
+    .command_keeps_open_on_hotkey_auto = 1,
+    .required = 0,
+    .hidden_by_default = 1,
+};
 
 void filter_workspaces(AppData *app, const char *filter) {
     if (!app) return;
@@ -123,15 +142,19 @@ static CofiActionStatus workspaces_on_enter_pressed(AppData *app,
     return COFI_HANDLED_HIDE;
 }
 
+static gboolean workspaces_command_handler(AppData *app,
+                                           WindowInfo *window __attribute__((unused)),
+                                           const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_workspaces_provider.tab_mode);
+    return FALSE;
+}
+
 void workspaces_provider_register(void) {
     CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.tab_mode = TAB_WORKSPACES;
-    provider.id = "workspaces";
-    provider.display_name = "WORKSPACES";
-    provider.primary_cmd = "workspaces";
-    provider.required = 0;
-    provider.hidden_by_default = 1;
+    provider = s_workspaces_provider;
     provider.row_count = workspaces_row_count;
     provider.format_row = workspaces_format_row;
     provider.match_string = workspaces_match_string;
