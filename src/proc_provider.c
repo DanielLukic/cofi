@@ -1,6 +1,7 @@
 #include "proc_provider.h"
 
 #include "app_data.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "proc.h"
@@ -28,6 +29,31 @@ static CofiActionStatus proc_provider_on_command_args(AppData *app, const char *
         return COFI_HANDLED_KEEP;
     }
     return COFI_NO_OP;
+}
+
+static void proc_show_command_error(AppData *app, const char *message) {
+    if (!app || !app->textbuffer) return;
+    gtk_text_buffer_set_text(app->textbuffer, message, -1);
+    app->command_mode.showing_help = TRUE;
+}
+
+static gboolean proc_command_handler(AppData *app,
+                                     WindowInfo *window __attribute__((unused)),
+                                     const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("proc");
+    if (!provider) {
+        proc_show_command_error(app, "Proc provider not available.");
+        return FALSE;
+    }
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+    }
+    surface_tab(app, (TabMode)provider->tab_mode);
+    if (args && args[0] != '\0') {
+        proc_provider_on_command_args(app, args);
+    }
+    return FALSE;
 }
 
 static CofiActionStatus proc_signal_handler(AppData *app, void *const *payloads, int count,
@@ -65,6 +91,10 @@ void proc_provider_register(void) {
     s_proc_provider.display_name = "PROC";
     s_proc_provider.primary_cmd = "proc";
     s_proc_provider.aliases = s_proc_aliases;
+    s_proc_provider.command_description = "Switch to process manager tab";
+    s_proc_provider.command_help_format = "proc, ps";
+    s_proc_provider.command_handler = proc_command_handler;
+    s_proc_provider.command_keeps_open_on_hotkey_auto = 1;
     s_proc_provider.prefix_char = 0;
     s_proc_provider.required = 0;
     s_proc_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

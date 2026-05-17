@@ -22,7 +22,7 @@ STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
 STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
-STUB(cmd_proc) STUB(cmd_sessions) STUB(cmd_run) STUB(cmd_help)
+STUB(cmd_sessions) STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -31,6 +31,7 @@ static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
 static const char *calc_aliases[] = {"ca", NULL};
 static const char *run_aliases[] = {"r", NULL};
 static const char *sinks_aliases[] = {"sink", NULL};
+static const char *proc_aliases[] = {"ps", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -83,6 +84,20 @@ static void register_sinks_command_provider(void) {
     provider.aliases = sinks_aliases;
     provider.command_help_format = "sinks, sink [@SLOT|SINK]";
     provider.command_description = "Switch to audio sinks tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_proc_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "proc";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "proc";
+    provider.aliases = proc_aliases;
+    provider.command_help_format = "proc, ps";
+    provider.command_description = "Switch to process manager tab";
     provider.command_keeps_open_on_hotkey_auto = 1;
     provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
     cofi_register_tab_provider(&provider);
@@ -174,7 +189,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("rw",      0);   // rename-workspace: shows overlay
     ASSERT_ACTIVATES("rules",   0);   // rules: surfaces tab
     ASSERT_ACTIVATES("set",     0);   // set: changes config
-    ASSERT_ACTIVATES("proc",    0);   // proc: surfaces tab
     ASSERT_ACTIVATES("tmux",    0);   // tmux: surfaces tab
     ASSERT_ACTIVATES("show",    0);   // show: switches view
     ASSERT_ACTIVATES("sw",      0);   // swap-windows: swaps geometry only
@@ -194,7 +208,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("harpoon", 1);
     ASSERT_KEEP_OPEN("names", 1);
     ASSERT_KEEP_OPEN("rules", 1);
-    ASSERT_KEEP_OPEN("proc", 1);
     ASSERT_KEEP_OPEN("tmux", 1);
     ASSERT_KEEP_OPEN("workspaces", 1);
 
@@ -247,6 +260,9 @@ static void test_should_keep_open_runtime_policy(void) {
 
     if (should_keep_open_on_hotkey_auto("sinks")) { printf("PASS: sinks provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: sinks provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("proc")) { printf("PASS: proc provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: proc provider command should keep open\n"); tests_failed++; }
 }
 
 static void test_command_chain_semantics(void) {
@@ -414,6 +430,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias sink did not resolve to sinks\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("ps", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "proc") == 0) {
+        printf("PASS: provider alias ps resolves to proc\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias ps did not resolve to proc\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -436,13 +461,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 21 legacy non-activating = 32 central commands.
-    // Profiles, Calc, Run, and Sinks are provider-owned and intentionally absent from this table.
-    if (table_count == 32) {
+    // 11 activating + 20 legacy non-activating = 31 central commands.
+    // Profiles, Calc, Run, Sinks, and Proc are provider-owned and intentionally absent from this table.
+    if (table_count == 31) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 32 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 31 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -456,6 +481,7 @@ int main(void) {
     register_calc_command_provider();
     register_run_command_provider();
     register_sinks_command_provider();
+    register_proc_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

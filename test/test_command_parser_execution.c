@@ -10,6 +10,7 @@ static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
 static const char *calc_aliases[] = {"ca", NULL};
 static const char *run_aliases[] = {"r", NULL};
 static const char *sinks_aliases[] = {"sink", NULL};
+static const char *proc_aliases[] = {"ps", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -51,6 +52,17 @@ static void register_sinks_provider(void) {
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     provider.primary_cmd = "sinks";
     provider.aliases = sinks_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_proc_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "proc";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "proc";
+    provider.aliases = proc_aliases;
     provider.command_handler = (CofiCommandHandler)1;
     cofi_register_tab_provider(&provider);
 }
@@ -108,6 +120,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias sink resolves to sinks",
                 parse_command_for_execution("sink headphones", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "sinks") == 0 && strcmp(arg, "headphones") == 0);
+
+    assert_true("provider alias ps resolves to proc",
+                parse_command_for_execution("ps firefox", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "proc") == 0 && strcmp(arg, "firefox") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -130,6 +146,7 @@ int main(void) {
     register_calc_provider();
     register_run_provider();
     register_sinks_provider();
+    register_proc_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();
