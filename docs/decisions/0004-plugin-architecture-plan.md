@@ -13,6 +13,8 @@ Progress:
   `CommandSpec` entries directly with `command_registry`.
 - Core commands now live in `core_commands.c`; `command_registry.c` is the
   storage/lookup registry, not a command owner.
+- Built-in startup registration now goes through `builtin_plugins.c`, keeping
+  `app_setup.c` out of provider-specific registration details.
 
 ## Problem
 
@@ -44,6 +46,8 @@ Remaining broken windows:
 
 - Core command truth is now centralized in `core_commands.c` as the built-in
   core plugin shape.
+- Startup registration has one compiled-in plugin entry point:
+  `cofi_register_builtin_plugins()`.
 - Provider command metadata no longer lives on `CofiTabProvider`; providers
   register `CommandSpec` entries directly.
 - All provider tabs now use dynamic tab handles. Provider-specific static

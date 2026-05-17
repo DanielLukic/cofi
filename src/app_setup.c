@@ -1,14 +1,6 @@
 #include "app_setup.h"
-#include "apps_provider.h"
-#include "calc_provider.h"
-#include "config_provider.h"
 #include "path_binaries.h"
 #include "run_mode.h"
-#include "run_provider.h"
-#include "sinks_provider.h"
-#include "proc_provider.h"
-#include "profiles_provider.h"
-#include "sessions_provider.h"
 
 #include <gdk/gdkx.h>
 #include <errno.h>
@@ -23,31 +15,26 @@
 #endif
 
 #include "app_init.h"
+#include "builtin_plugins.h"
 #include "cli_args.h"
 #include "command_mode.h"
-#include "core_commands.h"
 #include "daemon_socket.h"
 #include "daemon_socket_runtime.h"
 #include "display.h"
 #include "dynamic_display.h"
 #include "gtk_window.h"
 #include "harpoon_config.h"
-#include "harpoon_provider.h"
 #include "history.h"
-#include "hotkeys_provider.h"
 #include "hotkeys.h"
 #include "key_handler.h"
 #include "log.h"
-#include "names_provider.h"
 #include "overlay_manager.h"
-#include "rules_provider.h"
 #include "selection.h"
 #include "version.h"
 #include "window_highlight.h"
 #include "window_list.h"
 #include "window_lifecycle.h"
 #include "workspace_slots.h"
-#include "workspaces_provider.h"
 #include "x11_events.h"
 #include "x11_utils.h"
 
@@ -350,20 +337,7 @@ int run_cofi(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
     init_app_data(&app);
-    cofi_register_core_commands();
-    apps_provider_register();
-    calc_provider_register();
-    config_provider_register();
-    harpoon_provider_register();
-    hotkeys_provider_register();
-    names_provider_register();
-    rules_provider_register();
-    workspaces_provider_register();
-    sinks_provider_register();
-    run_provider_register();
-    proc_provider_register();
-    sessions_provider_register();
-    profiles_provider_register();
+    cofi_register_builtin_plugins();
     init_x11_connection(&app);
 
     load_config(&app.config);

@@ -76,6 +76,7 @@ SOURCES = src/main.c \
           src/command_handlers_workspace.c \
           src/command_handlers_tiling.c \
           src/command_handlers_ui.c \
+          src/builtin_plugins.c \
           src/core_commands.c \
           src/command_registry.c \
           src/command_availability.c \
