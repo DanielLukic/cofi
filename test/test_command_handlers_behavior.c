@@ -433,13 +433,6 @@ static void test_ui_handler_behavior(void) {
     ASSERT_TRUE("show rules is accepted", result == FALSE);
     ASSERT_TRUE("show rules surfaces rules tab", app.current_tab == TAB_RULES);
 
-    cmd = find_command("rules");
-    ASSERT_TRUE("rules command exists", cmd != NULL);
-    if (cmd) {
-        result = cmd->handler(&app, NULL, "");
-        ASSERT_TRUE("rules command surfaces rules tab", result == FALSE && app.current_tab == TAB_RULES);
-    }
-
     cmd = find_command("hotkeys");
     ASSERT_TRUE("hotkeys command exists", cmd != NULL);
     if (cmd) {

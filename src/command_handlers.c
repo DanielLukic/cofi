@@ -144,8 +144,7 @@ static gboolean keeps_open_always(const char *primary) {
            strcmp(primary, "set") == 0 ||
            strcmp(primary, "an") == 0 ||
            strcmp(primary, "rw") == 0 ||
-           strcmp(primary, "hotkeys") == 0 ||
-           strcmp(primary, "rules") == 0;
+           strcmp(primary, "hotkeys") == 0;
 }
 
 static gboolean keeps_open_without_arg(const char *primary) {

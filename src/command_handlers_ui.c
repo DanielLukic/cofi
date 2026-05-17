@@ -118,11 +118,6 @@ gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)
     return surface_provider_command(app, "config", "Config provider not available.");
 }
 
-gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
-                   const char *args __attribute__((unused))) {
-    return surface_provider_command(app, "rules", "Rules provider not available.");
-}
-
 gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     ShowMode mode = SHOW_MODE_WINDOWS;
 

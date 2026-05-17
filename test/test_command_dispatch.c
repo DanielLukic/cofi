@@ -21,7 +21,7 @@ STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_rules) STUB(cmd_calc)
+STUB(cmd_calc)
 STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
@@ -36,6 +36,7 @@ static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 static const char *workspaces_aliases[] = {"ws", NULL};
 static const char *harpoon_aliases[] = {"hp", NULL};
 static const char *names_aliases[] = {"nm", NULL};
+static const char *rules_aliases[] = {"rl", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -163,6 +164,20 @@ static void register_names_command_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_rules_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "rules";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "rules";
+    provider.aliases = rules_aliases;
+    provider.command_help_format = "rules, rl";
+    provider.command_description = "Switch to Rules tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
 typedef struct {
     int seen;
     int fail_at;
@@ -245,7 +260,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("miw",     0);   // minimize: handles activation directly
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
     ASSERT_ACTIVATES("rw",      0);   // rename-workspace: shows overlay
-    ASSERT_ACTIVATES("rules",   0);   // rules: surfaces tab
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("show",    0);   // show: switches view
     ASSERT_ACTIVATES("sw",      0);   // swap-windows: swaps geometry only
@@ -261,7 +275,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("an", 1);
     ASSERT_KEEP_OPEN("rw", 1);
     ASSERT_KEEP_OPEN("hotkeys", 1);
-    ASSERT_KEEP_OPEN("rules", 1);
 
     ASSERT_KEEP_OPEN("jw", 0);
     ASSERT_KEEP_OPEN("cw", 0);
@@ -340,6 +353,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("nm")) { printf("PASS: names provider alias keeps open\n"); tests_passed++; }
     else { printf("FAIL: names provider alias should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("rules")) { printf("PASS: rules provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: rules provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("rl")) { printf("PASS: rules provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: rules provider alias should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -363,6 +382,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("nm")) { printf("PASS: disabled names alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled names alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(names_id, 1);
+
+    int rules_id = cofi_get_provider_id("rules");
+    cofi_set_provider_enabled(rules_id, 0);
+    if (!should_keep_open_on_hotkey_auto("rl")) { printf("PASS: disabled rules alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled rules alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(rules_id, 1);
 
     int harpoon_id = cofi_get_provider_id("harpoon");
     cofi_set_provider_enabled(harpoon_id, 0);
@@ -581,6 +606,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias nm did not resolve to names\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("rl", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "rules") == 0) {
+        printf("PASS: provider alias rl resolves to rules\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias rl did not resolve to rules\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -603,13 +637,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 16 legacy non-activating = 27 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, and Names are provider-owned and intentionally absent.
-    if (table_count == 27) {
+    // 11 activating + 15 legacy non-activating = 26 central commands.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, and Rules are provider-owned and intentionally absent.
+    if (table_count == 26) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 27 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 26 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -628,6 +662,7 @@ int main(void) {
     register_workspaces_command_provider();
     register_harpoon_command_provider();
     register_names_command_provider();
+    register_rules_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

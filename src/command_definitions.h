@@ -117,14 +117,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "js, jump-slot N"
     },
     {
-        .primary = "rules",
-        .aliases = {"rl", NULL},
-        .handler = cmd_rules,
-        .description = "Switch to Rules tab",
-        .help_format = "rules, rl",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "maw",
         .aliases = {"move-all-to-workspace", NULL},
         .handler = cmd_move_all_to_workspace,

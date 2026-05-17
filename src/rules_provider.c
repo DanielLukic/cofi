@@ -1,10 +1,12 @@
 #include "rules_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "command_mode.h"
 #include "match.h"
 #include "overlay_manager.h"
 #include "rules_replay.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -181,6 +183,17 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
 static CofiTabProvider s_rules_provider;
 static const char *const s_rules_aliases[] = {"rl", NULL};
 
+static gboolean rules_command_handler(AppData *app,
+                                      WindowInfo *window __attribute__((unused)),
+                                      const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_rules_provider.tab_mode);
+    return FALSE;
+}
+
 void rules_provider_register(void) {
     cofi_init_provider_defaults(&s_rules_provider);
     s_rules_provider.tab_mode = TAB_RULES;
@@ -188,6 +201,10 @@ void rules_provider_register(void) {
     s_rules_provider.display_name = "RULES";
     s_rules_provider.primary_cmd = "rules";
     s_rules_provider.aliases = s_rules_aliases;
+    s_rules_provider.command_description = "Switch to Rules tab";
+    s_rules_provider.command_help_format = "rules, rl";
+    s_rules_provider.command_handler = rules_command_handler;
+    s_rules_provider.command_keeps_open_on_hotkey_auto = 1;
     s_rules_provider.required = 0;
     s_rules_provider.hidden_by_default = 1;
     s_rules_provider.initial_selection_index = 0;
