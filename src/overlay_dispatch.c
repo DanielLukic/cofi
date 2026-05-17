@@ -240,7 +240,6 @@ void show_agent_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path) {
-    app->agent_session_delete.pending_delete = TRUE;
     g_strlcpy(app->agent_session_delete.source, source ? source : "",
               sizeof(app->agent_session_delete.source));
     g_strlcpy(app->agent_session_delete.session_id, session_id ? session_id : "",

@@ -228,7 +228,6 @@ typedef struct AppData {
 
     // Agent sessions tab overlay state
     struct {
-        gboolean pending_delete;
         char source[16];
         char session_id[AGENT_SESSION_ID_LEN];
         char path[AGENT_SESSION_PATH_LEN];

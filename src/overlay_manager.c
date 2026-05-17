@@ -68,7 +68,6 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
     }
 
     if (type == OVERLAY_AGENT_SESSION_DELETE) {
-        app->agent_session_delete.pending_delete = FALSE;
         app->agent_session_delete.source[0] = '\0';
         app->agent_session_delete.session_id[0] = '\0';
         app->agent_session_delete.path[0] = '\0';
