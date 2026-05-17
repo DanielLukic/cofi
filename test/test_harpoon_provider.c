@@ -207,6 +207,11 @@ static void test_command_metadata(void) {
                 s_harpoon_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("command handler exists", s_harpoon_command.handler != NULL);
     ASSERT_TRUE("harpoon tab is dynamic", g_registered_provider.tab_mode >= TAB_COUNT);
+    ASSERT_TRUE("harpoon claims delegate opcode",
+                g_registered_provider.delegate_opcode == COFI_OPCODE_HARPOON);
+    ASSERT_TRUE("harpoon claims hotkey mode",
+                g_registered_provider.hotkey_mode_claim ==
+                COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_HARPOON));
 }
 
 static void test_command_handler_surfaces_tab(void) {

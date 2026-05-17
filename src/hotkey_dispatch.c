@@ -32,6 +32,10 @@ static gboolean provider_tab_for_hotkey(ShowMode mode, TabMode *tab_out) {
     return TRUE;
 }
 
+static gboolean is_provider_tab_hotkey(ShowMode mode) {
+    return mode == SHOW_MODE_WORKSPACES || mode == SHOW_MODE_HARPOON;
+}
+
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
     if (!app->window_visible) {
         switch (mode) {
@@ -51,14 +55,15 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 cofi_enter_modal(app, provider);
                 break;
             }
-            case SHOW_MODE_WORKSPACES: {
-                TabMode workspaces_tab;
-                if (!provider_tab_for_hotkey(mode, &workspaces_tab)) {
+            case SHOW_MODE_WORKSPACES:
+            case SHOW_MODE_HARPOON: {
+                TabMode provider_tab;
+                if (!provider_tab_for_hotkey(mode, &provider_tab)) {
                     return;
                 }
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                surface_tab(app, workspaces_tab);
+                surface_tab(app, provider_tab);
                 break;
             }
             default:
@@ -69,10 +74,10 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
         return;
     }
 
-    TabMode workspaces_tab = TAB_WINDOWS;
+    TabMode provider_tab = TAB_WINDOWS;
     const CofiTabProvider *run_provider = NULL;
-    if (mode == SHOW_MODE_WORKSPACES &&
-        !provider_tab_for_hotkey(mode, &workspaces_tab)) {
+    if (is_provider_tab_hotkey(mode) &&
+        !provider_tab_for_hotkey(mode, &provider_tab)) {
         return;
     }
     if (mode == SHOW_MODE_RUN) {
@@ -109,11 +114,12 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             gtk_widget_grab_focus(app->entry);
             break;
 
-        case SHOW_MODE_WORKSPACES: {
-            if (app->current_tab == workspaces_tab) {
+        case SHOW_MODE_WORKSPACES:
+        case SHOW_MODE_HARPOON: {
+            if (app->current_tab == provider_tab) {
                 return;
             }
-            surface_tab(app, workspaces_tab);
+            surface_tab(app, provider_tab);
             gtk_widget_grab_focus(app->entry);
             break;
         }

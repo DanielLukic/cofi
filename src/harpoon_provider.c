@@ -9,6 +9,7 @@
 #include "overlay_manager.h"
 #include "selection.h"
 #include "tab_switching.h"
+#include "types.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -197,6 +198,7 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.id = "harpoon";
     s_harpoon_provider.display_name = "HARPOON";
     s_harpoon_provider.delegate_opcode = COFI_OPCODE_HARPOON;
+    s_harpoon_provider.hotkey_mode_claim = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_HARPOON);
     s_harpoon_provider.required = 0;
     s_harpoon_provider.hidden_by_default = 1;
     s_harpoon_provider.row_count = harpoon_row_count;
