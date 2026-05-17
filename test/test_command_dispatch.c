@@ -38,6 +38,7 @@ static void register_provider_with_command(const CommandSpec *spec) {
 }
 
 static const CommandSpec s_provider_commands[] = {
+    {.primary = "agent-sessions", .aliases = {"agents", "agent", NULL}, .owner_provider_id = "agent-sessions", .handler = cmd_run, .description = "Search Claude and Codex agent sessions", .help_format = "agent-sessions, agents [TERMS | REFINE]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = cmd_run, .description = "Switch to browser profiles tab", .help_format = "profiles, chrome [@SLOT|PROFILE]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = cmd_run, .description = "Switch to calculator", .help_format = "calc, ca", .keeps_open_on_hotkey_auto = 1},
     {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .keeps_open_on_hotkey_auto = 1},
@@ -177,6 +178,9 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("mw,cw2")) { printf("PASS: non-UI chain does not keep open\n"); tests_passed++; }
     else { printf("FAIL: mw,cw2 should not keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("agents")) { printf("PASS: agent sessions provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: agent sessions provider alias should keep open\n"); tests_failed++; }
+
     if (should_keep_open_on_hotkey_auto("profiles")) { printf("PASS: profiles provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: profiles provider command should keep open\n"); tests_failed++; }
 
@@ -299,6 +303,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("app")) { printf("PASS: disabled apps alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled apps alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(apps_id, 1);
+
+    int agent_sessions_id = cofi_get_provider_id("agent-sessions");
+    cofi_set_provider_enabled(agent_sessions_id, 0);
+    if (!should_keep_open_on_hotkey_auto("agents")) { printf("PASS: disabled agent sessions alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled agent sessions alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(agent_sessions_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -566,6 +576,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias app did not resolve to apps\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("agents", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "agent-sessions") == 0) {
+        printf("PASS: provider alias agents resolves to agent-sessions\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias agents did not resolve to agent-sessions\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -586,12 +605,12 @@ static void test_all_parse_defs_have_owner(void) {
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
-    // 24 core commands + 13 provider-owned commands.
-    if (table_count == 37) {
+    // 24 core commands + 14 provider-owned commands.
+    if (table_count == 38) {
         printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command registry has %d commands, test expects 37 - update test!\n", table_count);
+        printf("FAIL: command registry has %d commands, test expects 38 - update test!\n", table_count);
         tests_failed++;
     }
 }

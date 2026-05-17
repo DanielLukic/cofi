@@ -15,6 +15,7 @@ static gboolean noop_handler(AppData *app, WindowInfo *window, const char *args)
 }
 
 static const CommandSpec s_provider_commands[] = {
+    {.primary = "agent-sessions", .aliases = {"agents", "agent", NULL}, .owner_provider_id = "agent-sessions", .handler = noop_handler},
     {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = noop_handler},
     {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = noop_handler},
     {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = noop_handler},
@@ -81,6 +82,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("app alias resolves to apps",
                 parse_command_for_execution("app fire", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "apps") == 0 && strcmp(arg, "fire") == 0);
+
+    assert_true("agents alias resolves to agent-sessions",
+                parse_command_for_execution("agents marco | restart", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "agent-sessions") == 0 && strcmp(arg, "marco | restart") == 0);
 
     assert_true("provider alias chrome resolves to profiles",
                 parse_command_for_execution("chrome gs", cmd, arg, sizeof(cmd), sizeof(arg)) &&
