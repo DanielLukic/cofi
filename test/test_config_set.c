@@ -81,6 +81,14 @@ static void test_boolean_fields(void) {
     ASSERT_OK("set ripple_enabled 0", c, "ripple_enabled", "0");
     ASSERT_INT("ripple_enabled 0", 0, c.ripple_enabled);
 
+    ASSERT_OK("set show_all_tabs true", c, "show_all_tabs", "true");
+    ASSERT_INT("show_all_tabs is 1", 1, c.show_all_tabs);
+
+    ASSERT_OK("set show_all_tabs false", c, "show_all_tabs", "false");
+    ASSERT_INT("show_all_tabs is 0", 0, c.show_all_tabs);
+
+    ASSERT_ERR("set show_all_tabs garbage", c, "show_all_tabs", "garbage");
+
     ASSERT_ERR("set close_on_focus_loss garbage", c, "close_on_focus_loss", "garbage");
 }
 

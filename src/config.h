@@ -66,6 +66,7 @@ typedef struct {
     SlotSortOrder slot_sort_order; // How to number per-workspace slots: row-first or column-first
     char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
     WindowOrderMode window_order_mode; // How to order windows in the list
+    int show_all_tabs;                  // Show/cycle all tabs instead of only pinned/surfaced tabs
     int slot_occlusion_threshold_pct;   // Min visible percent for workspace slots (1-100, default 5)
 } CofiConfig;
 

@@ -183,7 +183,7 @@ static void test_format_candidate_strip_highlight(void) {
 static void test_format_candidate_strip_appended_after_prior_content(void) {
     /* format_candidate_strip appends — verify strip lands after existing content.
      * In the real display pipeline, the tab header line is written before the
-     * strip (display.c: format_tab_header then format_candidate_strip). */
+     * strip (display.c: tab_header_format then format_candidate_strip). */
     AppData app = {0};
     GString *out = g_string_new("TAB_HEADER\n");
 

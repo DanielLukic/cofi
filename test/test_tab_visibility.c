@@ -525,6 +525,20 @@ static void test_tab_switching_skips_hidden_tabs(void) {
     ASSERT_TRUE("forward wraps back to windows", app.current_tab == TAB_WINDOWS);
 }
 
+static void test_show_all_tabs_cycles_hidden_tabs(void) {
+    AppData app = make_default_visibility_app();
+    GdkEventKey event;
+    memset(&event, 0, sizeof(event));
+    event.keyval = GDK_KEY_Tab;
+    app.config.show_all_tabs = 1;
+
+    gboolean handled = handle_tab_switching(&event, &app);
+    ASSERT_TRUE("show_all_tabs tab switch handled", handled == TRUE);
+    ASSERT_TRUE("show_all_tabs includes hidden workspaces", app.current_tab == TAB_WORKSPACES);
+    ASSERT_TRUE("hidden tab reports visible with show_all_tabs",
+                tab_is_visible(&app, TAB_SESSIONS) == TRUE);
+}
+
 static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
     AppData app = make_default_visibility_app();
     GdkEventKey event;
@@ -662,6 +676,7 @@ int main(void) {
     test_cmd_show_apps_resets_to_default_mode();
     test_daemon_opcode_applications_resets_mode();
     test_tab_switching_skips_hidden_tabs();
+    test_show_all_tabs_cycles_hidden_tabs();
     test_tab_switching_clears_surfaced_tabs_on_pinned_return();
     test_command_help_wrap_respects_width_budget();
     test_command_help_wrap_show_continuation_alignment();

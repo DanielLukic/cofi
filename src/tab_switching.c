@@ -111,6 +111,12 @@ gboolean tab_is_visible(AppData *app, TabMode tab) {
     if (!app) {
         return FALSE;
     }
+    if (tab < TAB_WINDOWS || tab >= TAB_COUNT) {
+        return FALSE;
+    }
+    if (app->config.show_all_tabs) {
+        return TRUE;
+    }
 
     return app->tab_visibility[tab] == TAB_VIS_PINNED ||
            app->tab_visibility[tab] == TAB_VIS_SURFACED;

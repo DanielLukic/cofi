@@ -18,6 +18,7 @@
 #include "display_pipeline.h"
 #include "tab_switching.h"
 #include "tab_metadata.h"
+#include "tab_header.h"
 #include "slot_store.h"
 
 // Check if instance and class should be swapped for display
@@ -49,33 +50,6 @@ static void format_candidate_strip(AppData *app, GString *output) {
             g_string_append_printf(output, "  %s  ", candidates[i]);
         }
     }
-}
-
-// Format tab header with active tab indication
-static void format_tab_header(AppData *app, TabMode current_tab, GString *output) {
-    g_string_append(output, "\n");
-    g_string_append(output, "  ");
-
-    gboolean first = TRUE;
-    for (int tab = TAB_WINDOWS; tab < TAB_COUNT; tab++) {
-        if (!tab_is_visible(app, (TabMode)tab)) {
-            continue;
-        }
-
-        if (!first) {
-            g_string_append(output, "    ");
-        }
-
-        if (current_tab == tab) {
-            g_string_append_printf(output, "[ %s ]", tab_active_name((TabMode)tab));
-        } else {
-            g_string_append_printf(output, "  %s  ", tab_display_name((TabMode)tab));
-        }
-
-        first = FALSE;
-    }
-
-    g_string_append(output, "\n");
 }
 
 // Format desktop string like Go code
@@ -500,7 +474,7 @@ void update_display(AppData *app) {
     }
     
     // Add tab header at the bottom
-    format_tab_header(app, app->current_tab, text);
+    tab_header_format(app, app->current_tab, get_display_columns(app), text);
 
     format_candidate_strip(app, text);
     

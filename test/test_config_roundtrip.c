@@ -40,6 +40,7 @@ static void test_defaults_roundtrip(void) {
     ASSERT_INT("defaults: digit_slot_mode", original.digit_slot_mode, loaded.digit_slot_mode);
     ASSERT_INT("defaults: slot_overlay_duration_ms", original.slot_overlay_duration_ms, loaded.slot_overlay_duration_ms);
     ASSERT_INT("defaults: ripple_enabled", original.ripple_enabled, loaded.ripple_enabled);
+    ASSERT_INT("defaults: show_all_tabs", original.show_all_tabs, loaded.show_all_tabs);
 }
 
 // Test 2: non-default values round-trip
@@ -55,6 +56,7 @@ static void test_nondefault_roundtrip(void) {
     original.digit_slot_mode = DIGIT_MODE_PER_WORKSPACE;
     original.slot_overlay_duration_ms = 1500;
     original.ripple_enabled = 0;
+    original.show_all_tabs = 1;
 
     save_config(&original);
     load_config(&loaded);
@@ -66,6 +68,7 @@ static void test_nondefault_roundtrip(void) {
     ASSERT_INT("nondefault: digit_slot_mode", DIGIT_MODE_PER_WORKSPACE, loaded.digit_slot_mode);
     ASSERT_INT("nondefault: slot_overlay_duration_ms", 1500, loaded.slot_overlay_duration_ms);
     ASSERT_INT("nondefault: ripple_enabled", 0, loaded.ripple_enabled);
+    ASSERT_INT("nondefault: show_all_tabs", 1, loaded.show_all_tabs);
 }
 
 // Test 3: all alignment values round-trip

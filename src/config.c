@@ -102,6 +102,7 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
     fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
     fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
+    fprintf(file, "    \"show_all_tabs\": %s,\n", config->show_all_tabs ? "true" : "false");
     fprintf(file, "    \"slot_occlusion_threshold\": %d\n", config->slot_occlusion_threshold_pct);
     fprintf(file, "  }");
 }
@@ -118,6 +119,7 @@ void init_config_defaults(CofiConfig *config) {
     config->ripple_enabled = 1;
     config->slot_sort_order = SLOT_SORT_ROW_FIRST;
     config->slot_occlusion_threshold_pct = 5;
+    config->show_all_tabs = 0;
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     config->window_order_mode = WINDOW_ORDER_COFI;
 }
@@ -204,6 +206,8 @@ static void parse_options_line(const char *line, CofiConfig *config) {
         }
     } else if (strstr(line, "\"ripple_enabled\":")) {
         config->ripple_enabled = strstr(line, "true") ? 1 : 0;
+    } else if (strstr(line, "\"show_all_tabs\":")) {
+        config->show_all_tabs = strstr(line, "true") ? 1 : 0;
     } else if (strstr(line, "\"slot_sort_order\":")) {
         char val[16] = {0};
         if (extract_json_string(line, val, sizeof(val)))
@@ -280,6 +284,12 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         int v = parse_bool_value(value);
         if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
         config->ripple_enabled = v;
+        return 1;
+    }
+    if (strcmp(key, "show_all_tabs") == 0) {
+        int v = parse_bool_value(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
+        config->show_all_tabs = v;
         return 1;
     }
 
@@ -457,6 +467,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_ENUM("slot_sort_order", slot_sort_order_to_string(config->slot_sort_order));
     ADD_ENUM("log_level", config->log_level);
     ADD_ENUM("window_order_mode", window_order_mode_to_string(config->window_order_mode));
+    ADD_BOOL("show_all_tabs", config->show_all_tabs);
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_INT("slot_occlusion_threshold", config->slot_occlusion_threshold_pct);

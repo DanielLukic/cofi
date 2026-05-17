@@ -479,6 +479,15 @@ if [ -f test_tab_visibility ]; then
     fi
 fi
 
+if [ -f test_tab_header ]; then
+    echo ""
+    echo "Running tab header tests..."
+    ./test_tab_header
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_command_candidates ]; then
     echo ""
     echo "Running command candidate tests..."
