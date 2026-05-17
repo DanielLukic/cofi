@@ -188,6 +188,7 @@ void rules_provider_register(void) {
     s_rules_provider.display_name = "RULES";
     s_rules_provider.primary_cmd = "rules";
     s_rules_provider.aliases = s_rules_aliases;
+    s_rules_provider.required = 0;
     s_rules_provider.hidden_by_default = 1;
     s_rules_provider.initial_selection_index = 0;
     s_rules_provider.row_count = rules_row_count;

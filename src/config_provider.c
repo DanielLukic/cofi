@@ -203,6 +203,7 @@ void config_provider_register(void) {
     s_config_provider.id = "config";
     s_config_provider.display_name = "CONFIG";
     s_config_provider.primary_cmd = "config";
+    s_config_provider.required = 1;
     s_config_provider.hidden_by_default = 1;
     s_config_provider.initial_selection_index = 0;
     s_config_provider.row_count = config_row_count;

@@ -116,6 +116,7 @@ void apps_provider_register(void) {
     s_apps_provider.display_name = "APPS";
     s_apps_provider.primary_cmd = "apps";
     s_apps_provider.aliases = s_apps_aliases;
+    s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;
     s_apps_provider.initial_selection_index = 0;
     s_apps_provider.row_count = apps_row_count;

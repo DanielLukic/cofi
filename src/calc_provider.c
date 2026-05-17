@@ -82,6 +82,7 @@ void calc_provider_register(void) {
     s_calc_provider.primary_cmd  = "calc";
     s_calc_provider.aliases      = s_calc_aliases;
     s_calc_provider.prefix_char  = '=';
+    s_calc_provider.required     = 0;
     s_calc_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
     s_calc_provider.on_enter          = calc_on_enter;
     s_calc_provider.row_count         = calc_row_count;

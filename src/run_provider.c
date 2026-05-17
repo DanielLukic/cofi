@@ -102,6 +102,7 @@ void run_provider_register(void) {
     s_run_provider.primary_cmd             = "run";
     s_run_provider.aliases                 = s_run_aliases;
     s_run_provider.prefix_char             = '!';
+    s_run_provider.required                = 0;
     s_run_provider.modal_policy            = COFI_MODAL_CLEAR_THEN_RETURN;
     s_run_provider.hidden_by_default       = 1;
     s_run_provider.initial_selection_index = 0;

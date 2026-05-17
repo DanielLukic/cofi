@@ -5,18 +5,21 @@
 
 #include <string.h>
 
-static const char *provider_command_owner(const char *primary) {
+static const char *command_owner(const char *primary) {
     if (!primary) return NULL;
     for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
         if (strcmp(COMMAND_PARSE_DEFS[i].primary, primary) == 0) {
-            return COMMAND_PARSE_DEFS[i].provider_command;
+            return COMMAND_PARSE_DEFS[i].owner_provider_id;
         }
     }
     return NULL;
 }
 
 int command_primary_is_available(const char *primary) {
-    const char *provider_command = provider_command_owner(primary);
-    if (!provider_command) return 1;
-    return cofi_get_provider_for_command(provider_command) != NULL;
+    const char *owner = command_owner(primary);
+    if (!owner) return 0;
+    if (strcmp(owner, COMMAND_OWNER_CORE) == 0) return 1;
+
+    int provider_id = cofi_get_provider_id(owner);
+    return provider_id >= 0 && cofi_provider_is_enabled(provider_id);
 }

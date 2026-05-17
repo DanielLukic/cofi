@@ -101,6 +101,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.primary_cmd = "sessions";
     s_sessions_provider.aliases = s_sessions_aliases;
     s_sessions_provider.prefix_char = 0;
+    s_sessions_provider.required = 0;
     s_sessions_provider.hidden_by_default = 1;
     s_sessions_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
     s_sessions_provider.initial_selection_index = 0;

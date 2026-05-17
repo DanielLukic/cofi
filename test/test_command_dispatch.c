@@ -5,6 +5,7 @@
 // Include command metadata and parser APIs under test.
 #include "../src/command_definitions.h"
 #include "../src/command_api.h"
+#include "../src/command_parse_defs.h"
 #include "../src/command_parser.h"
 
 // Stub all command handlers — we only need the table metadata, not execution.
@@ -295,6 +296,20 @@ static void test_alias_drift_guard(void) {
     }
 }
 
+static void test_all_parse_defs_have_owner(void) {
+    printf("\n--- Command ownership guard ---\n");
+    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
+        const char *owner = COMMAND_PARSE_DEFS[i].owner_provider_id;
+        if (owner && owner[0] != '\0') {
+            printf("PASS: %s has owner %s\n", COMMAND_PARSE_DEFS[i].primary, owner);
+            tests_passed++;
+        } else {
+            printf("FAIL: %s has no command owner\n", COMMAND_PARSE_DEFS[i].primary);
+            tests_failed++;
+        }
+    }
+}
+
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = 0;
@@ -321,6 +336,7 @@ int main(void) {
     test_command_chain_semantics();
     test_window_state_alias_arg_resolution();
     test_alias_drift_guard();
+    test_all_parse_defs_have_owner();
     test_all_commands_covered();
 
     printf("\n=====================================\n");

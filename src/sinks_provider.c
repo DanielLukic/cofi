@@ -137,6 +137,7 @@ void sinks_provider_register(void) {
     s_sinks_provider.primary_cmd = "sinks";
     s_sinks_provider.aliases = s_sinks_aliases;
     s_sinks_provider.prefix_char = 0;
+    s_sinks_provider.required = 0;
     s_sinks_provider.hidden_by_default = 1;
     s_sinks_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
     s_sinks_provider.row_count = sinks_row_count;

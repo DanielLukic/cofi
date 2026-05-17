@@ -1,7 +1,13 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#include "../src/cofi_tab_provider.h"
 #include "../src/tab_metadata.h"
+
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    (void)tab_mode;
+    return NULL;
+}
 
 static int tests_run = 0;
 static int tests_passed = 0;

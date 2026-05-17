@@ -26,7 +26,7 @@ void init_tab_visibility(AppData *app) {
         return;
     }
 
-    for (int i = 0; i < TAB_COUNT; i++) {
+    for (int i = 0; i < COFI_MAX_TAB_HANDLES; i++) {
         app->tab_visibility[i] = TAB_VIS_HIDDEN;
     }
 
@@ -41,7 +41,8 @@ void init_app_data(AppData *app) {
     app->command_target_id = 0;
 
     // Preserve any startup delegate tab; reset only invalid values to windows.
-    if (app->current_tab < TAB_WINDOWS || app->current_tab >= TAB_COUNT) {
+    if (app->current_tab < TAB_WINDOWS || app->current_tab == TAB_COUNT ||
+        app->current_tab >= COFI_MAX_TAB_HANDLES) {
         app->current_tab = TAB_WINDOWS;
     }
 

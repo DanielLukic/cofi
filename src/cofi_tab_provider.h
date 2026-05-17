@@ -3,6 +3,8 @@
 
 #include <glib.h>
 
+#define COFI_PROVIDER_DYNAMIC_TAB (-1)
+
 /* Provider API — types + registry.
  * AppData is forward-declared here; providers that need full AppData access
  * include app_data.h in their own .c files. */
@@ -56,8 +58,8 @@ typedef struct {
 } CofiPipeActionTable;
 
 typedef struct CofiTabProvider {
-    /* spike: tab_mode links this provider to an existing TabMode value.
-     * Will be removed when dynamic TabMode allocation is implemented. */
+    /* Existing providers may use legacy TabMode values. New providers can set
+     * COFI_PROVIDER_DYNAMIC_TAB and receive a tab handle at registration. */
     int tab_mode;
 
     const char *id;
@@ -68,6 +70,7 @@ typedef struct CofiTabProvider {
     const char *const *aliases;   /* NULL-terminated */
     char prefix_char;
 
+    int required;                  /* required providers cannot be disabled */
     int hidden_by_default;
     CofiModalPolicy modal_policy;
     int initial_selection_index;
@@ -105,9 +108,11 @@ void cofi_init_provider_defaults(CofiTabProvider *p);
 int  cofi_register_tab_provider(const CofiTabProvider *p);
 
 const CofiTabProvider *cofi_get_provider(int provider_id);
+int  cofi_get_provider_id(const char *id);
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode);
 const CofiTabProvider *cofi_get_provider_for_command(const char *command);
 int  cofi_get_provider_id_for_tab(int tab_mode);
+int  cofi_list_provider_tabs(int *tabs, int max_tabs);
 int  cofi_provider_count(void);
 int  cofi_provider_is_enabled(int provider_id);
 void cofi_set_provider_enabled(int provider_id, int enabled);

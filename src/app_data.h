@@ -44,6 +44,8 @@ typedef enum {
     TAB_COUNT
 } TabMode;
 
+#define COFI_MAX_TAB_HANDLES 128
+
 typedef enum {
     TAB_VIS_PINNED,
     TAB_VIS_SURFACED,
@@ -156,7 +158,7 @@ typedef struct AppData {
     int workspace_count;
     int filtered_workspace_count;
     TabMode current_tab;                    // Current active tab
-    TabVisibility tab_visibility[TAB_COUNT]; // Tab bar visibility state for each TabMode
+    TabVisibility tab_visibility[COFI_MAX_TAB_HANDLES]; // Tab visibility state by tab handle
 
     // Harpoon tab data
     HarpoonSlot filtered_harpoon[MAX_HARPOON_SLOTS];

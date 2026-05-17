@@ -176,7 +176,27 @@ const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     if (strcmp(command, "workspaces") == 0) return cofi_get_provider_for_tab(TAB_WORKSPACES);
     return NULL;
 }
+int cofi_get_provider_id(const char *id) {
+    if (!id) return -1;
+    if (strcmp(id, "apps") == 0) return TAB_APPS;
+    if (strcmp(id, "config") == 0) return TAB_CONFIG;
+    if (strcmp(id, "harpoon") == 0) return TAB_HARPOON;
+    if (strcmp(id, "names") == 0) return TAB_NAMES;
+    if (strcmp(id, "rules") == 0) return TAB_RULES;
+    if (strcmp(id, "workspaces") == 0) return TAB_WORKSPACES;
+    return -1;
+}
+int cofi_provider_is_enabled(int provider_id) {
+    return provider_id >= 0 && provider_id != disabled_provider_tab;
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+int cofi_list_provider_tabs(int *tabs, int max_tabs) {
+    int count = 0;
+    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
+        tabs[count++] = tab;
+    }
+    return count;
+}
 void cofi_init_provider_defaults(CofiTabProvider *p) {
     if (p) memset(p, 0, sizeof(*p));
 }

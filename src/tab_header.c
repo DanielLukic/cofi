@@ -5,6 +5,7 @@
 
 #include "tab_metadata.h"
 #include "tab_switching.h"
+#include "cofi_tab_provider.h"
 
 #define TAB_TOKEN_LEN 32
 
@@ -44,21 +45,28 @@ void tab_header_format(AppData *app, TabMode current_tab, int max_columns,
 
     g_string_append(output, "\n");
 
-    char tokens[TAB_COUNT][TAB_TOKEN_LEN];
+    int tabs[COFI_MAX_TAB_HANDLES];
+    int tab_count = 0;
+    tabs[tab_count++] = TAB_WINDOWS;
+    tab_count += cofi_list_provider_tabs(tabs + tab_count,
+                                         COFI_MAX_TAB_HANDLES - tab_count);
+
+    char tokens[COFI_MAX_TAB_HANDLES][TAB_TOKEN_LEN];
     int count = 0;
     int active = 0;
 
-    for (int tab = TAB_WINDOWS; tab < TAB_COUNT; tab++) {
-        if (!tab_is_visible(app, (TabMode)tab)) {
+    for (int i = 0; i < tab_count; i++) {
+        TabMode tab = (TabMode)tabs[i];
+        if (!tab_is_visible(app, tab)) {
             continue;
         }
-        if ((TabMode)tab == current_tab) {
+        if (tab == current_tab) {
             g_snprintf(tokens[count], sizeof(tokens[count]), "[ %s ]",
-                       tab_active_name((TabMode)tab));
+                       tab_active_name(tab));
             active = count;
         } else {
             g_snprintf(tokens[count], sizeof(tokens[count]), "  %s  ",
-                       tab_display_name((TabMode)tab));
+                       tab_display_name(tab));
         }
         count++;
     }

@@ -167,6 +167,7 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.id = "harpoon";
     s_harpoon_provider.display_name = "HARPOON";
     s_harpoon_provider.primary_cmd = "harpoon";
+    s_harpoon_provider.required = 0;
     s_harpoon_provider.hidden_by_default = 1;
     s_harpoon_provider.row_count = harpoon_row_count;
     s_harpoon_provider.format_row = harpoon_format_row;

@@ -101,6 +101,17 @@ const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     if (command && strcmp(command, "profiles") == 0) return &g_stub_profiles_provider;
     return NULL;
 }
+int cofi_get_provider_id(const char *id) {
+    if (id && strcmp(id, "calc") == 0) return 1;
+    if (id && strcmp(id, "config") == 0) return 2;
+    if (id && strcmp(id, "hotkeys") == 0) return 3;
+    if (id && strcmp(id, "rules") == 0) return 4;
+    if (id && strcmp(id, "profiles") == 0) return 5;
+    return -1;
+}
+int cofi_provider_is_enabled(int provider_id) {
+    return provider_id > 0;
+}
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     (void)tab_mode;
     return &g_stub_calc_provider;

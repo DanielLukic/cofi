@@ -130,6 +130,7 @@ void workspaces_provider_register(void) {
     provider.id = "workspaces";
     provider.display_name = "WORKSPACES";
     provider.primary_cmd = "workspaces";
+    provider.required = 0;
     provider.hidden_by_default = 1;
     provider.row_count = workspaces_row_count;
     provider.format_row = workspaces_format_row;

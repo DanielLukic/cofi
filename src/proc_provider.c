@@ -66,6 +66,7 @@ void proc_provider_register(void) {
     s_proc_provider.primary_cmd = "proc";
     s_proc_provider.aliases = s_proc_aliases;
     s_proc_provider.prefix_char = 0;
+    s_proc_provider.required = 0;
     s_proc_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
     s_proc_provider.hidden_by_default = 1;
     s_proc_provider.initial_selection_index = 0;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 
 static int s_tests_run = 0;
@@ -49,6 +50,7 @@ static void test_init_defaults(void) {
     ASSERT_NULL("init: get_shortcut_hint=NULL", (void *)p.get_shortcut_hint);
     ASSERT_NULL("init: on_enter_pressed=NULL", (void *)p.on_enter_pressed);
     ASSERT_NULL("init: handle_key=NULL", (void *)p.handle_key);
+    ASSERT_EQ("init: required=0", p.required, 0);
     ASSERT_EQ("init: tick_interval_ms=0", p.tick_interval_ms, 0);
     ASSERT_EQ("init: initial_selection_index=0", p.initial_selection_index, 0);
     ASSERT_EQ("init: slot_store_enabled=0", p.slot_store_enabled, 0);
@@ -81,8 +83,49 @@ static void test_registry_add_and_get(void) {
     ASSERT_NOT_NULL("get provider 1", r2);
     ASSERT_STR_EQ("provider 0 id", r1->id, "first");
     ASSERT_STR_EQ("provider 1 id", r2->id, "second");
+    ASSERT_EQ("get provider id by string", cofi_get_provider_id("second"), id2);
+    ASSERT_EQ("unknown provider id string returns -1", cofi_get_provider_id("missing"), -1);
     ASSERT_NULL("get out-of-range returns NULL", cofi_get_provider(99));
     ASSERT_NULL("get negative id returns NULL", cofi_get_provider(-1));
+}
+
+static void test_dynamic_tab_assignment(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider legacy, dynamic_one, dynamic_two;
+    cofi_init_provider_defaults(&legacy);
+    legacy.id = "legacy";
+    legacy.tab_mode = TAB_APPS;
+    int legacy_id = cofi_register_tab_provider(&legacy);
+
+    cofi_init_provider_defaults(&dynamic_one);
+    dynamic_one.id = "dynamic-one";
+    dynamic_one.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    int dynamic_one_id = cofi_register_tab_provider(&dynamic_one);
+
+    cofi_init_provider_defaults(&dynamic_two);
+    dynamic_two.id = "dynamic-two";
+    dynamic_two.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    int dynamic_two_id = cofi_register_tab_provider(&dynamic_two);
+
+    const CofiTabProvider *first = cofi_get_provider(dynamic_one_id);
+    const CofiTabProvider *second = cofi_get_provider(dynamic_two_id);
+    ASSERT_EQ("legacy provider registered", legacy_id, 0);
+    ASSERT_NOT_NULL("dynamic provider one exists", first);
+    ASSERT_NOT_NULL("dynamic provider two exists", second);
+    ASSERT_EQ("first dynamic tab starts after legacy enum",
+              first ? first->tab_mode : -1, TAB_COUNT + 1);
+    ASSERT_EQ("second dynamic tab increments",
+              second ? second->tab_mode : -1, TAB_COUNT + 2);
+    ASSERT_NOT_NULL("dynamic tab resolves by handle",
+                    cofi_get_provider_for_tab(TAB_COUNT + 1));
+
+    int tabs[8];
+    int count = cofi_list_provider_tabs(tabs, 8);
+    ASSERT_EQ("provider tab list count", count, 3);
+    ASSERT_EQ("legacy tab ordered before dynamic tabs", tabs[0], TAB_APPS);
+    ASSERT_EQ("dynamic tab one listed", tabs[1], TAB_COUNT + 1);
+    ASSERT_EQ("dynamic tab two listed", tabs[2], TAB_COUNT + 2);
 }
 
 static void test_get_provider_for_tab(void) {
@@ -147,6 +190,7 @@ static void test_apply_disabled_provider_list(void) {
     cofi_init_provider_defaults(&config);
     config.id = "config";
     config.tab_mode = 10;
+    config.required = 1;
     int config_id = cofi_register_tab_provider(&config);
 
     cofi_init_provider_defaults(&profiles);
@@ -174,6 +218,35 @@ static void test_apply_disabled_provider_list(void) {
     cofi_apply_disabled_providers("");
     ASSERT_TRUE("empty disabled list re-enables profiles", cofi_provider_is_enabled(profiles_id));
     ASSERT_TRUE("empty disabled list re-enables sinks", cofi_provider_is_enabled(sinks_id));
+}
+
+static void test_disableable_uses_required_metadata_not_id(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider config_named, required_custom;
+    cofi_init_provider_defaults(&config_named);
+    config_named.id = "config";
+    config_named.tab_mode = 20;
+    int config_named_id = cofi_register_tab_provider(&config_named);
+
+    cofi_init_provider_defaults(&required_custom);
+    required_custom.id = "custom-required";
+    required_custom.tab_mode = 21;
+    required_custom.required = 1;
+    int required_custom_id = cofi_register_tab_provider(&required_custom);
+
+    ASSERT_TRUE("config id alone is disableable",
+                cofi_provider_is_disableable(config_named_id));
+    ASSERT_TRUE("required metadata blocks disable",
+                !cofi_provider_is_disableable(required_custom_id));
+
+    cofi_set_provider_enabled(config_named_id, 0);
+    cofi_set_provider_enabled(required_custom_id, 0);
+
+    ASSERT_TRUE("config-named non-required provider can be disabled",
+                !cofi_provider_is_enabled(config_named_id));
+    ASSERT_TRUE("required provider remains enabled",
+                cofi_provider_is_enabled(required_custom_id));
 }
 
 static void test_filtered_raw_mapping(void) {
@@ -295,9 +368,11 @@ int main(void) {
 
     test_init_defaults();
     test_registry_add_and_get();
+    test_dynamic_tab_assignment();
     test_get_provider_for_tab();
     test_disabled_provider_runtime_lookups_are_hidden();
     test_apply_disabled_provider_list();
+    test_disableable_uses_required_metadata_not_id();
     test_filtered_raw_mapping();
     test_generation_token();
     test_dispatch_helpers();

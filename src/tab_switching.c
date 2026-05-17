@@ -41,11 +41,31 @@ static void start_provider_tick(AppData *app, const CofiTabProvider *p) {
         g_timeout_add((guint)p->tick_interval_ms, provider_tick, app);
 }
 
+static int collect_tab_order(int *tabs, int max_tabs) {
+    if (!tabs || max_tabs <= 0) return 0;
+    int count = 0;
+    tabs[count++] = TAB_WINDOWS;
+    count += cofi_list_provider_tabs(tabs + count, max_tabs - count);
+    return count;
+}
+
 static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direction) {
-    for (int i = 1; i <= TAB_COUNT; i++) {
-        int candidate = ((int)start_tab + (direction * i) + TAB_COUNT) % TAB_COUNT;
-        if (tab_is_visible(app, (TabMode)candidate)) {
-            return (TabMode)candidate;
+    int tabs[COFI_MAX_TAB_HANDLES];
+    int count = collect_tab_order(tabs, COFI_MAX_TAB_HANDLES);
+    if (count <= 0) return start_tab;
+
+    int current = 0;
+    for (int i = 0; i < count; i++) {
+        if (tabs[i] == (int)start_tab) {
+            current = i;
+            break;
+        }
+    }
+
+    for (int i = 1; i <= count; i++) {
+        int idx = (current + (direction * i) + count) % count;
+        if (tab_is_visible(app, (TabMode)tabs[idx])) {
+            return (TabMode)tabs[idx];
         }
     }
 
@@ -96,6 +116,11 @@ void surface_tab(AppData *app, TabMode tab) {
         return;
     }
 
+    if (tab < TAB_WINDOWS || tab >= COFI_MAX_TAB_HANDLES) {
+        log_warn("Cannot surface invalid tab: %d", tab);
+        return;
+    }
+
     if (app->tab_visibility[tab] == TAB_VIS_HIDDEN) {
         app->tab_visibility[tab] = TAB_VIS_SURFACED;
     }
@@ -108,7 +133,7 @@ void clear_surfaced_tabs(AppData *app) {
         return;
     }
 
-    for (int i = 0; i < TAB_COUNT; i++) {
+    for (int i = 0; i < COFI_MAX_TAB_HANDLES; i++) {
         if (app->tab_visibility[i] == TAB_VIS_SURFACED) {
             app->tab_visibility[i] = TAB_VIS_HIDDEN;
         }
@@ -119,7 +144,7 @@ gboolean tab_is_visible(AppData *app, TabMode tab) {
     if (!app) {
         return FALSE;
     }
-    if (tab < TAB_WINDOWS || tab >= TAB_COUNT) {
+    if (tab < TAB_WINDOWS || tab >= COFI_MAX_TAB_HANDLES) {
         return FALSE;
     }
     if (tab != TAB_WINDOWS && !cofi_get_provider_for_tab(tab)) {

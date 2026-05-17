@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "app_data.h"
+
 #define COFI_MAX_PROVIDERS 32
 #define COFI_MAX_FILTERED  1024
 
@@ -16,6 +18,7 @@ typedef struct {
 
 static ProviderEntry s_registry[COFI_MAX_PROVIDERS];
 static int s_count = 0;
+static int s_next_dynamic_tab = TAB_COUNT + 1;
 
 void cofi_init_provider_defaults(CofiTabProvider *p) {
     if (!p) return;
@@ -26,9 +29,21 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 
 int cofi_register_tab_provider(const CofiTabProvider *provider) {
     if (!provider || s_count >= COFI_MAX_PROVIDERS) return -1;
+    CofiTabProvider copy = *provider;
+    if (copy.tab_mode == COFI_PROVIDER_DYNAMIC_TAB) {
+        if (s_next_dynamic_tab >= COFI_MAX_TAB_HANDLES) return -1;
+        copy.tab_mode = s_next_dynamic_tab++;
+    }
+    if (copy.tab_mode < TAB_WINDOWS || copy.tab_mode >= COFI_MAX_TAB_HANDLES) {
+        return -1;
+    }
+    if (cofi_get_provider_id_for_tab(copy.tab_mode) >= 0) {
+        return -1;
+    }
+
     int id = s_count++;
     memset(&s_registry[id], 0, sizeof(s_registry[id]));
-    s_registry[id].provider = *provider;
+    s_registry[id].provider = copy;
     s_registry[id].enabled = 1;
     return id;
 }
@@ -36,6 +51,17 @@ int cofi_register_tab_provider(const CofiTabProvider *provider) {
 const CofiTabProvider *cofi_get_provider(int provider_id) {
     if (provider_id < 0 || provider_id >= s_count) return NULL;
     return &s_registry[provider_id].provider;
+}
+
+int cofi_get_provider_id(const char *id) {
+    if (!id) return -1;
+    for (int i = 0; i < s_count; i++) {
+        const char *provider_id = s_registry[i].provider.id;
+        if (provider_id && strcmp(provider_id, id) == 0) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
@@ -54,6 +80,26 @@ int cofi_get_provider_id_for_tab(int tab_mode) {
             return i;
     }
     return -1;
+}
+
+int cofi_list_provider_tabs(int *tabs, int max_tabs) {
+    if (!tabs || max_tabs <= 0) return 0;
+
+    int count = 0;
+    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
+        if (cofi_get_provider_id_for_tab(tab) >= 0) {
+            tabs[count++] = tab;
+        }
+    }
+
+    for (int i = 0; i < s_count && count < max_tabs; i++) {
+        int tab = s_registry[i].provider.tab_mode;
+        if (tab >= TAB_COUNT && s_registry[i].enabled) {
+            tabs[count++] = tab;
+        }
+    }
+
+    return count;
 }
 
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
@@ -92,9 +138,9 @@ void cofi_set_provider_enabled(int provider_id, int enabled) {
 
 int cofi_provider_is_disableable(int provider_id) {
     if (provider_id < 0 || provider_id >= s_count) return 0;
-    const char *id = s_registry[provider_id].provider.id;
-    if (!id || id[0] == '\0') return 0;
-    return strcmp(id, "config") != 0;
+    const CofiTabProvider *provider = &s_registry[provider_id].provider;
+    if (!provider->id || provider->id[0] == '\0') return 0;
+    return provider->required ? 0 : 1;
 }
 
 static int token_equals(const char *start, size_t len, const char *id) {
@@ -204,6 +250,7 @@ CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
 void cofi_registry_reset(void) {
     memset(s_registry, 0, sizeof(s_registry));
     s_count = 0;
+    s_next_dynamic_tab = TAB_COUNT + 1;
 }
 
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {

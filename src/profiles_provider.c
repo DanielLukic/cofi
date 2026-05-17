@@ -166,6 +166,7 @@ void profiles_provider_register(void) {
     s_profiles_provider.primary_cmd = "profiles";
     s_profiles_provider.aliases = s_profiles_aliases;
     s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
+    s_profiles_provider.required = 0;
     s_profiles_provider.hidden_by_default = 1;
     s_profiles_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
     s_profiles_provider.initial_selection_index = 0;

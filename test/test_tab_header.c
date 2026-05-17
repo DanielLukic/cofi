@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -11,8 +12,31 @@ static int fail = 0;
     else { printf("FAIL: %s (line %d)\n", name, __LINE__); fail++; } \
 } while (0)
 
+int cofi_list_provider_tabs(int *tabs, int max_tabs) {
+    int count = 0;
+    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
+        tabs[count++] = tab;
+    }
+    if (max_tabs > count) {
+        tabs[count++] = TAB_COUNT + 1;
+    }
+    return count;
+}
+
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    static CofiTabProvider dynamic_provider;
+    if (tab_mode == TAB_COUNT + 1) {
+        memset(&dynamic_provider, 0, sizeof(dynamic_provider));
+        dynamic_provider.id = "dynamic";
+        dynamic_provider.display_name = "Dynamic";
+        dynamic_provider.tab_mode = TAB_COUNT + 1;
+        return &dynamic_provider;
+    }
+    return NULL;
+}
+
 gboolean tab_is_visible(AppData *app, TabMode tab) {
-    if (!app || tab < TAB_WINDOWS || tab >= TAB_COUNT) return FALSE;
+    if (!app || tab < TAB_WINDOWS || tab >= COFI_MAX_TAB_HANDLES) return FALSE;
     if (app->config.show_all_tabs) return TRUE;
     return app->tab_visibility[tab] != TAB_VIS_HIDDEN;
 }
@@ -21,7 +45,7 @@ gboolean tab_is_visible(AppData *app, TabMode tab) {
 
 static void init_hidden_tabs(AppData *app) {
     memset(app, 0, sizeof(*app));
-    for (int tab = TAB_WINDOWS; tab < TAB_COUNT; tab++) {
+    for (int tab = TAB_WINDOWS; tab < COFI_MAX_TAB_HANDLES; tab++) {
         app->tab_visibility[tab] = TAB_VIS_HIDDEN;
     }
 }
@@ -61,6 +85,20 @@ static void test_show_all_tabs_makes_hidden_tabs_visible(void) {
     g_string_free(out, TRUE);
 }
 
+static void test_dynamic_tab_renders_provider_name(void) {
+    AppData app;
+    init_hidden_tabs(&app);
+    app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
+    app.tab_visibility[TAB_COUNT + 1] = TAB_VIS_PINNED;
+
+    GString *out = g_string_new("");
+    tab_header_format(&app, (TabMode)(TAB_COUNT + 1), 120, out);
+
+    ASSERT_TRUE("dynamic tab renders provider display name",
+                strstr(out->str, "[ DYNAMIC ]") != NULL);
+    g_string_free(out, TRUE);
+}
+
 static void test_overflow_keeps_current_tab_visible(void) {
     AppData app;
     init_hidden_tabs(&app);
@@ -86,6 +124,7 @@ int main(void) {
 
     test_full_header_when_it_fits();
     test_show_all_tabs_makes_hidden_tabs_visible();
+    test_dynamic_tab_renders_provider_name();
     test_overflow_keeps_current_tab_visible();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
