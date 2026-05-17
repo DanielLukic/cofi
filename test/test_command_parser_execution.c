@@ -13,6 +13,7 @@ static const char *sinks_aliases[] = {"sink", NULL};
 static const char *proc_aliases[] = {"ps", NULL};
 static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 static const char *workspaces_aliases[] = {"ws", NULL};
+static const char *harpoon_aliases[] = {"hp", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -91,6 +92,17 @@ static void register_workspaces_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_harpoon_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "harpoon";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "harpoon";
+    provider.aliases = harpoon_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
 static void assert_true(const char *name, int condition) {
     if (condition) {
         printf("PASS: %s\n", name);
@@ -156,6 +168,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias ws resolves to workspaces",
                 parse_command_for_execution("ws", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "workspaces") == 0 && strcmp(arg, "") == 0);
+
+    assert_true("provider alias hp resolves to harpoon",
+                parse_command_for_execution("hp", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "harpoon") == 0 && strcmp(arg, "") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -181,6 +197,7 @@ int main(void) {
     register_proc_provider();
     register_sessions_provider();
     register_workspaces_provider();
+    register_harpoon_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

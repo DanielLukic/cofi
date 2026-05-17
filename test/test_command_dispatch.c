@@ -21,7 +21,7 @@ STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
+STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
 STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
@@ -34,6 +34,7 @@ static const char *sinks_aliases[] = {"sink", NULL};
 static const char *proc_aliases[] = {"ps", NULL};
 static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 static const char *workspaces_aliases[] = {"ws", NULL};
+static const char *harpoon_aliases[] = {"hp", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -133,6 +134,20 @@ static void register_workspaces_command_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_harpoon_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "harpoon";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "harpoon";
+    provider.aliases = harpoon_aliases;
+    provider.command_help_format = "harpoon, hp";
+    provider.command_description = "Switch to Harpoon tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
 typedef struct {
     int seen;
     int fail_at;
@@ -207,7 +222,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("as",      0);   // assign-slots: assigns workspace slots
     ASSERT_ACTIVATES("cl",      0);   // close: window is closing
     ASSERT_ACTIVATES("config",  0);   // config: shows config tab
-    ASSERT_ACTIVATES("harpoon", 0);   // harpoon: surfaces tab
     ASSERT_ACTIVATES("help",    0);   // help: shows help text
     ASSERT_ACTIVATES("hotkeys", 0);   // hotkeys: manages bindings
     ASSERT_ACTIVATES("jw",      0);   // jump-workspace: switches desktop, no window
@@ -233,7 +247,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("an", 1);
     ASSERT_KEEP_OPEN("rw", 1);
     ASSERT_KEEP_OPEN("hotkeys", 1);
-    ASSERT_KEEP_OPEN("harpoon", 1);
     ASSERT_KEEP_OPEN("names", 1);
     ASSERT_KEEP_OPEN("rules", 1);
 
@@ -302,6 +315,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("ws")) { printf("PASS: workspaces provider alias keeps open\n"); tests_passed++; }
     else { printf("FAIL: workspaces provider alias should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("harpoon")) { printf("PASS: harpoon provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: harpoon provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("hp")) { printf("PASS: harpoon provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: harpoon provider alias should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -319,6 +338,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("ws")) { printf("PASS: disabled workspaces alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled workspaces alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(workspaces_id, 1);
+
+    int harpoon_id = cofi_get_provider_id("harpoon");
+    cofi_set_provider_enabled(harpoon_id, 0);
+    if (!should_keep_open_on_hotkey_auto("hp")) { printf("PASS: disabled harpoon alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled harpoon alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(harpoon_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -513,6 +538,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias ws did not resolve to workspaces\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("hp", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "harpoon") == 0) {
+        printf("PASS: provider alias hp resolves to harpoon\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias hp did not resolve to harpoon\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -535,13 +569,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 18 legacy non-activating = 29 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, and Workspaces are provider-owned and intentionally absent.
-    if (table_count == 29) {
+    // 11 activating + 17 legacy non-activating = 28 central commands.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, and Harpoon are provider-owned and intentionally absent.
+    if (table_count == 28) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 29 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 28 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -558,6 +592,7 @@ int main(void) {
     register_proc_command_provider();
     register_sessions_command_provider();
     register_workspaces_command_provider();
+    register_harpoon_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

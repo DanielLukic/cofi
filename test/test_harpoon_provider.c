@@ -22,7 +22,10 @@ static int tests_passed = 0;
 static int g_reset_selection_calls;
 static int g_show_delete_calls;
 static int g_show_edit_calls;
+static int g_exit_command_mode_calls;
+static int g_surface_tab_calls;
 static int g_last_overlay_slot;
+static TabMode g_last_surface_tab = TAB_WINDOWS;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -35,6 +38,17 @@ int has_match(const char *needle, const char *haystack) {
 void reset_selection(AppData *app) {
     (void)app;
     g_reset_selection_calls++;
+}
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    (void)app;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
 }
 
 void cofi_init_provider_defaults(CofiTabProvider *p) {
@@ -65,7 +79,10 @@ static void reset_state(AppData *app) {
     g_reset_selection_calls = 0;
     g_show_delete_calls = 0;
     g_show_edit_calls = 0;
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
     g_last_overlay_slot = -1;
+    g_last_surface_tab = TAB_WINDOWS;
     app->current_tab = TAB_HARPOON;
 }
 
@@ -159,6 +176,36 @@ static void test_selected_slot_clamps_and_keys_use_actual_slot(void) {
     ASSERT_TRUE("Ctrl+D opens selected actual slot", g_show_delete_calls == 1 && g_last_overlay_slot == 12);
 }
 
+static void test_command_metadata(void) {
+    AppData app;
+    reset_state(&app);
+
+    harpoon_provider_register();
+
+    ASSERT_TRUE("primary command is harpoon",
+                strcmp(s_harpoon_provider.primary_cmd, "harpoon") == 0);
+    ASSERT_TRUE("hp alias registered",
+                s_harpoon_provider.aliases && strcmp(s_harpoon_provider.aliases[0], "hp") == 0);
+    ASSERT_TRUE("command keeps hotkey open",
+                s_harpoon_provider.command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("command handler exists", s_harpoon_provider.command_handler != NULL);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app;
+    reset_state(&app);
+    app.current_tab = TAB_WINDOWS;
+
+    harpoon_provider_register();
+    gboolean result = s_harpoon_provider.command_handler(&app, NULL, NULL);
+
+    ASSERT_TRUE("command handler returns false", result == FALSE);
+    ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("command stores prefix origin", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("command surfaces harpoon tab",
+                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_HARPOON);
+}
+
 int main(void) {
     printf("Harpoon provider tests\n");
     printf("======================\n\n");
@@ -167,6 +214,8 @@ int main(void) {
     test_empty_row();
     test_query_resets_selection();
     test_selected_slot_clamps_and_keys_use_actual_slot();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

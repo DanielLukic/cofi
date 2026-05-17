@@ -1,10 +1,12 @@
 #include "harpoon_provider.h"
 
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "match.h"
 #include "overlay_manager.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +19,19 @@ static void format_slot_key(int slot_idx, char *out, size_t out_size) {
     } else {
         snprintf(out, out_size, "%c", 'a' + (slot_idx - 10));
     }
+}
+
+static const char *s_harpoon_aliases[] = {"hp", NULL};
+static CofiTabProvider s_harpoon_provider;
+
+static gboolean harpoon_command_handler(AppData *app,
+                                        WindowInfo *window __attribute__((unused)),
+                                        const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_harpoon_provider.tab_mode);
+    return FALSE;
 }
 
 void filter_harpoon(AppData *app, const char *filter) {
@@ -159,14 +174,17 @@ gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-static CofiTabProvider s_harpoon_provider;
-
 void harpoon_provider_register(void) {
     cofi_init_provider_defaults(&s_harpoon_provider);
     s_harpoon_provider.tab_mode = TAB_HARPOON;
     s_harpoon_provider.id = "harpoon";
     s_harpoon_provider.display_name = "HARPOON";
     s_harpoon_provider.primary_cmd = "harpoon";
+    s_harpoon_provider.aliases = s_harpoon_aliases;
+    s_harpoon_provider.command_description = "Switch to Harpoon tab";
+    s_harpoon_provider.command_help_format = "harpoon, hp";
+    s_harpoon_provider.command_handler = harpoon_command_handler;
+    s_harpoon_provider.command_keeps_open_on_hotkey_auto = 1;
     s_harpoon_provider.required = 0;
     s_harpoon_provider.hidden_by_default = 1;
     s_harpoon_provider.row_count = harpoon_row_count;

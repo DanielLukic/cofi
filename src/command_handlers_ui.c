@@ -118,11 +118,6 @@ gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)
     return surface_provider_command(app, "config", "Config provider not available.");
 }
 
-gboolean cmd_harpoon(AppData *app, WindowInfo *window __attribute__((unused)),
-                     const char *args __attribute__((unused))) {
-    return surface_provider_command(app, "harpoon", "Harpoon provider not available.");
-}
-
 gboolean cmd_names(AppData *app, WindowInfo *window __attribute__((unused)),
                    const char *args __attribute__((unused))) {
     return surface_provider_command(app, "names", "Names provider not available.");

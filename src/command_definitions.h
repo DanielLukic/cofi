@@ -87,14 +87,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
-        .primary = "harpoon",
-        .aliases = {"hp", NULL},
-        .handler = cmd_harpoon,
-        .description = "Switch to Harpoon tab",
-        .help_format = "harpoon, hp",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
         .handler = cmd_horizontal_maximize,
