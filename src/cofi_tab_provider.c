@@ -37,6 +37,9 @@ int cofi_register_tab_provider(const CofiTabProvider *provider) {
     if (copy.tab_mode < TAB_WINDOWS || copy.tab_mode >= COFI_MAX_TAB_HANDLES) {
         return -1;
     }
+    if (copy.id && copy.id[0] && cofi_get_provider_id(copy.id) >= 0) {
+        return -1;
+    }
     if (cofi_get_provider_id_for_tab(copy.tab_mode) >= 0) {
         return -1;
     }

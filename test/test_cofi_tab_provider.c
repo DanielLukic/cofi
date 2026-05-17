@@ -143,6 +143,25 @@ static void test_get_provider_for_tab(void) {
     ASSERT_NULL("unknown tab_mode returns NULL", cofi_get_provider_for_tab(999));
 }
 
+static void test_duplicate_provider_id_is_rejected(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider first, duplicate;
+    cofi_init_provider_defaults(&first);
+    first.id = "dupe";
+    first.tab_mode = 40;
+
+    cofi_init_provider_defaults(&duplicate);
+    duplicate.id = "dupe";
+    duplicate.tab_mode = 41;
+
+    ASSERT_EQ("first provider id accepted",
+              cofi_register_tab_provider(&first), 0);
+    ASSERT_EQ("duplicate provider id rejected",
+              cofi_register_tab_provider(&duplicate), -1);
+    ASSERT_EQ("duplicate id does not increase count", cofi_provider_count(), 1);
+}
+
 static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     cofi_registry_reset();
 
@@ -378,6 +397,7 @@ int main(void) {
     test_registry_add_and_get();
     test_dynamic_tab_assignment();
     test_get_provider_for_tab();
+    test_duplicate_provider_id_is_rejected();
     test_disabled_provider_runtime_lookups_are_hidden();
     test_apply_disabled_provider_list();
     test_disableable_uses_required_metadata_not_id();

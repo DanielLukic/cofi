@@ -17,6 +17,9 @@ Progress:
   `app_setup.c` out of provider-specific registration details.
 - Provider-backed daemon opcodes and hotkey modes now resolve through provider
   metadata.
+- Plugin boundary tests cover real built-in registration, command ownership,
+  disabled-provider hiding, delegate/hotkey fail-closed behavior, and command
+  name collision rejection.
 
 ## Problem
 
@@ -58,6 +61,9 @@ Remaining broken windows:
   prefixes live on provider metadata.
 - Provider-backed daemon opcodes and hotkey modes no longer name provider IDs in
   core dispatch.
+- `config.c` still owns the centralized config-entry table. Keep it explicit
+  until the config writeback API is designed; extracting it prematurely would
+  create a worse abstraction.
 
 ## Terms
 

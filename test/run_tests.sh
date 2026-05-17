@@ -583,6 +583,15 @@ if [ -f test_cofi_tab_provider ]; then
     fi
 fi
 
+if [ -f test_plugin_boundaries ]; then
+    echo ""
+    echo "Running plugin boundary tests..."
+    ./test_plugin_boundaries
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_cofi_modal ]; then
     echo ""
     echo "Running cofi_modal behavioral tests..."
