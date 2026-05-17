@@ -24,6 +24,9 @@ static int g_path_filter_calls;
 static int g_path_ensure_calls;
 static int g_apps_launch_calls;
 static int g_reset_selection_calls;
+static int g_exit_command_mode_calls;
+static int g_surface_tab_calls;
+static TabMode g_last_surface_tab;
 static gboolean g_path_scanning;
 static char g_last_filter_query[64];
 static char g_last_path_query[64];
@@ -70,6 +73,17 @@ void reset_selection(AppData *app) {
     g_reset_selection_calls++;
 }
 
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    (void)app;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
+}
+
 void cofi_init_provider_defaults(CofiTabProvider *p) {
     if (p) memset(p, 0, sizeof(*p));
 }
@@ -89,6 +103,9 @@ static void reset_state(AppData *app) {
     g_path_ensure_calls = 0;
     g_apps_launch_calls = 0;
     g_reset_selection_calls = 0;
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
+    g_last_surface_tab = TAB_WINDOWS;
     g_path_scanning = FALSE;
     g_last_filter_query[0] = '\0';
     g_last_path_query[0] = '\0';
@@ -165,6 +182,42 @@ static void test_leave_resets_mode(void) {
     ASSERT_TRUE("leave resets Apps mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
+static void test_command_metadata(void) {
+    AppData app;
+    reset_state(&app);
+    apps_provider_register();
+
+    ASSERT_TRUE("apps command primary",
+                strcmp(s_apps_provider.primary_cmd, "apps") == 0);
+    ASSERT_TRUE("apps alias applications",
+                s_apps_provider.aliases &&
+                strcmp(s_apps_provider.aliases[0], "applications") == 0);
+    ASSERT_TRUE("apps alias app",
+                s_apps_provider.aliases &&
+                strcmp(s_apps_provider.aliases[1], "app") == 0);
+    ASSERT_TRUE("apps command help",
+                strcmp(s_apps_provider.command_help_format,
+                       "apps, app, applications") == 0);
+    ASSERT_TRUE("apps command handler set", s_apps_provider.command_handler != NULL);
+    ASSERT_TRUE("apps command keep-open policy",
+                s_apps_provider.command_keeps_open_on_hotkey_auto == 1);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app;
+    reset_state(&app);
+    apps_provider_register();
+    app.current_tab = TAB_WINDOWS;
+
+    gboolean result = s_apps_provider.command_handler(&app, NULL, "");
+
+    ASSERT_TRUE("apps command returns false", result == FALSE);
+    ASSERT_TRUE("apps command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("apps command surfaces Apps tab",
+                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_APPS);
+    ASSERT_TRUE("apps command records origin", app.prefix_origin_tab == TAB_WINDOWS);
+}
+
 int main(void) {
     printf("Apps provider tests\n");
     printf("===================\n\n");
@@ -174,6 +227,8 @@ int main(void) {
     test_enter_launches_real_row_only();
     test_query_routes_by_mode();
     test_leave_resets_mode();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

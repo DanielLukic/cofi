@@ -39,6 +39,7 @@ static const char *names_aliases[] = {"nm", NULL};
 static const char *rules_aliases[] = {"rl", NULL};
 static const char *config_aliases[] = {"conf", "cfg", NULL};
 static const char *hotkeys_aliases[] = {"hotkey", "hk", NULL};
+static const char *apps_aliases[] = {"applications", "app", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -203,6 +204,20 @@ static void register_hotkeys_command_provider(void) {
     provider.aliases = hotkeys_aliases;
     provider.command_help_format = "hotkeys [key] [command]";
     provider.command_description = "Manage system hotkey bindings";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_apps_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "apps";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "apps";
+    provider.aliases = apps_aliases;
+    provider.command_help_format = "apps, app, applications";
+    provider.command_description = "Switch to applications tab";
     provider.command_keeps_open_on_hotkey_auto = 1;
     provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
     cofi_register_tab_provider(&provider);
@@ -403,6 +418,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("hk")) { printf("PASS: hotkeys provider alias hk keeps open\n"); tests_passed++; }
     else { printf("FAIL: hotkeys provider alias hk should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("apps")) { printf("PASS: apps provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: apps provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("app")) { printf("PASS: apps provider alias app keeps open\n"); tests_passed++; }
+    else { printf("FAIL: apps provider alias app should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -450,6 +471,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("hk")) { printf("PASS: disabled hotkeys alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled hotkeys alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(hotkeys_id, 1);
+
+    int apps_id = cofi_get_provider_id("apps");
+    cofi_set_provider_enabled(apps_id, 0);
+    if (!should_keep_open_on_hotkey_auto("app")) { printf("PASS: disabled apps alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled apps alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(apps_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -707,6 +734,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias hk did not resolve to hotkeys\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("app", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "apps") == 0) {
+        printf("PASS: provider alias app resolves to apps\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias app did not resolve to apps\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -730,7 +766,9 @@ static void test_all_commands_covered(void) {
         table_count++;
     }
     // 11 activating + 13 legacy non-activating = 24 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, Rules, Config, and Hotkeys are provider-owned and intentionally absent.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon,
+    // Names, Rules, Config, Hotkeys, and Apps are provider-owned and
+    // intentionally absent.
     if (table_count == 24) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
@@ -757,6 +795,7 @@ int main(void) {
     register_rules_command_provider();
     register_config_command_provider();
     register_hotkeys_command_provider();
+    register_apps_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

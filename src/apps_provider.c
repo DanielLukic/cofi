@@ -1,12 +1,16 @@
 #include "apps_provider.h"
 
 #include "apps.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "path_binaries.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <gtk/gtk.h>
+
+static CofiTabProvider s_apps_provider;
 
 static int apps_row_count(AppData *app) {
     if (!app) return 0;
@@ -93,6 +97,16 @@ static CofiActionStatus apps_on_enter_pressed(AppData *app, int filtered_idx,
     return COFI_HANDLED_HIDE;
 }
 
+static gboolean apps_command_handler(AppData *app,
+                                     WindowInfo *window __attribute__((unused)),
+                                     const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_apps_provider.tab_mode);
+    return FALSE;
+}
+
 void filter_apps(AppData *app, const char *filter) {
     if (!app) return;
     const char *query = filter ? filter : "";
@@ -107,7 +121,6 @@ void filter_apps(AppData *app, const char *filter) {
 }
 
 static const char *const s_apps_aliases[] = {"applications", "app", NULL};
-static CofiTabProvider s_apps_provider;
 
 void apps_provider_register(void) {
     cofi_init_provider_defaults(&s_apps_provider);
@@ -116,6 +129,10 @@ void apps_provider_register(void) {
     s_apps_provider.display_name = "APPS";
     s_apps_provider.primary_cmd = "apps";
     s_apps_provider.aliases = s_apps_aliases;
+    s_apps_provider.command_description = "Switch to applications tab";
+    s_apps_provider.command_help_format = "apps, app, applications";
+    s_apps_provider.command_handler = apps_command_handler;
+    s_apps_provider.command_keeps_open_on_hotkey_auto = 1;
     s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;
     s_apps_provider.initial_selection_index = 0;

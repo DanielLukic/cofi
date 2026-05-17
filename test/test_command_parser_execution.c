@@ -18,6 +18,7 @@ static const char *names_aliases[] = {"nm", NULL};
 static const char *rules_aliases[] = {"rl", NULL};
 static const char *config_aliases[] = {"conf", "cfg", NULL};
 static const char *hotkeys_aliases[] = {"hotkey", "hk", NULL};
+static const char *apps_aliases[] = {"applications", "app", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -151,6 +152,17 @@ static void register_hotkeys_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_apps_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "apps";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "apps";
+    provider.aliases = apps_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
 static void assert_true(const char *name, int condition) {
     if (condition) {
         printf("PASS: %s\n", name);
@@ -192,6 +204,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("hk alias resolves to hotkeys",
                 parse_command_for_execution("hk Mod4+w show windows", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "hotkeys") == 0 && strcmp(arg, "Mod4+w show windows") == 0);
+
+    assert_true("app alias resolves to apps",
+                parse_command_for_execution("app fire", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "apps") == 0 && strcmp(arg, "fire") == 0);
 
     assert_true("provider alias chrome resolves to profiles",
                 parse_command_for_execution("chrome gs", cmd, arg, sizeof(cmd), sizeof(arg)) &&
@@ -270,6 +286,7 @@ int main(void) {
     register_rules_provider();
     register_config_provider();
     register_hotkeys_provider();
+    register_apps_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();
