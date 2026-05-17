@@ -11,6 +11,7 @@ static int g_reset_selection_calls = 0;
 static int g_exit_command_mode_calls = 0;
 static int g_surface_tab_calls = 0;
 static TabMode g_last_surface_tab = -1;
+static CofiTabProvider g_registered_provider;
 
 #define ASSERT_TRUE(name, cond) do { \
     if (cond) { printf("PASS: %s\n", name); pass++; } \
@@ -37,12 +38,18 @@ void cofi_init_provider_defaults(CofiTabProvider *provider) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *provider) {
-    (void)provider;
+    if (!provider) return -1;
+    g_registered_provider = *provider;
+    g_registered_provider.tab_mode = (TabMode)(TAB_COUNT + 1);
     return 0;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return provider_id == 0 ? &g_registered_provider : NULL;
 }
 
 int has_match(const char *pattern, const char *text) {
@@ -195,6 +202,8 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider command keeps open",
                 s_config_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_config_command.handler != NULL);
+    ASSERT_TRUE("config provider tab is dynamic",
+                g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -203,6 +212,7 @@ static void test_command_handler_surfaces_tab(void) {
     g_surface_tab_calls = 0;
     g_last_surface_tab = -1;
     app.current_tab = TAB_WINDOWS;
+    config_provider_register();
 
     gboolean result = s_config_command.handler(&app, NULL, NULL);
 
@@ -210,7 +220,8 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("config command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("config command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("config command surfaces config tab", g_surface_tab_calls == 1 &&
-                g_last_surface_tab == TAB_CONFIG && app.current_tab == TAB_CONFIG);
+                g_last_surface_tab == (TabMode)g_registered_provider.tab_mode &&
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 int main(void) {

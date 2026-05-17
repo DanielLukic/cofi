@@ -11,7 +11,6 @@
 #include "selection.h"
 #include "tab_switching.h"
 
-#include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -144,8 +143,16 @@ void config_select_key(AppData *app, const char *key) {
     app->selection.provider_index = 0;
 }
 
+static CofiTabProvider s_config_provider;
+static int s_config_provider_id = -1;
+
+TabMode config_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_config_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
+
 gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_CONFIG) {
+    if (app->current_tab != config_tab_mode()) {
         return FALSE;
     }
 
@@ -198,8 +205,6 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-static CofiTabProvider s_config_provider;
-
 static gboolean config_command_handler(AppData *app,
                                        WindowInfo *window __attribute__((unused)),
                                        const char *args __attribute__((unused))) {
@@ -207,7 +212,7 @@ static gboolean config_command_handler(AppData *app,
 
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_config_provider.tab_mode);
+    surface_tab(app, config_tab_mode());
     return FALSE;
 }
 
@@ -223,7 +228,7 @@ static const CommandSpec s_config_command = {
 
 void config_provider_register(void) {
     cofi_init_provider_defaults(&s_config_provider);
-    s_config_provider.tab_mode = TAB_CONFIG;
+    s_config_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_config_provider.id = "config";
     s_config_provider.display_name = "CONFIG";
     s_config_provider.required = 1;
@@ -237,7 +242,8 @@ void config_provider_register(void) {
     s_config_provider.on_query_changed = config_on_query_changed;
     s_config_provider.handle_key = handle_config_tab_keys;
     s_config_provider.get_shortcut_hint = config_shortcut_hint;
-    if (cofi_register_tab_provider(&s_config_provider) >= 0) {
+    s_config_provider_id = cofi_register_tab_provider(&s_config_provider);
+    if (s_config_provider_id >= 0) {
         cofi_register_command(&s_config_command);
     }
 }

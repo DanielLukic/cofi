@@ -4,6 +4,7 @@
 #include "app_data.h"
 
 void config_provider_register(void);
+TabMode config_tab_mode(void);
 void filter_config(AppData *app, const char *filter);
 gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app);
 

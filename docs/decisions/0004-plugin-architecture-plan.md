@@ -7,7 +7,7 @@ Progress:
 - Phases 1-3 landed in `f047647`.
 - Provider required metadata now replaces the hardcoded Config exception.
 - Command parse definitions now carry explicit `core` or provider ownership.
-- Providers can request dynamic tab handles. Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, and Rules use this
+- Providers can request dynamic tab handles. Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, Rules, and Config use this
   path; older provider tabs still keep legacy `TAB_*` handles during migration.
 - Phase 4 has landed for provider commands: provider modules now register
   `CommandSpec` entries directly with `command_registry`.
@@ -44,7 +44,7 @@ Remaining broken windows:
   still register from one built-in list.
 - Provider command metadata no longer lives on `CofiTabProvider`; providers
   register `CommandSpec` entries directly.
-- Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, and Rules now use dynamic tab handles. Other existing provider
+- Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, Rules, and Config now use dynamic tab handles. Other existing provider
   tabs still use legacy static `TabMode` values during migration.
 - `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
 - Daemon opcodes and some hotkey modes still directly name tabs/modes.
@@ -171,7 +171,7 @@ move toward plugins rather than table cleanup.
 Progress:
 
 - Dynamic handle allocation and tab enumeration landed in `f047647`.
-- Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, and Rules no longer have static `TAB_*` enum values and register
+- Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, Rules, and Config no longer have static `TAB_*` enum values and register
   with `COFI_PROVIDER_DYNAMIC_TAB`.
 - Remaining work is to migrate the older provider tabs off their legacy
   `TAB_*` handles as their surrounding hardcoded entry points are cleaned up.

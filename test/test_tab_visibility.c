@@ -32,8 +32,9 @@ static int disabled_provider_tab = -1;
 
 #define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 3))
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 4))
+#define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 4))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 5))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -243,11 +244,12 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         provider.id = "rules";
         return &provider;
     }
+    if (tab_mode == TEST_CONFIG_TAB) {
+        provider.id = "config";
+        return &provider;
+    }
 
     switch (tab_mode) {
-        case TAB_CONFIG:
-            provider.id = "config";
-            break;
         case TAB_HARPOON:
             provider.id = "harpoon";
             break;
@@ -269,7 +271,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 int cofi_get_provider_id(const char *id) {
     if (!id) return -1;
     if (strcmp(id, "apps") == 0) return TEST_APPS_TAB;
-    if (strcmp(id, "config") == 0) return TAB_CONFIG;
+    if (strcmp(id, "config") == 0) return TEST_CONFIG_TAB;
     if (strcmp(id, "harpoon") == 0) return TAB_HARPOON;
     if (strcmp(id, "names") == 0) return TEST_NAMES_TAB;
     if (strcmp(id, "rules") == 0) return TEST_RULES_TAB;
@@ -285,6 +287,7 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
     return cofi_get_provider_for_tab(provider_id);
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+TabMode config_tab_mode(void) { return TEST_CONFIG_TAB; }
 int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
     for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
@@ -295,6 +298,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_NAMES_TAB;
+    }
+    if (count < max_tabs) {
+        tabs[count++] = TEST_CONFIG_TAB;
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_RULES_TAB;
@@ -493,10 +499,10 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
     TabMode expected[] = {
         TAB_WORKSPACES,
         TAB_HARPOON,
-        TAB_CONFIG,
         TAB_HOTKEYS,
         TEST_APPS_TAB,
         TEST_NAMES_TAB,
+        TEST_CONFIG_TAB,
         TEST_RULES_TAB,
         TEST_SESSIONS_TAB,
         TAB_WINDOWS
@@ -523,10 +529,10 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     TabMode expected[] = {
         TEST_SESSIONS_TAB,
         TEST_RULES_TAB,
+        TEST_CONFIG_TAB,
         TEST_NAMES_TAB,
         TEST_APPS_TAB,
         TAB_HOTKEYS,
-        TAB_CONFIG,
         TAB_HARPOON,
         TAB_WORKSPACES,
         TAB_WINDOWS

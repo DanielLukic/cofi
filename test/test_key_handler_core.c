@@ -87,8 +87,9 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 #define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 3))
-#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 4))
+#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 4))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 5))
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -589,12 +590,12 @@ static void test_escape_provider_tab_hides(void) {
 
     CofiTabProvider provider;
     memset(&provider, 0, sizeof(provider));
-    provider.tab_mode = TAB_CONFIG;
+    provider.tab_mode = TEST_CONFIG_TAB;
     g_provider_for_tab = &provider;
 
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.prefix_origin_tab = TAB_WINDOWS;
-    app.tab_visibility[TAB_CONFIG] = TAB_VIS_SURFACED;
+    app.tab_visibility[TEST_CONFIG_TAB] = TAB_VIS_SURFACED;
 
     GdkEventKey ev = make_key(GDK_KEY_Escape, 0);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -942,7 +943,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
     TabMode tabs[] = {
         TAB_WINDOWS, TAB_WORKSPACES, TAB_HARPOON,
-        TEST_NAMES_TAB, TAB_CONFIG, TAB_HOTKEYS, TEST_RULES_TAB, TEST_APPS_TAB
+        TEST_NAMES_TAB, TEST_CONFIG_TAB, TAB_HOTKEYS, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
     for (int i = 0; i < 8; i++) {
@@ -969,7 +970,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         CofiTabProvider config_provider;
         memset(&config_provider, 0, sizeof(config_provider));
-        config_provider.tab_mode = TAB_CONFIG;
+        config_provider.tab_mode = TEST_CONFIG_TAB;
         config_provider.on_query_changed = mock_config_query_changed;
 
         CofiTabProvider names_provider;
@@ -995,7 +996,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
             g_provider_for_tab = &harpoon_provider;
         } else if (tabs[i] == TEST_NAMES_TAB) {
             g_provider_for_tab = &names_provider;
-        } else if (tabs[i] == TAB_CONFIG) {
+        } else if (tabs[i] == TEST_CONFIG_TAB) {
             g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TAB_HOTKEYS) {
             g_provider_for_tab = &hotkeys_provider;
@@ -1025,7 +1026,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("NAMES filter routing",
                     tabs[i] != TEST_NAMES_TAB || (g_filter_names_calls == 1 && strcmp(g_last_filter_names, "query") == 0));
         ASSERT_TRUE("CONFIG filter routing",
-                    tabs[i] != TAB_CONFIG || (g_filter_config_calls == 1 && strcmp(g_last_filter_config, "query") == 0));
+                    tabs[i] != TEST_CONFIG_TAB || (g_filter_config_calls == 1 && strcmp(g_last_filter_config, "query") == 0));
         ASSERT_TRUE("HOTKEYS filter routing",
                     tabs[i] != TAB_HOTKEYS || (g_filter_hotkeys_calls == 1 && strcmp(g_last_filter_hotkeys, "query") == 0));
         ASSERT_TRUE("RULES filter routing",
@@ -1090,10 +1091,10 @@ static void test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty(
     reset_captures();
 
     /* Set modal state directly (entry-change path no longer fires for =) */
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.command_mode.state = CMD_MODE_MODAL;
     app.active_prefix_claim = '=';
-    app.prefix_origin_tab = TAB_CONFIG;
+    app.prefix_origin_tab = TEST_CONFIG_TAB;
     g_enter_modal_calls = 1;
     /* In CMD_MODE_MODAL, further entry changes do not re-trigger cofi_enter_modal */
     gtk_entry_set_text(GTK_ENTRY(app.entry), "17+4");

@@ -6,6 +6,7 @@
 #include "cofi_tab_provider.h"
 #include "command_registry.h"
 #include "config.h"
+#include "config_provider.h"
 #include "detach_launch.h"
 #include "display.h"
 #include "log.h"
@@ -64,7 +65,7 @@ static void handle_set_success(AppData *app, const char *key, const char *value)
     }
     log_info("Config: %s = %s", key, value);
     exit_command_mode(app);
-    surface_tab(app, TAB_CONFIG);
+    surface_tab(app, config_tab_mode());
 }
 
 static void handle_set_error(AppData *app, const char *error_text) {

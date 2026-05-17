@@ -55,7 +55,7 @@ static void init_provider_enablement_state(AppData *app) {
 }
 
 void create_config_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    if (app->current_tab != TAB_CONFIG) {
+    if (app->current_tab != config_tab_mode()) {
         GtkWidget *error_label = gtk_label_new("No config option selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;

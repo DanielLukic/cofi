@@ -63,8 +63,9 @@ static gboolean g_stub_has_selected_folder;
 
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 3))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 4))
+#define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 4))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 5))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -132,7 +133,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     g_last_provider_tab_lookup = tab_mode;
     names_provider.tab_mode = TEST_NAMES_TAB;
     names_provider.handle_key = handle_names_tab_keys;
-    config_provider.tab_mode = TAB_CONFIG;
+    config_provider.tab_mode = TEST_CONFIG_TAB;
     config_provider.handle_key = handle_config_tab_keys;
     hotkeys_provider.tab_mode = TAB_HOTKEYS;
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
@@ -145,11 +146,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 
     if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
     if (tab_mode == TEST_NAMES_TAB) return &names_provider;
+    if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
     if (tab_mode == TEST_RULES_TAB) return &rules_provider;
 
     switch ((TabMode)tab_mode) {
         case TAB_HARPOON: return &harpoon_provider;
-        case TAB_CONFIG: return &config_provider;
         case TAB_HOTKEYS: return &hotkeys_provider;
         default: return NULL;
     }
@@ -159,12 +160,17 @@ int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id;
 TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 const CofiTabProvider *cofi_get_provider(int provider_id) {
     static CofiTabProvider names_provider;
+    static CofiTabProvider config_provider;
     static CofiTabProvider rules_provider;
     (void)provider_id;
     memset(&names_provider, 0, sizeof(names_provider));
+    memset(&config_provider, 0, sizeof(config_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
     names_provider.tab_mode = TEST_NAMES_TAB;
+    config_provider.tab_mode = TEST_CONFIG_TAB;
     rules_provider.tab_mode = TEST_RULES_TAB;
+    if (g_last_provider_tab_lookup == TEST_CONFIG_TAB)
+        return &config_provider;
     return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &names_provider;
 }
 
@@ -676,7 +682,7 @@ static void test_ctrl_t_config_tab_cycles_bool_and_saves(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.selection.provider_index = 0;
     app.filtered_config_count = 1;
     strcpy(app.filtered_config[0].key, "close_on_focus_loss");
@@ -698,7 +704,7 @@ static void test_ctrl_t_config_tab_cycles_enum_and_saves(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.selection.provider_index = 0;
     app.filtered_config_count = 1;
     strcpy(app.filtered_config[0].key, "digit_slot_mode");
@@ -726,7 +732,7 @@ static void test_ctrl_e_config_tab_shows_edit_overlay_for_value_entry(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.filtered_config_count = 2;
     app.selection.provider_index = 1;
     strcpy(app.filtered_config[0].key, "close_on_focus_loss");
@@ -747,7 +753,7 @@ static void test_ctrl_e_config_tab_ignores_enum_entry(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_CONFIG;
+    app.current_tab = TEST_CONFIG_TAB;
     app.filtered_config_count = 1;
     app.selection.provider_index = 0;
     strcpy(app.filtered_config[0].key, "digit_slot_mode");

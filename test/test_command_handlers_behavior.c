@@ -66,6 +66,7 @@ static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
 
+#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 3))
 
 static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
@@ -94,7 +95,7 @@ static void init_stub_providers(void) {
 
     g_stub_run_provider.tab_mode = TAB_COUNT + 2;
     g_stub_calc_provider.tab_mode = TAB_COUNT + 1;
-    g_stub_config_provider.tab_mode = TAB_CONFIG;
+    g_stub_config_provider.tab_mode = TEST_CONFIG_TAB;
     g_stub_hotkeys_provider.tab_mode = TAB_HOTKEYS;
     g_stub_rules_provider.tab_mode = TEST_RULES_TAB;
 }
@@ -109,6 +110,7 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     if (prefix == '!') return &g_stub_run_provider;
     return NULL;
 }
+TabMode config_tab_mode(void) { return TEST_CONFIG_TAB; }
 int cofi_get_provider_id(const char *id) {
     if (id && strcmp(id, "calc") == 0) return 1;
     if (id && strcmp(id, "config") == 0) return 2;
