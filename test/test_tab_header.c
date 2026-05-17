@@ -7,7 +7,8 @@
 #define TEST_DYNAMIC_TAB  ((TabMode)(TAB_COUNT + 1))
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_PROFILES_TAB ((TabMode)(TAB_COUNT + 3))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 4))
+#define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 4))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 5))
 
 static int pass = 0;
 static int fail = 0;
@@ -21,6 +22,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
     for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
         tabs[count++] = tab;
+    }
+    if (max_tabs > count) {
+        tabs[count++] = TEST_HARPOON_TAB;
     }
     if (max_tabs > count) {
         tabs[count++] = TEST_APPS_TAB;
@@ -65,6 +69,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         dynamic_provider.id = "apps";
         dynamic_provider.display_name = "Apps";
         dynamic_provider.tab_mode = TEST_APPS_TAB;
+        return &dynamic_provider;
+    }
+    if (tab_mode == TEST_HARPOON_TAB) {
+        memset(&dynamic_provider, 0, sizeof(dynamic_provider));
+        dynamic_provider.id = "harpoon";
+        dynamic_provider.display_name = "Harpoon";
+        dynamic_provider.tab_mode = TEST_HARPOON_TAB;
         return &dynamic_provider;
     }
     return NULL;

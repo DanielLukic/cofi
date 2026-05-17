@@ -79,7 +79,7 @@ static void test_delegate_flags_prepare_startup_mode_when_becoming_daemon(void) 
     } cases[] = {
         {"--windows", COFI_OPCODE_WINDOWS, TAB_WINDOWS, 0, 0},
         {"--workspaces", COFI_OPCODE_WORKSPACES, TAB_WORKSPACES, 0, 0},
-        {"--harpoon", COFI_OPCODE_HARPOON, TAB_HARPOON, 0, 0},
+        {"--harpoon", COFI_OPCODE_HARPOON, TAB_WINDOWS, 0, 0},
         {"--names", COFI_OPCODE_NAMES, TAB_WINDOWS, 0, 0},
         {"--applications", COFI_OPCODE_APPLICATIONS, TAB_WINDOWS, 0, 0},
         {"--command", COFI_OPCODE_COMMAND, TAB_WINDOWS, 1, 0},

@@ -61,12 +61,13 @@ static gboolean g_stub_has_selected_session;
 static SessionFolder g_stub_selected_folder;
 static gboolean g_stub_has_selected_folder;
 
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 3))
-#define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 4))
-#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 5))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 6))
+#define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 1))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 3))
+#define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 4))
+#define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 5))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 6))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 7))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -142,7 +143,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     rules_provider.handle_key = handle_rules_tab_keys;
     sessions_provider.tab_mode = TEST_SESSIONS_TAB;
     sessions_provider.handle_key = handle_sessions_tab_keys;
-    harpoon_provider.tab_mode = TAB_HARPOON;
+    harpoon_provider.tab_mode = TEST_HARPOON_TAB;
     harpoon_provider.handle_key = handle_harpoon_tab_keys;
 
     if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
@@ -150,9 +151,9 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
     if (tab_mode == TEST_HOTKEYS_TAB) return &hotkeys_provider;
     if (tab_mode == TEST_RULES_TAB) return &rules_provider;
+    if (tab_mode == TEST_HARPOON_TAB) return &harpoon_provider;
 
     switch ((TabMode)tab_mode) {
-        case TAB_HARPOON: return &harpoon_provider;
         default: return NULL;
     }
 }
@@ -164,15 +165,20 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
+    static CofiTabProvider harpoon_provider;
     (void)provider_id;
     memset(&names_provider, 0, sizeof(names_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
+    memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     names_provider.tab_mode = TEST_NAMES_TAB;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     rules_provider.tab_mode = TEST_RULES_TAB;
+    harpoon_provider.tab_mode = TEST_HARPOON_TAB;
+    if (g_last_provider_tab_lookup == TEST_HARPOON_TAB)
+        return &harpoon_provider;
     if (g_last_provider_tab_lookup == TEST_CONFIG_TAB)
         return &config_provider;
     if (g_last_provider_tab_lookup == TEST_HOTKEYS_TAB)
@@ -638,7 +644,7 @@ static void test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot(void) 
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     app.filtered_harpoon_count = 1;
     app.selection.provider_index = 0;
     app.filtered_harpoon_indices[0] = 5;
@@ -663,7 +669,7 @@ static void test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     app.filtered_harpoon_count = 1;
     app.selection.provider_index = 0;
     app.filtered_harpoon_indices[0] = 12;

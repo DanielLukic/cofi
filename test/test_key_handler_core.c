@@ -86,6 +86,7 @@ static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
+#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 3))
 #define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 4))
@@ -193,6 +194,10 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
 
 TabMode apps_tab_mode(void) {
     return TEST_APPS_TAB;
+}
+
+TabMode harpoon_tab_mode(void) {
+    return TEST_HARPOON_TAB;
 }
 
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
@@ -610,7 +615,7 @@ static void test_escape_harpoon_pending_delete_cancels_only(void) {
     AppData app;
     init_app(&app);
     reset_captures();
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     app.harpoon_delete.pending_delete = TRUE;
 
     GdkEventKey ev = make_key(GDK_KEY_Escape, 0);
@@ -943,7 +948,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
     reset_captures();
 
     TabMode tabs[] = {
-        TAB_WINDOWS, TAB_WORKSPACES, TAB_HARPOON,
+        TAB_WINDOWS, TAB_WORKSPACES, TEST_HARPOON_TAB,
         TEST_NAMES_TAB, TEST_CONFIG_TAB, TEST_HOTKEYS_TAB, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
@@ -986,14 +991,14 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         CofiTabProvider harpoon_provider;
         memset(&harpoon_provider, 0, sizeof(harpoon_provider));
-        harpoon_provider.tab_mode = TAB_HARPOON;
+        harpoon_provider.tab_mode = TEST_HARPOON_TAB;
         harpoon_provider.on_query_changed = mock_harpoon_query_changed;
 
         if (tabs[i] == TEST_APPS_TAB) {
             g_provider_for_tab = &apps_provider;
         } else if (tabs[i] == TAB_WORKSPACES) {
             g_provider_for_tab = &workspaces_provider;
-        } else if (tabs[i] == TAB_HARPOON) {
+        } else if (tabs[i] == TEST_HARPOON_TAB) {
             g_provider_for_tab = &harpoon_provider;
         } else if (tabs[i] == TEST_NAMES_TAB) {
             g_provider_for_tab = &names_provider;
@@ -1023,7 +1028,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("WORKSPACES filter routing",
                     tabs[i] != TAB_WORKSPACES || (g_filter_workspaces_calls == 1 && strcmp(g_last_filter_workspaces, "query") == 0));
         ASSERT_TRUE("HARPOON filter routing",
-                    tabs[i] != TAB_HARPOON || (g_filter_harpoon_calls == 1 && strcmp(g_last_filter_harpoon, "query") == 0));
+                    tabs[i] != TEST_HARPOON_TAB || (g_filter_harpoon_calls == 1 && strcmp(g_last_filter_harpoon, "query") == 0));
         ASSERT_TRUE("NAMES filter routing",
                     tabs[i] != TEST_NAMES_TAB || (g_filter_names_calls == 1 && strcmp(g_last_filter_names, "query") == 0));
         ASSERT_TRUE("CONFIG filter routing",
@@ -1041,14 +1046,14 @@ static void test_on_entry_changed_leading_colon_claims_command_mode(void) {
     AppData app;
     init_app(&app);
     reset_captures();
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     gtk_entry_set_text(GTK_ENTRY(app.entry), ":set");
 
     on_entry_changed(GTK_ENTRY(app.entry), &app);
 
     ASSERT_TRUE("Leading ':' enters command mode from entry change",
                 app.command_mode.state == CMD_MODE_COMMAND && g_enter_command_mode_calls == 1);
-    ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TAB_HARPOON);
+    ASSERT_TRUE("Leading ':' stores origin tab", app.prefix_origin_tab == TEST_HARPOON_TAB);
 }
 
 static void test_on_entry_changed_provider_prefix_preserves_remainder(void) {

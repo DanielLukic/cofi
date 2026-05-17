@@ -10,6 +10,7 @@
 #include "display.h"
 #include "filter.h"
 #include "filter_names.h"
+#include "harpoon_provider.h"
 #include "key_handler_harpoon.h"
 #include "log.h"
 #include "overlay_manager.h"
@@ -26,7 +27,7 @@
 gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
     switch (event->keyval) {
         case GDK_KEY_Escape:
-            if (app->current_tab == TAB_HARPOON && app->harpoon_delete.pending_delete) {
+            if (app->current_tab == harpoon_tab_mode() && app->harpoon_delete.pending_delete) {
                 app->harpoon_delete.pending_delete = FALSE;
                 log_info("Cancelled harpoon delete");
                 update_display(app);

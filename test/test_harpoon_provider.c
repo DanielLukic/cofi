@@ -27,6 +27,9 @@ static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static int g_last_overlay_slot;
 static TabMode g_last_surface_tab = TAB_WINDOWS;
+static CofiTabProvider g_registered_provider;
+
+#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -57,8 +60,15 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    if (p) g_registered_provider = *p;
+    g_registered_provider.tab_mode = TEST_HARPOON_TAB;
     return 0;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    (void)provider_id;
+    return &g_registered_provider;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -88,7 +98,9 @@ static void reset_state(AppData *app) {
     g_surface_tab_calls = 0;
     g_last_overlay_slot = -1;
     g_last_surface_tab = TAB_WINDOWS;
-    app->current_tab = TAB_HARPOON;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    g_registered_provider.tab_mode = TEST_HARPOON_TAB;
+    app->current_tab = TEST_HARPOON_TAB;
 }
 
 static void seed_slots(AppData *app) {
@@ -194,6 +206,7 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("command keeps hotkey open",
                 s_harpoon_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("command handler exists", s_harpoon_command.handler != NULL);
+    ASSERT_TRUE("harpoon tab is dynamic", g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -208,7 +221,8 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command stores prefix origin", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("command surfaces harpoon tab",
-                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_HARPOON);
+                g_surface_tab_calls == 1 &&
+                g_last_surface_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 int main(void) {

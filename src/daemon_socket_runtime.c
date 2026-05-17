@@ -14,6 +14,7 @@
 #include "daemon_socket.h"
 #include "display.h"
 #include "filter.h"
+#include "harpoon_provider.h"
 #include "log.h"
 #include "names_provider.h"
 #include "selection.h"
@@ -155,7 +156,7 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_WORKSPACES);
             break;
         case COFI_OPCODE_HARPOON:
-            show_tab_for_opcode(app, TAB_HARPOON);
+            show_tab_for_opcode(app, harpoon_tab_mode());
             break;
         case COFI_OPCODE_NAMES:
             show_tab_for_opcode(app, names_tab_mode());

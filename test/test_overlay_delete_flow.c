@@ -23,7 +23,12 @@ static int g_save_named_windows_calls;
 static int g_delete_custom_name_calls;
 static int g_filter_names_calls;
 
-#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_NAMES_TAB   ((TabMode)(TAB_COUNT + 2))
+
+TabMode harpoon_tab_mode(void) {
+    return TEST_HARPOON_TAB;
+}
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
@@ -210,7 +215,7 @@ static void test_harpoon_delete_confirm_y_clears_state_and_hides_overlay(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_HARPOON_DELETE;
     app.harpoon_delete.pending_delete = TRUE;
@@ -233,7 +238,7 @@ static void test_harpoon_delete_cancel_n_clears_state_and_hides_overlay(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_HARPOON;
+    app.current_tab = TEST_HARPOON_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_HARPOON_DELETE;
     app.harpoon_delete.pending_delete = TRUE;

@@ -90,7 +90,7 @@ static void test_does_not_call_for_workspaces_mode(void) {
 }
 
 static void test_does_not_call_for_non_windows_tabs(void) {
-    AppData app_harpoon = make_app(DIGIT_MODE_PER_WORKSPACE, TAB_HARPOON, TRUE);
+    AppData app_harpoon = make_app(DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 1), TRUE);
     AppData app_apps = make_app(DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 2), TRUE);
     assign_workspace_slots_calls = 0;
 

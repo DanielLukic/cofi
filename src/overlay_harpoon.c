@@ -3,6 +3,7 @@
 #include "display.h"
 #include "gtk_utils.h"
 #include "harpoon_config.h"
+#include "harpoon_provider.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "utils.h"
@@ -150,7 +151,7 @@ gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {
 
     hide_overlay(app);
 
-    if (app->current_tab == TAB_HARPOON) {
+    if (app->current_tab == harpoon_tab_mode()) {
         const char *filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
         gtk_entry_set_text(GTK_ENTRY(app->entry), "");
         gtk_entry_set_text(GTK_ENTRY(app->entry), filter);

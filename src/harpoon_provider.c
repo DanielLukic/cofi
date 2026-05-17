@@ -23,6 +23,12 @@ static void format_slot_key(int slot_idx, char *out, size_t out_size) {
 }
 
 static CofiTabProvider s_harpoon_provider;
+static int s_harpoon_provider_id = -1;
+
+TabMode harpoon_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_harpoon_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static gboolean harpoon_command_handler(AppData *app,
                                         WindowInfo *window __attribute__((unused)),
@@ -30,7 +36,7 @@ static gboolean harpoon_command_handler(AppData *app,
     if (!app) return FALSE;
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_harpoon_provider.tab_mode);
+    surface_tab(app, harpoon_tab_mode());
     return FALSE;
 }
 
@@ -161,7 +167,7 @@ static void harpoon_on_query_changed(AppData *app, const char *query) {
 }
 
 gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
-    if (!app || app->current_tab != TAB_HARPOON) {
+    if (!app || app->current_tab != harpoon_tab_mode()) {
         return FALSE;
     }
 
@@ -186,7 +192,7 @@ gboolean handle_harpoon_tab_keys(GdkEventKey *event, AppData *app) {
 
 void harpoon_provider_register(void) {
     cofi_init_provider_defaults(&s_harpoon_provider);
-    s_harpoon_provider.tab_mode = TAB_HARPOON;
+    s_harpoon_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_harpoon_provider.id = "harpoon";
     s_harpoon_provider.display_name = "HARPOON";
     s_harpoon_provider.required = 0;
@@ -200,7 +206,8 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.handle_key = handle_harpoon_tab_keys;
     s_harpoon_provider.shortcut_hint =
         "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)";
-    if (cofi_register_tab_provider(&s_harpoon_provider) >= 0) {
+    s_harpoon_provider_id = cofi_register_tab_provider(&s_harpoon_provider);
+    if (s_harpoon_provider_id >= 0) {
         cofi_register_command(&s_harpoon_command);
     }
 }

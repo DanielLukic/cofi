@@ -95,7 +95,7 @@ static void test_dynamic_tab_assignment(void) {
     CofiTabProvider legacy, dynamic_one, dynamic_two;
     cofi_init_provider_defaults(&legacy);
     legacy.id = "legacy";
-    legacy.tab_mode = TAB_HARPOON;
+    legacy.tab_mode = TAB_WORKSPACES;
     int legacy_id = cofi_register_tab_provider(&legacy);
 
     cofi_init_provider_defaults(&dynamic_one);
@@ -123,7 +123,7 @@ static void test_dynamic_tab_assignment(void) {
     int tabs[8];
     int count = cofi_list_provider_tabs(tabs, 8);
     ASSERT_EQ("provider tab list count", count, 3);
-    ASSERT_EQ("legacy tab ordered before dynamic tabs", tabs[0], TAB_HARPOON);
+    ASSERT_EQ("legacy tab ordered before dynamic tabs", tabs[0], TAB_WORKSPACES);
     ASSERT_EQ("dynamic tab one listed", tabs[1], TAB_COUNT + 1);
     ASSERT_EQ("dynamic tab two listed", tabs[2], TAB_COUNT + 2);
 }
