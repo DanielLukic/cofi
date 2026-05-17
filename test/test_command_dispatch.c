@@ -28,6 +28,7 @@ static int tests_passed = 0;
 static int tests_failed = 0;
 
 static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
+static const char *calc_aliases[] = {"ca", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -38,6 +39,20 @@ static void register_profiles_command_provider(void) {
     provider.aliases = profiles_aliases;
     provider.command_help_format = "profiles, chrome [@SLOT|PROFILE]";
     provider.command_description = "Switch to browser profiles tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_calc_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "calc";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "calc";
+    provider.aliases = calc_aliases;
+    provider.command_help_format = "calc, ca";
+    provider.command_description = "Switch to calculator";
     provider.command_keeps_open_on_hotkey_auto = 1;
     provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
     cofi_register_tab_provider(&provider);
@@ -195,6 +210,9 @@ static void test_should_keep_open_runtime_policy(void) {
 
     if (should_keep_open_on_hotkey_auto("profiles")) { printf("PASS: profiles provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: profiles provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("calc")) { printf("PASS: calc provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: calc provider command should keep open\n"); tests_failed++; }
 }
 
 static void test_command_chain_semantics(void) {
@@ -335,6 +353,15 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias chrome did not resolve to profiles\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("ca", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "calc") == 0) {
+        printf("PASS: provider alias ca resolves to calc\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias ca did not resolve to calc\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -357,13 +384,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 24 legacy non-activating = 35 central commands.
-    // Profiles is provider-owned and intentionally absent from this table.
-    if (table_count == 35) {
+    // 11 activating + 23 legacy non-activating = 34 central commands.
+    // Profiles and Calc are provider-owned and intentionally absent from this table.
+    if (table_count == 34) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 35 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 34 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -374,6 +401,7 @@ int main(void) {
 
     cofi_registry_reset();
     register_profiles_command_provider();
+    register_calc_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

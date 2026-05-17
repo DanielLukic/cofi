@@ -14,7 +14,6 @@ gboolean cmd_workspaces(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_harpoon(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_names(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_rules(AppData *app, WindowInfo *window, const char *args);
-gboolean cmd_calc(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_sinks(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_proc(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_sessions(AppData *app, WindowInfo *window, const char *args);

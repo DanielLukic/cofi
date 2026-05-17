@@ -1,7 +1,9 @@
 #include "calc_provider.h"
 
 #include "calc.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
+#include "cofi_modal.h"
 #include "app_data.h"
 #include "log.h"
 
@@ -74,6 +76,27 @@ static void calc_on_enter(AppData *app) {
 static const char *const s_calc_aliases[] = {"ca", NULL};
 static CofiTabProvider s_calc_provider;
 
+static gboolean calc_command_handler(AppData *app,
+                                     WindowInfo *window __attribute__((unused)),
+                                     const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
+    if (!provider) {
+        return FALSE;
+    }
+
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+        app->active_prefix_claim = '=';
+    }
+    cofi_enter_modal(app, provider);
+
+    if (args && args[0] != '\0') {
+        calc_on_command_args(app, args);
+    }
+    return FALSE;
+}
+
 void calc_provider_register(void) {
     cofi_init_provider_defaults(&s_calc_provider);
     s_calc_provider.tab_mode     = TAB_CALC;
@@ -82,6 +105,10 @@ void calc_provider_register(void) {
     s_calc_provider.primary_cmd  = "calc";
     s_calc_provider.aliases      = s_calc_aliases;
     s_calc_provider.prefix_char  = '=';
+    s_calc_provider.command_description = "Switch to calculator";
+    s_calc_provider.command_help_format = "calc, ca";
+    s_calc_provider.command_handler = calc_command_handler;
+    s_calc_provider.command_keeps_open_on_hotkey_auto = 1;
     s_calc_provider.required     = 0;
     s_calc_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
     s_calc_provider.on_enter          = calc_on_enter;

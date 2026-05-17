@@ -487,33 +487,6 @@ static void test_cmd_run_behavior(void) {
     ASSERT_TRUE("run without arg does not hide", hide_window_calls == 0);
 }
 
-static void test_cmd_calc_behavior(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    memset(&g_stub_calc_provider, 0, sizeof(g_stub_calc_provider));
-    g_stub_calc_provider.tab_mode = TAB_CALC;
-
-    const CommandDef *cmd = find_command("calc");
-    ASSERT_TRUE("calc command exists", cmd != NULL);
-    if (!cmd) return;
-
-    g_cmd_args_calls = 0;
-    g_enter_modal_calls_cmd = 0;
-    g_cmd_args_result = COFI_HANDLED_KEEP;
-    gboolean result = cmd->handler(&app, NULL, "1+1");
-    ASSERT_TRUE("calc with arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("calc with arg enters calc modal", g_enter_modal_calls_cmd == 1);
-    ASSERT_TRUE("calc with arg dispatches to provider", g_cmd_args_calls == 1);
-    ASSERT_TRUE("calc with arg passes expression", strcmp(g_cmd_args_last, "1+1") == 0);
-
-    g_cmd_args_calls = 0;
-    g_enter_modal_calls_cmd = 0;
-    result = cmd->handler(&app, NULL, "");
-    ASSERT_TRUE("calc without arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("calc without arg enters calc modal", g_enter_modal_calls_cmd == 1);
-    ASSERT_TRUE("calc without arg does not dispatch args", g_cmd_args_calls == 0);
-}
-
 int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
@@ -526,7 +499,6 @@ int main(void) {
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
     test_cmd_run_behavior();
-    test_cmd_calc_behavior();
 
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

@@ -7,6 +7,7 @@ static int tests_passed = 0;
 static int tests_failed = 0;
 
 static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
+static const char *calc_aliases[] = {"ca", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -15,6 +16,17 @@ static void register_profiles_provider(void) {
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     provider.primary_cmd = "profiles";
     provider.aliases = profiles_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_calc_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "calc";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "calc";
+    provider.aliases = calc_aliases;
     provider.command_handler = (CofiCommandHandler)1;
     cofi_register_tab_provider(&provider);
 }
@@ -60,6 +72,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias chrome resolves to profiles",
                 parse_command_for_execution("chrome gs", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "profiles") == 0 && strcmp(arg, "gs") == 0);
+
+    assert_true("provider alias ca resolves to calc",
+                parse_command_for_execution("ca 1+1", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "calc") == 0 && strcmp(arg, "1+1") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -79,6 +95,7 @@ int main(void) {
 
     cofi_registry_reset();
     register_profiles_provider();
+    register_calc_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();
