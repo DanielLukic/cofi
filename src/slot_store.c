@@ -74,9 +74,11 @@ char slot_key_from_index(int slot_index) {
     return '\0';
 }
 
-bool slot_parse_single_key_arg(const char *args, char *slot_key) {
+bool slot_parse_at_key_arg(const char *args, char *slot_key) {
     if (!args) return false;
     while (g_ascii_isspace(*args)) args++;
+    if (*args != '@') return false;
+    args++;
     if (!args[0]) return false;
 
     char key = args[0];

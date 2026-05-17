@@ -5,10 +5,13 @@
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "selection.h"
+#include "slot_store.h"
 
 #include <gtk/gtk.h>
+#include <string.h>
 
 static BrowserProfilesMode s_profiles_mode;
+static const char *PROFILE_SLOT_PREFIX = "profile:chrome:";
 
 static BrowserProfileEntry *profile_at_row(AppData *app, int raw_idx) {
     (void)app;
@@ -41,15 +44,15 @@ static void profiles_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     }
 
     out->cell_count = 4;
-    out->cells[0].text = "[c]";
-    out->cells[0].width_hint = 4;
+    out->cells[0].text = "[gc]";
+    out->cells[0].width_hint = 5;
     out->cells[1].text = profile->name;
     out->cells[1].width_hint = 24;
     out->cells[2].text = profile->email;
     out->cells[2].width_hint = 40;
     out->cells[3].text = profile->profile_dir;
     out->cells[3].width_hint = 14;
-    out->row_flags = COFI_ROW_ACTIONABLE;
+    out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
 }
 
 static const char *profiles_match_string(AppData *app, int raw_idx) {
@@ -95,8 +98,53 @@ static CofiActionStatus profiles_on_enter_pressed(AppData *app, int filtered_idx
     return browser_profiles_launch(profile) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+static const char *profiles_slot_payload_for(AppData *app, int raw_idx) {
+    static char payload[SLOT_STORE_PAYLOAD_LEN];
+    BrowserProfileEntry *profile = profile_at_row(app, raw_idx);
+    if (!profile || profile->backend != BROWSER_PROFILE_CHROME) return NULL;
+    g_snprintf(payload, sizeof(payload), "%s%s",
+               PROFILE_SLOT_PREFIX, profile->profile_dir);
+    return payload;
+}
+
+static gboolean profile_from_slot_payload(const char *payload,
+                                          BrowserProfileEntry *profile) {
+    if (!payload || !profile || !g_str_has_prefix(payload, PROFILE_SLOT_PREFIX)) {
+        return FALSE;
+    }
+    const char *profile_dir = payload + strlen(PROFILE_SLOT_PREFIX);
+    if (profile_dir[0] == '\0') return FALSE;
+
+    memset(profile, 0, sizeof(*profile));
+    profile->backend = BROWSER_PROFILE_CHROME;
+    g_strlcpy(profile->browser_id, "chrome", sizeof(profile->browser_id));
+    g_strlcpy(profile->browser_name, "Chrome", sizeof(profile->browser_name));
+    g_strlcpy(profile->executable, "google-chrome", sizeof(profile->executable));
+    g_strlcpy(profile->profile_dir, profile_dir, sizeof(profile->profile_dir));
+    g_strlcpy(profile->name, profile_dir, sizeof(profile->name));
+    return TRUE;
+}
+
+static CofiActionStatus profiles_slot_recall(AppData *app, const char *payload) {
+    (void)app;
+    BrowserProfileEntry profile;
+    if (!profile_from_slot_payload(payload, &profile)) {
+        log_warn("Profiles slot has invalid payload: %s", payload ? payload : "(null)");
+        return COFI_ACTION_ERROR;
+    }
+    return browser_profiles_launch(&profile) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
+}
+
 static CofiActionStatus profiles_on_command_args(AppData *app, const char *args) {
     if (!app || !args || args[0] == '\0') return COFI_NO_OP;
+
+    char slot = '\0';
+    if (slot_parse_at_key_arg(args, &slot)) {
+        const char *payload = slot_lookup(&app->harpoon.store, "profiles", slot);
+        if (!payload) return COFI_ACTION_ERROR;
+        return profiles_slot_recall(app, payload);
+    }
+
     browser_profiles_load(&s_profiles_mode);
     browser_profiles_filter(&s_profiles_mode, args);
     if (s_profiles_mode.filtered_count <= 0) {
@@ -117,6 +165,7 @@ void profiles_provider_register(void) {
     s_profiles_provider.display_name = "PROFILES";
     s_profiles_provider.primary_cmd = "profiles";
     s_profiles_provider.aliases = s_profiles_aliases;
+    s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
     s_profiles_provider.hidden_by_default = 1;
     s_profiles_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
     s_profiles_provider.initial_selection_index = 0;
@@ -128,5 +177,8 @@ void profiles_provider_register(void) {
     s_profiles_provider.on_query_changed = profiles_on_query_changed;
     s_profiles_provider.on_enter_pressed = profiles_on_enter_pressed;
     s_profiles_provider.on_command_args = profiles_on_command_args;
+    s_profiles_provider.slot_store_enabled = 1;
+    s_profiles_provider.slot_payload_for = profiles_slot_payload_for;
+    s_profiles_provider.slot_recall = profiles_slot_recall;
     cofi_register_tab_provider(&s_profiles_provider);
 }

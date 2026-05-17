@@ -206,7 +206,7 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"sink", NULL},
         .handler = cmd_sinks,
         .description = "Switch to audio sinks tab",
-        .help_format = "sinks, sink",
+        .help_format = "sinks, sink [@SLOT|SINK]",
         .keeps_open_on_hotkey_auto = 1
     },
     {
@@ -222,7 +222,7 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"chrome", "browser", "browsers", NULL},
         .handler = cmd_profiles,
         .description = "Switch to browser profiles tab",
-        .help_format = "profiles, chrome [PROFILE]",
+        .help_format = "profiles, chrome [@SLOT|PROFILE]",
         .keeps_open_on_hotkey_auto = 1
     },
     {
@@ -269,7 +269,7 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .aliases = {"tx", "zj", "zellij", "sessions", NULL},
         .handler = cmd_sessions,
         .description = "Switch to sessions tab",
-        .help_format = "tmux, tx, zj, zellij, sessions [SESSION]",
+        .help_format = "tmux, tx, zj, zellij, sessions [@SLOT|SESSION]",
         .keeps_open_on_hotkey_auto = 1
     },
     {

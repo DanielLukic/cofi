@@ -81,7 +81,7 @@ static CofiActionStatus sessions_provider_on_command_args(AppData *app, const ch
     }
 
     char slot = '\0';
-    if (slot_parse_single_key_arg(args, &slot)) {
+    if (slot_parse_at_key_arg(args, &slot)) {
         const char *payload = slot_lookup(&app->harpoon.store, "sessions", slot);
         if (!payload) return COFI_ACTION_ERROR;
         return sessions_slot_recall(app, payload);

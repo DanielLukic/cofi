@@ -453,8 +453,8 @@ test_workspaces_provider: test/test_workspaces_provider.c
 test_browser_profiles: test/test_browser_profiles.c src/browser_profiles.c src/fzf_algo.o src/log.o
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_browser_profiles test/test_browser_profiles.c src/browser_profiles.c src/fzf_algo.o src/log.o $(LDFLAGS)
 
-test_profiles_provider: test/test_profiles_provider.c src/fzf_algo.o
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c src/fzf_algo.o $(LDFLAGS)
+test_profiles_provider: test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o $(LDFLAGS)
 
 test_hotkeys_provider: test/test_hotkeys_provider.c
 	$(CC) $(CFLAGS) -o test/test_hotkeys_provider test/test_hotkeys_provider.c $(LDFLAGS)

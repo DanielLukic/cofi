@@ -5,6 +5,7 @@
 #include "../src/app_data.h"
 #include "../src/browser_profiles.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/slot_store.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -131,11 +132,12 @@ static void test_format_profile_row(void) {
     memset(&row, 0, sizeof(row));
     profiles_format_row(&app, 0, &row);
     ASSERT_TRUE("profile row has four cells", row.cell_count == 4);
-    ASSERT_TRUE("profile row marker", strcmp(row.cells[0].text, "[c]") == 0);
+    ASSERT_TRUE("profile row marker", strcmp(row.cells[0].text, "[gc]") == 0);
     ASSERT_TRUE("profile row name", strcmp(row.cells[1].text, "GS") == 0);
     ASSERT_TRUE("profile row email", strcmp(row.cells[2].text, "profile.primary@example.test") == 0);
     ASSERT_TRUE("profile row dir", strcmp(row.cells[3].text, "Profile 14") == 0);
-    ASSERT_TRUE("profile row actionable", row.row_flags == COFI_ROW_ACTIONABLE);
+    ASSERT_TRUE("profile row actionable and slottable",
+                row.row_flags == (COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE));
 }
 
 static void test_query_filters_and_resets_selection(void) {
@@ -158,7 +160,7 @@ static void test_row_identity_and_match_string(void) {
     ASSERT_TRUE("row identity uses backend and dir",
                 strcmp(profiles_row_identity(&app, 0), "chrome:Profile 14") == 0);
     ASSERT_TRUE("match string includes short marker",
-                strstr(profiles_match_string(&app, 0), "[c]") != NULL);
+                strstr(profiles_match_string(&app, 0), "[gc]") != NULL);
     ASSERT_TRUE("match string includes email",
                 strstr(profiles_match_string(&app, 0), "profile.primary") != NULL);
 }
@@ -178,6 +180,40 @@ static void test_enter_launches_profile(void) {
                 strcmp(g_last_launch_arg1, "--profile-directory=Profile 14") == 0);
 }
 
+static void test_slot_payload_and_recall(void) {
+    AppData app;
+    reset_state(&app);
+    seed_profiles();
+
+    const char *payload = profiles_slot_payload_for(&app, 0);
+    ASSERT_TRUE("slot payload uses backend and profile dir",
+                strcmp(payload, "profile:chrome:Profile 14") == 0);
+
+    CofiActionStatus status = profiles_slot_recall(&app, payload);
+
+    ASSERT_TRUE("slot recall returns hide", status == COFI_HANDLED_HIDE);
+    ASSERT_TRUE("slot recall launches once", g_launch_calls == 1);
+    ASSERT_TRUE("slot recall uses resolved shim",
+                strcmp(g_last_launch_arg0, "/usr/bin/google-chrome") == 0);
+    ASSERT_TRUE("slot recall uses profile dir",
+                strcmp(g_last_launch_arg1, "--profile-directory=Profile 14") == 0);
+}
+
+static void test_command_at_slot_recalls_profile(void) {
+    AppData app;
+    reset_state(&app);
+    slot_store_init(&app.harpoon.store);
+    slot_assign(&app.harpoon.store, 'a', "profiles", "profile:chrome:Default");
+
+    CofiActionStatus status = profiles_on_command_args(&app, "@a");
+
+    ASSERT_TRUE("command @slot returns hide", status == COFI_HANDLED_HIDE);
+    ASSERT_TRUE("command @slot launches once", g_launch_calls == 1);
+    ASSERT_TRUE("command @slot uses profile dir",
+                strcmp(g_last_launch_arg1, "--profile-directory=Default") == 0);
+    slot_store_free(&app.harpoon.store);
+}
+
 int main(void) {
     printf("Profiles provider tests\n");
     printf("=======================\n\n");
@@ -187,6 +223,8 @@ int main(void) {
     test_query_filters_and_resets_selection();
     test_row_identity_and_match_string();
     test_enter_launches_profile();
+    test_slot_payload_and_recall();
+    test_command_at_slot_recalls_profile();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

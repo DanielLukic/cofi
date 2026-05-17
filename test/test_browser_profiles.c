@@ -52,7 +52,7 @@ int main(void) {
 
     char match_text[512];
     browser_profiles_format_match_text(&profiles[0], match_text, sizeof(match_text));
-    ASSERT_TRUE("match text includes short marker", strstr(match_text, "[c]") != NULL);
+    ASSERT_TRUE("match text includes short marker", strstr(match_text, "[gc]") != NULL);
     ASSERT_TRUE("match text includes chrome backend", strstr(match_text, "chrome") != NULL);
     ASSERT_TRUE("match text includes profile dir", strstr(match_text, "Profile 14") != NULL);
 

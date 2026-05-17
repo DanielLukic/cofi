@@ -110,7 +110,7 @@ static CofiActionStatus sinks_slot_recall(AppData *app, const char *payload) {
 
 static CofiActionStatus sinks_on_command_args(AppData *app, const char *args) {
     char slot = '\0';
-    if (slot_parse_single_key_arg(args, &slot)) {
+    if (slot_parse_at_key_arg(args, &slot)) {
         const char *payload = slot_lookup(&app->harpoon.store, "sinks", slot);
         if (!payload) return COFI_ACTION_ERROR;
         return sinks_slot_recall(app, payload);

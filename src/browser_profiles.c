@@ -158,7 +158,7 @@ void browser_profiles_format_match_text(const BrowserProfileEntry *profile,
         out[0] = '\0';
         return;
     }
-    g_snprintf(out, out_size, "[c] chrome %s %s %s",
+    g_snprintf(out, out_size, "[gc] chrome google-chrome %s %s %s",
                profile->name, profile->email, profile->profile_dir);
 }
 

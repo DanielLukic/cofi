@@ -70,25 +70,27 @@ static void test_save_load_round_trip(void) {
     slot_store_free(&loaded);
 }
 
-static void test_parse_single_key_arg(void) {
+static void test_parse_at_key_arg(void) {
     char slot = '\0';
 
-    ASSERT_TRUE("single digit slot arg parses",
-                slot_parse_single_key_arg("  1  ", &slot) && slot == '1');
-    ASSERT_TRUE("single letter slot arg parses",
-                slot_parse_single_key_arg(" a ", &slot) && slot == 'a');
-    ASSERT_TRUE("uppercase slot arg parses",
-                slot_parse_single_key_arg("Z", &slot) && slot == 'Z');
-    ASSERT_TRUE("multi-character arg is not a slot",
-                !slot_parse_single_key_arg("ab", &slot));
-    ASSERT_TRUE("invalid key arg is not a slot",
-                !slot_parse_single_key_arg(":", &slot));
+    ASSERT_TRUE("at digit slot arg parses",
+                slot_parse_at_key_arg("  @1  ", &slot) && slot == '1');
+    ASSERT_TRUE("at letter slot arg parses",
+                slot_parse_at_key_arg("@a", &slot) && slot == 'a');
+    ASSERT_TRUE("at uppercase slot arg parses",
+                slot_parse_at_key_arg("@Z", &slot) && slot == 'Z');
+    ASSERT_TRUE("bare letter is not an at slot",
+                !slot_parse_at_key_arg("a", &slot));
+    ASSERT_TRUE("multi-character at arg is not a slot",
+                !slot_parse_at_key_arg("@ab", &slot));
+    ASSERT_TRUE("missing key is not an at slot",
+                !slot_parse_at_key_arg("@", &slot));
 }
 
 int main(void) {
     test_assign_lookup_and_payload_reverse_lookup();
     test_save_load_round_trip();
-    test_parse_single_key_arg();
+    test_parse_at_key_arg();
 
     printf("\nSlot store tests: %d passed, %d failed\n", pass, fail);
     return fail == 0 ? 0 : 1;
