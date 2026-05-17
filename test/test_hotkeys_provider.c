@@ -32,6 +32,7 @@ static int g_regrab_hotkey_calls;
 static int g_remove_hotkey_result = 1;
 static char g_last_hotkey_key[64];
 static char g_last_hotkey_command[256];
+static CofiTabProvider g_registered_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -51,8 +52,14 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
+    if (!p) return -1;
+    g_registered_provider = *p;
+    g_registered_provider.tab_mode = (TabMode)(TAB_COUNT + 1);
     return 0;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return provider_id == 0 ? &g_registered_provider : NULL;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -119,6 +126,7 @@ static void reset_state(AppData *app) {
     g_remove_hotkey_result = 1;
     g_last_hotkey_key[0] = '\0';
     g_last_hotkey_command[0] = '\0';
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
 }
 
 static void seed_hotkeys(AppData *app) {
@@ -224,11 +232,14 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider command keeps open",
                 s_hotkeys_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_hotkeys_command.handler != NULL);
+    ASSERT_TRUE("provider uses dynamic tab",
+                g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
     AppData app;
     reset_state(&app);
+    hotkeys_provider_register();
     app.current_tab = TAB_WINDOWS;
 
     gboolean result = s_hotkeys_command.handler(&app, NULL, "");
@@ -236,8 +247,9 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("hotkeys command returns false", result == FALSE);
     ASSERT_TRUE("hotkeys command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("hotkeys command surfaces hotkeys tab",
-                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_HOTKEYS &&
-                app.current_tab == TAB_HOTKEYS);
+                g_surface_tab_calls == 1 &&
+                g_last_surface_tab == (TabMode)g_registered_provider.tab_mode &&
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
     ASSERT_TRUE("hotkeys command records origin tab",
                 app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("hotkeys bare command does not mutate bindings",
@@ -248,6 +260,7 @@ static void test_command_handler_surfaces_tab(void) {
 static void test_command_handler_adds_binding(void) {
     AppData app;
     reset_state(&app);
+    hotkeys_provider_register();
     g_parse_hotkey_action = 1;
 
     s_hotkeys_command.handler(&app, NULL, "Mod4+x show windows");
@@ -257,12 +270,14 @@ static void test_command_handler_adds_binding(void) {
     ASSERT_TRUE("hotkeys add command captures command", strcmp(g_last_hotkey_command, "show windows") == 0);
     ASSERT_TRUE("hotkeys add command saves and regrabs",
                 g_save_hotkey_calls == 1 && g_regrab_hotkey_calls == 1);
-    ASSERT_TRUE("hotkeys add command surfaces tab", app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("hotkeys add command surfaces tab",
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 static void test_command_handler_removes_binding(void) {
     AppData app;
     reset_state(&app);
+    hotkeys_provider_register();
     g_parse_hotkey_action = 2;
 
     s_hotkeys_command.handler(&app, NULL, "Mod4+x");
@@ -271,12 +286,14 @@ static void test_command_handler_removes_binding(void) {
     ASSERT_TRUE("hotkeys remove command captures key", strcmp(g_last_hotkey_key, "Mod4+x") == 0);
     ASSERT_TRUE("hotkeys remove command saves and regrabs",
                 g_save_hotkey_calls == 1 && g_regrab_hotkey_calls == 1);
-    ASSERT_TRUE("hotkeys remove command surfaces tab", app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("hotkeys remove command surfaces tab",
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 static void test_command_handler_missing_remove_still_surfaces(void) {
     AppData app;
     reset_state(&app);
+    hotkeys_provider_register();
     g_parse_hotkey_action = 2;
     g_remove_hotkey_result = 0;
 
@@ -285,7 +302,8 @@ static void test_command_handler_missing_remove_still_surfaces(void) {
     ASSERT_TRUE("missing hotkeys remove still calls remove", g_remove_hotkey_calls == 1);
     ASSERT_TRUE("missing hotkeys remove does not save or regrab",
                 g_save_hotkey_calls == 0 && g_regrab_hotkey_calls == 0);
-    ASSERT_TRUE("missing hotkeys remove still surfaces tab", app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("missing hotkeys remove still surfaces tab",
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 int main(void) {

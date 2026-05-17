@@ -64,8 +64,9 @@ static gboolean g_stub_has_selected_folder;
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
 #define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 3))
-#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 4))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 5))
+#define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 4))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 5))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 6))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -135,7 +136,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     names_provider.handle_key = handle_names_tab_keys;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     config_provider.handle_key = handle_config_tab_keys;
-    hotkeys_provider.tab_mode = TAB_HOTKEYS;
+    hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     rules_provider.tab_mode = TEST_RULES_TAB;
     rules_provider.handle_key = handle_rules_tab_keys;
@@ -147,11 +148,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
     if (tab_mode == TEST_NAMES_TAB) return &names_provider;
     if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
+    if (tab_mode == TEST_HOTKEYS_TAB) return &hotkeys_provider;
     if (tab_mode == TEST_RULES_TAB) return &rules_provider;
 
     switch ((TabMode)tab_mode) {
         case TAB_HARPOON: return &harpoon_provider;
-        case TAB_HOTKEYS: return &hotkeys_provider;
         default: return NULL;
     }
 }
@@ -161,16 +162,21 @@ TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 const CofiTabProvider *cofi_get_provider(int provider_id) {
     static CofiTabProvider names_provider;
     static CofiTabProvider config_provider;
+    static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
     (void)provider_id;
     memset(&names_provider, 0, sizeof(names_provider));
     memset(&config_provider, 0, sizeof(config_provider));
+    memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
     names_provider.tab_mode = TEST_NAMES_TAB;
     config_provider.tab_mode = TEST_CONFIG_TAB;
+    hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     rules_provider.tab_mode = TEST_RULES_TAB;
     if (g_last_provider_tab_lookup == TEST_CONFIG_TAB)
         return &config_provider;
+    if (g_last_provider_tab_lookup == TEST_HOTKEYS_TAB)
+        return &hotkeys_provider;
     return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &names_provider;
 }
 
@@ -772,7 +778,7 @@ static void test_ctrl_a_hotkeys_tab_starts_capture_overlay(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     app.hotkey_capture_active = FALSE;
 
     GdkEventKey ev = make_key(GDK_KEY_a, GDK_CONTROL_MASK);
@@ -789,7 +795,7 @@ static void test_ctrl_e_hotkeys_tab_opens_edit_for_selected_binding(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     seed_hotkeys(&app);
     app.selection.provider_index = 1;
 
@@ -806,7 +812,7 @@ static void test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     seed_hotkeys(&app);
     app.selection.provider_index = 0;
 
@@ -825,7 +831,7 @@ static void test_ctrl_d_hotkeys_last_row_clamps_selection(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     seed_hotkeys(&app);
     app.selection.provider_index = 2;
 

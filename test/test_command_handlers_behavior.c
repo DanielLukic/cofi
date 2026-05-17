@@ -66,8 +66,11 @@ static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
 
-#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_CALC_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_RUN_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 4))
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 5))
 
 static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
     (void)app;
@@ -93,10 +96,10 @@ static void init_stub_providers(void) {
     memset(&g_stub_hotkeys_provider, 0, sizeof(g_stub_hotkeys_provider));
     memset(&g_stub_rules_provider, 0, sizeof(g_stub_rules_provider));
 
-    g_stub_run_provider.tab_mode = TAB_COUNT + 2;
-    g_stub_calc_provider.tab_mode = TAB_COUNT + 1;
+    g_stub_run_provider.tab_mode = TEST_RUN_TAB;
+    g_stub_calc_provider.tab_mode = TEST_CALC_TAB;
     g_stub_config_provider.tab_mode = TEST_CONFIG_TAB;
-    g_stub_hotkeys_provider.tab_mode = TAB_HOTKEYS;
+    g_stub_hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     g_stub_rules_provider.tab_mode = TEST_RULES_TAB;
 }
 
@@ -111,6 +114,7 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     return NULL;
 }
 TabMode config_tab_mode(void) { return TEST_CONFIG_TAB; }
+TabMode hotkeys_tab_mode(void) { return TEST_HOTKEYS_TAB; }
 int cofi_get_provider_id(const char *id) {
     if (id && strcmp(id, "calc") == 0) return 1;
     if (id && strcmp(id, "config") == 0) return 2;
@@ -287,7 +291,7 @@ static void test_window_handler_behavior(void) {
 
     if (!cmd) return;
 
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     gboolean no_window_result = cmd->handler(&app, NULL, "");
     ASSERT_TRUE("an returns TRUE on missing window", no_window_result == TRUE);
 

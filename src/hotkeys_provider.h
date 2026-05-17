@@ -4,6 +4,7 @@
 #include "app_data.h"
 
 void hotkeys_provider_register(void);
+TabMode hotkeys_tab_mode(void);
 void filter_hotkeys(AppData *app, const char *filter);
 gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app);
 

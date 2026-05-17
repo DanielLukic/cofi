@@ -88,8 +88,9 @@ static CofiTabProvider g_modal_prefix_stub;
 
 #define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 3))
-#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 4))
-#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 5))
+#define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 4))
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 5))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 6))
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -943,7 +944,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
     TabMode tabs[] = {
         TAB_WINDOWS, TAB_WORKSPACES, TAB_HARPOON,
-        TEST_NAMES_TAB, TEST_CONFIG_TAB, TAB_HOTKEYS, TEST_RULES_TAB, TEST_APPS_TAB
+        TEST_NAMES_TAB, TEST_CONFIG_TAB, TEST_HOTKEYS_TAB, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
     for (int i = 0; i < 8; i++) {
@@ -965,7 +966,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         CofiTabProvider hotkeys_provider;
         memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
-        hotkeys_provider.tab_mode = TAB_HOTKEYS;
+        hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
         hotkeys_provider.on_query_changed = mock_hotkeys_query_changed;
 
         CofiTabProvider config_provider;
@@ -998,7 +999,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
             g_provider_for_tab = &names_provider;
         } else if (tabs[i] == TEST_CONFIG_TAB) {
             g_provider_for_tab = &config_provider;
-        } else if (tabs[i] == TAB_HOTKEYS) {
+        } else if (tabs[i] == TEST_HOTKEYS_TAB) {
             g_provider_for_tab = &hotkeys_provider;
         } else if (tabs[i] == TEST_RULES_TAB) {
             g_provider_for_tab = &rules_provider;
@@ -1028,7 +1029,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("CONFIG filter routing",
                     tabs[i] != TEST_CONFIG_TAB || (g_filter_config_calls == 1 && strcmp(g_last_filter_config, "query") == 0));
         ASSERT_TRUE("HOTKEYS filter routing",
-                    tabs[i] != TAB_HOTKEYS || (g_filter_hotkeys_calls == 1 && strcmp(g_last_filter_hotkeys, "query") == 0));
+                    tabs[i] != TEST_HOTKEYS_TAB || (g_filter_hotkeys_calls == 1 && strcmp(g_last_filter_hotkeys, "query") == 0));
         ASSERT_TRUE("RULES filter routing",
                     tabs[i] != TEST_RULES_TAB || (g_filter_rules_calls == 1 && strcmp(g_last_filter_rules, "query") == 0));
         ASSERT_TRUE("APPS filter routing",
@@ -1071,17 +1072,17 @@ static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
     AppData app;
     init_app(&app);
     reset_captures();
-    app.current_tab = TAB_HOTKEYS;
+    app.current_tab = TEST_HOTKEYS_TAB;
     gtk_entry_set_text(GTK_ENTRY(app.entry), "$term");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
 
     ASSERT_TRUE("Leading '$' claims Apps tab", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("Leading '$' stores origin tab once", app.prefix_origin_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("Leading '$' stores origin tab once", app.prefix_origin_tab == TEST_HOTKEYS_TAB);
     ASSERT_TRUE("Leading '$' marks active claim", app.active_prefix_claim == '$');
 
     gtk_entry_set_text(GTK_ENTRY(app.entry), "");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
-    ASSERT_TRUE("Backspace to empty restores origin tab", app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("Backspace to empty restores origin tab", app.current_tab == TEST_HOTKEYS_TAB);
     ASSERT_TRUE("Backspace to empty clears claim", app.active_prefix_claim == '\0');
 }
 

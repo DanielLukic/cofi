@@ -12,9 +12,16 @@
 #include "selection.h"
 #include "tab_switching.h"
 
-#include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
+
+static CofiTabProvider s_hotkeys_provider;
+static int s_hotkeys_provider_id = -1;
+
+TabMode hotkeys_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_hotkeys_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static int hotkeys_row_count(AppData *app) {
     if (!app) return 0;
@@ -135,7 +142,7 @@ void hotkeys_select_key(AppData *app, const char *key) {
 }
 
 gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_HOTKEYS) {
+    if (app->current_tab != hotkeys_tab_mode()) {
         return FALSE;
     }
 
@@ -200,8 +207,6 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-static CofiTabProvider s_hotkeys_provider;
-
 static gboolean hotkeys_command_handler(AppData *app,
                                         WindowInfo *window __attribute__((unused)),
                                         const char *args) {
@@ -228,7 +233,7 @@ static gboolean hotkeys_command_handler(AppData *app,
 
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_hotkeys_provider.tab_mode);
+    surface_tab(app, hotkeys_tab_mode());
     return FALSE;
 }
 
@@ -244,7 +249,7 @@ static const CommandSpec s_hotkeys_command = {
 
 void hotkeys_provider_register(void) {
     cofi_init_provider_defaults(&s_hotkeys_provider);
-    s_hotkeys_provider.tab_mode = TAB_HOTKEYS;
+    s_hotkeys_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_hotkeys_provider.id = "hotkeys";
     s_hotkeys_provider.display_name = "HOTKEYS";
     s_hotkeys_provider.required = 0;
@@ -258,7 +263,8 @@ void hotkeys_provider_register(void) {
     s_hotkeys_provider.on_query_changed = hotkeys_on_query_changed;
     s_hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     s_hotkeys_provider.get_shortcut_hint = hotkeys_shortcut_hint;
-    if (cofi_register_tab_provider(&s_hotkeys_provider) >= 0) {
+    s_hotkeys_provider_id = cofi_register_tab_provider(&s_hotkeys_provider);
+    if (s_hotkeys_provider_id >= 0) {
         cofi_register_command(&s_hotkeys_command);
     }
 }

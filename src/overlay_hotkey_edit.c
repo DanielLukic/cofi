@@ -11,7 +11,7 @@
 
 void create_hotkey_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
     HotkeyBinding *binding = hotkeys_selected_binding(app, NULL);
-    if (app->current_tab != TAB_HOTKEYS || !binding) {
+    if (app->current_tab != hotkeys_tab_mode() || !binding) {
         GtkWidget *error_label = gtk_label_new("No hotkey binding selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
