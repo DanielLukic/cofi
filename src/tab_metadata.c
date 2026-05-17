@@ -19,7 +19,6 @@ const char *tab_display_name(TabMode tab) {
         case TAB_HARPOON:    return "Harpoon";
         case TAB_CONFIG:     return "Config";
         case TAB_HOTKEYS:    return "Hotkeys";
-        case TAB_RULES:      return "Rules";
         case TAB_COUNT:      return NULL;
     }
     return provider_tab_name(tab);
@@ -34,7 +33,6 @@ const char *tab_active_name(TabMode tab) {
         case TAB_HARPOON:    return "HARPOON";
         case TAB_CONFIG:     return "CONFIG";
         case TAB_HOTKEYS:    return "HOTKEYS";
-        case TAB_RULES:      return "RULES";
         case TAB_COUNT:      return NULL;
     }
 
@@ -57,7 +55,6 @@ const char *tab_log_name(TabMode tab) {
         case TAB_HARPOON:    return "harpoon";
         case TAB_CONFIG:     return "config";
         case TAB_HOTKEYS:    return "hotkeys";
-        case TAB_RULES:      return "rules";
         case TAB_COUNT:      return NULL;
     }
 

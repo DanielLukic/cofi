@@ -9,7 +9,6 @@
 #include "selection.h"
 #include "tab_switching.h"
 
-#include <gtk/gtk.h>
 #include <stdio.h>
 
 static int rules_row_count(AppData *app) {
@@ -130,8 +129,16 @@ void rules_select_config_index(AppData *app, int config_index) {
     app->selection.provider_index = 0;
 }
 
+static CofiTabProvider s_rules_provider;
+static int s_rules_provider_id = -1;
+
+TabMode rules_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_rules_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
+
 gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_RULES) {
+    if (app->current_tab != rules_tab_mode()) {
         return FALSE;
     }
 
@@ -181,8 +188,6 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-static CofiTabProvider s_rules_provider;
-
 static gboolean rules_command_handler(AppData *app,
                                       WindowInfo *window __attribute__((unused)),
                                       const char *args __attribute__((unused))) {
@@ -190,7 +195,7 @@ static gboolean rules_command_handler(AppData *app,
 
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_rules_provider.tab_mode);
+    surface_tab(app, rules_tab_mode());
     return FALSE;
 }
 
@@ -206,7 +211,7 @@ static const CommandSpec s_rules_command = {
 
 void rules_provider_register(void) {
     cofi_init_provider_defaults(&s_rules_provider);
-    s_rules_provider.tab_mode = TAB_RULES;
+    s_rules_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_rules_provider.id = "rules";
     s_rules_provider.display_name = "RULES";
     s_rules_provider.required = 0;
@@ -221,7 +226,8 @@ void rules_provider_register(void) {
     s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
         "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
-    if (cofi_register_tab_provider(&s_rules_provider) >= 0) {
+    s_rules_provider_id = cofi_register_tab_provider(&s_rules_provider);
+    if (s_rules_provider_id >= 0) {
         cofi_register_command(&s_rules_command);
     }
 }

@@ -16,6 +16,8 @@ static int g_save_rules_calls;
 static int g_hide_overlay_calls;
 static int g_update_display_calls;
 
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 1))
+
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
 }
@@ -62,7 +64,7 @@ void filter_rules(AppData *app, const char *filter) {
 }
 
 void validate_selection(AppData *app) {
-    if (app->current_tab == TAB_RULES && app->filtered_rules_count > 0 &&
+    if (app->current_tab == TEST_RULES_TAB && app->filtered_rules_count > 0 &&
         app->selection.provider_index >= app->filtered_rules_count) {
         app->selection.provider_index = app->filtered_rules_count - 1;
     }
@@ -70,6 +72,7 @@ void validate_selection(AppData *app) {
 
 void update_scroll_position(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
+TabMode rules_tab_mode(void) { return TEST_RULES_TAB; }
 
 Rule *rules_selected_rule(AppData *app) {
     if (!app || app->filtered_rules_count <= 0) return NULL;
@@ -106,7 +109,7 @@ static GdkEventKey confirm_event(void) {
 
 static void init_app(AppData *app) {
     memset(app, 0, sizeof(*app));
-    app->current_tab = TAB_RULES;
+    app->current_tab = TEST_RULES_TAB;
     app->dialog_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     app->entry = gtk_entry_new();
     app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

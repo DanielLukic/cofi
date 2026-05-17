@@ -63,7 +63,8 @@ static gboolean g_stub_has_selected_folder;
 
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 3))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 4))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -74,6 +75,7 @@ static char g_last_overlay_hotkey_key[64];
 static int g_get_next_enum_calls;
 static char g_last_get_next_enum_key[64];
 static char g_last_get_next_enum_value[64];
+static int g_last_provider_tab_lookup = -1;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -127,13 +129,14 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     memset(&rules_provider, 0, sizeof(rules_provider));
     memset(&sessions_provider, 0, sizeof(sessions_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
+    g_last_provider_tab_lookup = tab_mode;
     names_provider.tab_mode = TEST_NAMES_TAB;
     names_provider.handle_key = handle_names_tab_keys;
     config_provider.tab_mode = TAB_CONFIG;
     config_provider.handle_key = handle_config_tab_keys;
     hotkeys_provider.tab_mode = TAB_HOTKEYS;
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
-    rules_provider.tab_mode = TAB_RULES;
+    rules_provider.tab_mode = TEST_RULES_TAB;
     rules_provider.handle_key = handle_rules_tab_keys;
     sessions_provider.tab_mode = TEST_SESSIONS_TAB;
     sessions_provider.handle_key = handle_sessions_tab_keys;
@@ -142,12 +145,12 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 
     if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
     if (tab_mode == TEST_NAMES_TAB) return &names_provider;
+    if (tab_mode == TEST_RULES_TAB) return &rules_provider;
 
     switch ((TabMode)tab_mode) {
         case TAB_HARPOON: return &harpoon_provider;
         case TAB_CONFIG: return &config_provider;
         case TAB_HOTKEYS: return &hotkeys_provider;
-        case TAB_RULES: return &rules_provider;
         default: return NULL;
     }
 }
@@ -156,10 +159,13 @@ int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id;
 TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 const CofiTabProvider *cofi_get_provider(int provider_id) {
     static CofiTabProvider names_provider;
+    static CofiTabProvider rules_provider;
     (void)provider_id;
     memset(&names_provider, 0, sizeof(names_provider));
+    memset(&rules_provider, 0, sizeof(rules_provider));
     names_provider.tab_mode = TEST_NAMES_TAB;
-    return &names_provider;
+    rules_provider.tab_mode = TEST_RULES_TAB;
+    return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &names_provider;
 }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
@@ -831,7 +837,7 @@ static void test_rules_tab_shortcuts_crud_and_replay(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_RULES;
+    app.current_tab = TEST_RULES_TAB;
     app.filtered_rules_count = 2;
     app.selection.provider_index = 1;
     app.filtered_rule_indices[0] = 3;

@@ -87,7 +87,8 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
 #define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 4))
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -941,7 +942,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
     TabMode tabs[] = {
         TAB_WINDOWS, TAB_WORKSPACES, TAB_HARPOON,
-        TEST_NAMES_TAB, TAB_CONFIG, TAB_HOTKEYS, TAB_RULES, TEST_APPS_TAB
+        TEST_NAMES_TAB, TAB_CONFIG, TAB_HOTKEYS, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
     for (int i = 0; i < 8; i++) {
@@ -978,7 +979,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         CofiTabProvider rules_provider;
         memset(&rules_provider, 0, sizeof(rules_provider));
-        rules_provider.tab_mode = TAB_RULES;
+        rules_provider.tab_mode = TEST_RULES_TAB;
         rules_provider.on_query_changed = mock_rules_query_changed;
 
         CofiTabProvider harpoon_provider;
@@ -998,7 +999,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
             g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TAB_HOTKEYS) {
             g_provider_for_tab = &hotkeys_provider;
-        } else if (tabs[i] == TAB_RULES) {
+        } else if (tabs[i] == TEST_RULES_TAB) {
             g_provider_for_tab = &rules_provider;
         } else {
             g_provider_for_tab = NULL;
@@ -1028,7 +1029,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("HOTKEYS filter routing",
                     tabs[i] != TAB_HOTKEYS || (g_filter_hotkeys_calls == 1 && strcmp(g_last_filter_hotkeys, "query") == 0));
         ASSERT_TRUE("RULES filter routing",
-                    tabs[i] != TAB_RULES || (g_filter_rules_calls == 1 && strcmp(g_last_filter_rules, "query") == 0));
+                    tabs[i] != TEST_RULES_TAB || (g_filter_rules_calls == 1 && strcmp(g_last_filter_rules, "query") == 0));
         ASSERT_TRUE("APPS filter routing",
                     tabs[i] != TEST_APPS_TAB || (g_filter_apps_calls == 1 && strcmp(g_last_filter_apps, "query") == 0));
     }

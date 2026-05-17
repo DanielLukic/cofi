@@ -146,7 +146,7 @@ void create_rule_add_overlay_content(GtkWidget *parent_container, AppData *app) 
 
 void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
     int config_index = rules_selected_config_index(app);
-    if (app->current_tab != TAB_RULES || config_index < 0) {
+    if (app->current_tab != rules_tab_mode() || config_index < 0) {
         GtkWidget *error_label = gtk_label_new("No rule selected");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;

@@ -66,6 +66,8 @@ static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
 
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 3))
+
 static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
     (void)app;
     (void)window;
@@ -94,7 +96,7 @@ static void init_stub_providers(void) {
     g_stub_calc_provider.tab_mode = TAB_COUNT + 1;
     g_stub_config_provider.tab_mode = TAB_CONFIG;
     g_stub_hotkeys_provider.tab_mode = TAB_HOTKEYS;
-    g_stub_rules_provider.tab_mode = TAB_RULES;
+    g_stub_rules_provider.tab_mode = TEST_RULES_TAB;
 }
 
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
@@ -438,7 +440,7 @@ static void test_ui_handler_behavior(void) {
 
     result = cmd->handler(&app, NULL, "rules");
     ASSERT_TRUE("show rules is accepted", result == FALSE);
-    ASSERT_TRUE("show rules surfaces rules tab", app.current_tab == TAB_RULES);
+    ASSERT_TRUE("show rules surfaces rules tab", app.current_tab == TEST_RULES_TAB);
 
 }
 

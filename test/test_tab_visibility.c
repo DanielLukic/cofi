@@ -32,7 +32,8 @@ static int disabled_provider_tab = -1;
 
 #define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 1))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 3))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 4))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -238,6 +239,10 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         provider.on_surface = test_apps_on_surface;
         return &provider;
     }
+    if (tab_mode == TEST_RULES_TAB) {
+        provider.id = "rules";
+        return &provider;
+    }
 
     switch (tab_mode) {
         case TAB_CONFIG:
@@ -245,9 +250,6 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
             break;
         case TAB_HARPOON:
             provider.id = "harpoon";
-            break;
-        case TAB_RULES:
-            provider.id = "rules";
             break;
         case TAB_WORKSPACES:
             provider.id = "workspaces";
@@ -270,7 +272,7 @@ int cofi_get_provider_id(const char *id) {
     if (strcmp(id, "config") == 0) return TAB_CONFIG;
     if (strcmp(id, "harpoon") == 0) return TAB_HARPOON;
     if (strcmp(id, "names") == 0) return TEST_NAMES_TAB;
-    if (strcmp(id, "rules") == 0) return TAB_RULES;
+    if (strcmp(id, "rules") == 0) return TEST_RULES_TAB;
     if (strcmp(id, "workspaces") == 0) return TAB_WORKSPACES;
     if (strcmp(id, "sessions") == 0) return TEST_SESSIONS_TAB;
     return -1;
@@ -293,6 +295,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_NAMES_TAB;
+    }
+    if (count < max_tabs) {
+        tabs[count++] = TEST_RULES_TAB;
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_SESSIONS_TAB;
@@ -490,9 +495,9 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_HARPOON,
         TAB_CONFIG,
         TAB_HOTKEYS,
-        TAB_RULES,
         TEST_APPS_TAB,
         TEST_NAMES_TAB,
+        TEST_RULES_TAB,
         TEST_SESSIONS_TAB,
         TAB_WINDOWS
     };
@@ -517,9 +522,9 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
 
     TabMode expected[] = {
         TEST_SESSIONS_TAB,
+        TEST_RULES_TAB,
         TEST_NAMES_TAB,
         TEST_APPS_TAB,
-        TAB_RULES,
         TAB_HOTKEYS,
         TAB_CONFIG,
         TAB_HARPOON,
@@ -575,7 +580,7 @@ static void test_cmd_show_rules_switches_to_rules_tab(void) {
 
     ASSERT_TRUE("cmd_show rules returns FALSE", result == FALSE);
     ASSERT_TRUE("cmd_show rules exits command mode", exit_command_mode_calls == 1);
-    ASSERT_TRUE("cmd_show rules switches tab", app.current_tab == TAB_RULES);
+    ASSERT_TRUE("cmd_show rules switches tab", app.current_tab == TEST_RULES_TAB);
 }
 
 static void test_filter_rules_matches_pattern_and_commands(void) {
