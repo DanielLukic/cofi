@@ -76,6 +76,7 @@ SOURCES = src/main.c \
           src/command_handlers_workspace.c \
           src/command_handlers_tiling.c \
           src/command_handlers_ui.c \
+          src/command_definitions.c \
           src/command_availability.c \
           src/command_parse_defs.c \
           src/command_parser.c \
@@ -277,8 +278,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_handlers.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_definitions.o
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_definitions.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -341,12 +342,12 @@ test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o sr
 	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o $(LDFLAGS)
 
 # Build command handlers split tests
-test_command_handlers_split: test/test_command_handlers_split.c
-	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c $(LDFLAGS)
+test_command_handlers_split: test/test_command_handlers_split.c src/command_definitions.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c src/command_definitions.o $(LDFLAGS)
 
 # Build command handler behavior regression tests
-test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o $(LDFLAGS)
+test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_definitions.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_definitions.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o $(LDFLAGS)
 
 # Build proc parser/behavior tests
 test_proc: test/test_proc.c
@@ -419,8 +420,8 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o src/command_definitions.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o src/command_definitions.o $(LDFLAGS)
 
 # Build tab header overflow tests
 test_tab_header: test/test_tab_header.c src/tab_metadata.o
