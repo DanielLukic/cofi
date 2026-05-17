@@ -1024,28 +1024,13 @@ void proc_refresh(AppData *app) {
     apply_entries(app, parsed, count, error);
 }
 
-static gboolean proc_poll_tick(gpointer data) {
-    AppData *app = (AppData *)data;
-    if (!app || app->current_tab != TAB_PROC) {
-        if (app) app->proc_mode.refresh_timer_id = 0;
-        return FALSE;
-    }
-    proc_refresh(app);
-    return TRUE;
-}
-
 void proc_start_polling(AppData *app) {
     if (!app) return;
     proc_refresh(app);
-    if (app->proc_mode.refresh_timer_id == 0) {
-        app->proc_mode.refresh_timer_id = g_timeout_add(1500, proc_poll_tick, app);
-    }
 }
 
 void proc_stop_polling(AppData *app) {
-    if (!app || app->proc_mode.refresh_timer_id == 0) return;
-    g_source_remove(app->proc_mode.refresh_timer_id);
-    app->proc_mode.refresh_timer_id = 0;
+    (void)app;
 }
 
 void proc_on_enter(AppData *app) {

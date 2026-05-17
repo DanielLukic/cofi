@@ -156,7 +156,7 @@ static int test_parent_pid(pid_t pid) {
 
 static void init_app(AppData *app) {
     memset(app, 0, sizeof(*app));
-    app->current_tab = TAB_PROC;
+    app->current_tab = (TabMode)(TAB_COUNT + 1);
     app->selection.provider_index = 0;
     app->selection.provider_scroll_offset = 0;
     proc_set_kill_impl_test_hook(fake_kill);

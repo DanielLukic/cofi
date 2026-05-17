@@ -689,9 +689,9 @@ static void test_return_proc_routes_signal_by_modifier(void) {
     CofiTabProvider provider;
     init_app(&app);
     reset_captures();
-    app.current_tab = TAB_PROC;
+    app.current_tab = (TabMode)(TAB_COUNT + 1);
     memset(&provider, 0, sizeof(provider));
-    provider.tab_mode = TAB_PROC;
+    provider.tab_mode = app.current_tab;
     provider.on_enter_pressed = mock_provider_enter_pressed;
     g_provider_for_tab = &provider;
 

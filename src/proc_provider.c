@@ -13,6 +13,12 @@
 #include <stdint.h>
 
 static CofiTabProvider s_proc_provider;
+static int s_proc_provider_id = -1;
+
+static TabMode proc_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_proc_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static CofiActionStatus proc_provider_on_enter_pressed(AppData *app, int filtered_idx,
                                                        int raw_idx, const char *entry_text,
@@ -41,7 +47,7 @@ static gboolean proc_command_handler(AppData *app,
     if (app) {
         app->prefix_origin_tab = app->current_tab;
     }
-    surface_tab(app, (TabMode)s_proc_provider.tab_mode);
+    surface_tab(app, proc_tab_mode());
     if (args && args[0] != '\0') {
         proc_provider_on_command_args(app, args);
     }
@@ -85,7 +91,8 @@ static const CommandSpec s_proc_command = {
 
 void proc_provider_register(void) {
     cofi_init_provider_defaults(&s_proc_provider);
-    s_proc_provider.tab_mode = TAB_PROC;
+    s_proc_provider_id = -1;
+    s_proc_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_proc_provider.id = "proc";
     s_proc_provider.display_name = "PROC";
     s_proc_provider.prefix_char = 0;
@@ -106,7 +113,8 @@ void proc_provider_register(void) {
     s_proc_provider.on_command_args = proc_provider_on_command_args;
     s_proc_provider.pipe_actions = &s_proc_pipe_table;
     s_proc_provider.slot_store_enabled = 0;
-    if (cofi_register_tab_provider(&s_proc_provider) >= 0) {
+    s_proc_provider_id = cofi_register_tab_provider(&s_proc_provider);
+    if (s_proc_provider_id >= 0) {
         cofi_register_command(&s_proc_command);
     }
 }

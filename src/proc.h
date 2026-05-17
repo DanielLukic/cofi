@@ -38,7 +38,6 @@ typedef struct {
     int action_candidate_highlight;
     char snapshot[MAX_PROCS * 24];
     char last_error[256];
-    guint refresh_timer_id;
     ProcCpuSample cpu_samples[MAX_PROCS];
     int cpu_sample_count;
     unsigned long long prev_system_jiffies;

@@ -110,7 +110,7 @@ int cofi_register_command(const CommandSpec *spec) {
 static const CofiTabProvider *registered_proc_provider(void) {
     cofi_registry_reset();
     proc_provider_register();
-    return cofi_get_provider_for_tab(TAB_PROC);
+    return cofi_get_provider(s_proc_provider_id);
 }
 
 static void reset_capture(void) {
@@ -140,6 +140,7 @@ static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_proc_provider();
 
     ASSERT_TRUE("proc provider registered", p != NULL);
+    ASSERT_TRUE("proc provider has dynamic tab", p->tab_mode >= TAB_COUNT);
     ASSERT_TRUE("proc command primary", strcmp(s_proc_command.primary, "proc") == 0);
     ASSERT_TRUE("proc command alias", strcmp(s_proc_command.aliases[0], "ps") == 0);
     ASSERT_TRUE("proc command help", strcmp(s_proc_command.help_format, "proc, ps") == 0);
@@ -151,7 +152,7 @@ static void test_registered_command_metadata(void) {
 
 static void test_command_handler_surfaces_tab(void) {
     AppData app;
-    registered_proc_provider();
+    const CofiTabProvider *provider = registered_proc_provider();
     setup_app(&app);
     reset_capture();
 
@@ -160,7 +161,8 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("proc command without args returns false", result == FALSE);
     ASSERT_TRUE("proc command without args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("proc command without args surfaces once", g_surface_tab_calls == 1);
-    ASSERT_TRUE("proc command without args surfaces proc tab", g_last_surface_tab == TAB_PROC);
+    ASSERT_TRUE("proc command without args surfaces proc tab",
+                provider && g_last_surface_tab == (TabMode)provider->tab_mode);
     ASSERT_TRUE("proc command without args preserves origin", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("proc command without args does not execute action", g_execute_action_calls == 0);
     teardown_app(&app);
@@ -168,7 +170,7 @@ static void test_command_handler_surfaces_tab(void) {
 
 static void test_command_handler_with_args_still_surfaces_tab(void) {
     AppData app;
-    registered_proc_provider();
+    const CofiTabProvider *provider = registered_proc_provider();
     setup_app(&app);
     reset_capture();
 
@@ -177,7 +179,7 @@ static void test_command_handler_with_args_still_surfaces_tab(void) {
     ASSERT_TRUE("proc command with args returns false", result == FALSE);
     ASSERT_TRUE("proc command with args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("proc command with args surfaces proc tab", g_surface_tab_calls == 1 &&
-                g_last_surface_tab == TAB_PROC);
+                provider && g_last_surface_tab == (TabMode)provider->tab_mode);
     ASSERT_TRUE("proc command with args does not execute action", g_execute_action_calls == 0);
     teardown_app(&app);
 }
