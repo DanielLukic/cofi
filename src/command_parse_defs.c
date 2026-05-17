@@ -1,0 +1,43 @@
+#include "command_parse_defs.h"
+
+#include <stddef.h>
+
+const CommandParseDef COMMAND_PARSE_DEFS[] = {
+    { "ab",      {"always-below", NULL},                         "+-", NULL },
+    { "an",      {"assign-name", "n", NULL},                   NULL, NULL },
+    { "as",      {"assign-slots", NULL},                         NULL, NULL },
+    { "aot",     {"at", "always-on-top", NULL},                "+-", NULL },
+    { "cl",      {"c", "close", "close-window", NULL},       NULL, NULL },
+    { "calc",    {"ca", NULL},                                   NULL, "calc" },
+    { "config",  {"conf", "cfg", NULL},                        NULL, "config" },
+    { "cw",      {"change-workspace", NULL},                     "0123456789hjkl", NULL },
+    { "ew",      {"every-workspace", NULL},                      "+-", NULL },
+    { "harpoon", {"hp", NULL},                                   NULL, "harpoon" },
+    { "help",    {"h", "?", NULL},                             NULL, NULL },
+    { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL, NULL },
+    { "hotkeys", {"hotkey", "hk", NULL},                       NULL, "hotkeys" },
+    { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl", NULL },
+    { "jump-slot", {"js", NULL},                                "123456789", NULL },
+    { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl", NULL },
+    { "names",   {"nm", NULL},                                   NULL, "names" },
+    { "rules",   {"rl", NULL},                                   NULL, "rules" },
+    { "proc",    {"ps", NULL},                                   NULL, "proc" },
+    { "profiles", {"chrome", "browser", "browsers", NULL},     NULL, "profiles" },
+    { "miw",     {"min", "minimize-window", NULL},             NULL, NULL },
+    { "mouse",   {"m", "ma", "ms", "mh", NULL},            "ash", NULL },
+    { "mw",      {"max", "maximize-window", NULL},             NULL, NULL },
+    { "pw",      {"pull-window", "p", NULL},                   NULL, NULL },
+    { "rw",      {"rename-workspace", NULL},                     NULL, NULL },
+    { "run",     {"r", NULL},                                      NULL, "run" },
+    { "sinks",   {"sink", NULL},                                  NULL, "sinks" },
+    { "sb",      {"skip-taskbar", NULL},                         "+-", NULL },
+    { "set",     {NULL},                                           NULL, NULL },
+    { "show",    {"s", NULL},                                    NULL, NULL },
+    { "sw",      {"swap-windows", NULL},                         NULL, NULL },
+    { "tm",      {"toggle-monitor", NULL},                       NULL, NULL },
+    { "tmux",    {"tx", "zj", "zellij", "sessions", NULL},        NULL, "sessions" },
+    { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc", NULL },
+    { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL, NULL },
+    { "workspaces", {"ws", NULL},                                NULL, "workspaces" },
+    { NULL,        {NULL},                                           NULL, NULL }
+};

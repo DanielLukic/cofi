@@ -5,46 +5,6 @@
 #include <ctype.h>
 #include <string.h>
 
-const CommandParseDef COMMAND_PARSE_DEFS[] = {
-    { "ab",      {"always-below", NULL},                         "+-" },
-    { "an",      {"assign-name", "n", NULL},                   NULL },
-    { "as",      {"assign-slots", NULL},                         NULL },
-    { "aot",     {"at", "always-on-top", NULL},                "+-" },
-    { "cl",      {"c", "close", "close-window", NULL},       NULL },
-    { "calc",    {"ca", NULL},                                   NULL },
-    { "config",  {"conf", "cfg", NULL},                        NULL },
-    { "cw",      {"change-workspace", NULL},                     "0123456789hjkl" },
-    { "ew",      {"every-workspace", NULL},                      "+-" },
-    { "harpoon", {"hp", NULL},                                   NULL },
-    { "help",    {"h", "?", NULL},                             NULL },
-    { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL },
-    { "hotkeys", {"hotkey", "hk", NULL},                       NULL },
-    { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl" },
-    { "jump-slot", {"js", NULL},                                "123456789" },
-    { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl" },
-    { "names",   {"nm", NULL},                                   NULL },
-    { "rules",   {"rl", NULL},                                   NULL },
-    { "proc",    {"ps", NULL},                                   NULL },
-    { "profiles", {"chrome", "browser", "browsers", NULL},     NULL },
-    { "miw",     {"min", "minimize-window", NULL},             NULL },
-    { "mouse",   {"m", "ma", "ms", "mh", NULL},            "ash" },
-    { "mw",      {"max", "maximize-window", NULL},             NULL },
-    { "pw",      {"pull-window", "p", NULL},                   NULL },
-    { "rw",      {"rename-workspace", NULL},                     NULL },
-    { "run",     {"r", NULL},                                      NULL },
-    { "sinks",   {"sink", NULL},                                  NULL },
-    { "sb",      {"skip-taskbar", NULL},                         "+-" },
-    { "set",     {NULL},                                           NULL },
-    { "show",    {"s", NULL},                                    NULL },
-    { "sw",      {"swap-windows", NULL},                         NULL },
-    { "tm",      {"toggle-monitor", NULL},                       NULL },
-    { "tmux",    {"tx", "zj", "zellij", "sessions", NULL},        NULL },
-    { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc" },
-    { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL },
-    { "workspaces", {"ws", NULL},                                NULL },
-    { NULL,        {NULL},                                           NULL }
-};
-
 void trim_whitespace_in_place(char *text) {
     if (!text || text[0] == '\0') {
         return;

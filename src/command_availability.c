@@ -1,23 +1,17 @@
 #include "command_availability.h"
 
+#include "command_parse_defs.h"
 #include "cofi_tab_provider.h"
 
 #include <string.h>
 
 static const char *provider_command_owner(const char *primary) {
     if (!primary) return NULL;
-    if (strcmp(primary, "calc") == 0) return "calc";
-    if (strcmp(primary, "config") == 0) return "config";
-    if (strcmp(primary, "harpoon") == 0) return "harpoon";
-    if (strcmp(primary, "hotkeys") == 0) return "hotkeys";
-    if (strcmp(primary, "names") == 0) return "names";
-    if (strcmp(primary, "proc") == 0) return "proc";
-    if (strcmp(primary, "profiles") == 0) return "profiles";
-    if (strcmp(primary, "rules") == 0) return "rules";
-    if (strcmp(primary, "run") == 0) return "run";
-    if (strcmp(primary, "sinks") == 0) return "sinks";
-    if (strcmp(primary, "tmux") == 0) return "sessions";
-    if (strcmp(primary, "workspaces") == 0) return "workspaces";
+    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
+        if (strcmp(COMMAND_PARSE_DEFS[i].primary, primary) == 0) {
+            return COMMAND_PARSE_DEFS[i].provider_command;
+        }
+    }
     return NULL;
 }
 
