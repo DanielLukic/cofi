@@ -14,7 +14,7 @@
     (void)a; (void)w; (void)s; return TRUE; }
 
 STUB(cmd_always_below) STUB(cmd_assign_name) STUB(cmd_assign_slots)
-STUB(cmd_always_on_top) STUB(cmd_close_window) STUB(cmd_show_config)
+STUB(cmd_always_on_top) STUB(cmd_close_window)
 STUB(cmd_change_workspace) STUB(cmd_every_workspace) STUB(cmd_horizontal_maximize)
 STUB(cmd_hotkeys) STUB(cmd_jump_workspace) STUB(cmd_jump_slot) STUB(cmd_move_all_to_workspace)
 STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
@@ -37,6 +37,7 @@ static const char *workspaces_aliases[] = {"ws", NULL};
 static const char *harpoon_aliases[] = {"hp", NULL};
 static const char *names_aliases[] = {"nm", NULL};
 static const char *rules_aliases[] = {"rl", NULL};
+static const char *config_aliases[] = {"conf", "cfg", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -178,6 +179,20 @@ static void register_rules_command_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_config_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "config";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "config";
+    provider.aliases = config_aliases;
+    provider.command_help_format = "config, conf";
+    provider.command_description = "Show current configuration";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
 typedef struct {
     int seen;
     int fail_at;
@@ -251,7 +266,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("an",      0);   // assign-name: shows overlay
     ASSERT_ACTIVATES("as",      0);   // assign-slots: assigns workspace slots
     ASSERT_ACTIVATES("cl",      0);   // close: window is closing
-    ASSERT_ACTIVATES("config",  0);   // config: shows config tab
     ASSERT_ACTIVATES("help",    0);   // help: shows help text
     ASSERT_ACTIVATES("hotkeys", 0);   // hotkeys: manages bindings
     ASSERT_ACTIVATES("jw",      0);   // jump-workspace: switches desktop, no window
@@ -270,7 +284,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     printf("\n--- Hotkey auto-! keep-open metadata ---\n");
     ASSERT_KEEP_OPEN("show", 1);
     ASSERT_KEEP_OPEN("help", 1);
-    ASSERT_KEEP_OPEN("config", 1);
     ASSERT_KEEP_OPEN("set", 1);
     ASSERT_KEEP_OPEN("an", 1);
     ASSERT_KEEP_OPEN("rw", 1);
@@ -359,6 +372,15 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("rl")) { printf("PASS: rules provider alias keeps open\n"); tests_passed++; }
     else { printf("FAIL: rules provider alias should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("config")) { printf("PASS: config provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: config provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("conf")) { printf("PASS: config provider alias conf keeps open\n"); tests_passed++; }
+    else { printf("FAIL: config provider alias conf should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("cfg")) { printf("PASS: config provider alias cfg keeps open\n"); tests_passed++; }
+    else { printf("FAIL: config provider alias cfg should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -394,6 +416,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("hp")) { printf("PASS: disabled harpoon alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled harpoon alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(harpoon_id, 1);
+
+    int config_id = cofi_get_provider_id("config");
+    cofi_set_provider_enabled(config_id, 0);
+    if (!should_keep_open_on_hotkey_auto("cfg")) { printf("PASS: disabled config alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled config alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(config_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -615,6 +643,24 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias rl did not resolve to rules\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("conf", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "config") == 0) {
+        printf("PASS: provider alias conf resolves to config\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias conf did not resolve to config\n");
+        tests_failed++;
+    }
+
+    if (resolve_command_primary("cfg", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "config") == 0) {
+        printf("PASS: provider alias cfg resolves to config\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias cfg did not resolve to config\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -637,13 +683,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 15 legacy non-activating = 26 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, and Rules are provider-owned and intentionally absent.
-    if (table_count == 26) {
+    // 11 activating + 14 legacy non-activating = 25 central commands.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, Rules, and Config are provider-owned and intentionally absent.
+    if (table_count == 25) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 26 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 25 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -663,6 +709,7 @@ int main(void) {
     register_harpoon_command_provider();
     register_names_command_provider();
     register_rules_command_provider();
+    register_config_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

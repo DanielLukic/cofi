@@ -1,12 +1,14 @@
 #include "config_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "command_mode.h"
 #include "config.h"
 #include "display.h"
 #include "log.h"
 #include "match.h"
 #include "overlay_manager.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -196,6 +198,18 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_config_provider;
+static const char *s_config_aliases[] = {"conf", "cfg", NULL};
+
+static gboolean config_command_handler(AppData *app,
+                                       WindowInfo *window __attribute__((unused)),
+                                       const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_config_provider.tab_mode);
+    return FALSE;
+}
 
 void config_provider_register(void) {
     cofi_init_provider_defaults(&s_config_provider);
@@ -203,6 +217,11 @@ void config_provider_register(void) {
     s_config_provider.id = "config";
     s_config_provider.display_name = "CONFIG";
     s_config_provider.primary_cmd = "config";
+    s_config_provider.aliases = s_config_aliases;
+    s_config_provider.command_description = "Show current configuration";
+    s_config_provider.command_help_format = "config, conf";
+    s_config_provider.command_handler = config_command_handler;
+    s_config_provider.command_keeps_open_on_hotkey_auto = 1;
     s_config_provider.required = 1;
     s_config_provider.hidden_by_default = 1;
     s_config_provider.initial_selection_index = 0;

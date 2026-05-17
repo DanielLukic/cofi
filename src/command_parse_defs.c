@@ -8,7 +8,6 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "as",      {"assign-slots", NULL},                         NULL, COMMAND_OWNER_CORE },
     { "aot",     {"at", "always-on-top", NULL},                "+-", COMMAND_OWNER_CORE },
     { "cl",      {"c", "close", "close-window", NULL},       NULL, COMMAND_OWNER_CORE },
-    { "config",  {"conf", "cfg", NULL},                        NULL, "config" },
     { "cw",      {"change-workspace", NULL},                     "0123456789hjkl", COMMAND_OWNER_CORE },
     { "ew",      {"every-workspace", NULL},                      "+-", COMMAND_OWNER_CORE },
     { "help",    {"h", "?", NULL},                             NULL, COMMAND_OWNER_CORE },

@@ -140,7 +140,6 @@ gboolean execute_command_background(const char *command, AppData *app, WindowInf
 static gboolean keeps_open_always(const char *primary) {
     return strcmp(primary, "show") == 0 ||
            strcmp(primary, "help") == 0 ||
-           strcmp(primary, "config") == 0 ||
            strcmp(primary, "set") == 0 ||
            strcmp(primary, "an") == 0 ||
            strcmp(primary, "rw") == 0 ||

@@ -16,6 +16,7 @@ static const char *workspaces_aliases[] = {"ws", NULL};
 static const char *harpoon_aliases[] = {"hp", NULL};
 static const char *names_aliases[] = {"nm", NULL};
 static const char *rules_aliases[] = {"rl", NULL};
+static const char *config_aliases[] = {"conf", "cfg", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -127,6 +128,17 @@ static void register_rules_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_config_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "config";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "config";
+    provider.aliases = config_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
 static void assert_true(const char *name, int condition) {
     if (condition) {
         printf("PASS: %s\n", name);
@@ -204,6 +216,14 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias rl resolves to rules",
                 parse_command_for_execution("rl", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "rules") == 0 && strcmp(arg, "") == 0);
+
+    assert_true("provider alias conf resolves to config",
+                parse_command_for_execution("conf", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "config") == 0 && strcmp(arg, "") == 0);
+
+    assert_true("provider alias cfg resolves to config",
+                parse_command_for_execution("cfg", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "config") == 0 && strcmp(arg, "") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -232,6 +252,7 @@ int main(void) {
     register_harpoon_provider();
     register_names_provider();
     register_rules_provider();
+    register_config_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

@@ -63,14 +63,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "cl, close-window, c"
     },
     {
-        .primary = "config",
-        .aliases = {"conf", "cfg", NULL},
-        .handler = cmd_show_config,
-        .description = "Show current configuration",
-        .help_format = "config, conf",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "cw",
         .aliases = {"change-workspace", NULL},
         .handler = cmd_change_workspace,

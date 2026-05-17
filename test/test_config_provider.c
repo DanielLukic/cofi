@@ -7,6 +7,9 @@
 static int pass = 0;
 static int fail = 0;
 static int g_reset_selection_calls = 0;
+static int g_exit_command_mode_calls = 0;
+static int g_surface_tab_calls = 0;
+static TabMode g_last_surface_tab = -1;
 
 #define ASSERT_TRUE(name, cond) do { \
     if (cond) { printf("PASS: %s\n", name); pass++; } \
@@ -14,6 +17,17 @@ static int g_reset_selection_calls = 0;
 } while (0)
 
 void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    if (app) app->current_tab = tab;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
+}
 
 void cofi_init_provider_defaults(CofiTabProvider *provider) {
     memset(provider, 0, sizeof(*provider));
@@ -162,6 +176,38 @@ static void test_selected_entry_clamps_and_select_key(void) {
     ASSERT_TRUE("select missing config key falls back to zero", app.selection.provider_index == 0);
 }
 
+static void test_command_metadata(void) {
+    config_provider_register();
+
+    ASSERT_TRUE("provider primary command is config",
+                strcmp(s_config_provider.primary_cmd, "config") == 0);
+    ASSERT_TRUE("provider alias is conf",
+                s_config_provider.aliases && strcmp(s_config_provider.aliases[0], "conf") == 0);
+    ASSERT_TRUE("provider second alias is cfg",
+                s_config_provider.aliases && strcmp(s_config_provider.aliases[1], "cfg") == 0);
+    ASSERT_TRUE("provider command has help",
+                strcmp(s_config_provider.command_help_format, "config, conf") == 0);
+    ASSERT_TRUE("provider command keeps open",
+                s_config_provider.command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_config_provider.command_handler != NULL);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app = {0};
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
+    g_last_surface_tab = -1;
+    app.current_tab = TAB_WINDOWS;
+
+    gboolean result = s_config_provider.command_handler(&app, NULL, NULL);
+
+    ASSERT_TRUE("config command returns false", result == FALSE);
+    ASSERT_TRUE("config command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("config command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("config command surfaces config tab", g_surface_tab_calls == 1 &&
+                g_last_surface_tab == TAB_CONFIG && app.current_tab == TAB_CONFIG);
+}
+
 int main(void) {
     printf("Config provider tests\n");
     printf("=====================\n\n");
@@ -171,6 +217,8 @@ int main(void) {
     test_edit_policy_and_shortcut_hints();
     test_query_changed_resets_selection();
     test_selected_entry_clamps_and_select_key();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
