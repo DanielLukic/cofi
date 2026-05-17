@@ -6,6 +6,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -99,6 +100,10 @@ void surface_tab(AppData *app, TabMode tab) {
     g_last_surface_tab = tab;
 }
 
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
+}
+
 #include "../src/cofi_tab_provider.c"
 #include "../src/proc_provider.c"
 
@@ -134,23 +139,23 @@ static void teardown_app(AppData *app) {
 static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_proc_provider();
 
-    ASSERT_TRUE("proc command registered", p != NULL);
-    ASSERT_TRUE("proc command primary", p && strcmp(p->primary_cmd, "proc") == 0);
-    ASSERT_TRUE("proc command alias", p && p->aliases && strcmp(p->aliases[0], "ps") == 0);
-    ASSERT_TRUE("proc command help", p && strcmp(p->command_help_format, "proc, ps") == 0);
+    ASSERT_TRUE("proc provider registered", p != NULL);
+    ASSERT_TRUE("proc command primary", strcmp(s_proc_command.primary, "proc") == 0);
+    ASSERT_TRUE("proc command alias", strcmp(s_proc_command.aliases[0], "ps") == 0);
+    ASSERT_TRUE("proc command help", strcmp(s_proc_command.help_format, "proc, ps") == 0);
     ASSERT_TRUE("proc command description",
-                p && strcmp(p->command_description, "Switch to process manager tab") == 0);
-    ASSERT_TRUE("proc command handler registered", p && p->command_handler != NULL);
-    ASSERT_TRUE("proc command keeps open", p && p->command_keeps_open_on_hotkey_auto == 1);
+                strcmp(s_proc_command.description, "Switch to process manager tab") == 0);
+    ASSERT_TRUE("proc command handler registered", s_proc_command.handler != NULL);
+    ASSERT_TRUE("proc command keeps open", s_proc_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_surfaces_tab(void) {
     AppData app;
-    const CofiTabProvider *p = registered_proc_provider();
+    registered_proc_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "");
+    gboolean result = s_proc_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("proc command without args returns false", result == FALSE);
     ASSERT_TRUE("proc command without args exits command mode", g_exit_command_mode_calls == 1);
@@ -163,11 +168,11 @@ static void test_command_handler_surfaces_tab(void) {
 
 static void test_command_handler_with_args_still_surfaces_tab(void) {
     AppData app;
-    const CofiTabProvider *p = registered_proc_provider();
+    registered_proc_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "firefox");
+    gboolean result = s_proc_command.handler(&app, NULL, "firefox");
 
     ASSERT_TRUE("proc command with args returns false", result == FALSE);
     ASSERT_TRUE("proc command with args exits command mode", g_exit_command_mode_calls == 1);

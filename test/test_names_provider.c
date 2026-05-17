@@ -4,6 +4,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -55,6 +56,10 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 int cofi_register_tab_provider(const CofiTabProvider *p) {
     (void)p;
     return 0;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 void show_name_edit_overlay(AppData *app) { (void)app; }
@@ -180,14 +185,14 @@ static void test_command_metadata(void) {
     names_provider_register();
 
     ASSERT_TRUE("provider primary command is names",
-                strcmp(s_names_provider.primary_cmd, "names") == 0);
+                strcmp(s_names_command.primary, "names") == 0);
     ASSERT_TRUE("provider alias is nm",
-                s_names_provider.aliases && strcmp(s_names_provider.aliases[0], "nm") == 0);
+                strcmp(s_names_command.aliases[0], "nm") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_names_provider.command_help_format, "names, nm") == 0);
+                strcmp(s_names_command.help_format, "names, nm") == 0);
     ASSERT_TRUE("provider command keeps open",
-                s_names_provider.command_keeps_open_on_hotkey_auto == 1);
-    ASSERT_TRUE("provider command handler set", s_names_provider.command_handler != NULL);
+                s_names_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_names_command.handler != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -195,7 +200,7 @@ static void test_command_handler_surfaces_tab(void) {
     reset_state(&app);
     app.current_tab = TAB_WINDOWS;
 
-    gboolean result = s_names_provider.command_handler(&app, NULL, NULL);
+    gboolean result = s_names_command.handler(&app, NULL, NULL);
 
     ASSERT_TRUE("names command returns false", result == FALSE);
     ASSERT_TRUE("names command exits command mode", g_exit_command_mode_calls == 1);

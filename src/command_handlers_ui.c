@@ -74,8 +74,16 @@ static void handle_set_error(AppData *app, const char *error_text) {
 }
 
 static gboolean surface_provider_command(AppData *app, const char *command) {
-    const CofiTabProvider *provider = cofi_get_provider_for_command(command);
-    if (!provider) {
+    const CommandSpec *spec = cofi_command_for_token(command);
+    if (!spec || !spec->owner_provider_id ||
+        strcmp(spec->owner_provider_id, COMMAND_OWNER_CORE) == 0) {
+        show_error_in_display(app, "Usage: show <tab>");
+        return FALSE;
+    }
+
+    int provider_id = cofi_get_provider_id(spec->owner_provider_id);
+    const CofiTabProvider *provider = cofi_get_provider(provider_id);
+    if (!provider || !cofi_provider_is_enabled(provider_id)) {
         show_error_in_display(app, "Usage: show <tab>");
         return FALSE;
     }
@@ -205,17 +213,6 @@ char *generate_command_help_text(HelpFormat format, int width) {
         buffer_size += strlen(spec->description);
         buffer_size += 100;
     }
-    for (int i = 0; i < cofi_provider_count(); i++) {
-        if (!cofi_provider_is_enabled(i)) continue;
-        const CofiTabProvider *provider = cofi_get_provider(i);
-        if (!provider || !provider->command_help_format ||
-            !provider->command_description) {
-            continue;
-        }
-        buffer_size += strlen(provider->command_help_format);
-        buffer_size += strlen(provider->command_description);
-        buffer_size += 100;
-    }
 
     char *help_text = malloc(buffer_size);
     if (!help_text) {
@@ -239,18 +236,6 @@ char *generate_command_help_text(HelpFormat format, int width) {
         append_wrapped_command_line(commands,
                                     spec->help_format,
                                     spec->description,
-                                    width);
-    }
-    for (int i = 0; i < cofi_provider_count(); i++) {
-        if (!cofi_provider_is_enabled(i)) continue;
-        const CofiTabProvider *provider = cofi_get_provider(i);
-        if (!provider || !provider->command_help_format ||
-            !provider->command_description) {
-            continue;
-        }
-        append_wrapped_command_line(commands,
-                                    provider->command_help_format,
-                                    provider->command_description,
                                     width);
     }
     strcat(help_text, commands->str);

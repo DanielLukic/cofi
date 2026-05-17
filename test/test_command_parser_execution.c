@@ -1,166 +1,38 @@
 #include <stdio.h>
 #include <string.h>
 #include "../src/command_parser.h"
-#include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
-static const char *calc_aliases[] = {"ca", NULL};
-static const char *run_aliases[] = {"r", NULL};
-static const char *sinks_aliases[] = {"sink", NULL};
-static const char *proc_aliases[] = {"ps", NULL};
-static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
-static const char *workspaces_aliases[] = {"ws", NULL};
-static const char *harpoon_aliases[] = {"hp", NULL};
-static const char *names_aliases[] = {"nm", NULL};
-static const char *rules_aliases[] = {"rl", NULL};
-static const char *config_aliases[] = {"conf", "cfg", NULL};
-static const char *hotkeys_aliases[] = {"hotkey", "hk", NULL};
-static const char *apps_aliases[] = {"applications", "app", NULL};
-
-static void register_profiles_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "profiles";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "profiles";
-    provider.aliases = profiles_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
+static gboolean noop_handler(AppData *app, WindowInfo *window, const char *args) {
+    (void)app;
+    (void)window;
+    (void)args;
+    return TRUE;
 }
 
-static void register_calc_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "calc";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "calc";
-    provider.aliases = calc_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
+static const CommandSpec s_provider_commands[] = {
+    {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = noop_handler},
+    {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = noop_handler},
+    {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = noop_handler},
+    {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = noop_handler},
+    {.primary = "proc", .aliases = {"ps", NULL}, .owner_provider_id = "proc", .handler = noop_handler},
+    {.primary = "sessions", .aliases = {"tmux", "tx", "zj", "zellij", NULL}, .owner_provider_id = "sessions", .handler = noop_handler},
+    {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = noop_handler},
+    {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = noop_handler},
+    {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = noop_handler},
+    {.primary = "rules", .aliases = {"rl", NULL}, .owner_provider_id = "rules", .handler = noop_handler},
+    {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = noop_handler},
+    {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = noop_handler},
+    {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = noop_handler},
+};
 
-static void register_run_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "run";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "run";
-    provider.aliases = run_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_sinks_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "sinks";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "sinks";
-    provider.aliases = sinks_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_proc_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "proc";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "proc";
-    provider.aliases = proc_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_sessions_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "sessions";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "sessions";
-    provider.aliases = sessions_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_workspaces_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "workspaces";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "workspaces";
-    provider.aliases = workspaces_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_harpoon_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "harpoon";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "harpoon";
-    provider.aliases = harpoon_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_names_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "names";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "names";
-    provider.aliases = names_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_rules_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "rules";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "rules";
-    provider.aliases = rules_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_config_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "config";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "config";
-    provider.aliases = config_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_hotkeys_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "hotkeys";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "hotkeys";
-    provider.aliases = hotkeys_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_apps_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "apps";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "apps";
-    provider.aliases = apps_aliases;
-    provider.command_handler = (CofiCommandHandler)1;
-    cofi_register_tab_provider(&provider);
+static void register_provider_commands(void) {
+    for (size_t i = 0; i < sizeof(s_provider_commands) / sizeof(s_provider_commands[0]); i++) {
+        cofi_register_command(&s_provider_commands[i]);
+    }
 }
 
 static void assert_true(const char *name, int condition) {
@@ -273,20 +145,8 @@ int main(void) {
     printf("Command parser execution-path tests\n");
     printf("===================================\n\n");
 
-    cofi_registry_reset();
-    register_profiles_provider();
-    register_calc_provider();
-    register_run_provider();
-    register_sinks_provider();
-    register_proc_provider();
-    register_sessions_provider();
-    register_workspaces_provider();
-    register_harpoon_provider();
-    register_names_provider();
-    register_rules_provider();
-    register_config_provider();
-    register_hotkeys_provider();
-    register_apps_provider();
+    cofi_command_registry_reset();
+    register_provider_commands();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

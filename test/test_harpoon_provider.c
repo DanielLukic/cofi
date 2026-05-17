@@ -4,6 +4,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -58,6 +59,10 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 int cofi_register_tab_provider(const CofiTabProvider *p) {
     (void)p;
     return 0;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 void show_harpoon_delete_overlay(AppData *app, int slot) {
@@ -183,12 +188,12 @@ static void test_command_metadata(void) {
     harpoon_provider_register();
 
     ASSERT_TRUE("primary command is harpoon",
-                strcmp(s_harpoon_provider.primary_cmd, "harpoon") == 0);
+                strcmp(s_harpoon_command.primary, "harpoon") == 0);
     ASSERT_TRUE("hp alias registered",
-                s_harpoon_provider.aliases && strcmp(s_harpoon_provider.aliases[0], "hp") == 0);
+                strcmp(s_harpoon_command.aliases[0], "hp") == 0);
     ASSERT_TRUE("command keeps hotkey open",
-                s_harpoon_provider.command_keeps_open_on_hotkey_auto == 1);
-    ASSERT_TRUE("command handler exists", s_harpoon_provider.command_handler != NULL);
+                s_harpoon_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("command handler exists", s_harpoon_command.handler != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -197,7 +202,7 @@ static void test_command_handler_surfaces_tab(void) {
     app.current_tab = TAB_WINDOWS;
 
     harpoon_provider_register();
-    gboolean result = s_harpoon_provider.command_handler(&app, NULL, NULL);
+    gboolean result = s_harpoon_command.handler(&app, NULL, NULL);
 
     ASSERT_TRUE("command handler returns false", result == FALSE);
     ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);

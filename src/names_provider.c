@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "filter_names.h"
 #include "log.h"
 #include "match.h"
@@ -153,7 +154,6 @@ gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_names_provider;
-static const char *s_names_aliases[] = {"nm", NULL};
 
 static gboolean names_command_handler(AppData *app,
                                       WindowInfo *window __attribute__((unused)),
@@ -166,17 +166,21 @@ static gboolean names_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_names_command = {
+    .primary = "names",
+    .aliases = {"nm", NULL},
+    .owner_provider_id = "names",
+    .handler = names_command_handler,
+    .description = "Switch to Names tab",
+    .help_format = "names, nm",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void names_provider_register(void) {
     cofi_init_provider_defaults(&s_names_provider);
     s_names_provider.tab_mode = TAB_NAMES;
     s_names_provider.id = "names";
     s_names_provider.display_name = "NAMES";
-    s_names_provider.primary_cmd = "names";
-    s_names_provider.aliases = s_names_aliases;
-    s_names_provider.command_description = "Switch to Names tab";
-    s_names_provider.command_help_format = "names, nm";
-    s_names_provider.command_handler = names_command_handler;
-    s_names_provider.command_keeps_open_on_hotkey_auto = 1;
     s_names_provider.required = 0;
     s_names_provider.hidden_by_default = 1;
     s_names_provider.initial_selection_index = 0;
@@ -188,5 +192,7 @@ void names_provider_register(void) {
     s_names_provider.on_query_changed = names_on_query_changed;
     s_names_provider.handle_key = handle_names_tab_keys;
     s_names_provider.shortcut_hint = "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name";
-    cofi_register_tab_provider(&s_names_provider);
+    if (cofi_register_tab_provider(&s_names_provider) >= 0) {
+        cofi_register_command(&s_names_command);
+    }
 }

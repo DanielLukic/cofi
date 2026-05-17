@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "match.h"
@@ -11,21 +12,24 @@
 #include "tab_switching.h"
 #include "x11_utils.h"
 
-static const char *s_workspaces_aliases[] = {"ws", NULL};
 static gboolean workspaces_command_handler(AppData *app, WindowInfo *window, const char *args);
 
 static CofiTabProvider s_workspaces_provider = {
     .tab_mode = TAB_WORKSPACES,
     .id = "workspaces",
     .display_name = "WORKSPACES",
-    .primary_cmd = "workspaces",
-    .aliases = s_workspaces_aliases,
-    .command_description = "Switch to Workspaces tab",
-    .command_help_format = "workspaces, ws",
-    .command_handler = workspaces_command_handler,
-    .command_keeps_open_on_hotkey_auto = 1,
     .required = 0,
     .hidden_by_default = 1,
+};
+
+static const CommandSpec s_workspaces_command = {
+    .primary = "workspaces",
+    .aliases = {"ws", NULL},
+    .owner_provider_id = "workspaces",
+    .handler = workspaces_command_handler,
+    .description = "Switch to Workspaces tab",
+    .help_format = "workspaces, ws",
+    .keeps_open_on_hotkey_auto = 1
 };
 
 void filter_workspaces(AppData *app, const char *filter) {
@@ -162,5 +166,7 @@ void workspaces_provider_register(void) {
     provider.on_enter = workspaces_on_enter;
     provider.on_query_changed = workspaces_on_query_changed;
     provider.on_enter_pressed = workspaces_on_enter_pressed;
-    cofi_register_tab_provider(&provider);
+    if (cofi_register_tab_provider(&provider) >= 0) {
+        cofi_register_command(&s_workspaces_command);
+    }
 }

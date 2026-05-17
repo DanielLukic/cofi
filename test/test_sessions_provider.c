@@ -6,6 +6,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 #include "../src/slot_store.h"
 
 static int tests_run = 0;
@@ -56,6 +57,10 @@ void surface_tab(AppData *app, TabMode tab) {
     (void)app;
     g_surface_tab_calls++;
     g_last_surface_tab = tab;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 void sessions_refresh(AppData *app) {
@@ -235,28 +240,28 @@ static void read_textbuffer(GtkTextBuffer *buffer, char *out, size_t out_size) {
 static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_sessions_provider();
 
-    ASSERT_TRUE("sessions command registered", p != NULL);
-    ASSERT_TRUE("sessions command primary", p && strcmp(p->primary_cmd, "sessions") == 0);
+    ASSERT_TRUE("sessions provider registered", p != NULL);
+    ASSERT_TRUE("sessions command primary", strcmp(s_sessions_command.primary, "sessions") == 0);
     ASSERT_TRUE("sessions command alias tmux",
-                p && p->aliases && strcmp(p->aliases[0], "tmux") == 0);
+                strcmp(s_sessions_command.aliases[0], "tmux") == 0);
     ASSERT_TRUE("sessions command alias zellij",
-                p && p->aliases && strcmp(p->aliases[3], "zellij") == 0);
+                strcmp(s_sessions_command.aliases[3], "zellij") == 0);
     ASSERT_TRUE("sessions command help",
-                p && strcmp(p->command_help_format,
-                            "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]") == 0);
+                strcmp(s_sessions_command.help_format,
+                       "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]") == 0);
     ASSERT_TRUE("sessions command description",
-                p && strcmp(p->command_description, "Switch to sessions tab") == 0);
-    ASSERT_TRUE("sessions command handler registered", p && p->command_handler != NULL);
-    ASSERT_TRUE("sessions command keeps open", p && p->command_keeps_open_on_hotkey_auto == 1);
+                strcmp(s_sessions_command.description, "Switch to sessions tab") == 0);
+    ASSERT_TRUE("sessions command handler registered", s_sessions_command.handler != NULL);
+    ASSERT_TRUE("sessions command keeps open", s_sessions_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    registered_sessions_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "");
+    gboolean result = s_sessions_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("sessions command without args returns false", result == FALSE);
     ASSERT_TRUE("sessions command without args exits command mode", g_exit_command_mode_calls == 1);
@@ -271,12 +276,12 @@ static void test_command_handler_without_args_surfaces_tab(void) {
 
 static void test_command_handler_named_session_hides(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    registered_sessions_provider();
     setup_app(&app);
     reset_capture();
     g_has_named_result = TRUE;
 
-    gboolean result = p->command_handler(&app, NULL, "work");
+    gboolean result = s_sessions_command.handler(&app, NULL, "work");
 
     ASSERT_TRUE("sessions named command returns false", result == FALSE);
     ASSERT_TRUE("sessions named command refreshes", g_refresh_calls == 1);
@@ -288,12 +293,12 @@ static void test_command_handler_named_session_hides(void) {
 
 static void test_command_handler_recalls_slot_and_hides(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    registered_sessions_provider();
     setup_app(&app);
     slot_assign(&app.harpoon.store, 'a', "sessions", "session:tmux:work");
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "@a");
+    gboolean result = s_sessions_command.handler(&app, NULL, "@a");
 
     ASSERT_TRUE("sessions slot command returns false", result == FALSE);
     ASSERT_TRUE("sessions slot command recalls", g_slot_recall_calls == 1);
@@ -305,11 +310,11 @@ static void test_command_handler_recalls_slot_and_hides(void) {
 
 static void test_command_handler_invalid_arg_shows_error(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    registered_sessions_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "missing");
+    gboolean result = s_sessions_command.handler(&app, NULL, "missing");
 
     char text[128];
     read_textbuffer(app.textbuffer, text, sizeof(text));

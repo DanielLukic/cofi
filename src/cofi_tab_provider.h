@@ -16,9 +16,6 @@ typedef struct AppData AppData;
 typedef struct WindowInfo WindowInfo;
 typedef struct _GdkEventKey GdkEventKey;
 
-typedef gboolean (*CofiCommandHandler)(AppData *app, WindowInfo *window,
-                                       const char *args);
-
 typedef enum {
     COFI_HANDLED_HIDE,     /* core hides cofi window */
     COFI_HANDLED_KEEP,     /* stay open, clear entry, refresh display */
@@ -70,15 +67,7 @@ typedef struct CofiTabProvider {
     const char *display_name;
     const char *shortcut_hint;
     const char *(*get_shortcut_hint)(AppData *app);
-    const char *primary_cmd;
-    const char *const *aliases;   /* NULL-terminated */
     char prefix_char;
-
-    const char *command_description;
-    const char *command_help_format;
-    CofiCommandHandler command_handler;
-    int command_activates;
-    int command_keeps_open_on_hotkey_auto;
 
     int required;                  /* required providers cannot be disabled */
     int hidden_by_default;
@@ -121,7 +110,6 @@ int  cofi_register_tab_provider(const CofiTabProvider *p);
 const CofiTabProvider *cofi_get_provider(int provider_id);
 int  cofi_get_provider_id(const char *id);
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode);
-const CofiTabProvider *cofi_get_provider_for_command(const char *command);
 int  cofi_get_provider_id_for_tab(int tab_mode);
 int  cofi_list_provider_tabs(int *tabs, int max_tabs);
 int  cofi_provider_count(void);

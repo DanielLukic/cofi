@@ -2,6 +2,7 @@
 
 #include "apps.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "path_binaries.h"
@@ -126,19 +127,21 @@ void filter_apps(AppData *app, const char *filter) {
     apps_filter(query, app->filtered_apps, &app->filtered_apps_count);
 }
 
-static const char *const s_apps_aliases[] = {"applications", "app", NULL};
+static const CommandSpec s_apps_command = {
+    .primary = "apps",
+    .aliases = {"applications", "app", NULL},
+    .owner_provider_id = "apps",
+    .handler = apps_command_handler,
+    .description = "Switch to applications tab",
+    .help_format = "apps, app, applications",
+    .keeps_open_on_hotkey_auto = 1
+};
 
 void apps_provider_register(void) {
     cofi_init_provider_defaults(&s_apps_provider);
     s_apps_provider.tab_mode = TAB_APPS;
     s_apps_provider.id = "apps";
     s_apps_provider.display_name = "APPS";
-    s_apps_provider.primary_cmd = "apps";
-    s_apps_provider.aliases = s_apps_aliases;
-    s_apps_provider.command_description = "Switch to applications tab";
-    s_apps_provider.command_help_format = "apps, app, applications";
-    s_apps_provider.command_handler = apps_command_handler;
-    s_apps_provider.command_keeps_open_on_hotkey_auto = 1;
     s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;
     s_apps_provider.initial_selection_index = 0;
@@ -151,5 +154,7 @@ void apps_provider_register(void) {
     s_apps_provider.on_surface = apps_on_surface;
     s_apps_provider.on_query_changed = apps_on_query_changed;
     s_apps_provider.on_enter_pressed = apps_on_enter_pressed;
-    cofi_register_tab_provider(&s_apps_provider);
+    if (cofi_register_tab_provider(&s_apps_provider) >= 0) {
+        cofi_register_command(&s_apps_command);
+    }
 }

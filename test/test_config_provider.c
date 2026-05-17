@@ -3,6 +3,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -38,6 +39,10 @@ void cofi_init_provider_defaults(CofiTabProvider *provider) {
 int cofi_register_tab_provider(const CofiTabProvider *provider) {
     (void)provider;
     return 0;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 int has_match(const char *pattern, const char *text) {
@@ -180,16 +185,16 @@ static void test_command_metadata(void) {
     config_provider_register();
 
     ASSERT_TRUE("provider primary command is config",
-                strcmp(s_config_provider.primary_cmd, "config") == 0);
+                strcmp(s_config_command.primary, "config") == 0);
     ASSERT_TRUE("provider alias is conf",
-                s_config_provider.aliases && strcmp(s_config_provider.aliases[0], "conf") == 0);
+                strcmp(s_config_command.aliases[0], "conf") == 0);
     ASSERT_TRUE("provider second alias is cfg",
-                s_config_provider.aliases && strcmp(s_config_provider.aliases[1], "cfg") == 0);
+                strcmp(s_config_command.aliases[1], "cfg") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_config_provider.command_help_format, "config, conf") == 0);
+                strcmp(s_config_command.help_format, "config, conf") == 0);
     ASSERT_TRUE("provider command keeps open",
-                s_config_provider.command_keeps_open_on_hotkey_auto == 1);
-    ASSERT_TRUE("provider command handler set", s_config_provider.command_handler != NULL);
+                s_config_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_config_command.handler != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -199,7 +204,7 @@ static void test_command_handler_surfaces_tab(void) {
     g_last_surface_tab = -1;
     app.current_tab = TAB_WINDOWS;
 
-    gboolean result = s_config_provider.command_handler(&app, NULL, NULL);
+    gboolean result = s_config_command.handler(&app, NULL, NULL);
 
     ASSERT_TRUE("config command returns false", result == FALSE);
     ASSERT_TRUE("config command exits command mode", g_exit_command_mode_calls == 1);

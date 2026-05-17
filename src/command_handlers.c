@@ -1,26 +1,17 @@
 #include "command_api.h"
+#include "command_availability.h"
 #include "cofi_tab_provider.h"
 #include "command_parser.h"
 #include "command_registry.h"
 
 #ifndef COMMAND_POLICY_ONLY
-#include "command_availability.h"
+#include "display.h"
 #include "log.h"
 #include "selection.h"
 #include "x11_utils.h"
 #endif
 
 #include <string.h>
-
-static const CofiTabProvider *find_provider_command_by_primary(const char *primary) {
-    const CofiTabProvider *provider = cofi_get_provider_for_command(primary);
-    if (!provider || !provider->primary_cmd ||
-        strcmp(provider->primary_cmd, primary) != 0 ||
-        !provider->command_handler) {
-        return NULL;
-    }
-    return provider;
-}
 
 #ifndef COMMAND_POLICY_ONLY
 typedef struct {
@@ -65,19 +56,12 @@ static gboolean execute_single_command(const char *command, AppData *app,
     }
 
     const CommandSpec *cmd = cofi_command_by_primary(primary);
-    const CofiTabProvider *provider = NULL;
-    CofiCommandHandler handler = NULL;
+    CommandHandler handler = NULL;
     int activates = 0;
 
     if (cmd) {
         handler = cmd->handler;
         activates = cmd->activates;
-    } else {
-        provider = find_provider_command_by_primary(primary);
-        if (provider) {
-            handler = provider->command_handler;
-            activates = provider->command_activates;
-        }
     }
 
     if (!handler) {
@@ -134,12 +118,11 @@ static gboolean command_keeps_open(const char *primary, const char *arg) {
     }
 
     const CommandSpec *cmd = cofi_command_by_primary(primary);
-    if (cmd && cmd->keeps_open_on_hotkey_auto) {
-        return TRUE;
+    if (!cmd || !command_primary_is_available(primary)) {
+        return FALSE;
     }
 
-    const CofiTabProvider *provider = find_provider_command_by_primary(primary);
-    if (provider && provider->command_keeps_open_on_hotkey_auto) {
+    if (cmd && cmd->keeps_open_on_hotkey_auto) {
         return TRUE;
     }
 

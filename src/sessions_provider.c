@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "overlay_manager.h"
 #include "sessions.h"
@@ -10,7 +11,6 @@
 #include "tab_switching.h"
 #include "window_lifecycle.h"
 
-static const char *const s_sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 static CofiTabProvider s_sessions_provider;
 
 static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij) {
@@ -123,18 +123,22 @@ static gboolean sessions_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_sessions_command = {
+    .primary = "sessions",
+    .aliases = {"tmux", "tx", "zj", "zellij", NULL},
+    .owner_provider_id = "sessions",
+    .handler = sessions_command_handler,
+    .description = "Switch to sessions tab",
+    .help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void sessions_provider_register(void) {
     cofi_init_provider_defaults(&s_sessions_provider);
     s_sessions_provider.tab_mode = TAB_SESSIONS;
     s_sessions_provider.id = "sessions";
     s_sessions_provider.display_name = "SESSIONS";
     s_sessions_provider.get_shortcut_hint = sessions_get_shortcut_hint;
-    s_sessions_provider.primary_cmd = "sessions";
-    s_sessions_provider.aliases = s_sessions_aliases;
-    s_sessions_provider.command_description = "Switch to sessions tab";
-    s_sessions_provider.command_help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]";
-    s_sessions_provider.command_handler = sessions_command_handler;
-    s_sessions_provider.command_keeps_open_on_hotkey_auto = 1;
     s_sessions_provider.prefix_char = 0;
     s_sessions_provider.required = 0;
     s_sessions_provider.hidden_by_default = 1;
@@ -154,5 +158,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.slot_store_enabled = 1;
     s_sessions_provider.slot_payload_for = sessions_slot_payload_for;
     s_sessions_provider.slot_recall = sessions_slot_recall;
-    cofi_register_tab_provider(&s_sessions_provider);
+    if (cofi_register_tab_provider(&s_sessions_provider) >= 0) {
+        cofi_register_command(&s_sessions_command);
+    }
 }

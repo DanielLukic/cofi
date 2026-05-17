@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "cofi_modal.h"
 #include "detach_launch.h"
@@ -94,7 +95,6 @@ static void run_on_enter(AppData *app) {
     gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "command");
 }
 
-static const char *const s_run_aliases[] = {"r", NULL};
 static CofiTabProvider s_run_provider;
 
 static gboolean run_command_handler(AppData *app,
@@ -118,18 +118,22 @@ static gboolean run_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_run_command = {
+    .primary = "run",
+    .aliases = {"r", NULL},
+    .owner_provider_id = "run",
+    .handler = run_command_handler,
+    .description = "Switch to run mode",
+    .help_format = "run, r",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void run_provider_register(void) {
     cofi_init_provider_defaults(&s_run_provider);
     s_run_provider.tab_mode                = TAB_RUN;
     s_run_provider.id                      = "run";
     s_run_provider.display_name            = "RUN";
-    s_run_provider.primary_cmd             = "run";
-    s_run_provider.aliases                 = s_run_aliases;
     s_run_provider.prefix_char             = '!';
-    s_run_provider.command_description     = "Switch to run mode";
-    s_run_provider.command_help_format     = "run, r";
-    s_run_provider.command_handler         = run_command_handler;
-    s_run_provider.command_keeps_open_on_hotkey_auto = 1;
     s_run_provider.required                = 0;
     s_run_provider.modal_policy            = COFI_MODAL_CLEAR_THEN_RETURN;
     s_run_provider.hidden_by_default       = 1;
@@ -142,5 +146,7 @@ void run_provider_register(void) {
     s_run_provider.on_selection_changed    = run_on_selection_changed;
     s_run_provider.on_enter_pressed        = run_on_enter_pressed;
     s_run_provider.on_command_args         = run_on_command_args;
-    cofi_register_tab_provider(&s_run_provider);
+    if (cofi_register_tab_provider(&s_run_provider) >= 0) {
+        cofi_register_command(&s_run_command);
+    }
 }

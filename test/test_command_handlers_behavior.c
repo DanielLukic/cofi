@@ -66,7 +66,24 @@ static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
 
+static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
+    (void)app;
+    (void)window;
+    (void)args;
+    return TRUE;
+}
+
+static const CommandSpec s_rules_command = {
+    .primary = "rules",
+    .aliases = {"rl", NULL},
+    .owner_provider_id = "rules",
+    .handler = noop_provider_command,
+};
+
 static void init_stub_providers(void) {
+    cofi_command_registry_reset();
+    cofi_register_command(&s_rules_command);
+
     memset(&g_stub_run_provider, 0, sizeof(g_stub_run_provider));
     memset(&g_stub_calc_provider, 0, sizeof(g_stub_calc_provider));
     memset(&g_stub_config_provider, 0, sizeof(g_stub_config_provider));
@@ -90,13 +107,6 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     if (prefix == '!') return &g_stub_run_provider;
     return NULL;
 }
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    if (command && strcmp(command, "calc") == 0) return &g_stub_calc_provider;
-    if (command && strcmp(command, "config") == 0) return &g_stub_config_provider;
-    if (command && strcmp(command, "hotkeys") == 0) return &g_stub_hotkeys_provider;
-    if (command && strcmp(command, "rules") == 0) return &g_stub_rules_provider;
-    return NULL;
-}
 int cofi_get_provider_id(const char *id) {
     if (id && strcmp(id, "calc") == 0) return 1;
     if (id && strcmp(id, "config") == 0) return 2;
@@ -108,7 +118,13 @@ int cofi_provider_is_enabled(int provider_id) {
     return provider_id > 0;
 }
 int cofi_provider_count(void) { return 0; }
-const CofiTabProvider *cofi_get_provider(int provider_id) { (void)provider_id; return NULL; }
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    if (provider_id == 1) return &g_stub_calc_provider;
+    if (provider_id == 2) return &g_stub_config_provider;
+    if (provider_id == 3) return &g_stub_hotkeys_provider;
+    if (provider_id == 4) return &g_stub_rules_provider;
+    return NULL;
+}
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     (void)tab_mode;
     return &g_stub_calc_provider;

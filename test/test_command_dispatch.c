@@ -26,200 +26,36 @@ STUB(cmd_run) STUB(cmd_help)
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
-static const char *calc_aliases[] = {"ca", NULL};
-static const char *run_aliases[] = {"r", NULL};
-static const char *sinks_aliases[] = {"sink", NULL};
-static const char *proc_aliases[] = {"ps", NULL};
-static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
-static const char *workspaces_aliases[] = {"ws", NULL};
-static const char *harpoon_aliases[] = {"hp", NULL};
-static const char *names_aliases[] = {"nm", NULL};
-static const char *rules_aliases[] = {"rl", NULL};
-static const char *config_aliases[] = {"conf", "cfg", NULL};
-static const char *hotkeys_aliases[] = {"hotkey", "hk", NULL};
-static const char *apps_aliases[] = {"applications", "app", NULL};
-
-static void register_profiles_command_provider(void) {
+static void register_provider_with_command(const CommandSpec *spec) {
     CofiTabProvider provider;
     cofi_init_provider_defaults(&provider);
-    provider.id = "profiles";
+    provider.id = spec->owner_provider_id;
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "profiles";
-    provider.aliases = profiles_aliases;
-    provider.command_help_format = "profiles, chrome [@SLOT|PROFILE]";
-    provider.command_description = "Switch to browser profiles tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
+    if (cofi_register_tab_provider(&provider) >= 0) {
+        cofi_register_command(spec);
+    }
 }
 
-static void register_calc_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "calc";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "calc";
-    provider.aliases = calc_aliases;
-    provider.command_help_format = "calc, ca";
-    provider.command_description = "Switch to calculator";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
+static const CommandSpec s_provider_commands[] = {
+    {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = cmd_run, .description = "Switch to browser profiles tab", .help_format = "profiles, chrome [@SLOT|PROFILE]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = cmd_run, .description = "Switch to calculator", .help_format = "calc, ca", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = cmd_run, .description = "Switch to audio sinks tab", .help_format = "sinks, sink [@SLOT|SINK]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "proc", .aliases = {"ps", NULL}, .owner_provider_id = "proc", .handler = cmd_run, .description = "Switch to process manager tab", .help_format = "proc, ps", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "sessions", .aliases = {"tmux", "tx", "zj", "zellij", NULL}, .owner_provider_id = "sessions", .handler = cmd_run, .description = "Switch to sessions tab", .help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = cmd_run, .description = "Switch to Workspaces tab", .help_format = "workspaces, ws", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = cmd_run, .description = "Switch to Harpoon tab", .help_format = "harpoon, hp", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = cmd_run, .description = "Switch to Names tab", .help_format = "names, nm", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "rules", .aliases = {"rl", NULL}, .owner_provider_id = "rules", .handler = cmd_run, .description = "Switch to Rules tab", .help_format = "rules, rl", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = cmd_run, .description = "Show current configuration", .help_format = "config, conf", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = cmd_run, .description = "Manage system hotkey bindings", .help_format = "hotkeys [key] [command]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = cmd_run, .description = "Switch to applications tab", .help_format = "apps, app, applications", .keeps_open_on_hotkey_auto = 1},
+};
 
-static void register_run_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "run";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "run";
-    provider.aliases = run_aliases;
-    provider.command_help_format = "run, r";
-    provider.command_description = "Switch to run mode";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_sinks_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "sinks";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "sinks";
-    provider.aliases = sinks_aliases;
-    provider.command_help_format = "sinks, sink [@SLOT|SINK]";
-    provider.command_description = "Switch to audio sinks tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_proc_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "proc";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "proc";
-    provider.aliases = proc_aliases;
-    provider.command_help_format = "proc, ps";
-    provider.command_description = "Switch to process manager tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_sessions_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "sessions";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "sessions";
-    provider.aliases = sessions_aliases;
-    provider.command_help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]";
-    provider.command_description = "Switch to sessions tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_workspaces_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "workspaces";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "workspaces";
-    provider.aliases = workspaces_aliases;
-    provider.command_help_format = "workspaces, ws";
-    provider.command_description = "Switch to Workspaces tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_harpoon_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "harpoon";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "harpoon";
-    provider.aliases = harpoon_aliases;
-    provider.command_help_format = "harpoon, hp";
-    provider.command_description = "Switch to Harpoon tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_names_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "names";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "names";
-    provider.aliases = names_aliases;
-    provider.command_help_format = "names, nm";
-    provider.command_description = "Switch to Names tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_rules_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "rules";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "rules";
-    provider.aliases = rules_aliases;
-    provider.command_help_format = "rules, rl";
-    provider.command_description = "Switch to Rules tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_config_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "config";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "config";
-    provider.aliases = config_aliases;
-    provider.command_help_format = "config, conf";
-    provider.command_description = "Show current configuration";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_hotkeys_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "hotkeys";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "hotkeys";
-    provider.aliases = hotkeys_aliases;
-    provider.command_help_format = "hotkeys [key] [command]";
-    provider.command_description = "Manage system hotkey bindings";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
-}
-
-static void register_apps_command_provider(void) {
-    CofiTabProvider provider;
-    cofi_init_provider_defaults(&provider);
-    provider.id = "apps";
-    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    provider.primary_cmd = "apps";
-    provider.aliases = apps_aliases;
-    provider.command_help_format = "apps, app, applications";
-    provider.command_description = "Switch to applications tab";
-    provider.command_keeps_open_on_hotkey_auto = 1;
-    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
-    cofi_register_tab_provider(&provider);
+static void register_provider_commands(void) {
+    for (size_t i = 0; i < sizeof(s_provider_commands) / sizeof(s_provider_commands[0]); i++) {
+        register_provider_with_command(&s_provider_commands[i]);
+    }
 }
 
 typedef struct {
@@ -749,15 +585,12 @@ static void test_all_parse_defs_have_owner(void) {
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
-    // 11 activating + 13 legacy non-activating = 24 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon,
-    // Names, Rules, Config, Hotkeys, and Apps are provider-owned and
-    // intentionally absent.
-    if (table_count == 24) {
-        printf("PASS: command registry has %d core commands (all covered)\n", table_count);
+    // 24 core commands + 13 provider-owned commands.
+    if (table_count == 37) {
+        printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command registry has %d core commands, test expects 24 — update test!\n", table_count);
+        printf("FAIL: command registry has %d commands, test expects 37 - update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -767,19 +600,8 @@ int main(void) {
     printf("======================\n\n");
 
     cofi_registry_reset();
-    register_profiles_command_provider();
-    register_calc_command_provider();
-    register_run_command_provider();
-    register_sinks_command_provider();
-    register_proc_command_provider();
-    register_sessions_command_provider();
-    register_workspaces_command_provider();
-    register_harpoon_command_provider();
-    register_names_command_provider();
-    register_rules_command_provider();
-    register_config_command_provider();
-    register_hotkeys_command_provider();
-    register_apps_command_provider();
+    cofi_command_registry_reset();
+    register_provider_commands();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

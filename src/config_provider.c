@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "config.h"
 #include "display.h"
 #include "log.h"
@@ -198,7 +199,6 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_config_provider;
-static const char *s_config_aliases[] = {"conf", "cfg", NULL};
 
 static gboolean config_command_handler(AppData *app,
                                        WindowInfo *window __attribute__((unused)),
@@ -211,17 +211,21 @@ static gboolean config_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_config_command = {
+    .primary = "config",
+    .aliases = {"conf", "cfg", NULL},
+    .owner_provider_id = "config",
+    .handler = config_command_handler,
+    .description = "Show current configuration",
+    .help_format = "config, conf",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void config_provider_register(void) {
     cofi_init_provider_defaults(&s_config_provider);
     s_config_provider.tab_mode = TAB_CONFIG;
     s_config_provider.id = "config";
     s_config_provider.display_name = "CONFIG";
-    s_config_provider.primary_cmd = "config";
-    s_config_provider.aliases = s_config_aliases;
-    s_config_provider.command_description = "Show current configuration";
-    s_config_provider.command_help_format = "config, conf";
-    s_config_provider.command_handler = config_command_handler;
-    s_config_provider.command_keeps_open_on_hotkey_auto = 1;
     s_config_provider.required = 1;
     s_config_provider.hidden_by_default = 1;
     s_config_provider.initial_selection_index = 0;
@@ -233,5 +237,7 @@ void config_provider_register(void) {
     s_config_provider.on_query_changed = config_on_query_changed;
     s_config_provider.handle_key = handle_config_tab_keys;
     s_config_provider.get_shortcut_hint = config_shortcut_hint;
-    cofi_register_tab_provider(&s_config_provider);
+    if (cofi_register_tab_provider(&s_config_provider) >= 0) {
+        cofi_register_command(&s_config_command);
+    }
 }

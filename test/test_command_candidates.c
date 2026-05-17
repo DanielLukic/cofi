@@ -148,25 +148,34 @@ static void test_cl_still_shows(void) {
 }
 
 static void test_disabled_provider_command_candidates_are_hidden(void) {
-    static const char *profile_aliases[] = { "chrome", "browser", NULL };
-    static const char *session_aliases[] = { "tmux", "tx", "zj", "zellij", NULL };
+    static const CommandSpec profiles_command = {
+        .primary = "profiles",
+        .aliases = {"chrome", "browser", NULL},
+        .owner_provider_id = "profiles",
+        .handler = (CommandHandler)1,
+    };
+    static const CommandSpec sessions_command = {
+        .primary = "sessions",
+        .aliases = {"tmux", "tx", "zj", "zellij", NULL},
+        .owner_provider_id = "sessions",
+        .handler = (CommandHandler)1,
+    };
     CofiTabProvider provider;
     CommandMode cmd = {0};
 
     cofi_registry_reset();
+    cofi_command_registry_reset();
     cofi_init_provider_defaults(&provider);
     provider.id = "profiles";
     provider.tab_mode = TAB_PROFILES;
-    provider.primary_cmd = "profiles";
-    provider.aliases = profile_aliases;
     int profiles_id = cofi_register_tab_provider(&provider);
+    cofi_register_command(&profiles_command);
 
     cofi_init_provider_defaults(&provider);
     provider.id = "sessions";
     provider.tab_mode = TAB_SESSIONS;
-    provider.primary_cmd = "sessions";
-    provider.aliases = session_aliases;
     int sessions_id = cofi_register_tab_provider(&provider);
+    cofi_register_command(&sessions_command);
 
     command_update_candidates(&cmd, "ch");
     ASSERT_TRUE("enabled profile alias appears", strip_has_candidate(&cmd, "chrome"));

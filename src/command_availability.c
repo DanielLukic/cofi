@@ -13,18 +13,10 @@ static const char *command_owner(const char *primary) {
 
 int command_primary_is_available(const char *primary) {
     const char *owner = command_owner(primary);
-    if (owner) {
-        if (strcmp(owner, COMMAND_OWNER_CORE) == 0) return 1;
+    if (!owner) return 0;
 
-        int provider_id = cofi_get_provider_id(owner);
-        return provider_id >= 0 && cofi_provider_is_enabled(provider_id);
-    }
+    if (strcmp(owner, COMMAND_OWNER_CORE) == 0) return 1;
 
-    const CofiTabProvider *provider = cofi_get_provider_for_command(primary);
-    if (!provider || !provider->primary_cmd ||
-        strcmp(provider->primary_cmd, primary) != 0) {
-        return 0;
-    }
-    int provider_id = cofi_get_provider_id(provider->id);
+    int provider_id = cofi_get_provider_id(owner);
     return provider_id >= 0 && cofi_provider_is_enabled(provider_id);
 }

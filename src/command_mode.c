@@ -180,26 +180,6 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
         }
     }
 
-    for (int i = 0; i < cofi_provider_count() && match_count < COMMAND_CANDIDATE_SCAN_MAX; i++) {
-        if (!cofi_provider_is_enabled(i)) {
-            continue;
-        }
-        const CofiTabProvider *provider = cofi_get_provider(i);
-        if (!provider || !provider->primary_cmd) {
-            continue;
-        }
-
-        const char *names[6] = {0};
-        int name_count = 0;
-        names[name_count++] = provider->primary_cmd;
-        if (provider->aliases) {
-            for (int alias = 0; alias < 5 && provider->aliases[alias]; alias++) {
-                names[name_count++] = provider->aliases[alias];
-            }
-        }
-        add_command_candidate_names(matches, &match_count, names, name_count, text);
-    }
-
     qsort(matches, match_count, sizeof(matches[0]), candidate_cmp);
 
     int visible_count = (match_count < COMMAND_CANDIDATE_DISPLAY_MAX) ? match_count : COMMAND_CANDIDATE_DISPLAY_MAX;

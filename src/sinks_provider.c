@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "harpoon_config.h"
 #include "log.h"
@@ -157,7 +158,15 @@ static gboolean sinks_command_handler(AppData *app,
     return FALSE;
 }
 
-static const char *const s_sinks_aliases[] = {"sink", NULL};
+static const CommandSpec s_sinks_command = {
+    .primary = "sinks",
+    .aliases = {"sink", NULL},
+    .owner_provider_id = "sinks",
+    .handler = sinks_command_handler,
+    .description = "Switch to audio sinks tab",
+    .help_format = "sinks, sink [@SLOT|SINK]",
+    .keeps_open_on_hotkey_auto = 1
+};
 
 void sinks_provider_register(void) {
     cofi_init_provider_defaults(&s_sinks_provider);
@@ -165,12 +174,6 @@ void sinks_provider_register(void) {
     s_sinks_provider.id = "sinks";
     s_sinks_provider.display_name = "SINKS";
     s_sinks_provider.shortcut_hint = "Shortcuts: Ctrl+key=Assign sink slot  Alt+key=Activate sink slot";
-    s_sinks_provider.primary_cmd = "sinks";
-    s_sinks_provider.aliases = s_sinks_aliases;
-    s_sinks_provider.command_description = "Switch to audio sinks tab";
-    s_sinks_provider.command_help_format = "sinks, sink [@SLOT|SINK]";
-    s_sinks_provider.command_handler = sinks_command_handler;
-    s_sinks_provider.command_keeps_open_on_hotkey_auto = 1;
     s_sinks_provider.prefix_char = 0;
     s_sinks_provider.required = 0;
     s_sinks_provider.hidden_by_default = 1;
@@ -189,5 +192,7 @@ void sinks_provider_register(void) {
     s_sinks_provider.slot_store_enabled = 1;
     s_sinks_provider.slot_payload_for = sinks_slot_payload_for;
     s_sinks_provider.slot_recall = sinks_slot_recall;
-    cofi_register_tab_provider(&s_sinks_provider);
+    if (cofi_register_tab_provider(&s_sinks_provider) >= 0) {
+        cofi_register_command(&s_sinks_command);
+    }
 }

@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include "../src/app_data.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -91,6 +92,10 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 int cofi_register_tab_provider(const CofiTabProvider *p) {
     (void)p;
     return 0;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 #include "../src/apps_provider.c"
@@ -188,19 +193,17 @@ static void test_command_metadata(void) {
     apps_provider_register();
 
     ASSERT_TRUE("apps command primary",
-                strcmp(s_apps_provider.primary_cmd, "apps") == 0);
+                strcmp(s_apps_command.primary, "apps") == 0);
     ASSERT_TRUE("apps alias applications",
-                s_apps_provider.aliases &&
-                strcmp(s_apps_provider.aliases[0], "applications") == 0);
+                strcmp(s_apps_command.aliases[0], "applications") == 0);
     ASSERT_TRUE("apps alias app",
-                s_apps_provider.aliases &&
-                strcmp(s_apps_provider.aliases[1], "app") == 0);
+                strcmp(s_apps_command.aliases[1], "app") == 0);
     ASSERT_TRUE("apps command help",
-                strcmp(s_apps_provider.command_help_format,
+                strcmp(s_apps_command.help_format,
                        "apps, app, applications") == 0);
-    ASSERT_TRUE("apps command handler set", s_apps_provider.command_handler != NULL);
+    ASSERT_TRUE("apps command handler set", s_apps_command.handler != NULL);
     ASSERT_TRUE("apps command keep-open policy",
-                s_apps_provider.command_keeps_open_on_hotkey_auto == 1);
+                s_apps_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -210,7 +213,7 @@ static void test_command_handler_surfaces_tab(void) {
     app.current_tab = TAB_WINDOWS;
     app.apps_mode = APPS_MODE_PATH;
 
-    gboolean result = s_apps_provider.command_handler(&app, NULL, "");
+    gboolean result = s_apps_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("apps command returns false", result == FALSE);
     ASSERT_TRUE("apps command exits command mode", g_exit_command_mode_calls == 1);

@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "display.h"
 #include "hotkey_config.h"
 #include "hotkeys.h"
@@ -200,7 +201,6 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_hotkeys_provider;
-static const char *s_hotkeys_aliases[] = {"hotkey", "hk", NULL};
 
 static gboolean hotkeys_command_handler(AppData *app,
                                         WindowInfo *window __attribute__((unused)),
@@ -232,17 +232,21 @@ static gboolean hotkeys_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_hotkeys_command = {
+    .primary = "hotkeys",
+    .aliases = {"hotkey", "hk", NULL},
+    .owner_provider_id = "hotkeys",
+    .handler = hotkeys_command_handler,
+    .description = "Manage system hotkey bindings",
+    .help_format = "hotkeys [key] [command]",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void hotkeys_provider_register(void) {
     cofi_init_provider_defaults(&s_hotkeys_provider);
     s_hotkeys_provider.tab_mode = TAB_HOTKEYS;
     s_hotkeys_provider.id = "hotkeys";
     s_hotkeys_provider.display_name = "HOTKEYS";
-    s_hotkeys_provider.primary_cmd = "hotkeys";
-    s_hotkeys_provider.aliases = s_hotkeys_aliases;
-    s_hotkeys_provider.command_description = "Manage system hotkey bindings";
-    s_hotkeys_provider.command_help_format = "hotkeys [key] [command]";
-    s_hotkeys_provider.command_handler = hotkeys_command_handler;
-    s_hotkeys_provider.command_keeps_open_on_hotkey_auto = 1;
     s_hotkeys_provider.required = 0;
     s_hotkeys_provider.hidden_by_default = 0;
     s_hotkeys_provider.initial_selection_index = 0;
@@ -254,5 +258,7 @@ void hotkeys_provider_register(void) {
     s_hotkeys_provider.on_query_changed = hotkeys_on_query_changed;
     s_hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     s_hotkeys_provider.get_shortcut_hint = hotkeys_shortcut_hint;
-    cofi_register_tab_provider(&s_hotkeys_provider);
+    if (cofi_register_tab_provider(&s_hotkeys_provider) >= 0) {
+        cofi_register_command(&s_hotkeys_command);
+    }
 }

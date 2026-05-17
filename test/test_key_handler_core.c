@@ -85,7 +85,6 @@ static int g_reset_selection_calls;
 static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
-static CofiTabProvider g_apps_command_stub;
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -185,16 +184,16 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
         return &g_modal_prefix_stub;
     return NULL;
 }
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    if (command && strcmp(command, "apps") == 0) {
-        g_apps_command_stub.tab_mode = TAB_APPS;
-        return &g_apps_command_stub;
-    }
-    return NULL;
-}
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (g_provider_for_tab && g_provider_for_tab->tab_mode == tab_mode)
         return g_provider_for_tab;
+    if (tab_mode == TAB_APPS) {
+        static CofiTabProvider apps_provider;
+        memset(&apps_provider, 0, sizeof(apps_provider));
+        apps_provider.tab_mode = TAB_APPS;
+        apps_provider.id = "apps";
+        return &apps_provider;
+    }
     return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return 0; }

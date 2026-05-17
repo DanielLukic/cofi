@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "proc.h"
@@ -72,19 +73,21 @@ static const CofiPipeActionTable s_proc_pipe_table = {
     .actions = s_proc_actions,
 };
 
-static const char *const s_proc_aliases[] = {"ps", NULL};
+static const CommandSpec s_proc_command = {
+    .primary = "proc",
+    .aliases = {"ps", NULL},
+    .owner_provider_id = "proc",
+    .handler = proc_command_handler,
+    .description = "Switch to process manager tab",
+    .help_format = "proc, ps",
+    .keeps_open_on_hotkey_auto = 1
+};
 
 void proc_provider_register(void) {
     cofi_init_provider_defaults(&s_proc_provider);
     s_proc_provider.tab_mode = TAB_PROC;
     s_proc_provider.id = "proc";
     s_proc_provider.display_name = "PROC";
-    s_proc_provider.primary_cmd = "proc";
-    s_proc_provider.aliases = s_proc_aliases;
-    s_proc_provider.command_description = "Switch to process manager tab";
-    s_proc_provider.command_help_format = "proc, ps";
-    s_proc_provider.command_handler = proc_command_handler;
-    s_proc_provider.command_keeps_open_on_hotkey_auto = 1;
     s_proc_provider.prefix_char = 0;
     s_proc_provider.required = 0;
     s_proc_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
@@ -103,5 +106,7 @@ void proc_provider_register(void) {
     s_proc_provider.on_command_args = proc_provider_on_command_args;
     s_proc_provider.pipe_actions = &s_proc_pipe_table;
     s_proc_provider.slot_store_enabled = 0;
-    cofi_register_tab_provider(&s_proc_provider);
+    if (cofi_register_tab_provider(&s_proc_provider) >= 0) {
+        cofi_register_command(&s_proc_command);
+    }
 }

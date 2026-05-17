@@ -5,6 +5,7 @@
 #include "../src/app_data.h"
 #include "../src/browser_profiles.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 #include "../src/slot_store.h"
 
 static int tests_run = 0;
@@ -62,21 +63,8 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     return 0;
 }
 
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    if (!command || !g_registered_provider.primary_cmd) {
-        return NULL;
-    }
-    if (strcmp(command, g_registered_provider.primary_cmd) == 0) {
-        return &g_registered_provider;
-    }
-    if (g_registered_provider.aliases) {
-        for (int i = 0; g_registered_provider.aliases[i]; i++) {
-            if (strcmp(command, g_registered_provider.aliases[i]) == 0) {
-                return &g_registered_provider;
-            }
-        }
-    }
-    return NULL;
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 gboolean detach_launch_argv_array(const char *const *argv) {
@@ -259,16 +247,16 @@ static void test_provider_registers_command_metadata(void) {
     profiles_provider_register();
 
     ASSERT_TRUE("profiles primary command registered",
-                strcmp(g_registered_provider.primary_cmd, "profiles") == 0);
+                strcmp(s_profiles_command.primary, "profiles") == 0);
     ASSERT_TRUE("profiles chrome alias registered",
-                strcmp(g_registered_provider.aliases[0], "chrome") == 0);
+                strcmp(s_profiles_command.aliases[0], "chrome") == 0);
     ASSERT_TRUE("profiles help format registered",
-                strcmp(g_registered_provider.command_help_format,
+                strcmp(s_profiles_command.help_format,
                        "profiles, chrome [@SLOT|PROFILE]") == 0);
     ASSERT_TRUE("profiles command handler registered",
-                g_registered_provider.command_handler != NULL);
+                s_profiles_command.handler != NULL);
     ASSERT_TRUE("profiles command keeps cofi open for auto hotkeys",
-                g_registered_provider.command_keeps_open_on_hotkey_auto == 1);
+                s_profiles_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_surfaces_and_recalls_slots(void) {
@@ -277,7 +265,7 @@ static void test_command_handler_surfaces_and_recalls_slots(void) {
     profiles_provider_register();
 
     app.current_tab = TAB_WINDOWS;
-    gboolean result = g_registered_provider.command_handler(&app, NULL, "");
+    gboolean result = s_profiles_command.handler(&app, NULL, "");
     ASSERT_TRUE("command without args returns false", result == FALSE);
     ASSERT_TRUE("command without args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command without args surfaces profiles tab", app.current_tab == TAB_PROFILES);
@@ -289,7 +277,7 @@ static void test_command_handler_surfaces_and_recalls_slots(void) {
     g_hide_window_calls = 0;
     g_launch_calls = 0;
 
-    result = g_registered_provider.command_handler(&app, NULL, "@a");
+    result = s_profiles_command.handler(&app, NULL, "@a");
     ASSERT_TRUE("command with slot returns false", result == FALSE);
     ASSERT_TRUE("command with slot exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command with slot launches profile", g_launch_calls == 1);

@@ -9,6 +9,8 @@ Progress:
 - Command parse definitions now carry explicit `core` or provider ownership.
 - New providers can request dynamic tab handles; existing provider tabs still
   keep legacy `TAB_*` handles for compatibility.
+- Phase 4 has landed for provider commands: provider modules now register
+  `CommandSpec` entries directly with `command_registry`.
 
 ## Problem
 
@@ -30,7 +32,8 @@ Already-good pieces:
 
 - `CofiTabProvider` is the tab/list provider API.
 - The provider registry already tracks enabled/disabled state.
-- `cofi_get_provider_for_command()` resolves provider primaries/aliases.
+- `command_registry` resolves command primaries/aliases and owns help,
+  dispatch, activation policy, keep-open policy, and provider ownership.
 - `cofi_get_provider_for_prefix()` resolves simple modal prefixes such as `!`
   and `=`.
 - Command candidates and help already call `command_primary_is_available()`.
@@ -39,9 +42,8 @@ Remaining broken windows:
 
 - Core command truth is now centralized in `command_registry`, but core commands
   still register from one built-in list.
-- Provider-owned commands live on their providers today; the remaining cleanup
-  is making provider modules register command specs through the same registry
-  API instead of exposing command fields on `CofiTabProvider`.
+- Provider command metadata no longer lives on `CofiTabProvider`; providers
+  register `CommandSpec` entries directly.
 - Existing provider tabs still use legacy static `TabMode` values during
   migration, though new provider tabs can use dynamic handles.
 - `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
@@ -173,14 +175,16 @@ providers, move command metadata out of central tables one module at a time.
 
 Progress:
 
-- Provider-backed commands have moved out of the legacy command tables and live
-  on their provider modules.
+- Provider-backed commands have moved out of the legacy command tables and are
+  registered by their provider modules through `command_registry`.
 - Core commands now use one `CommandSpec` shape via `command_registry`, so parse
   metadata, handlers, help text, activation policy, keep-open policy, and owner
   metadata are no longer split between `COMMAND_PARSE_DEFS[]` and
   `COMMAND_DEFINITIONS[]`.
-- Remaining work: make providers call the command registry directly for their
-  command specs, then remove command fields from `CofiTabProvider`.
+- Command fields were removed from `CofiTabProvider`; it is back to tab/list,
+  prefix, lifecycle, action, and slot responsibilities.
+- Remaining work: decide whether the core command list should stay as the
+  built-in `core` plugin shape or be decomposed further.
 
 Suggested order:
 

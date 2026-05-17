@@ -277,8 +277,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o src/command_handlers.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -364,8 +364,8 @@ test_key_handler_core: test/test_key_handler_core.c test/test_sessions_key_stubs
 test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
 	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o src/command_registry.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)

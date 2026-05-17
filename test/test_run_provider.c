@@ -4,6 +4,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -57,6 +58,10 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     (void)app;
     g_enter_modal_calls++;
     g_last_modal_provider = provider;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 int get_max_display_lines_dynamic(AppData *app) {
@@ -182,25 +187,25 @@ static void test_empty_command_args_surface_path_is_noop(void) {
 static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_run_provider();
 
-    ASSERT_TRUE("run command registered", p != NULL);
-    ASSERT_TRUE("run command primary", p && strcmp(p->primary_cmd, "run") == 0);
-    ASSERT_TRUE("run command alias", p && p->aliases && strcmp(p->aliases[0], "r") == 0);
-    ASSERT_TRUE("run command help", p && strcmp(p->command_help_format, "run, r") == 0);
+    ASSERT_TRUE("run provider registered", p != NULL);
+    ASSERT_TRUE("run command primary", strcmp(s_run_command.primary, "run") == 0);
+    ASSERT_TRUE("run command alias", strcmp(s_run_command.aliases[0], "r") == 0);
+    ASSERT_TRUE("run command help", strcmp(s_run_command.help_format, "run, r") == 0);
     ASSERT_TRUE("run command description",
-                p && strcmp(p->command_description, "Switch to run mode") == 0);
-    ASSERT_TRUE("run command handler registered", p && p->command_handler != NULL);
-    ASSERT_TRUE("run command keeps open", p && p->command_keeps_open_on_hotkey_auto == 1);
+                strcmp(s_run_command.description, "Switch to run mode") == 0);
+    ASSERT_TRUE("run command handler registered", s_run_command.handler != NULL);
+    ASSERT_TRUE("run command keeps open", s_run_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_launches_args_and_hides(void) {
     AppData app;
-    const CofiTabProvider *p = registered_run_provider();
+    registered_run_provider();
     setup_app(&app);
     reset_launch_capture();
     g_exit_command_mode_calls = 0;
     g_hide_window_calls = 0;
 
-    gboolean result = p->command_handler(&app, NULL, "xterm");
+    gboolean result = s_run_command.handler(&app, NULL, "xterm");
 
     ASSERT_TRUE("run command with args returns false", result == FALSE);
     ASSERT_TRUE("run command with args exits command mode", g_exit_command_mode_calls == 1);
@@ -215,7 +220,7 @@ static void test_command_handler_launches_args_and_hides(void) {
 
 static void test_command_handler_without_args_enters_modal(void) {
     AppData app;
-    const CofiTabProvider *p = registered_run_provider();
+    registered_run_provider();
     setup_app(&app);
     g_exit_command_mode_calls = 0;
     g_hide_window_calls = 0;
@@ -223,7 +228,7 @@ static void test_command_handler_without_args_enters_modal(void) {
     g_last_modal_provider = NULL;
     reset_launch_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "");
+    gboolean result = s_run_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("run command without args returns false", result == FALSE);
     ASSERT_TRUE("run command without args exits command mode", g_exit_command_mode_calls == 1);

@@ -9,6 +9,10 @@ static int exit_command_mode_calls = 0;
 static int enter_modal_calls = 0;
 static const CofiTabProvider *last_modal_provider = NULL;
 
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
+}
+
 void exit_command_mode(AppData *app) {
     (void)app;
     exit_command_mode_calls++;
@@ -48,13 +52,11 @@ static void test_registered_command_metadata(void) {
     cofi_registry_reset();
     calc_provider_register();
 
-    const CofiTabProvider *provider = cofi_get_provider_for_command("ca");
-    ASSERT_TRUE("calc command alias resolves to provider", provider != NULL);
-    ASSERT_STR("calc command primary", provider->primary_cmd, "calc");
-    ASSERT_STR("calc command help", provider->command_help_format, "calc, ca");
-    ASSERT_STR("calc command description", provider->command_description, "Switch to calculator");
-    ASSERT_TRUE("calc command handler registered", provider->command_handler != NULL);
-    ASSERT_TRUE("calc command keeps open", provider->command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_STR("calc command primary", s_calc_command.primary, "calc");
+    ASSERT_STR("calc command help", s_calc_command.help_format, "calc, ca");
+    ASSERT_STR("calc command description", s_calc_command.description, "Switch to calculator");
+    ASSERT_TRUE("calc command handler registered", s_calc_command.handler != NULL);
+    ASSERT_TRUE("calc command keeps open", s_calc_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_enters_modal_and_evaluates_args(void) {
@@ -62,15 +64,14 @@ static void test_command_handler_enters_modal_and_evaluates_args(void) {
     cofi_registry_reset();
     calc_provider_register();
 
-    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
-    ASSERT_TRUE("calc provider registered for command handler test", provider != NULL);
-    if (!provider || !provider->command_handler) return;
+    ASSERT_TRUE("calc command handler registered for test", s_calc_command.handler != NULL);
+    if (!s_calc_command.handler) return;
 
     exit_command_mode_calls = 0;
     enter_modal_calls = 0;
     last_modal_provider = NULL;
 
-    gboolean result = provider->command_handler(&app, NULL, "1+1");
+    gboolean result = s_calc_command.handler(&app, NULL, "1+1");
 
     ASSERT_TRUE("calc command returns false", result == FALSE);
     ASSERT_TRUE("calc command exits command mode", exit_command_mode_calls == 1);
@@ -87,11 +88,11 @@ static void test_command_handler_records_invalid_expression(void) {
     cofi_registry_reset();
     calc_provider_register();
 
-    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
-    ASSERT_TRUE("calc provider registered for invalid command test", provider != NULL);
-    if (!provider || !provider->command_handler) return;
+    ASSERT_TRUE("calc command handler registered for invalid command test",
+                s_calc_command.handler != NULL);
+    if (!s_calc_command.handler) return;
 
-    provider->command_handler(&app, NULL, "foo");
+    s_calc_command.handler(&app, NULL, "foo");
 
     ASSERT_TRUE("invalid calc command pushes history", app.calc_mode.count == 1);
     ASSERT_STR("invalid calc command stores expression", app.calc_mode.entries[0].expr, "foo");
@@ -104,14 +105,14 @@ static void test_command_handler_without_args_only_enters_modal(void) {
     cofi_registry_reset();
     calc_provider_register();
 
-    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
-    ASSERT_TRUE("calc provider registered for empty command test", provider != NULL);
-    if (!provider || !provider->command_handler) return;
+    ASSERT_TRUE("calc command handler registered for empty command test",
+                s_calc_command.handler != NULL);
+    if (!s_calc_command.handler) return;
 
     exit_command_mode_calls = 0;
     enter_modal_calls = 0;
 
-    provider->command_handler(&app, NULL, "");
+    s_calc_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("calc command without args exits command mode", exit_command_mode_calls == 1);
     ASSERT_TRUE("calc command without args enters modal", enter_modal_calls == 1);

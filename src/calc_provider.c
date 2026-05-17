@@ -2,6 +2,7 @@
 
 #include "calc.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "cofi_modal.h"
 #include "app_data.h"
@@ -73,7 +74,6 @@ static void calc_on_enter(AppData *app) {
 
 /* ---- provider registration ---- */
 
-static const char *const s_calc_aliases[] = {"ca", NULL};
 static CofiTabProvider s_calc_provider;
 
 static gboolean calc_command_handler(AppData *app,
@@ -93,18 +93,22 @@ static gboolean calc_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_calc_command = {
+    .primary = "calc",
+    .aliases = {"ca", NULL},
+    .owner_provider_id = "calc",
+    .handler = calc_command_handler,
+    .description = "Switch to calculator",
+    .help_format = "calc, ca",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void calc_provider_register(void) {
     cofi_init_provider_defaults(&s_calc_provider);
     s_calc_provider.tab_mode     = TAB_CALC;
     s_calc_provider.id           = "calc";
     s_calc_provider.display_name = "CALC";
-    s_calc_provider.primary_cmd  = "calc";
-    s_calc_provider.aliases      = s_calc_aliases;
     s_calc_provider.prefix_char  = '=';
-    s_calc_provider.command_description = "Switch to calculator";
-    s_calc_provider.command_help_format = "calc, ca";
-    s_calc_provider.command_handler = calc_command_handler;
-    s_calc_provider.command_keeps_open_on_hotkey_auto = 1;
     s_calc_provider.required     = 0;
     s_calc_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
     s_calc_provider.on_enter          = calc_on_enter;
@@ -114,5 +118,7 @@ void calc_provider_register(void) {
     s_calc_provider.row_identity      = calc_row_identity;
     s_calc_provider.on_enter_pressed  = calc_on_enter_pressed;
     s_calc_provider.on_command_args   = calc_on_command_args;
-    cofi_register_tab_provider(&s_calc_provider);
+    if (cofi_register_tab_provider(&s_calc_provider) >= 0) {
+        cofi_register_command(&s_calc_command);
+    }
 }

@@ -4,6 +4,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -52,6 +53,10 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 int cofi_register_tab_provider(const CofiTabProvider *p) {
     (void)p;
     return 0;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
 }
 
 void cleanup_hotkeys(AppData *app) { (void)app; }
@@ -209,16 +214,16 @@ static void test_command_metadata(void) {
     hotkeys_provider_register();
 
     ASSERT_TRUE("provider primary command is hotkeys",
-                strcmp(s_hotkeys_provider.primary_cmd, "hotkeys") == 0);
+                strcmp(s_hotkeys_command.primary, "hotkeys") == 0);
     ASSERT_TRUE("provider alias is hotkey",
-                s_hotkeys_provider.aliases && strcmp(s_hotkeys_provider.aliases[0], "hotkey") == 0);
+                strcmp(s_hotkeys_command.aliases[0], "hotkey") == 0);
     ASSERT_TRUE("provider second alias is hk",
-                s_hotkeys_provider.aliases && strcmp(s_hotkeys_provider.aliases[1], "hk") == 0);
+                strcmp(s_hotkeys_command.aliases[1], "hk") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_hotkeys_provider.command_help_format, "hotkeys [key] [command]") == 0);
+                strcmp(s_hotkeys_command.help_format, "hotkeys [key] [command]") == 0);
     ASSERT_TRUE("provider command keeps open",
-                s_hotkeys_provider.command_keeps_open_on_hotkey_auto == 1);
-    ASSERT_TRUE("provider command handler set", s_hotkeys_provider.command_handler != NULL);
+                s_hotkeys_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_hotkeys_command.handler != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -226,7 +231,7 @@ static void test_command_handler_surfaces_tab(void) {
     reset_state(&app);
     app.current_tab = TAB_WINDOWS;
 
-    gboolean result = s_hotkeys_provider.command_handler(&app, NULL, "");
+    gboolean result = s_hotkeys_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("hotkeys command returns false", result == FALSE);
     ASSERT_TRUE("hotkeys command exits command mode", g_exit_command_mode_calls == 1);
@@ -245,7 +250,7 @@ static void test_command_handler_adds_binding(void) {
     reset_state(&app);
     g_parse_hotkey_action = 1;
 
-    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x show windows");
+    s_hotkeys_command.handler(&app, NULL, "Mod4+x show windows");
 
     ASSERT_TRUE("hotkeys add command calls add", g_add_hotkey_calls == 1);
     ASSERT_TRUE("hotkeys add command captures key", strcmp(g_last_hotkey_key, "Mod4+x") == 0);
@@ -260,7 +265,7 @@ static void test_command_handler_removes_binding(void) {
     reset_state(&app);
     g_parse_hotkey_action = 2;
 
-    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x");
+    s_hotkeys_command.handler(&app, NULL, "Mod4+x");
 
     ASSERT_TRUE("hotkeys remove command calls remove", g_remove_hotkey_calls == 1);
     ASSERT_TRUE("hotkeys remove command captures key", strcmp(g_last_hotkey_key, "Mod4+x") == 0);
@@ -275,7 +280,7 @@ static void test_command_handler_missing_remove_still_surfaces(void) {
     g_parse_hotkey_action = 2;
     g_remove_hotkey_result = 0;
 
-    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x");
+    s_hotkeys_command.handler(&app, NULL, "Mod4+x");
 
     ASSERT_TRUE("missing hotkeys remove still calls remove", g_remove_hotkey_calls == 1);
     ASSERT_TRUE("missing hotkeys remove does not save or regrab",

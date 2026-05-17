@@ -125,9 +125,7 @@ typedef struct CofiTabProvider {
     const char *id;                  /* "calc", "sinks", "run", "proc" — also slot_store scope */
     const char *display_name;        /* "CALC", "SINKS", ... */
 
-    /* command surface — optional */
-    const char *primary_cmd;         /* ":calc" — NULL = no command surface */
-    const char *const *aliases;      /* NULL-terminated; e.g. {"ca", NULL} */
+    /* modal/prefix surface — optional */
     char        prefix_char;         /* '=', '!' — column-0 entry to claim. 0 = none */
 
     /* visibility — optional, default 1 */
@@ -164,7 +162,7 @@ typedef struct CofiTabProvider {
     CofiActionStatus (*on_enter_pressed)(AppData *, int filtered_idx, int raw_idx, const char *entry_text, int modifier_state);
         /* both indices supplied so provider doesn't need cofi_filtered_to_raw helper */
 
-    /* command-with-args — optional */
+    /* command-with-args — optional provider action used by CommandSpec handlers */
     CofiActionStatus (*on_command_args)(AppData *, const char *args);
         /* `:foo bar baz` → on_command_args("bar baz")
            empty args → core surfaces tab, does NOT call this. */
@@ -187,6 +185,11 @@ void cofi_init_provider_defaults(CofiTabProvider *p);
 
 int  cofi_register_tab_provider(const CofiTabProvider *);  /* returns TabMode int */
 ```
+
+Command names, aliases, help, handlers, activation policy, and hotkey keep-open
+policy are owned by `CommandSpec` entries registered with `command_registry`,
+not by `CofiTabProvider`. Provider modules with a command surface declare both:
+the tab/list provider and its command spec.
 
 ## Index semantics — the rule
 
@@ -226,7 +229,23 @@ Core maintains the mapping `filtered_to_raw[filtered_idx] → raw_idx` and provi
 ### calc
 
 ```c
-static const char *const calc_aliases[] = {"ca", NULL};
+static gboolean calc_command_handler(AppData *app, WindowInfo *window, const char *args) {
+    exit_command_mode(app);
+    cofi_enter_modal(app, &calc_provider);
+    if (args && *args)
+        calc_eval_args(app, args);
+    return FALSE;
+}
+
+static const CommandSpec calc_command = {
+    .primary = "calc",
+    .aliases = {"ca", NULL},
+    .owner_provider_id = "calc",
+    .handler = calc_command_handler,
+    .description = "Calculator",
+    .help_format = "calc, ca [EXPR]",
+    .keeps_open_on_hotkey_auto = 1
+};
 
 static CofiTabProvider calc_provider;
 
@@ -234,8 +253,6 @@ void calc_register(void) {
     cofi_init_provider_defaults(&calc_provider);
     calc_provider.id = "calc";
     calc_provider.display_name = "CALC";
-    calc_provider.primary_cmd = "calc";
-    calc_provider.aliases = calc_aliases;
     calc_provider.prefix_char = '=';
     calc_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
     calc_provider.row_count = calc_history_count;
@@ -244,7 +261,8 @@ void calc_register(void) {
     calc_provider.row_identity = calc_history_at;
     calc_provider.on_enter_pressed = calc_eval_and_push;
     calc_provider.on_command_args = calc_eval_args;
-    cofi_register_tab_provider(&calc_provider);
+    if (cofi_register_tab_provider(&calc_provider) >= 0)
+        cofi_register_command(&calc_command);
 }
 ```
 

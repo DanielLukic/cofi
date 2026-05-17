@@ -102,22 +102,6 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     return count;
 }
 
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    if (!command) return NULL;
-    for (int i = 0; i < s_count; i++) {
-        if (!s_registry[i].enabled) continue;
-        const CofiTabProvider *p = &s_registry[i].provider;
-        if (p->primary_cmd && strcmp(p->primary_cmd, command) == 0)
-            return p;
-        if (!p->aliases) continue;
-        for (int j = 0; p->aliases[j]; j++) {
-            if (strcmp(p->aliases[j], command) == 0)
-                return p;
-        }
-    }
-    return NULL;
-}
-
 int cofi_provider_count(void) {
     return s_count;
 }

@@ -5,6 +5,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 #include "../src/daemon_socket.h"
 #include "../src/tiling.h"
 
@@ -164,6 +165,57 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix; return NULL;
 }
 
+static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
+    (void)app;
+    (void)window;
+    (void)args;
+    return FALSE;
+}
+
+static const CommandSpec s_apps_command = {
+    .primary = "apps",
+    .aliases = {"applications", "app", NULL},
+    .owner_provider_id = "apps",
+    .handler = noop_provider_command,
+    .description = "Show applications",
+    .help_format = "apps, applications, app"
+};
+
+static const CommandSpec s_names_command = {
+    .primary = "names",
+    .aliases = {"nm", NULL},
+    .owner_provider_id = "names",
+    .handler = noop_provider_command,
+    .description = "Show named windows",
+    .help_format = "names, nm"
+};
+
+static const CommandSpec s_tab_rules_command = {
+    .primary = "rules",
+    .aliases = {"rl", NULL},
+    .owner_provider_id = "rules",
+    .handler = noop_provider_command,
+    .description = "Show rules",
+    .help_format = "rules, rl"
+};
+
+static const CommandSpec s_workspaces_command = {
+    .primary = "workspaces",
+    .aliases = {"ws", NULL},
+    .owner_provider_id = "workspaces",
+    .handler = noop_provider_command,
+    .description = "Show workspaces",
+    .help_format = "workspaces, ws"
+};
+
+static void register_tab_visibility_commands(void) {
+    cofi_command_registry_reset();
+    cofi_register_command(&s_apps_command);
+    cofi_register_command(&s_names_command);
+    cofi_register_command(&s_tab_rules_command);
+    cofi_register_command(&s_workspaces_command);
+}
+
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider provider;
     if (tab_mode == TAB_WINDOWS || tab_mode == disabled_provider_tab) return NULL;
@@ -195,16 +247,6 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     }
     return &provider;
 }
-const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    if (!command) return NULL;
-    if (strcmp(command, "apps") == 0) return cofi_get_provider_for_tab(TAB_APPS);
-    if (strcmp(command, "config") == 0) return cofi_get_provider_for_tab(TAB_CONFIG);
-    if (strcmp(command, "harpoon") == 0) return cofi_get_provider_for_tab(TAB_HARPOON);
-    if (strcmp(command, "names") == 0) return cofi_get_provider_for_tab(TAB_NAMES);
-    if (strcmp(command, "rules") == 0) return cofi_get_provider_for_tab(TAB_RULES);
-    if (strcmp(command, "workspaces") == 0) return cofi_get_provider_for_tab(TAB_WORKSPACES);
-    return NULL;
-}
 int cofi_get_provider_id(const char *id) {
     if (!id) return -1;
     if (strcmp(id, "apps") == 0) return TAB_APPS;
@@ -219,7 +261,9 @@ int cofi_provider_is_enabled(int provider_id) {
     return provider_id >= 0 && provider_id != disabled_provider_tab;
 }
 int cofi_provider_count(void) { return 0; }
-const CofiTabProvider *cofi_get_provider(int provider_id) { (void)provider_id; return NULL; }
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return cofi_get_provider_for_tab(provider_id);
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
@@ -763,6 +807,8 @@ static void test_command_help_width_zero_is_unwrapped(void) {
 int main(void) {
     printf("Tab visibility safety-net tests\n");
     printf("===============================\n\n");
+
+    register_tab_visibility_commands();
 
     test_tab_switching_forward_cycles_all_tabs();
     test_tab_switching_backward_cycles_all_tabs();

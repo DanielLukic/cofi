@@ -6,6 +6,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
 #include "../src/slot_store.h"
 
 static int tests_run = 0;
@@ -70,6 +71,10 @@ void surface_tab(AppData *app, TabMode tab) {
     g_last_surface_tab = tab;
 }
 
+int cofi_register_command(const CommandSpec *spec) {
+    return spec ? 0 : -1;
+}
+
 #include "../src/cofi_tab_provider.c"
 #include "../src/slot_store.c"
 #include "../src/sinks_provider.c"
@@ -129,24 +134,24 @@ static void read_textbuffer(GtkTextBuffer *buffer, char *out, size_t out_size) {
 static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_sinks_provider();
 
-    ASSERT_TRUE("sinks command registered", p != NULL);
-    ASSERT_TRUE("sinks command primary", p && strcmp(p->primary_cmd, "sinks") == 0);
-    ASSERT_TRUE("sinks command alias", p && p->aliases && strcmp(p->aliases[0], "sink") == 0);
+    ASSERT_TRUE("sinks provider registered", p != NULL);
+    ASSERT_TRUE("sinks command primary", strcmp(s_sinks_command.primary, "sinks") == 0);
+    ASSERT_TRUE("sinks command alias", strcmp(s_sinks_command.aliases[0], "sink") == 0);
     ASSERT_TRUE("sinks command help",
-                p && strcmp(p->command_help_format, "sinks, sink [@SLOT|SINK]") == 0);
+                strcmp(s_sinks_command.help_format, "sinks, sink [@SLOT|SINK]") == 0);
     ASSERT_TRUE("sinks command description",
-                p && strcmp(p->command_description, "Switch to audio sinks tab") == 0);
-    ASSERT_TRUE("sinks command handler registered", p && p->command_handler != NULL);
-    ASSERT_TRUE("sinks command keeps open", p && p->command_keeps_open_on_hotkey_auto == 1);
+                strcmp(s_sinks_command.description, "Switch to audio sinks tab") == 0);
+    ASSERT_TRUE("sinks command handler registered", s_sinks_command.handler != NULL);
+    ASSERT_TRUE("sinks command keeps open", s_sinks_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sinks_provider();
+    registered_sinks_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "");
+    gboolean result = s_sinks_command.handler(&app, NULL, "");
 
     ASSERT_TRUE("sinks command without args returns false", result == FALSE);
     ASSERT_TRUE("sinks command without args exits command mode", g_exit_command_mode_calls == 1);
@@ -159,12 +164,12 @@ static void test_command_handler_without_args_surfaces_tab(void) {
 
 static void test_command_handler_matches_sink_and_hides(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sinks_provider();
+    registered_sinks_provider();
     setup_app(&app);
     seed_sink(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "Headphones");
+    gboolean result = s_sinks_command.handler(&app, NULL, "Headphones");
 
     ASSERT_TRUE("sinks command with match returns false", result == FALSE);
     ASSERT_TRUE("sinks command with match exits command mode", g_exit_command_mode_calls == 1);
@@ -177,12 +182,12 @@ static void test_command_handler_matches_sink_and_hides(void) {
 
 static void test_command_handler_recalls_slot_and_hides(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sinks_provider();
+    registered_sinks_provider();
     setup_app(&app);
     slot_assign(&app.harpoon.store, 'a', "sinks", "alsa_output.slot");
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "@a");
+    gboolean result = s_sinks_command.handler(&app, NULL, "@a");
 
     ASSERT_TRUE("sinks command slot returns false", result == FALSE);
     ASSERT_TRUE("sinks command slot switches once", g_switch_name_calls == 1);
@@ -194,11 +199,11 @@ static void test_command_handler_recalls_slot_and_hides(void) {
 
 static void test_command_handler_invalid_arg_shows_error(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sinks_provider();
+    registered_sinks_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = p->command_handler(&app, NULL, "missing");
+    gboolean result = s_sinks_command.handler(&app, NULL, "missing");
 
     char text[128];
     read_textbuffer(app.textbuffer, text, sizeof(text));

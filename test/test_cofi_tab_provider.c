@@ -144,15 +144,12 @@ static void test_get_provider_for_tab(void) {
 }
 
 static void test_disabled_provider_runtime_lookups_are_hidden(void) {
-    static const char *aliases[] = { "alias", NULL };
     cofi_registry_reset();
 
     CofiTabProvider p;
     cofi_init_provider_defaults(&p);
     p.id = "disabled";
     p.tab_mode = 43;
-    p.primary_cmd = "primary";
-    p.aliases = aliases;
     p.prefix_char = '!';
     p.row_count = mock_row_count_5;
     p.on_command_args = mock_command_args;
@@ -160,8 +157,6 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
 
     ASSERT_TRUE("provider starts enabled", cofi_provider_is_enabled(id));
     ASSERT_NOT_NULL("enabled lookup by tab", cofi_get_provider_for_tab(43));
-    ASSERT_NOT_NULL("enabled lookup by primary command", cofi_get_provider_for_command("primary"));
-    ASSERT_NOT_NULL("enabled lookup by alias", cofi_get_provider_for_command("alias"));
     ASSERT_NOT_NULL("enabled lookup by prefix", cofi_get_provider_for_prefix('!'));
 
     cofi_set_provider_enabled(id, 0);
@@ -169,8 +164,6 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     ASSERT_TRUE("provider is now disabled", !cofi_provider_is_enabled(id));
     ASSERT_NOT_NULL("raw lookup by id still works", cofi_get_provider(id));
     ASSERT_NULL("disabled lookup by tab hidden", cofi_get_provider_for_tab(43));
-    ASSERT_NULL("disabled lookup by primary hidden", cofi_get_provider_for_command("primary"));
-    ASSERT_NULL("disabled lookup by alias hidden", cofi_get_provider_for_command("alias"));
     ASSERT_NULL("disabled lookup by prefix hidden", cofi_get_provider_for_prefix('!'));
     ASSERT_EQ("disabled row_count dispatch suppressed", cofi_call_row_count(id, NULL), 0);
     ASSERT_EQ("disabled command dispatch suppressed",

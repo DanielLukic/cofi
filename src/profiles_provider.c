@@ -3,6 +3,7 @@
 #include "app_data.h"
 #include "browser_profiles.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "selection.h"
@@ -185,7 +186,15 @@ static gboolean profiles_command_handler(AppData *app,
     return FALSE;
 }
 
-static const char *const s_profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
+static const CommandSpec s_profiles_command = {
+    .primary = "profiles",
+    .aliases = {"chrome", "browser", "browsers", NULL},
+    .owner_provider_id = "profiles",
+    .handler = profiles_command_handler,
+    .description = "Switch to browser profiles tab",
+    .help_format = "profiles, chrome [@SLOT|PROFILE]",
+    .keeps_open_on_hotkey_auto = 1
+};
 
 void profiles_provider_register(void) {
     cofi_init_provider_defaults(&s_profiles_provider);
@@ -193,12 +202,6 @@ void profiles_provider_register(void) {
     s_profiles_provider.tab_mode = TAB_PROFILES;
     s_profiles_provider.id = "profiles";
     s_profiles_provider.display_name = "PROFILES";
-    s_profiles_provider.primary_cmd = "profiles";
-    s_profiles_provider.aliases = s_profiles_aliases;
-    s_profiles_provider.command_description = "Switch to browser profiles tab";
-    s_profiles_provider.command_help_format = "profiles, chrome [@SLOT|PROFILE]";
-    s_profiles_provider.command_handler = profiles_command_handler;
-    s_profiles_provider.command_keeps_open_on_hotkey_auto = 1;
     s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
     s_profiles_provider.required = 0;
     s_profiles_provider.hidden_by_default = 1;
@@ -215,5 +218,7 @@ void profiles_provider_register(void) {
     s_profiles_provider.slot_store_enabled = 1;
     s_profiles_provider.slot_payload_for = profiles_slot_payload_for;
     s_profiles_provider.slot_recall = profiles_slot_recall;
-    cofi_register_tab_provider(&s_profiles_provider);
+    if (cofi_register_tab_provider(&s_profiles_provider) >= 0) {
+        cofi_register_command(&s_profiles_command);
+    }
 }

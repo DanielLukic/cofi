@@ -2,6 +2,7 @@
 
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "match.h"
 #include "overlay_manager.h"
 #include "rules_replay.h"
@@ -181,7 +182,6 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_rules_provider;
-static const char *const s_rules_aliases[] = {"rl", NULL};
 
 static gboolean rules_command_handler(AppData *app,
                                       WindowInfo *window __attribute__((unused)),
@@ -194,17 +194,21 @@ static gboolean rules_command_handler(AppData *app,
     return FALSE;
 }
 
+static const CommandSpec s_rules_command = {
+    .primary = "rules",
+    .aliases = {"rl", NULL},
+    .owner_provider_id = "rules",
+    .handler = rules_command_handler,
+    .description = "Switch to Rules tab",
+    .help_format = "rules, rl",
+    .keeps_open_on_hotkey_auto = 1
+};
+
 void rules_provider_register(void) {
     cofi_init_provider_defaults(&s_rules_provider);
     s_rules_provider.tab_mode = TAB_RULES;
     s_rules_provider.id = "rules";
     s_rules_provider.display_name = "RULES";
-    s_rules_provider.primary_cmd = "rules";
-    s_rules_provider.aliases = s_rules_aliases;
-    s_rules_provider.command_description = "Switch to Rules tab";
-    s_rules_provider.command_help_format = "rules, rl";
-    s_rules_provider.command_handler = rules_command_handler;
-    s_rules_provider.command_keeps_open_on_hotkey_auto = 1;
     s_rules_provider.required = 0;
     s_rules_provider.hidden_by_default = 1;
     s_rules_provider.initial_selection_index = 0;
@@ -217,5 +221,7 @@ void rules_provider_register(void) {
     s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
         "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
-    cofi_register_tab_provider(&s_rules_provider);
+    if (cofi_register_tab_provider(&s_rules_provider) >= 0) {
+        cofi_register_command(&s_rules_command);
+    }
 }
