@@ -2,6 +2,14 @@
 
 Status: draft for TFD-675
 
+Progress:
+
+- Phases 1-3 landed in `f047647`.
+- Provider required metadata now replaces the hardcoded Config exception.
+- Command parse definitions now carry explicit `core` or provider ownership.
+- New providers can request dynamic tab handles; existing provider tabs still
+  keep legacy `TAB_*` handles for compatibility.
+
 ## Problem
 
 The provider system made tabs cheaper to add, but it is not yet a plugin
@@ -31,14 +39,12 @@ Remaining broken windows:
 
 - Command truth is still split across `COMMAND_PARSE_DEFS[]` and
   `COMMAND_DEFINITIONS[]`, with aliases, compact suffixes, keep-open policy,
-  activation policy, handlers, and provider ownership spread across central
-  tables.
+  activation policy, and handlers spread across central tables.
 - Core commands and provider commands are mixed in that same table.
-- Static `TabMode` values mean adding a tab still touches core enum/metadata
-  code.
+- Existing provider tabs still use legacy static `TabMode` values during
+  migration, though new provider tabs can use dynamic handles.
 - `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
 - Daemon opcodes and some hotkey modes still directly name tabs/modes.
-- Required/non-disableable provider metadata is still a hardcoded string check.
 
 ## Terms
 
@@ -82,7 +88,7 @@ central command table with a different name is still a central command table.
 The uncommitted command-metadata refactor should be treated as disposable unless
 it becomes the small facade described below.
 
-## Phase 1: Tighten Existing Provider Metadata
+## Phase 1: Tighten Existing Provider Metadata (landed)
 
 This is the smallest useful cleanup and should happen before bigger registry
 work.
@@ -101,7 +107,7 @@ Acceptance:
 - The Config overlay is generated from provider metadata.
 - `show_all_tabs` still skips disabled providers.
 
-## Phase 2: Command Ownership Cleanup
+## Phase 2: Command Ownership Cleanup (landed)
 
 The immediate command problem is not that cofi lacks a giant new
 `CofiCommandSpec`. The problem is that the existing central command tables have
@@ -113,7 +119,7 @@ Keep this slice minimal:
   - `core` for core-owned commands;
   - provider id for provider-owned commands.
 - Provider-owned command availability checks that provider id directly instead
-  of routing through `.provider_command` strings and
+  of routing through the former `.provider_command` strings and
   `cofi_get_provider_for_command()`.
 - Commands with no owner are test failures.
 - Candidate generation, help output, availability checks, keep-open policy,
@@ -133,7 +139,7 @@ Acceptance:
 This is intentionally not a broad command-registry rewrite. It is the last
 cleanup before command metadata starts moving into owner modules.
 
-## Phase 3: Dynamic Provider Tab Handles
+## Phase 3: Dynamic Provider Tab Handles (foundation landed)
 
 Static `TabMode` is the biggest remaining obstacle to adding real plugin tabs.
 Today, adding a tab requires touching enum values, tab metadata, visibility

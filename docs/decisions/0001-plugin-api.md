@@ -1,5 +1,9 @@
 # cofi plugin API — v2.1
 
+Status: Proposed. This is the live provider API baseline validated by the
+ported providers. TFD-675's broader plugin architecture work is tracked in
+[0004-plugin-architecture-plan.md](0004-plugin-architecture-plan.md).
+
 ## Spike findings (post-migration retrospective)
 
 Four providers ported — calc, sinks, run, proc — in that order, each validating a different API facet. API held without breaking changes to the core types.

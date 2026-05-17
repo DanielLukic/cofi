@@ -8,9 +8,9 @@ Numbered so they sort. Add new ones; never edit accepted ones — supersede them
 
 | # | Title | Status |
 |---|---|---|
-| 0001 | [Plugin API design](0001-plugin-api.md) | Draft |
-| 0002 | [Plugin ideas / candidate features](0002-plugin-ideas.md) | Draft |
-| 0003 | [Plugin shape evaluation](0003-plugin-shape-evaluation.md) | Draft |
+| 0001 | [Plugin API design](0001-plugin-api.md) | Proposed |
+| 0002 | [Plugin ideas / candidate features](0002-plugin-ideas.md) | Superseded by 0004 |
+| 0003 | [Plugin shape evaluation](0003-plugin-shape-evaluation.md) | Superseded by 0001/0004 |
 | 0004 | [Plugin architecture plan](0004-plugin-architecture-plan.md) | Draft |
 
 ## Template

@@ -44,27 +44,24 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
         ▼                           ▼                           ▼
 ┌─────────────────┐   ┌─────────────────────────┐   ┌─────────────────────┐
 │ daemon_socket   │   │  GTK UI                 │   │ X11 backend         │
-│  - bind/listen  │   │  - tabs (windows /      │   │  - x11_utils        │
-│  - opcode       │   │    workspaces /         │   │  - x11_events       │
-│    dispatch     │   │    harpoon / names /    │   │  - window_list      │
-│                 │   │    apps / config /      │   │  - hotkeys          │
-│                 │   │    hotkeys)             │   │    (XGrabKey)       │
-│                 │   │  - command mode (`:`)   │   │  - monitor_move     │
-│                 │   │  - run mode (`!`)       │   │                     │
-└─────────────────┘   │  - slot overlays        │   └─────────────────────┘
-                      │  - key dispatch         │
-                      └─────────┬───────────────┘
+│  - bind/listen  │   │  - Windows core tab     │   │  - x11_utils        │
+│  - opcode       │   │  - provider tabs        │   │  - x11_events       │
+│    dispatch     │   │  - command mode (`:`)   │   │  - window_list      │
+│                 │   │  - modal prefixes       │   │  - hotkeys          │
+│                 │   │  - slot overlays        │   │    (XGrabKey)       │
+│                 │   │  - key dispatch         │   │  - monitor_move     │
+└─────────────────┘   └─────────┬───────────────┘   └─────────────────────┘
                                 │
                                 ▼
                 ┌────────────────────────────────────┐
-                │  Data + filtering                  │
-                │  - history (MRU + partition)       │
-                │  - filter (fzf-style scoring)      │
-                │  - display (formatting)            │
-                │  - harpoon (36 slots)              │
-                │  - workspace_slots (per-WS slots)  │
-                │  - config (load/save/apply)        │
-                │  - rules                           │
+                │ Provider registry + data modules   │
+                │  - cofi_tab_provider registry      │
+                │  - workspaces / harpoon / names    │
+                │  - config / hotkeys / rules / apps │
+                │  - calc / sinks / run / proc       │
+                │  - sessions / profiles             │
+                │  - history + filter + display      │
+                │  - config/state persistence        │
                 └────────────────────────────────────┘
 ```
 
@@ -74,7 +71,9 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **`src/main.c`** — argv parse, decide daemon vs delegate, GTK setup, daemon bootstrap, handoff to UI surface.
 - **`src/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
-- **`src/command_parser.c`** — table of `:` commands (`COMMAND_PARSE_DEFS` at line 8), compact-syntax splitter (`tw3`, `jw1`), alias resolution.
+- **`src/command_parse_defs.c`** — parse metadata for `:` commands: primary names, aliases, compact suffixes, and explicit command owner (`core` or provider id). This table is still central by design today; TFD-675 tracks moving provider-owned command metadata into owner modules over time.
+- **`src/command_parser.c`** — compact-syntax splitter (`tw3`, `jw1`) and alias resolution using the parse metadata.
+- **`src/command_availability.c`** — owner-aware availability gate for command candidates, help, and dispatch.
 - **`src/command_mode.c`** + `src/command_handlers*.c` — execution of `:` commands.
 
 ### IPC
@@ -93,11 +92,21 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### UI
 
 - **`src/window_lifecycle.c`** — show/hide of the cofi toplevel. Recomputes Pango font metrics + window size + monitor placement on every show (handles XSettings/DPI changes mid-session).
-- **`src/display.c`** — text formatting for each tab.
+- **`src/cofi_tab_provider.c`** — provider registry. Providers register tabs, command aliases, modal prefixes, slots, tick callbacks, dynamic tab handles, and enablement metadata.
+- **`src/display.c`** — top-level display assembly. Windows remains core-special; provider tabs render through `CofiTabProvider` row callbacks.
 - **`src/display_pipeline.c`** — assembly of the display strings from filter results.
-- **`src/key_handler.c`** + `src/key_handler_*.c` — core key dispatch, mode precedence, tab-specific handling.
+- **`src/tab_header.c`** + **`src/tab_switching.c`** — tab header formatting, overflow, visibility, and cycling. Header/cycling enumerate Windows plus registered provider tabs, not a fixed `TAB_*` loop.
+- **`src/key_handler.c`** + `src/key_handler_*.c` — core key dispatch and mode precedence. Provider-specific key handling lives on provider `handle_key` callbacks.
 - **`src/slot_overlay.c`** — transient `[N]` indicators drawn on each window.
 - **`src/window_highlight.c`** — circle ripple effect on activation.
+
+### Providers and plugin architecture
+
+- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Sessions, and Profiles.
+- **Dynamic tab handles** — new provider tabs can request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. Existing providers still use legacy `TAB_*` handles for compatibility.
+- **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
+- **Commands** — command parse metadata still lives centrally, but every command now has an explicit owner. Provider-owned commands are hidden when that provider is disabled.
+- **Plan** — [docs/decisions/0004-plugin-architecture-plan.md](decisions/0004-plugin-architecture-plan.md) is the current TFD-675 roadmap for reducing remaining central tables and hardcoded surfaces.
 
 ### Data & filtering
 

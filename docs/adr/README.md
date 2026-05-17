@@ -48,4 +48,4 @@ Other options and why they were rejected.
 
 ## See also
 
-- [docs/decisions/](../decisions/) — design exploration notes for the plugin API (not strict ADRs; drafts).
+- [docs/decisions/](../decisions/) — design exploration notes for the plugin API (not strict ADRs); `0004-plugin-architecture-plan.md` is the current TFD-675 roadmap.

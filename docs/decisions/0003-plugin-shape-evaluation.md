@@ -1,5 +1,9 @@
 # cofi plugin shape — evaluation from three spikes
 
+Status: Superseded by [0001-plugin-api.md](0001-plugin-api.md) and
+[0004-plugin-architecture-plan.md](0004-plugin-architecture-plan.md).
+The provider API has since landed and most non-Windows tabs have migrated.
+
 After T1 (prefix-autoswitch), T2 (calc), T3 (sinks), T4 (run), three independent tabs were built directly. This is what actually repeated, what diverged, and what the minimal plugin API has to be.
 
 ## What every new tab needed
@@ -91,7 +95,9 @@ Selection state stops being a switch in `selection.c` — it becomes a single `i
 2. Or **stop here**, leave three direct integrations on the spike branch, write up the API shape, and *only* extract when a fourth tab actually arrives?
 3. Or **smaller move**: extract just the modal lifecycle (helper) and the selection model (one struct, one set of functions), leave per-tab files otherwise direct. Lowest-risk consolidation.
 
-Recommendation: **option 3 first, option 1 if the fourth tab is concrete and near-term.** Don't build a full plugin API on three spikes if no fourth tab is queued — that's premature.
+Historical recommendation: **option 3 first, option 1 if the fourth tab is concrete and near-term.**
+Outcome: option 1 effectively won. `CofiTabProvider` is now the live provider
+API, and TFD-675 continues the broader plugin architecture beyond tab providers.
 
 ## Open items captured
 

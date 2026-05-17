@@ -61,6 +61,37 @@ See also:
   `cmd_toggle_monitor` already activates the commanded window after moving it.
   Reintroducing activation inside the lower-level move helper can cause double-activation or control-flow bugs.
 
+## Provider Tabs And Plugin Architecture
+
+- Provider rendering is inverted like the rest of cofi's list UI.
+  `format_provider_display` renders from `end - 1` down to `scroll`.
+  Do not "fix" provider display to render raw index 0 at the top unless the entire display pipeline changes with it.
+
+- Keep raw provider rows separate from filtered/visible rows.
+  Provider row callbacks (`format_row`, `match_string`, `row_identity`, `slot_payload_for`) take raw provider indices.
+  Core selection uses filtered indices and maps them through `cofi_filtered_to_raw()`.
+  Mixing these works on unfiltered lists and fails once query filtering or scoring changes row order.
+
+- `on_enter_pressed` intentionally receives both filtered and raw indices.
+  The filtered index is useful for UI state; the raw index is the provider's stable row lookup.
+  Ported providers should not recover raw indices manually when core already supplies them.
+
+- Provider tabs should use provider-owned hooks for tab behavior.
+  Tab-specific key handling belongs on `CofiTabProvider.handle_key`; list lifecycle belongs on `on_enter`, `on_leave`, and `on_query_changed`.
+  Reintroducing provider cases in `key_handler.c`, `selection.c`, or `display.c` is usually architecture drift.
+
+- Dynamic provider tabs are not `TAB_COUNT`.
+  `TAB_COUNT` is still the sentinel for legacy enum bounds. Runtime provider handles start after it.
+  Use registry helpers such as `cofi_list_provider_tabs()` instead of looping from `TAB_WINDOWS` to `TAB_COUNT` when you mean "all visible tabs."
+
+- Provider enablement is stronger than hiding a tab.
+  A disabled provider must fail closed across tab lookup, command lookup, prefix lookup, command candidates/help, and slots.
+  Do not use `tab_visibility` as the disable gate; `show_all_tabs` intentionally overrides hidden visibility but must not resurrect disabled providers.
+
+- Header changes require stale-daemon awareness.
+  Large `AppData` layout changes shift offsets used by the running daemon.
+  After changing `AppData`, provider state structs, or tab visibility arrays, rebuild and restart before judging behavior; otherwise the old daemon can read garbage and produce unrelated-looking failures.
+
 ## Command Targeting Ordering (TFD-511)
 
 - `command_target_id` must be captured before `show_window()` when entering command mode from hidden/delegated flows.

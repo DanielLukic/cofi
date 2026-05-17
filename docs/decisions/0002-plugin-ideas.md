@@ -1,5 +1,9 @@
 # cofi plugin architecture — brainstorm consolidation
 
+Status: Superseded by [0004-plugin-architecture-plan.md](0004-plugin-architecture-plan.md).
+This file remains as raw ideation and lineage, not as current implementation
+guidance.
+
 Two-round divergent brainstorm with sam (codex). Compiled-in plugins assumed (no `.so` loading needed for v1). Below: filter sheet — no critique, no recommendation. Pick what stays, cuts, defers.
 
 ## A. The spine — pick one
