@@ -26,6 +26,7 @@ static int g_reset_selection_calls;
 static int g_launch_calls;
 static int g_hide_window_calls;
 static int g_exit_command_mode_calls;
+static int g_registered_provider_id = -1;
 static char g_last_launch_arg0[256];
 static char g_last_launch_arg1[256];
 static CofiTabProvider g_registered_provider;
@@ -60,7 +61,15 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 int cofi_register_tab_provider(const CofiTabProvider *p) {
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     if (p) g_registered_provider = *p;
-    return 0;
+    if (g_registered_provider.tab_mode == COFI_PROVIDER_DYNAMIC_TAB) {
+        g_registered_provider.tab_mode = TAB_COUNT + 1;
+    }
+    g_registered_provider_id = 0;
+    return g_registered_provider_id;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return provider_id == g_registered_provider_id ? &g_registered_provider : NULL;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -98,6 +107,7 @@ static void reset_state(AppData *app) {
     g_launch_calls = 0;
     g_hide_window_calls = 0;
     g_exit_command_mode_calls = 0;
+    g_registered_provider_id = -1;
     g_last_launch_arg0[0] = '\0';
     g_last_launch_arg1[0] = '\0';
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
@@ -268,7 +278,8 @@ static void test_command_handler_surfaces_and_recalls_slots(void) {
     gboolean result = s_profiles_command.handler(&app, NULL, "");
     ASSERT_TRUE("command without args returns false", result == FALSE);
     ASSERT_TRUE("command without args exits command mode", g_exit_command_mode_calls == 1);
-    ASSERT_TRUE("command without args surfaces profiles tab", app.current_tab == TAB_PROFILES);
+    ASSERT_TRUE("command without args surfaces profiles tab",
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
     ASSERT_TRUE("command without args does not hide", g_hide_window_calls == 0);
 
     slot_store_init(&app.harpoon.store);

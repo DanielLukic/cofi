@@ -40,7 +40,6 @@ typedef enum {
     TAB_RUN,
     TAB_PROC,
     TAB_SESSIONS,
-    TAB_PROFILES,
     TAB_COUNT
 } TabMode;
 

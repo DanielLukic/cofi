@@ -20,6 +20,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     if (max_tabs > count) {
         tabs[count++] = TAB_COUNT + 1;
     }
+    if (max_tabs > count) {
+        tabs[count++] = TAB_COUNT + 2;
+    }
     return count;
 }
 
@@ -30,6 +33,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         dynamic_provider.id = "dynamic";
         dynamic_provider.display_name = "Dynamic";
         dynamic_provider.tab_mode = TAB_COUNT + 1;
+        return &dynamic_provider;
+    }
+    if (tab_mode == TAB_COUNT + 2) {
+        memset(&dynamic_provider, 0, sizeof(dynamic_provider));
+        dynamic_provider.id = "profiles";
+        dynamic_provider.display_name = "Profiles";
+        dynamic_provider.tab_mode = TAB_COUNT + 2;
         return &dynamic_provider;
     }
     return NULL;

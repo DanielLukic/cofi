@@ -17,6 +17,12 @@
 static BrowserProfilesMode s_profiles_mode;
 static const char *PROFILE_SLOT_PREFIX = "profile:chrome:";
 static CofiTabProvider s_profiles_provider;
+static int s_profiles_provider_id = -1;
+
+static TabMode profiles_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_profiles_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static BrowserProfileEntry *profile_at_row(AppData *app, int raw_idx) {
     (void)app;
@@ -182,7 +188,7 @@ static gboolean profiles_command_handler(AppData *app,
     if (app) {
         app->prefix_origin_tab = app->current_tab;
     }
-    surface_tab(app, (TabMode)s_profiles_provider.tab_mode);
+    surface_tab(app, profiles_tab_mode());
     return FALSE;
 }
 
@@ -199,7 +205,8 @@ static const CommandSpec s_profiles_command = {
 void profiles_provider_register(void) {
     cofi_init_provider_defaults(&s_profiles_provider);
     init_browser_profiles_mode(&s_profiles_mode);
-    s_profiles_provider.tab_mode = TAB_PROFILES;
+    s_profiles_provider_id = -1;
+    s_profiles_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_profiles_provider.id = "profiles";
     s_profiles_provider.display_name = "PROFILES";
     s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
@@ -218,7 +225,8 @@ void profiles_provider_register(void) {
     s_profiles_provider.slot_store_enabled = 1;
     s_profiles_provider.slot_payload_for = profiles_slot_payload_for;
     s_profiles_provider.slot_recall = profiles_slot_recall;
-    if (cofi_register_tab_provider(&s_profiles_provider) >= 0) {
+    s_profiles_provider_id = cofi_register_tab_provider(&s_profiles_provider);
+    if (s_profiles_provider_id >= 0) {
         cofi_register_command(&s_profiles_command);
     }
 }

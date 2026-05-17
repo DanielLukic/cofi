@@ -7,8 +7,9 @@ Progress:
 - Phases 1-3 landed in `f047647`.
 - Provider required metadata now replaces the hardcoded Config exception.
 - Command parse definitions now carry explicit `core` or provider ownership.
-- New providers can request dynamic tab handles; existing provider tabs still
-  keep legacy `TAB_*` handles for compatibility.
+- Providers can request dynamic tab handles. Profiles is the first production
+  provider using one; older provider tabs still keep legacy `TAB_*` handles
+  during migration.
 - Phase 4 has landed for provider commands: provider modules now register
   `CommandSpec` entries directly with `command_registry`.
 
@@ -44,8 +45,8 @@ Remaining broken windows:
   still register from one built-in list.
 - Provider command metadata no longer lives on `CofiTabProvider`; providers
   register `CommandSpec` entries directly.
-- Existing provider tabs still use legacy static `TabMode` values during
-  migration, though new provider tabs can use dynamic handles.
+- Profiles now uses a dynamic tab handle. Other existing provider tabs still use
+  legacy static `TabMode` values during migration.
 - `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
 - Daemon opcodes and some hotkey modes still directly name tabs/modes.
 
@@ -142,7 +143,7 @@ Acceptance:
 This is intentionally not a broad command-registry rewrite. It is the last
 cleanup before command metadata starts moving into owner modules.
 
-## Phase 3: Dynamic Provider Tab Handles (foundation landed)
+## Phase 3: Dynamic Provider Tab Handles (first provider landed)
 
 Static `TabMode` is the biggest remaining obstacle to adding real plugin tabs.
 Today, adding a tab requires touching enum values, tab metadata, visibility
@@ -167,6 +168,14 @@ Acceptance:
 
 This phase is larger than Phase 1/2, but it is the first actual architectural
 move toward plugins rather than table cleanup.
+
+Progress:
+
+- Dynamic handle allocation and tab enumeration landed in `f047647`.
+- Profiles no longer has a `TAB_PROFILES` enum value and registers with
+  `COFI_PROVIDER_DYNAMIC_TAB`.
+- Remaining work is to migrate the older provider tabs off their legacy
+  `TAB_*` handles as their surrounding hardcoded entry points are cleaned up.
 
 ## Phase 4: Move Command Metadata to Owners
 

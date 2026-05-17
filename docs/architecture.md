@@ -92,7 +92,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### UI
 
 - **`src/window_lifecycle.c`** — show/hide of the cofi toplevel. Recomputes Pango font metrics + window size + monitor placement on every show (handles XSettings/DPI changes mid-session).
-- **`src/cofi_tab_provider.c`** — provider registry. Providers register tabs, command aliases, modal prefixes, slots, tick callbacks, dynamic tab handles, and enablement metadata.
+- **`src/cofi_tab_provider.c`** — provider registry. Providers register tabs, modal prefixes, slots, tick callbacks, dynamic tab handles, and enablement metadata.
 - **`src/display.c`** — top-level display assembly. Windows remains core-special; provider tabs render through `CofiTabProvider` row callbacks.
 - **`src/display_pipeline.c`** — assembly of the display strings from filter results.
 - **`src/tab_header.c`** + **`src/tab_switching.c`** — tab header formatting, overflow, visibility, and cycling. Header/cycling enumerate Windows plus registered provider tabs, not a fixed `TAB_*` loop.
@@ -103,9 +103,9 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### Providers and plugin architecture
 
 - **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Sessions, and Profiles.
-- **Dynamic tab handles** — new provider tabs can request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. Existing providers still use legacy `TAB_*` handles for compatibility.
+- **Dynamic tab handles** — provider tabs can request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. Profiles uses this path; older providers still use legacy `TAB_*` handles during migration.
 - **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
-- **Commands** — command parse metadata still lives centrally, but every command now has an explicit owner. Provider-owned commands are hidden when that provider is disabled.
+- **Commands** — commands register `CommandSpec` entries with `command_registry`. Provider command specs live in their provider modules; core commands live in the built-in core registration list. Provider-owned commands are hidden when that provider is disabled.
 - **Plan** — [docs/decisions/0004-plugin-architecture-plan.md](decisions/0004-plugin-architecture-plan.md) is the current TFD-675 roadmap for reducing remaining central tables and hardcoded surfaces.
 
 ### Data & filtering

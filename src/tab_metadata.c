@@ -27,7 +27,6 @@ const char *tab_display_name(TabMode tab) {
         case TAB_RUN:        return "Run";
         case TAB_PROC:       return "Proc";
         case TAB_SESSIONS:   return "Sessions";
-        case TAB_PROFILES:   return "Profiles";
         case TAB_COUNT:      return NULL;
     }
     return provider_tab_name(tab);
@@ -50,7 +49,6 @@ const char *tab_active_name(TabMode tab) {
         case TAB_RUN:        return "RUN";
         case TAB_PROC:       return "PROC";
         case TAB_SESSIONS:   return "SESSIONS";
-        case TAB_PROFILES:   return "PROFILES";
         case TAB_COUNT:      return NULL;
     }
 
@@ -81,7 +79,6 @@ const char *tab_log_name(TabMode tab) {
         case TAB_RUN:        return "run";
         case TAB_PROC:       return "proc";
         case TAB_SESSIONS:   return "sessions";
-        case TAB_PROFILES:   return "profiles";
         case TAB_COUNT:      return NULL;
     }
 

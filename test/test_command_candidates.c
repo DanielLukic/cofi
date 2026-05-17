@@ -167,7 +167,7 @@ static void test_disabled_provider_command_candidates_are_hidden(void) {
     cofi_command_registry_reset();
     cofi_init_provider_defaults(&provider);
     provider.id = "profiles";
-    provider.tab_mode = TAB_PROFILES;
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     int profiles_id = cofi_register_tab_provider(&provider);
     cofi_register_command(&profiles_command);
 
