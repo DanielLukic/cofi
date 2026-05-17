@@ -17,7 +17,6 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl", COMMAND_OWNER_CORE },
     { "jump-slot", {"js", NULL},                                "123456789", COMMAND_OWNER_CORE },
     { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl", COMMAND_OWNER_CORE },
-    { "names",   {"nm", NULL},                                   NULL, "names" },
     { "rules",   {"rl", NULL},                                   NULL, "rules" },
     { "miw",     {"min", "minimize-window", NULL},             NULL, COMMAND_OWNER_CORE },
     { "mouse",   {"m", "ma", "ms", "mh", NULL},            "ash", COMMAND_OWNER_CORE },

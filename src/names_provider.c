@@ -1,12 +1,14 @@
 #include "names_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "command_mode.h"
 #include "filter_names.h"
 #include "log.h"
 #include "match.h"
 #include "named_window.h"
 #include "overlay_manager.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -151,6 +153,18 @@ gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_names_provider;
+static const char *s_names_aliases[] = {"nm", NULL};
+
+static gboolean names_command_handler(AppData *app,
+                                      WindowInfo *window __attribute__((unused)),
+                                      const char *args __attribute__((unused))) {
+    if (!app) return FALSE;
+
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_names_provider.tab_mode);
+    return FALSE;
+}
 
 void names_provider_register(void) {
     cofi_init_provider_defaults(&s_names_provider);
@@ -158,6 +172,11 @@ void names_provider_register(void) {
     s_names_provider.id = "names";
     s_names_provider.display_name = "NAMES";
     s_names_provider.primary_cmd = "names";
+    s_names_provider.aliases = s_names_aliases;
+    s_names_provider.command_description = "Switch to Names tab";
+    s_names_provider.command_help_format = "names, nm";
+    s_names_provider.command_handler = names_command_handler;
+    s_names_provider.command_keeps_open_on_hotkey_auto = 1;
     s_names_provider.required = 0;
     s_names_provider.hidden_by_default = 1;
     s_names_provider.initial_selection_index = 0;

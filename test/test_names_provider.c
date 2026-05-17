@@ -20,6 +20,9 @@ static int tests_passed = 0;
     } while (0)
 
 static int g_reset_selection_calls;
+static int g_exit_command_mode_calls;
+static int g_surface_tab_calls;
+static TabMode g_last_surface_tab = -1;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -32,6 +35,17 @@ int has_match(const char *needle, const char *haystack) {
 void reset_selection(AppData *app) {
     (void)app;
     g_reset_selection_calls++;
+}
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    if (app) app->current_tab = tab;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
 }
 
 void cofi_init_provider_defaults(CofiTabProvider *p) {
@@ -70,6 +84,9 @@ int find_named_window_by_name(const NamedWindowManager *manager, const char *cus
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
     g_reset_selection_calls = 0;
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
+    g_last_surface_tab = -1;
 }
 
 static void seed_names(AppData *app) {
@@ -159,6 +176,34 @@ static void test_selected_entry_and_manager_index(void) {
     ASSERT_TRUE("select custom name sets provider index", app.selection.provider_index == 0);
 }
 
+static void test_command_metadata(void) {
+    names_provider_register();
+
+    ASSERT_TRUE("provider primary command is names",
+                strcmp(s_names_provider.primary_cmd, "names") == 0);
+    ASSERT_TRUE("provider alias is nm",
+                s_names_provider.aliases && strcmp(s_names_provider.aliases[0], "nm") == 0);
+    ASSERT_TRUE("provider command has help",
+                strcmp(s_names_provider.command_help_format, "names, nm") == 0);
+    ASSERT_TRUE("provider command keeps open",
+                s_names_provider.command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_names_provider.command_handler != NULL);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app;
+    reset_state(&app);
+    app.current_tab = TAB_WINDOWS;
+
+    gboolean result = s_names_provider.command_handler(&app, NULL, NULL);
+
+    ASSERT_TRUE("names command returns false", result == FALSE);
+    ASSERT_TRUE("names command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("names command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("names command surfaces names tab", g_surface_tab_calls == 1 &&
+                g_last_surface_tab == TAB_NAMES && app.current_tab == TAB_NAMES);
+}
+
 int main(void) {
     printf("Names provider tests\n");
     printf("====================\n\n");
@@ -167,6 +212,8 @@ int main(void) {
     test_empty_row();
     test_query_resets_selection();
     test_selected_entry_and_manager_index();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

@@ -117,14 +117,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .help_format = "js, jump-slot N"
     },
     {
-        .primary = "names",
-        .aliases = {"nm", NULL},
-        .handler = cmd_names,
-        .description = "Switch to Names tab",
-        .help_format = "names, nm",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "rules",
         .aliases = {"rl", NULL},
         .handler = cmd_rules,
