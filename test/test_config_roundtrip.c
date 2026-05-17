@@ -41,6 +41,7 @@ static void test_defaults_roundtrip(void) {
     ASSERT_INT("defaults: slot_overlay_duration_ms", original.slot_overlay_duration_ms, loaded.slot_overlay_duration_ms);
     ASSERT_INT("defaults: ripple_enabled", original.ripple_enabled, loaded.ripple_enabled);
     ASSERT_INT("defaults: show_all_tabs", original.show_all_tabs, loaded.show_all_tabs);
+    ASSERT_STR("defaults: disabled_providers", original.disabled_providers, loaded.disabled_providers);
 }
 
 // Test 2: non-default values round-trip
@@ -57,6 +58,7 @@ static void test_nondefault_roundtrip(void) {
     original.slot_overlay_duration_ms = 1500;
     original.ripple_enabled = 0;
     original.show_all_tabs = 1;
+    strcpy(original.disabled_providers, "profiles,sinks");
 
     save_config(&original);
     load_config(&loaded);
@@ -69,6 +71,7 @@ static void test_nondefault_roundtrip(void) {
     ASSERT_INT("nondefault: slot_overlay_duration_ms", 1500, loaded.slot_overlay_duration_ms);
     ASSERT_INT("nondefault: ripple_enabled", 0, loaded.ripple_enabled);
     ASSERT_INT("nondefault: show_all_tabs", 1, loaded.show_all_tabs);
+    ASSERT_STR("nondefault: disabled_providers", "profiles,sinks", loaded.disabled_providers);
 }
 
 // Test 3: all alignment values round-trip

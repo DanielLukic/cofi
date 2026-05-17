@@ -2,6 +2,7 @@
 
 #include "app_data.h"
 #include "cofi_modal.h"
+#include "command_availability.h"
 #include "cofi_tab_provider.h"
 #include "command_definitions.h"
 #include "config.h"
@@ -57,6 +58,12 @@ static gboolean parse_set_assignment(const char *args, char *key, size_t key_siz
 
 static void handle_set_success(AppData *app, const char *key, const char *value) {
     save_config(&app->config);
+    if (strcmp(key, "disabled_providers") == 0) {
+        cofi_apply_disabled_providers(app->config.disabled_providers);
+        if (app->current_tab != TAB_WINDOWS && !cofi_get_provider_for_tab(app->current_tab)) {
+            app->current_tab = TAB_WINDOWS;
+        }
+    }
     log_info("Config: %s = %s", key, value);
     exit_command_mode(app);
     surface_tab(app, TAB_CONFIG);
@@ -66,6 +73,18 @@ static void handle_set_error(AppData *app, const char *error_text) {
     char msg[512];
     snprintf(msg, sizeof(msg), "Error: %s\n\nType :config to see available keys.", error_text);
     show_error_in_display(app, msg);
+}
+
+static gboolean surface_provider_command(AppData *app, const char *command,
+                                         const char *error_text) {
+    const CofiTabProvider *provider = cofi_get_provider_for_command(command);
+    if (!provider) {
+        show_error_in_display(app, error_text);
+        return FALSE;
+    }
+    exit_command_mode(app);
+    surface_tab(app, (TabMode)provider->tab_mode);
+    return FALSE;
 }
 
 gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
@@ -96,37 +115,27 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
 
 gboolean cmd_show_config(AppData *app, WindowInfo *window __attribute__((unused)),
                          const char *args __attribute__((unused))) {
-    exit_command_mode(app);
-    surface_tab(app, TAB_CONFIG);
-    return FALSE;
+    return surface_provider_command(app, "config", "Config provider not available.");
 }
 
 gboolean cmd_workspaces(AppData *app, WindowInfo *window __attribute__((unused)),
                         const char *args __attribute__((unused))) {
-    exit_command_mode(app);
-    surface_tab(app, TAB_WORKSPACES);
-    return FALSE;
+    return surface_provider_command(app, "workspaces", "Workspaces provider not available.");
 }
 
 gboolean cmd_harpoon(AppData *app, WindowInfo *window __attribute__((unused)),
                      const char *args __attribute__((unused))) {
-    exit_command_mode(app);
-    surface_tab(app, TAB_HARPOON);
-    return FALSE;
+    return surface_provider_command(app, "harpoon", "Harpoon provider not available.");
 }
 
 gboolean cmd_names(AppData *app, WindowInfo *window __attribute__((unused)),
                    const char *args __attribute__((unused))) {
-    exit_command_mode(app);
-    surface_tab(app, TAB_NAMES);
-    return FALSE;
+    return surface_provider_command(app, "names", "Names provider not available.");
 }
 
 gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
                    const char *args __attribute__((unused))) {
-    exit_command_mode(app);
-    surface_tab(app, TAB_RULES);
-    return FALSE;
+    return surface_provider_command(app, "rules", "Rules provider not available.");
 }
 
 gboolean cmd_calc(AppData *app, WindowInfo *window __attribute__((unused)),
@@ -267,25 +276,34 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
     if (args && args[0] != '\0') {
         if (strcmp(args, "windows") == 0) mode = SHOW_MODE_WINDOWS;
         else if (strcmp(args, "command") == 0) mode = SHOW_MODE_COMMAND;
-        else if (strcmp(args, "run") == 0) mode = SHOW_MODE_RUN;
-        else if (strcmp(args, "workspaces") == 0) mode = SHOW_MODE_WORKSPACES;
-        else if (strcmp(args, "harpoon") == 0) mode = SHOW_MODE_HARPOON;
+        else if (strcmp(args, "run") == 0) {
+            if (!cofi_get_provider_for_prefix('!')) {
+                show_error_in_display(app, "Run provider not available.");
+                return FALSE;
+            }
+            mode = SHOW_MODE_RUN;
+        }
+        else if (strcmp(args, "workspaces") == 0) {
+            return surface_provider_command(app, "workspaces", "Workspaces provider not available.");
+        }
+        else if (strcmp(args, "harpoon") == 0) {
+            return surface_provider_command(app, "harpoon", "Harpoon provider not available.");
+        }
         else if (strcmp(args, "names") == 0) {
-            exit_command_mode(app);
-            surface_tab(app, TAB_NAMES);
-            return FALSE;
+            return surface_provider_command(app, "names", "Names provider not available.");
         } else if (strcmp(args, "config") == 0) {
-            exit_command_mode(app);
-            surface_tab(app, TAB_CONFIG);
-            return FALSE;
+            return surface_provider_command(app, "config", "Config provider not available.");
         } else if (strcmp(args, "rules") == 0) {
-            exit_command_mode(app);
-            surface_tab(app, TAB_RULES);
-            return FALSE;
+            return surface_provider_command(app, "rules", "Rules provider not available.");
         } else if (strcmp(args, "apps") == 0) {
+            const CofiTabProvider *provider = cofi_get_provider_for_command("apps");
+            if (!provider) {
+                show_error_in_display(app, "Apps provider not available.");
+                return FALSE;
+            }
             exit_command_mode(app);
             app->apps_mode = APPS_MODE_DEFAULT;
-            surface_tab(app, TAB_APPS);
+            surface_tab(app, (TabMode)provider->tab_mode);
             return FALSE;
         } else {
             const CofiTabProvider *provider = cofi_get_provider_for_command(args);
@@ -324,8 +342,7 @@ gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), c
         }
     }
 
-    exit_command_mode(app);
-    surface_tab(app, TAB_HOTKEYS);
+    surface_provider_command(app, "hotkeys", "Hotkeys provider not available.");
     return FALSE;
 }
 
@@ -411,6 +428,9 @@ char *generate_command_help_text(HelpFormat format, int width) {
     strcat(help_text, "Available commands:\n\n");
     GString *commands = g_string_new(NULL);
     for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
+        if (!command_primary_is_available(COMMAND_DEFINITIONS[i].primary)) {
+            continue;
+        }
         append_wrapped_command_line(commands,
                                     COMMAND_DEFINITIONS[i].help_format,
                                     COMMAND_DEFINITIONS[i].description,

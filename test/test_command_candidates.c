@@ -147,6 +147,27 @@ static void test_cl_still_shows(void) {
     ASSERT_TRUE("'cl' has candidates", cmd.candidate_count >= 1);
 }
 
+static void test_disabled_provider_command_candidates_are_hidden(void) {
+    static const char *aliases[] = { "chrome", "browser", NULL };
+    CofiTabProvider provider;
+    CommandMode cmd = {0};
+
+    cofi_registry_reset();
+    cofi_init_provider_defaults(&provider);
+    provider.id = "profiles";
+    provider.tab_mode = TAB_PROFILES;
+    provider.primary_cmd = "profiles";
+    provider.aliases = aliases;
+    int id = cofi_register_tab_provider(&provider);
+
+    command_update_candidates(&cmd, "ch");
+    ASSERT_TRUE("enabled profile alias appears", strip_has_candidate(&cmd, "chrome"));
+
+    cofi_set_provider_enabled(id, 0);
+    command_update_candidates(&cmd, "ch");
+    ASSERT_TRUE("disabled profile alias hidden", !strip_has_candidate(&cmd, "chrome"));
+}
+
 static void test_zzzz_hides(void) {
     CommandMode cmd = {0};
     command_update_candidates(&cmd, "zzzz");
@@ -212,6 +233,7 @@ int main(void) {
     test_prefix_hm_matches_only_short_forms();
     test_space_exits_prefix_mode();
     test_cl_still_shows();
+    test_disabled_provider_command_candidates_are_hidden();
     test_zzzz_hides();
     test_format_candidate_strip_count_zero();
     test_format_candidate_strip_highlight();

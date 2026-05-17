@@ -60,9 +60,28 @@ static int g_enter_modal_calls_cmd = 0;
 static CofiTabProvider g_stub_run_provider;
 static CofiTabProvider g_stub_calc_provider;
 static CofiTabProvider g_stub_profiles_provider;
+static CofiTabProvider g_stub_config_provider;
+static CofiTabProvider g_stub_hotkeys_provider;
+static CofiTabProvider g_stub_rules_provider;
 static int g_cmd_args_calls = 0;
 static char g_cmd_args_last[256] = {0};
 static CofiActionStatus g_cmd_args_result = COFI_HANDLED_HIDE;
+
+static void init_stub_providers(void) {
+    memset(&g_stub_run_provider, 0, sizeof(g_stub_run_provider));
+    memset(&g_stub_calc_provider, 0, sizeof(g_stub_calc_provider));
+    memset(&g_stub_profiles_provider, 0, sizeof(g_stub_profiles_provider));
+    memset(&g_stub_config_provider, 0, sizeof(g_stub_config_provider));
+    memset(&g_stub_hotkeys_provider, 0, sizeof(g_stub_hotkeys_provider));
+    memset(&g_stub_rules_provider, 0, sizeof(g_stub_rules_provider));
+
+    g_stub_run_provider.tab_mode = TAB_RUN;
+    g_stub_calc_provider.tab_mode = TAB_CALC;
+    g_stub_profiles_provider.tab_mode = TAB_PROFILES;
+    g_stub_config_provider.tab_mode = TAB_CONFIG;
+    g_stub_hotkeys_provider.tab_mode = TAB_HOTKEYS;
+    g_stub_rules_provider.tab_mode = TAB_RULES;
+}
 
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
     (void)provider;
@@ -76,10 +95,18 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
 }
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     if (command && strcmp(command, "calc") == 0) return &g_stub_calc_provider;
+    if (command && strcmp(command, "config") == 0) return &g_stub_config_provider;
+    if (command && strcmp(command, "hotkeys") == 0) return &g_stub_hotkeys_provider;
+    if (command && strcmp(command, "rules") == 0) return &g_stub_rules_provider;
     if (command && strcmp(command, "profiles") == 0) return &g_stub_profiles_provider;
     return NULL;
 }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    (void)tab_mode;
+    return &g_stub_calc_provider;
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+void cofi_apply_disabled_providers(const char *disabled_ids) { (void)disabled_ids; }
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app, const char *args) {
     (void)provider_id; (void)app;
     if (args && args[0] != '\0') {
@@ -512,6 +539,7 @@ int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
 
+    init_stub_providers();
     test_window_handler_behavior();
     test_window_state_handlers_behavior();
     test_workspace_handler_behavior();

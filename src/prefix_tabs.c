@@ -19,6 +19,8 @@ static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
     switch (prefix) {
         case '$':
         case '\\':
+            if (!cofi_get_provider_for_command("apps"))
+                return FALSE;
             *target_tab = TAB_APPS;
             return TRUE;
         case '>':

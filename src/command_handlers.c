@@ -2,6 +2,7 @@
 #include "command_parser.h"
 
 #ifndef COMMAND_POLICY_ONLY
+#include "command_availability.h"
 #include "command_definitions.h"
 #include "log.h"
 #include "selection.h"
@@ -57,7 +58,7 @@ static gboolean execute_single_command(const char *command, AppData *app,
     }
 
     const CommandDef *cmd = find_command_by_primary(primary);
-    if (!cmd) {
+    if (!cmd || !command_primary_is_available(primary)) {
         log_warn("Unknown command: '%s'. Type 'help' for available commands.", primary);
         return FALSE;
     }

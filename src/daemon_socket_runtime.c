@@ -167,15 +167,21 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_window(app);
             enter_command_mode(app);
             break;
-        case COFI_OPCODE_RUN:
+        case COFI_OPCODE_RUN: {
+            const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+            if (!provider) {
+                log_warn("Run provider is disabled; ignoring run delegate");
+                break;
+            }
             app->current_tab = TAB_WINDOWS;
             show_window(app);
             if (app->command_mode.state == CMD_MODE_COMMAND)
                 exit_command_mode(app);
             app->prefix_origin_tab = app->current_tab;
             app->active_prefix_claim = '!';
-            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
+            cofi_enter_modal(app, provider);
             break;
+        }
         default:
             break;
     }

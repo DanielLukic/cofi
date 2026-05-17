@@ -33,7 +33,7 @@ int has_match(const char *pattern, const char *text) {
 
 void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count) {
     (void)config;
-    *count = 3;
+    *count = 4;
     g_strlcpy(entries[0].key, "close_on_focus_loss", sizeof(entries[0].key));
     g_strlcpy(entries[0].value, "true", sizeof(entries[0].value));
     entries[0].type = CONFIG_TYPE_BOOL;
@@ -45,6 +45,10 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     g_strlcpy(entries[2].key, "tile_columns", sizeof(entries[2].key));
     g_strlcpy(entries[2].value, "3", sizeof(entries[2].value));
     entries[2].type = CONFIG_TYPE_INT;
+
+    g_strlcpy(entries[3].key, "disabled_providers", sizeof(entries[3].key));
+    g_strlcpy(entries[3].value, "(none)", sizeof(entries[3].value));
+    entries[3].type = CONFIG_TYPE_PROVIDER_LIST;
 }
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
@@ -124,6 +128,12 @@ static void test_edit_policy_and_shortcut_hints(void) {
                 config_entry_allows_edit(config_selected_entry(&app)));
     ASSERT_TRUE("integer config hint uses edit",
                 strcmp(config_shortcut_hint(&app), "Shortcuts: Ctrl+E=Edit value") == 0);
+
+    app.selection.provider_index = 3;
+    ASSERT_TRUE("provider list config is not text-editable",
+                !config_entry_allows_edit(config_selected_entry(&app)));
+    ASSERT_TRUE("provider list config hint uses provider overlay",
+                strcmp(config_shortcut_hint(&app), "Shortcuts: Ctrl+E/Ctrl+T=Edit provider list") == 0);
 }
 
 static void test_query_changed_resets_selection(void) {
@@ -142,8 +152,8 @@ static void test_selected_entry_clamps_and_select_key(void) {
     app.selection.provider_index = 99;
     ConfigEntry *entry = config_selected_entry(&app);
     ASSERT_TRUE("selected config clamps to last", entry != NULL);
-    ASSERT_TRUE("selected config clamp index", app.selection.provider_index == 2);
-    ASSERT_TRUE("selected config key", strcmp(entry->key, "tile_columns") == 0);
+    ASSERT_TRUE("selected config clamp index", app.selection.provider_index == 3);
+    ASSERT_TRUE("selected config key", strcmp(entry->key, "disabled_providers") == 0);
 
     config_select_key(&app, "digit_slot_mode");
     ASSERT_TRUE("select config key sets provider index", app.selection.provider_index == 1);

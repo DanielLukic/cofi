@@ -76,6 +76,7 @@ SOURCES = src/main.c \
           src/command_handlers_workspace.c \
           src/command_handlers_tiling.c \
           src/command_handlers_ui.c \
+          src/command_availability.c \
           src/command_parser.c \
           src/monitor_move.c \
           src/selection.c \
@@ -343,8 +344,8 @@ test_command_handlers_split: test/test_command_handlers_split.c
 	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c $(LDFLAGS)
 
 # Build command handler behavior regression tests
-test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/slot_store.o src/log.o $(LDFLAGS)
+test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_availability.o src/slot_store.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_availability.o src/slot_store.o src/log.o $(LDFLAGS)
 
 # Build proc parser/behavior tests
 test_proc: test/test_proc.c
@@ -417,8 +418,8 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o $(LDFLAGS)
 
 # Build tab header overflow tests
 test_tab_header: test/test_tab_header.c src/tab_metadata.o
@@ -429,8 +430,8 @@ test_tab_metadata: test/test_tab_metadata.c src/tab_metadata.o
 	$(CC) $(CFLAGS) -o test/test_tab_metadata test/test_tab_metadata.c src/tab_metadata.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o src/tab_metadata.o src/tab_header.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/nav_keys.o src/tab_metadata.o src/tab_header.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/command_availability.o src/nav_keys.o src/tab_metadata.o src/tab_header.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/command_availability.o src/nav_keys.o src/tab_metadata.o src/tab_header.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)

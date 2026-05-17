@@ -109,6 +109,7 @@ void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app
 void cofi_exit_modal(AppData *app) { (void)app; }
 gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (void)event; return FALSE; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) { (void)command; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider names_provider;
     static CofiTabProvider config_provider;

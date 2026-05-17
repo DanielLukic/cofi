@@ -146,6 +146,18 @@ static void test_removed_hotkey_fields(void) {
     ASSERT_ERR("set hotkey_workspaces rejected", c, "hotkey_workspaces", "Mod1+BackSpace");
 }
 
+static void test_disabled_providers_setting(void) {
+    CofiConfig c;
+    init_config_defaults(&c);
+
+    ASSERT_STR("disabled_providers default empty", "", c.disabled_providers);
+    ASSERT_OK("set disabled_providers list", c, "disabled_providers", "profiles,sinks");
+    ASSERT_STR("disabled_providers stored", "profiles,sinks", c.disabled_providers);
+
+    ASSERT_OK("clear disabled_providers", c, "disabled_providers", "");
+    ASSERT_STR("disabled_providers cleared", "", c.disabled_providers);
+}
+
 static void test_unknown_key(void) {
     CofiConfig c;
     init_config_defaults(&c);
@@ -161,6 +173,7 @@ int main(void) {
     test_integer_fields();
     test_enum_fields();
     test_removed_hotkey_fields();
+    test_disabled_providers_setting();
     test_unknown_key();
 
     printf("\n=====================================\n");

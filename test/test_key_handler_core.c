@@ -85,6 +85,7 @@ static int g_reset_selection_calls;
 static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
+static CofiTabProvider g_apps_command_stub;
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -182,6 +183,13 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     if (prefix == '!' || prefix == '=')
         return &g_modal_prefix_stub;
+    return NULL;
+}
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
+    if (command && strcmp(command, "apps") == 0) {
+        g_apps_command_stub.tab_mode = TAB_APPS;
+        return &g_apps_command_stub;
+    }
     return NULL;
 }
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {

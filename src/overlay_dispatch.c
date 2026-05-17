@@ -51,6 +51,9 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_CONFIG_EDIT:
             create_config_edit_overlay_content(app->dialog_container, app);
             return;
+        case OVERLAY_PROVIDER_ENABLEMENT:
+            create_provider_enablement_overlay_content(app->dialog_container, app);
+            return;
         case OVERLAY_HOTKEY_ADD:
             create_hotkey_add_overlay_content(app->dialog_container, app);
             return;
@@ -109,6 +112,8 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_delete_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
             return handle_config_edit_key_press(app, event);
+        case OVERLAY_PROVIDER_ENABLEMENT:
+            return handle_provider_enablement_key_press(app, event);
         case OVERLAY_HOTKEY_ADD:
             return handle_hotkey_add_key_press(app, event);
         case OVERLAY_HOTKEY_REBIND:

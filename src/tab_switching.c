@@ -53,6 +53,10 @@ static TabMode find_next_visible_tab(AppData *app, TabMode start_tab, int direct
 }
 
 void switch_to_tab(AppData *app, TabMode target_tab) {
+    if (target_tab != TAB_WINDOWS && !cofi_get_provider_for_tab(target_tab)) {
+        target_tab = TAB_WINDOWS;
+    }
+
     if (app->current_tab == target_tab) {
         return;
     }
@@ -87,6 +91,10 @@ void surface_tab(AppData *app, TabMode tab) {
     if (!app) {
         return;
     }
+    if (tab != TAB_WINDOWS && !cofi_get_provider_for_tab(tab)) {
+        log_warn("Cannot surface unavailable tab: %s", tab_display_name(tab));
+        return;
+    }
 
     if (app->tab_visibility[tab] == TAB_VIS_HIDDEN) {
         app->tab_visibility[tab] = TAB_VIS_SURFACED;
@@ -112,6 +120,9 @@ gboolean tab_is_visible(AppData *app, TabMode tab) {
         return FALSE;
     }
     if (tab < TAB_WINDOWS || tab >= TAB_COUNT) {
+        return FALSE;
+    }
+    if (tab != TAB_WINDOWS && !cofi_get_provider_for_tab(tab)) {
         return FALSE;
     }
     if (app->config.show_all_tabs) {

@@ -1,5 +1,6 @@
 #include "cofi_tab_provider.h"
 
+#include <ctype.h>
 #include <string.h>
 
 #define COFI_MAX_PROVIDERS 32
@@ -10,6 +11,7 @@ typedef struct {
     int raw_map[COFI_MAX_FILTERED];
     int filtered_count;
     int generation;
+    int enabled;
 } ProviderEntry;
 
 static ProviderEntry s_registry[COFI_MAX_PROVIDERS];
@@ -27,6 +29,7 @@ int cofi_register_tab_provider(const CofiTabProvider *provider) {
     int id = s_count++;
     memset(&s_registry[id], 0, sizeof(s_registry[id]));
     s_registry[id].provider = *provider;
+    s_registry[id].enabled = 1;
     return id;
 }
 
@@ -37,6 +40,7 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
 
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
         if (s_registry[i].provider.tab_mode == tab_mode)
             return &s_registry[i].provider;
     }
@@ -45,6 +49,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 
 int cofi_get_provider_id_for_tab(int tab_mode) {
     for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
         if (s_registry[i].provider.tab_mode == tab_mode)
             return i;
     }
@@ -54,6 +59,7 @@ int cofi_get_provider_id_for_tab(int tab_mode) {
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
     if (!command) return NULL;
     for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
         const CofiTabProvider *p = &s_registry[i].provider;
         if (p->primary_cmd && strcmp(p->primary_cmd, command) == 0)
             return p;
@@ -68,6 +74,75 @@ const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
 
 int cofi_provider_count(void) {
     return s_count;
+}
+
+int cofi_provider_is_enabled(int provider_id) {
+    if (provider_id < 0 || provider_id >= s_count) return 0;
+    return s_registry[provider_id].enabled;
+}
+
+void cofi_set_provider_enabled(int provider_id, int enabled) {
+    if (provider_id < 0 || provider_id >= s_count) return;
+    if (!cofi_provider_is_disableable(provider_id)) {
+        s_registry[provider_id].enabled = 1;
+        return;
+    }
+    s_registry[provider_id].enabled = enabled ? 1 : 0;
+}
+
+int cofi_provider_is_disableable(int provider_id) {
+    if (provider_id < 0 || provider_id >= s_count) return 0;
+    const char *id = s_registry[provider_id].provider.id;
+    if (!id || id[0] == '\0') return 0;
+    return strcmp(id, "config") != 0;
+}
+
+static int token_equals(const char *start, size_t len, const char *id) {
+    return id && strlen(id) == len && strncmp(start, id, len) == 0;
+}
+
+static int disabled_list_contains(const char *disabled_ids, const char *id) {
+    if (!disabled_ids || !id || id[0] == '\0') return 0;
+
+    const char *p = disabled_ids;
+    while (*p) {
+        while (*p == ',' || isspace((unsigned char)*p)) p++;
+        const char *start = p;
+        while (*p && *p != ',' && !isspace((unsigned char)*p)) p++;
+        if (p > start && token_equals(start, (size_t)(p - start), id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void cofi_apply_disabled_providers(const char *disabled_ids) {
+    for (int i = 0; i < s_count; i++) {
+        const char *id = s_registry[i].provider.id;
+        int disabled = cofi_provider_is_disableable(i) &&
+                       disabled_list_contains(disabled_ids, id);
+        cofi_set_provider_enabled(i, !disabled);
+    }
+}
+
+void cofi_build_disabled_providers_string(char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    out[0] = '\0';
+
+    for (int i = 0; i < s_count; i++) {
+        if (s_registry[i].enabled) continue;
+        const char *id = s_registry[i].provider.id;
+        if (!id || id[0] == '\0') continue;
+
+        size_t used = strlen(out);
+        if (used >= out_size - 1) return;
+        const char *sep = used > 0 ? "," : "";
+        int written = g_snprintf(out + used, out_size - used, "%s%s", sep, id);
+        if (written < 0 || (size_t)written >= out_size - used) {
+            out[out_size - 1] = '\0';
+            return;
+        }
+    }
 }
 
 void cofi_set_filtered_map(int provider_id, const int *raw_map, int count) {
@@ -102,6 +177,7 @@ int cofi_current_generation(int provider_id) {
 }
 
 int cofi_call_row_count(int provider_id, AppData *app) {
+    if (!cofi_provider_is_enabled(provider_id)) return 0;
     const CofiTabProvider *p = cofi_get_provider(provider_id);
     if (!p || !p->row_count) return 0;
     return p->row_count(app);
@@ -111,6 +187,7 @@ CofiActionStatus cofi_call_on_enter_pressed(int provider_id, AppData *app,
                                              int filtered_idx, int raw_idx,
                                              const char *entry_text,
                                              int modifier_state) {
+    if (!cofi_provider_is_enabled(provider_id)) return COFI_NO_OP;
     const CofiTabProvider *p = cofi_get_provider(provider_id);
     if (!p || !p->on_enter_pressed) return COFI_NO_OP;
     return p->on_enter_pressed(app, filtered_idx, raw_idx, entry_text, modifier_state);
@@ -118,6 +195,7 @@ CofiActionStatus cofi_call_on_enter_pressed(int provider_id, AppData *app,
 
 CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
                                             const char *args) {
+    if (!cofi_provider_is_enabled(provider_id)) return COFI_NO_OP;
     const CofiTabProvider *p = cofi_get_provider(provider_id);
     if (!p || !p->on_command_args) return COFI_NO_OP;
     return p->on_command_args(app, args);
@@ -130,6 +208,7 @@ void cofi_registry_reset(void) {
 
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
         if (s_registry[i].provider.prefix_char == prefix)
             return &s_registry[i].provider;
     }

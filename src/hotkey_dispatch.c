@@ -22,11 +22,17 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 show_window(app);
                 enter_command_mode(app);
                 break;
-            case SHOW_MODE_RUN:
+            case SHOW_MODE_RUN: {
+                const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+                if (!provider) {
+                    log_warn("Run provider is disabled; ignoring run hotkey");
+                    return;
+                }
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
+                cofi_enter_modal(app, provider);
                 break;
+            }
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
@@ -84,13 +90,19 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             enter_command_mode(app);
             break;
 
-        case SHOW_MODE_RUN:
+        case SHOW_MODE_RUN: {
+            const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+            if (!provider) {
+                log_warn("Run provider is disabled; ignoring run hotkey");
+                return;
+            }
             if (app->command_mode.state == CMD_MODE_MODAL) {
                 return;
             }
             app->current_tab = TAB_WINDOWS;
-            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
+            cofi_enter_modal(app, provider);
             break;
+        }
 
         default:
             break;

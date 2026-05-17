@@ -27,12 +27,14 @@ typedef enum {
 #define MAX_CONFIG_ENTRIES 32
 #define CONFIG_KEY_LEN 64
 #define CONFIG_VALUE_LEN 128
+#define CONFIG_DISABLED_PROVIDERS_LEN 256
 
 typedef enum {
     CONFIG_TYPE_BOOL,
     CONFIG_TYPE_INT,
     CONFIG_TYPE_STRING,
-    CONFIG_TYPE_ENUM
+    CONFIG_TYPE_ENUM,
+    CONFIG_TYPE_PROVIDER_LIST
 } ConfigFieldType;
 
 typedef struct {
@@ -68,6 +70,7 @@ typedef struct {
     WindowOrderMode window_order_mode; // How to order windows in the list
     int show_all_tabs;                  // Show/cycle all tabs instead of only pinned/surfaced tabs
     int slot_occlusion_threshold_pct;   // Min visible percent for workspace slots (1-100, default 5)
+    char disabled_providers[CONFIG_DISABLED_PROVIDERS_LEN]; // Comma-separated provider ids
 } CofiConfig;
 
 // Alignment string conversion

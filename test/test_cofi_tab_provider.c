@@ -31,6 +31,11 @@ static CofiActionStatus mock_enter_pressed(AppData *app, int fi, int ri,
     return COFI_HANDLED_KEEP;
 }
 
+static CofiActionStatus mock_command_args(AppData *app, const char *args) {
+    (void)app; (void)args;
+    return COFI_HANDLED_KEEP;
+}
+
 static void test_init_defaults(void) {
     CofiTabProvider p;
     memset(&p, 0xFF, sizeof(p));
@@ -93,6 +98,82 @@ static void test_get_provider_for_tab(void) {
     ASSERT_NOT_NULL("found by tab_mode", found);
     ASSERT_STR_EQ("correct provider found", found->id, "mytab");
     ASSERT_NULL("unknown tab_mode returns NULL", cofi_get_provider_for_tab(999));
+}
+
+static void test_disabled_provider_runtime_lookups_are_hidden(void) {
+    static const char *aliases[] = { "alias", NULL };
+    cofi_registry_reset();
+
+    CofiTabProvider p;
+    cofi_init_provider_defaults(&p);
+    p.id = "disabled";
+    p.tab_mode = 43;
+    p.primary_cmd = "primary";
+    p.aliases = aliases;
+    p.prefix_char = '!';
+    p.row_count = mock_row_count_5;
+    p.on_command_args = mock_command_args;
+    int id = cofi_register_tab_provider(&p);
+
+    ASSERT_TRUE("provider starts enabled", cofi_provider_is_enabled(id));
+    ASSERT_NOT_NULL("enabled lookup by tab", cofi_get_provider_for_tab(43));
+    ASSERT_NOT_NULL("enabled lookup by primary command", cofi_get_provider_for_command("primary"));
+    ASSERT_NOT_NULL("enabled lookup by alias", cofi_get_provider_for_command("alias"));
+    ASSERT_NOT_NULL("enabled lookup by prefix", cofi_get_provider_for_prefix('!'));
+
+    cofi_set_provider_enabled(id, 0);
+
+    ASSERT_TRUE("provider is now disabled", !cofi_provider_is_enabled(id));
+    ASSERT_NOT_NULL("raw lookup by id still works", cofi_get_provider(id));
+    ASSERT_NULL("disabled lookup by tab hidden", cofi_get_provider_for_tab(43));
+    ASSERT_NULL("disabled lookup by primary hidden", cofi_get_provider_for_command("primary"));
+    ASSERT_NULL("disabled lookup by alias hidden", cofi_get_provider_for_command("alias"));
+    ASSERT_NULL("disabled lookup by prefix hidden", cofi_get_provider_for_prefix('!'));
+    ASSERT_EQ("disabled row_count dispatch suppressed", cofi_call_row_count(id, NULL), 0);
+    ASSERT_EQ("disabled command dispatch suppressed",
+              cofi_call_on_command_args(id, NULL, "x"), COFI_NO_OP);
+
+    cofi_set_provider_enabled(id, 1);
+
+    ASSERT_TRUE("provider re-enabled", cofi_provider_is_enabled(id));
+    ASSERT_NOT_NULL("re-enabled lookup by tab", cofi_get_provider_for_tab(43));
+    ASSERT_EQ("re-enabled row_count dispatch works", cofi_call_row_count(id, NULL), 5);
+}
+
+static void test_apply_disabled_provider_list(void) {
+    cofi_registry_reset();
+
+    CofiTabProvider config, profiles, sinks;
+    cofi_init_provider_defaults(&config);
+    config.id = "config";
+    config.tab_mode = 10;
+    int config_id = cofi_register_tab_provider(&config);
+
+    cofi_init_provider_defaults(&profiles);
+    profiles.id = "profiles";
+    profiles.tab_mode = 11;
+    int profiles_id = cofi_register_tab_provider(&profiles);
+
+    cofi_init_provider_defaults(&sinks);
+    sinks.id = "sinks";
+    sinks.tab_mode = 12;
+    int sinks_id = cofi_register_tab_provider(&sinks);
+
+    cofi_apply_disabled_providers(" profiles, unknown sinks config ");
+
+    ASSERT_TRUE("config provider is not disableable", !cofi_provider_is_disableable(config_id));
+    ASSERT_TRUE("profiles provider is disableable", cofi_provider_is_disableable(profiles_id));
+    ASSERT_TRUE("config remains enabled", cofi_provider_is_enabled(config_id));
+    ASSERT_TRUE("profiles disabled from list", !cofi_provider_is_enabled(profiles_id));
+    ASSERT_TRUE("sinks disabled from list", !cofi_provider_is_enabled(sinks_id));
+
+    char disabled[128] = {0};
+    cofi_build_disabled_providers_string(disabled, sizeof(disabled));
+    ASSERT_STR_EQ("disabled list is canonical registry order", disabled, "profiles,sinks");
+
+    cofi_apply_disabled_providers("");
+    ASSERT_TRUE("empty disabled list re-enables profiles", cofi_provider_is_enabled(profiles_id));
+    ASSERT_TRUE("empty disabled list re-enables sinks", cofi_provider_is_enabled(sinks_id));
 }
 
 static void test_filtered_raw_mapping(void) {
@@ -215,6 +296,8 @@ int main(void) {
     test_init_defaults();
     test_registry_add_and_get();
     test_get_provider_for_tab();
+    test_disabled_provider_runtime_lookups_are_hidden();
+    test_apply_disabled_provider_list();
     test_filtered_raw_mapping();
     test_generation_token();
     test_dispatch_helpers();

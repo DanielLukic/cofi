@@ -109,6 +109,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode);
 const CofiTabProvider *cofi_get_provider_for_command(const char *command);
 int  cofi_get_provider_id_for_tab(int tab_mode);
 int  cofi_provider_count(void);
+int  cofi_provider_is_enabled(int provider_id);
+void cofi_set_provider_enabled(int provider_id, int enabled);
+int  cofi_provider_is_disableable(int provider_id);
+void cofi_apply_disabled_providers(const char *disabled_ids);
+void cofi_build_disabled_providers_string(char *out, size_t out_size);
 
 /* === Filtered→raw mapping (core populates after each filter pass) === */
 

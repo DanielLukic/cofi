@@ -163,6 +163,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
         "textview { font-family: monospace; font-size: 12pt; }\n"
         "entry { font-family: monospace; font-size: 12pt; }\n"
         "#mode-indicator { font-family: monospace; font-size: 12pt; padding-left: 10px; padding-right: 5px; }\n"
+        "#provider-list-label { font-family: monospace; font-size: 12pt; }\n"
         "#modal-background { background-color: rgba(0, 0, 0, 0.7); }\n"
         "#dialog-overlay { background-color: @theme_bg_color; border: 2px solid @theme_border_color; border-radius: 8px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); padding: 20px; margin: 20px; }\n"
         ".grid-cell { border: 1px solid @theme_border_color; background-color: @theme_base_color; border-radius: 3px; margin: 2px; }";
@@ -364,6 +365,10 @@ int run_cofi(int argc, char *argv[]) {
     init_x11_connection(&app);
 
     load_config(&app.config);
+    cofi_apply_disabled_providers(app.config.disabled_providers);
+    if (app.current_tab != TAB_WINDOWS && !cofi_get_provider_for_tab(app.current_tab)) {
+        app.current_tab = TAB_WINDOWS;
+    }
     load_harpoon_slots(&app.harpoon);
 
     if (!log_level_from_cli && app.config.log_level[0]) {

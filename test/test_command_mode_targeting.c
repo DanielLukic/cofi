@@ -24,6 +24,7 @@ void update_display(AppData *app) {
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) { (void)app; (void)provider; }
 void cofi_exit_modal(AppData *app) { (void)app; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+int command_primary_is_available(const char *primary) { (void)primary; return 1; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }

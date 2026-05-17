@@ -24,6 +24,7 @@
 #include "daemon_socket.h"
 #include "calc.h"
 
+#define MAX_PROVIDER_ENABLEMENT_ROWS 32
 
 typedef enum {
     TAB_WINDOWS,
@@ -71,7 +72,8 @@ typedef enum {
     OVERLAY_RULE_DELETE,
     OVERLAY_SESSION_KILL,
     OVERLAY_SESSION_RENAME,
-    OVERLAY_SESSION_NEW
+    OVERLAY_SESSION_NEW,
+    OVERLAY_PROVIDER_ENABLEMENT
 } OverlayType;
 
 // Entry mode definitions
@@ -276,6 +278,12 @@ typedef struct AppData {
     gboolean overlay_active;                // Whether any overlay is currently shown
     OverlayType current_overlay;            // Which overlay is currently active
     gboolean hotkey_capture_active;         // True while hotkey add overlay is in capture mode
+    struct {
+        int selected;
+        int count;
+        int provider_ids[MAX_PROVIDER_ENABLEMENT_ROWS];
+        int enabled[MAX_PROVIDER_ENABLEMENT_ROWS];
+    } provider_enablement;
     
     // Window visibility state
     gboolean window_visible;                // Whether the window is currently visible

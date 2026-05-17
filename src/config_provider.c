@@ -75,11 +75,17 @@ int config_entry_allows_edit(const ConfigEntry *entry) {
                      entry->type == CONFIG_TYPE_STRING);
 }
 
+static int config_entry_opens_provider_list(const ConfigEntry *entry) {
+    return entry && entry->type == CONFIG_TYPE_PROVIDER_LIST;
+}
+
 static const char *config_shortcut_hint(AppData *app) {
     ConfigEntry *entry = config_selected_entry(app);
     if (!entry) {
-        return "Shortcuts: Ctrl+T=Toggle bool/enum  Ctrl+E=Edit value";
+        return "Shortcuts: Ctrl+T=Toggle bool/enum  Ctrl+E=Edit value/provider list";
     }
+    if (config_entry_opens_provider_list(entry))
+        return "Shortcuts: Ctrl+E/Ctrl+T=Edit provider list";
     if (entry->type == CONFIG_TYPE_BOOL || entry->type == CONFIG_TYPE_ENUM) {
         return "Shortcuts: Ctrl+T=Cycle value";
     }
@@ -143,6 +149,11 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
         ConfigEntry *entry = config_selected_entry(app);
         if (entry) {
+            if (config_entry_opens_provider_list(entry)) {
+                show_overlay(app, OVERLAY_PROVIDER_ENABLEMENT, NULL);
+                return TRUE;
+            }
+
             const char *new_value = NULL;
             if (entry->type == CONFIG_TYPE_BOOL) {
                 new_value = (strcmp(entry->value, "true") == 0) ? "false" : "true";
@@ -170,7 +181,12 @@ gboolean handle_config_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
-        if (config_entry_allows_edit(config_selected_entry(app))) {
+        ConfigEntry *entry = config_selected_entry(app);
+        if (config_entry_opens_provider_list(entry)) {
+            show_overlay(app, OVERLAY_PROVIDER_ENABLEMENT, NULL);
+            return TRUE;
+        }
+        if (config_entry_allows_edit(entry)) {
             show_overlay(app, OVERLAY_CONFIG_EDIT, NULL);
             return TRUE;
         }

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
@@ -32,6 +33,8 @@ static int xinternatom_calls = 0;
 static int xchangeproperty_calls = 0;
 static int xflush_calls = 0;
 static guint32 user_time_property_value_at_set = 0;
+static CofiTabProvider run_provider_stub;
+static int run_provider_available = 1;
 
 void show_window(AppData *app) {
     show_window_calls++;
@@ -149,7 +152,10 @@ void cofi_exit_modal(AppData *app) {
     cofi_exit_modal_calls++;
     app->command_mode.state = CMD_MODE_NORMAL;
 }
-const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
+const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
+    if (prefix == '!' && run_provider_available) return &run_provider_stub;
+    return NULL;
+}
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 CofiActionStatus cofi_call_on_command_args(int id, AppData *app, const char *args) {
     (void)id; (void)app; (void)args; return COFI_NO_OP;
@@ -179,6 +185,10 @@ static void reset_mocks(void) {
     xchangeproperty_calls = 0;
     xflush_calls = 0;
     user_time_property_value_at_set = 0;
+    memset(&run_provider_stub, 0, sizeof(run_provider_stub));
+    run_provider_stub.tab_mode = TAB_RUN;
+    run_provider_stub.prefix_char = '!';
+    run_provider_available = 1;
 }
 
 static AppData make_app(void) {
@@ -281,10 +291,22 @@ static void test_run_opcode_dispatch(void) {
     ASSERT_TRUE("run opcode enters run modal", cofi_enter_modal_calls == 1);
 }
 
+static void test_run_opcode_ignores_disabled_provider(void) {
+    AppData app = make_app();
+    reset_mocks();
+
+    run_provider_available = 0;
+    daemon_socket_dispatch_opcode(&app, COFI_OPCODE_RUN);
+
+    ASSERT_TRUE("disabled run provider does not show window", show_window_calls == 0);
+    ASSERT_TRUE("disabled run provider does not enter modal", cofi_enter_modal_calls == 0);
+}
+
 int main(void) {
     test_tab_opcode_dispatch();
     test_command_opcode_dispatch();
     test_run_opcode_dispatch();
+    test_run_opcode_ignores_disabled_provider();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

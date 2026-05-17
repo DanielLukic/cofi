@@ -27,6 +27,7 @@ static int reset_selection_calls = 0;
 static int update_display_calls = 0;
 static int show_window_calls = 0;
 static int exit_command_mode_calls = 0;
+static int disabled_provider_tab = -1;
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -158,10 +159,22 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
 }
 
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
-    (void)tab_mode; return NULL;
+    static CofiTabProvider provider;
+    if (tab_mode == TAB_WINDOWS || tab_mode == disabled_provider_tab) return NULL;
+    memset(&provider, 0, sizeof(provider));
+    provider.tab_mode = tab_mode;
+    provider.id = "test";
+    return &provider;
 }
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
-    (void)command; return NULL;
+    if (!command) return NULL;
+    if (strcmp(command, "apps") == 0) return cofi_get_provider_for_tab(TAB_APPS);
+    if (strcmp(command, "config") == 0) return cofi_get_provider_for_tab(TAB_CONFIG);
+    if (strcmp(command, "harpoon") == 0) return cofi_get_provider_for_tab(TAB_HARPOON);
+    if (strcmp(command, "names") == 0) return cofi_get_provider_for_tab(TAB_NAMES);
+    if (strcmp(command, "rules") == 0) return cofi_get_provider_for_tab(TAB_RULES);
+    if (strcmp(command, "workspaces") == 0) return cofi_get_provider_for_tab(TAB_WORKSPACES);
+    return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 void cofi_init_provider_defaults(CofiTabProvider *p) {
@@ -182,6 +195,10 @@ void show_help_commands(AppData *app) {
 
 void save_config(const CofiConfig *config) {
     (void)config;
+}
+
+void cofi_apply_disabled_providers(const char *disabled_ids) {
+    (void)disabled_ids;
 }
 
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
@@ -317,6 +334,7 @@ static void reset_counters(void) {
     update_display_calls = 0;
     show_window_calls = 0;
     exit_command_mode_calls = 0;
+    disabled_provider_tab = -1;
 }
 
 static AppData make_app(void) {
@@ -539,12 +557,28 @@ static void test_show_all_tabs_cycles_hidden_tabs(void) {
                 tab_is_visible(&app, TAB_SESSIONS) == TRUE);
 }
 
+static void test_show_all_tabs_skips_unavailable_provider_tabs(void) {
+    AppData app = make_default_visibility_app();
+    GdkEventKey event;
+    memset(&event, 0, sizeof(event));
+    event.keyval = GDK_KEY_Tab;
+    app.config.show_all_tabs = 1;
+    disabled_provider_tab = TAB_WORKSPACES;
+
+    gboolean handled = handle_tab_switching(&event, &app);
+    ASSERT_TRUE("show_all_tabs handles with unavailable provider", handled == TRUE);
+    ASSERT_TRUE("show_all_tabs skips disabled workspaces provider", app.current_tab == TAB_HARPOON);
+    ASSERT_TRUE("disabled provider tab reports invisible",
+                tab_is_visible(&app, TAB_WORKSPACES) == FALSE);
+}
+
 static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
     AppData app = make_default_visibility_app();
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
     event.keyval = GDK_KEY_Tab;
     event.state = GDK_SHIFT_MASK;
+    disabled_provider_tab = -1;
 
     surface_tab(&app, TAB_WORKSPACES);
     ASSERT_TRUE("workspaces surfaced before cycling", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_SURFACED);
@@ -677,6 +711,7 @@ int main(void) {
     test_daemon_opcode_applications_resets_mode();
     test_tab_switching_skips_hidden_tabs();
     test_show_all_tabs_cycles_hidden_tabs();
+    test_show_all_tabs_skips_unavailable_provider_tabs();
     test_tab_switching_clears_surfaced_tabs_on_pinned_return();
     test_command_help_wrap_respects_width_budget();
     test_command_help_wrap_show_continuation_alignment();

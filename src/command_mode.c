@@ -7,6 +7,7 @@
 #include "nav_keys.h"
 #include "selection.h"
 #include "dynamic_display.h"
+#include "command_availability.h"
 #include "command_parse_defs.h"
 
 #include <string.h>
@@ -137,6 +138,10 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
     int match_count = 0;
 
     for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
+        if (!command_primary_is_available(COMMAND_PARSE_DEFS[i].primary)) {
+            continue;
+        }
+
         const char *names[6] = {0};
         int name_count = 0;
 
@@ -498,10 +503,15 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             return TRUE;
 
         case GDK_KEY_exclam: {
+            const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+            if (!provider) {
+                log_warn("Run provider is disabled; ignoring run modal shortcut");
+                return TRUE;
+            }
             exit_command_mode(app);
             app->prefix_origin_tab = app->current_tab;
             app->active_prefix_claim = '!';
-            cofi_enter_modal(app, cofi_get_provider_for_prefix('!'));
+            cofi_enter_modal(app, provider);
             return TRUE;
         }
 
