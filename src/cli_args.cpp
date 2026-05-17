@@ -26,7 +26,7 @@ static void set_startup_delegate(AppData *app, uint8_t opcode) {
 
     switch (opcode) {
         case COFI_OPCODE_WORKSPACES:
-            app->current_tab = TAB_WORKSPACES;
+            app->current_tab = TAB_WINDOWS;
             break;
         case COFI_OPCODE_HARPOON:
             app->current_tab = TAB_WINDOWS;

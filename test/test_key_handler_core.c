@@ -86,12 +86,13 @@ static int g_update_display_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
-#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 3))
-#define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 4))
-#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 5))
-#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 6))
+#define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 4))
+#define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 5))
+#define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 6))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 7))
 
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
@@ -680,14 +681,14 @@ static void test_return_workspaces_switches_desktop_and_hides(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_WORKSPACES;
+    app.current_tab = TEST_WORKSPACES_TAB;
     app.filtered_workspace_count = 1;
     app.selection.provider_index = 0;
     app.filtered_workspaces[0].id = 3;
     strcpy(app.filtered_workspaces[0].name, "WS4");
     CofiTabProvider provider;
     memset(&provider, 0, sizeof(provider));
-    provider.tab_mode = TAB_WORKSPACES;
+    provider.tab_mode = TEST_WORKSPACES_TAB;
     provider.on_enter_pressed = mock_workspaces_enter_pressed;
     g_provider_for_tab = &provider;
 
@@ -948,7 +949,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
     reset_captures();
 
     TabMode tabs[] = {
-        TAB_WINDOWS, TAB_WORKSPACES, TEST_HARPOON_TAB,
+        TAB_WINDOWS, TEST_WORKSPACES_TAB, TEST_HARPOON_TAB,
         TEST_NAMES_TAB, TEST_CONFIG_TAB, TEST_HOTKEYS_TAB, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
@@ -966,7 +967,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         CofiTabProvider workspaces_provider;
         memset(&workspaces_provider, 0, sizeof(workspaces_provider));
-        workspaces_provider.tab_mode = TAB_WORKSPACES;
+        workspaces_provider.tab_mode = TEST_WORKSPACES_TAB;
         workspaces_provider.on_query_changed = mock_workspaces_query_changed;
 
         CofiTabProvider hotkeys_provider;
@@ -996,7 +997,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
         if (tabs[i] == TEST_APPS_TAB) {
             g_provider_for_tab = &apps_provider;
-        } else if (tabs[i] == TAB_WORKSPACES) {
+        } else if (tabs[i] == TEST_WORKSPACES_TAB) {
             g_provider_for_tab = &workspaces_provider;
         } else if (tabs[i] == TEST_HARPOON_TAB) {
             g_provider_for_tab = &harpoon_provider;
@@ -1026,7 +1027,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("WINDOWS filter routing",
                     tabs[i] != TAB_WINDOWS || (g_filter_windows_calls == 1 && strcmp(g_last_filter_windows, "query") == 0));
         ASSERT_TRUE("WORKSPACES filter routing",
-                    tabs[i] != TAB_WORKSPACES || (g_filter_workspaces_calls == 1 && strcmp(g_last_filter_workspaces, "query") == 0));
+                    tabs[i] != TEST_WORKSPACES_TAB || (g_filter_workspaces_calls == 1 && strcmp(g_last_filter_workspaces, "query") == 0));
         ASSERT_TRUE("HARPOON filter routing",
                     tabs[i] != TEST_HARPOON_TAB || (g_filter_harpoon_calls == 1 && strcmp(g_last_filter_harpoon, "query") == 0));
         ASSERT_TRUE("NAMES filter routing",
@@ -1208,7 +1209,7 @@ static void test_switch_away_from_apps_resets_mode(void) {
     app.current_tab = TEST_APPS_TAB;
     app.apps_mode = APPS_MODE_PATH;
 
-    switch_to_tab(&app, TAB_WORKSPACES);
+    switch_to_tab(&app, TEST_WORKSPACES_TAB);
 
     ASSERT_TRUE("switch away from Apps resets mode", app.apps_mode == APPS_MODE_DEFAULT);
 }

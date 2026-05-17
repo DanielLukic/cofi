@@ -43,9 +43,10 @@ static char g_last_sinks_slot;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
 
-#define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_SINKS_TAB   ((TabMode)(TAB_COUNT + 2))
-#define TEST_APPS_TAB    ((TabMode)(TAB_COUNT + 3))
+#define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
+#define TEST_SINKS_TAB      ((TabMode)(TAB_COUNT + 3))
+#define TEST_APPS_TAB       ((TabMode)(TAB_COUNT + 4))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -481,7 +482,7 @@ static void test_alt_digit_out_of_workspace_range_non_windows_noop(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_WORKSPACES;
+    app.current_tab = TEST_WORKSPACES_TAB;
     app.workspace_count = 2;
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
 

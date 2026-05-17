@@ -10,6 +10,7 @@
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
+#include "workspaces_provider.h"
 #include "x11_utils.h"
 
 
@@ -36,7 +37,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             case SHOW_MODE_WORKSPACES:
                 app->current_tab = TAB_WINDOWS;
                 show_window(app);
-                surface_tab(app, TAB_WORKSPACES);
+                surface_tab(app, workspaces_tab_mode());
                 break;
             default:
                 app->current_tab = TAB_WINDOWS;
@@ -74,10 +75,10 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             break;
 
         case SHOW_MODE_WORKSPACES:
-            if (app->current_tab == TAB_WORKSPACES) {
+            if (app->current_tab == workspaces_tab_mode()) {
                 return;
             }
-            surface_tab(app, TAB_WORKSPACES);
+            surface_tab(app, workspaces_tab_mode());
             gtk_widget_grab_focus(app->entry);
             break;
 

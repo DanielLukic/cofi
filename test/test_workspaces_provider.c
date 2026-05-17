@@ -26,6 +26,9 @@ static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static int g_last_desktop = -1;
 static TabMode g_last_surface_tab = TAB_WINDOWS;
+static CofiTabProvider g_registered_provider;
+
+#define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -56,8 +59,15 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    if (p) g_registered_provider = *p;
+    g_registered_provider.tab_mode = TEST_WORKSPACES_TAB;
     return 0;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    (void)provider_id;
+    return &g_registered_provider;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -80,7 +90,9 @@ static void reset_state(AppData *app) {
     g_surface_tab_calls = 0;
     g_last_desktop = -1;
     g_last_surface_tab = TAB_WINDOWS;
-    app->current_tab = TAB_WORKSPACES;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    g_registered_provider.tab_mode = TEST_WORKSPACES_TAB;
+    app->current_tab = TEST_WORKSPACES_TAB;
 }
 
 static void seed_workspaces(AppData *app) {
@@ -176,6 +188,9 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("command keeps hotkey open",
                 s_workspaces_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("command handler exists", s_workspaces_command.handler != NULL);
+    workspaces_provider_register();
+    ASSERT_TRUE("workspaces provider uses dynamic tab",
+                g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -189,7 +204,7 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command stores prefix origin", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("command surfaces workspaces tab",
-                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_WORKSPACES);
+                g_surface_tab_calls == 1 && g_last_surface_tab == TEST_WORKSPACES_TAB);
 }
 
 int main(void) {

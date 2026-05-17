@@ -28,7 +28,6 @@
 
 typedef enum {
     TAB_WINDOWS,
-    TAB_WORKSPACES,
     TAB_COUNT
 } TabMode;
 

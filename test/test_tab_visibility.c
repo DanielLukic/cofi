@@ -30,13 +30,14 @@ static int show_window_calls = 0;
 static int exit_command_mode_calls = 0;
 static int disabled_provider_tab = -1;
 
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 1))
-#define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 2))
-#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 3))
-#define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 4))
-#define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 5))
-#define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 6))
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 7))
+#define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
+#define TEST_APPS_TAB       ((TabMode)(TAB_COUNT + 3))
+#define TEST_NAMES_TAB      ((TabMode)(TAB_COUNT + 4))
+#define TEST_CONFIG_TAB     ((TabMode)(TAB_COUNT + 5))
+#define TEST_HOTKEYS_TAB    ((TabMode)(TAB_COUNT + 6))
+#define TEST_RULES_TAB      ((TabMode)(TAB_COUNT + 7))
+#define TEST_SESSIONS_TAB   ((TabMode)(TAB_COUNT + 8))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -181,6 +182,10 @@ TabMode harpoon_tab_mode(void) {
     return TEST_HARPOON_TAB;
 }
 
+TabMode workspaces_tab_mode(void) {
+    return TEST_WORKSPACES_TAB;
+}
+
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix; return NULL;
 }
@@ -262,20 +267,16 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         provider.id = "harpoon";
         return &provider;
     }
-
-    switch (tab_mode) {
-        case TAB_WORKSPACES:
-            provider.id = "workspaces";
-            break;
-        default:
-            if (tab_mode == TEST_NAMES_TAB) {
-                provider.id = "names";
-            } else if (tab_mode == TEST_SESSIONS_TAB) {
-                provider.id = "sessions";
-            } else {
-                provider.id = "test";
-            }
-            break;
+    if (tab_mode == TEST_WORKSPACES_TAB) {
+        provider.id = "workspaces";
+        return &provider;
+    }
+    if (tab_mode == TEST_NAMES_TAB) {
+        provider.id = "names";
+    } else if (tab_mode == TEST_SESSIONS_TAB) {
+        provider.id = "sessions";
+    } else {
+        provider.id = "test";
     }
     return &provider;
 }
@@ -287,7 +288,7 @@ int cofi_get_provider_id(const char *id) {
     if (strcmp(id, "hotkeys") == 0) return TEST_HOTKEYS_TAB;
     if (strcmp(id, "names") == 0) return TEST_NAMES_TAB;
     if (strcmp(id, "rules") == 0) return TEST_RULES_TAB;
-    if (strcmp(id, "workspaces") == 0) return TAB_WORKSPACES;
+    if (strcmp(id, "workspaces") == 0) return TEST_WORKSPACES_TAB;
     if (strcmp(id, "sessions") == 0) return TEST_SESSIONS_TAB;
     return -1;
 }
@@ -303,8 +304,8 @@ TabMode config_tab_mode(void) { return TEST_CONFIG_TAB; }
 TabMode hotkeys_tab_mode(void) { return TEST_HOTKEYS_TAB; }
 int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
-    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
-        tabs[count++] = tab;
+    if (count < max_tabs) {
+        tabs[count++] = TEST_WORKSPACES_TAB;
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_HARPOON_TAB;
@@ -516,7 +517,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
     event.keyval = GDK_KEY_Tab;
 
     TabMode expected[] = {
-        TAB_WORKSPACES,
+        TEST_WORKSPACES_TAB,
         TEST_HARPOON_TAB,
         TEST_APPS_TAB,
         TEST_NAMES_TAB,
@@ -553,7 +554,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TEST_NAMES_TAB,
         TEST_APPS_TAB,
         TEST_HARPOON_TAB,
-        TAB_WORKSPACES,
+        TEST_WORKSPACES_TAB,
         TAB_WINDOWS
     };
 
@@ -641,12 +642,12 @@ static void test_daemon_opcode_harpoon_switches_to_harpoon_tab(void) {
 static void test_surface_tab_surfaces_hidden_tab(void) {
     AppData app = make_default_visibility_app();
 
-    ASSERT_TRUE("workspaces starts hidden", tab_is_visible(&app, TAB_WORKSPACES) == FALSE);
+    ASSERT_TRUE("workspaces starts hidden", tab_is_visible(&app, TEST_WORKSPACES_TAB) == FALSE);
 
-    surface_tab(&app, TAB_WORKSPACES);
+    surface_tab(&app, TEST_WORKSPACES_TAB);
 
-    ASSERT_TRUE("surface_tab marks tab visible", tab_is_visible(&app, TAB_WORKSPACES) == TRUE);
-    ASSERT_TRUE("surface_tab switches current tab", app.current_tab == TAB_WORKSPACES);
+    ASSERT_TRUE("surface_tab marks tab visible", tab_is_visible(&app, TEST_WORKSPACES_TAB) == TRUE);
+    ASSERT_TRUE("surface_tab switches current tab", app.current_tab == TEST_WORKSPACES_TAB);
 }
 
 static void test_cmd_show_apps_resets_to_default_mode(void) {
@@ -670,7 +671,7 @@ static void test_cmd_show_provider_records_origin_tab(void) {
     reset_counters();
     cmd_show(&app, NULL, "workspaces");
 
-    ASSERT_TRUE("cmd_show workspaces switches tab", app.current_tab == TAB_WORKSPACES);
+    ASSERT_TRUE("cmd_show workspaces switches tab", app.current_tab == TEST_WORKSPACES_TAB);
     ASSERT_TRUE("cmd_show workspaces records origin tab",
                 app.prefix_origin_tab == TAB_WINDOWS);
 }
@@ -710,7 +711,7 @@ static void test_show_all_tabs_cycles_hidden_tabs(void) {
 
     gboolean handled = handle_tab_switching(&event, &app);
     ASSERT_TRUE("show_all_tabs tab switch handled", handled == TRUE);
-    ASSERT_TRUE("show_all_tabs includes hidden workspaces", app.current_tab == TAB_WORKSPACES);
+    ASSERT_TRUE("show_all_tabs includes hidden workspaces", app.current_tab == TEST_WORKSPACES_TAB);
     ASSERT_TRUE("hidden tab reports visible with show_all_tabs",
                 tab_is_visible(&app, TEST_SESSIONS_TAB) == TRUE);
 }
@@ -721,13 +722,13 @@ static void test_show_all_tabs_skips_unavailable_provider_tabs(void) {
     memset(&event, 0, sizeof(event));
     event.keyval = GDK_KEY_Tab;
     app.config.show_all_tabs = 1;
-    disabled_provider_tab = TAB_WORKSPACES;
+    disabled_provider_tab = TEST_WORKSPACES_TAB;
 
     gboolean handled = handle_tab_switching(&event, &app);
     ASSERT_TRUE("show_all_tabs handles with unavailable provider", handled == TRUE);
     ASSERT_TRUE("show_all_tabs skips disabled workspaces provider", app.current_tab == TEST_HARPOON_TAB);
     ASSERT_TRUE("disabled provider tab reports invisible",
-                tab_is_visible(&app, TAB_WORKSPACES) == FALSE);
+                tab_is_visible(&app, TEST_WORKSPACES_TAB) == FALSE);
 }
 
 static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
@@ -738,13 +739,13 @@ static void test_tab_switching_clears_surfaced_tabs_on_pinned_return(void) {
     event.state = GDK_SHIFT_MASK;
     disabled_provider_tab = -1;
 
-    surface_tab(&app, TAB_WORKSPACES);
-    ASSERT_TRUE("workspaces surfaced before cycling", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_SURFACED);
+    surface_tab(&app, TEST_WORKSPACES_TAB);
+    ASSERT_TRUE("workspaces surfaced before cycling", app.tab_visibility[TEST_WORKSPACES_TAB] == TAB_VIS_SURFACED);
 
     gboolean handled = handle_tab_switching(&event, &app);
     ASSERT_TRUE("shift-tab handled from surfaced tab", handled == TRUE);
     ASSERT_TRUE("shift-tab moved to pinned windows", app.current_tab == TAB_WINDOWS);
-    ASSERT_TRUE("surfaced tab hidden again after leaving", app.tab_visibility[TAB_WORKSPACES] == TAB_VIS_HIDDEN);
+    ASSERT_TRUE("surfaced tab hidden again after leaving", app.tab_visibility[TEST_WORKSPACES_TAB] == TAB_VIS_HIDDEN);
 }
 
 static void test_command_help_wrap_respects_width_budget(void) {

@@ -210,9 +210,9 @@ static void test_gate_nonempty_windows_does_not_trigger(void) {
 
 static void test_gate_empty_other_tab_does_not_trigger(void) {
     ASSERT_TRUE("gate: empty query on workspaces tab does NOT trigger",
-                repeat_key_should_trigger(TAB_WORKSPACES, "") == 0);
-    ASSERT_TRUE("gate: empty query on harpoon tab does NOT trigger",
                 repeat_key_should_trigger((TabMode)(TAB_COUNT + 1), "") == 0);
+    ASSERT_TRUE("gate: empty query on harpoon tab does NOT trigger",
+                repeat_key_should_trigger((TabMode)(TAB_COUNT + 2), "") == 0);
 }
 
 /* ---- Main ---- */

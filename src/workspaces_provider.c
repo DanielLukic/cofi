@@ -14,8 +14,10 @@
 
 static gboolean workspaces_command_handler(AppData *app, WindowInfo *window, const char *args);
 
+static int s_workspaces_provider_id = -1;
+
 static CofiTabProvider s_workspaces_provider = {
-    .tab_mode = TAB_WORKSPACES,
+    .tab_mode = COFI_PROVIDER_DYNAMIC_TAB,
     .id = "workspaces",
     .display_name = "WORKSPACES",
     .required = 0,
@@ -31,6 +33,11 @@ static const CommandSpec s_workspaces_command = {
     .help_format = "workspaces, ws",
     .keeps_open_on_hotkey_auto = 1
 };
+
+TabMode workspaces_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_workspaces_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 void filter_workspaces(AppData *app, const char *filter) {
     if (!app) return;
@@ -152,7 +159,7 @@ static gboolean workspaces_command_handler(AppData *app,
     if (!app) return FALSE;
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_workspaces_provider.tab_mode);
+    surface_tab(app, workspaces_tab_mode());
     return FALSE;
 }
 
@@ -166,7 +173,8 @@ void workspaces_provider_register(void) {
     provider.on_enter = workspaces_on_enter;
     provider.on_query_changed = workspaces_on_query_changed;
     provider.on_enter_pressed = workspaces_on_enter_pressed;
-    if (cofi_register_tab_provider(&provider) >= 0) {
+    s_workspaces_provider_id = cofi_register_tab_provider(&provider);
+    if (s_workspaces_provider_id >= 0) {
         cofi_register_command(&s_workspaces_command);
     }
 }

@@ -15,7 +15,6 @@ static const char *provider_tab_name(TabMode tab) {
 const char *tab_display_name(TabMode tab) {
     switch (tab) {
         case TAB_WINDOWS:    return "Windows";
-        case TAB_WORKSPACES: return "Workspaces";
         case TAB_COUNT:      return NULL;
     }
     return provider_tab_name(tab);
@@ -26,7 +25,6 @@ const char *tab_active_name(TabMode tab) {
 
     switch (tab) {
         case TAB_WINDOWS:    return "WINDOWS";
-        case TAB_WORKSPACES: return "WORKSPACES";
         case TAB_COUNT:      return NULL;
     }
 
@@ -45,7 +43,6 @@ const char *tab_log_name(TabMode tab) {
 
     switch (tab) {
         case TAB_WINDOWS:    return "windows";
-        case TAB_WORKSPACES: return "workspaces";
         case TAB_COUNT:      return NULL;
     }
 

@@ -20,6 +20,7 @@
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
+#include "workspaces_provider.h"
 #include "x11_utils.h"
 
 static gboolean process_daemon_socket_events(GIOChannel *source, GIOCondition condition,
@@ -153,7 +154,7 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_WINDOWS);
             break;
         case COFI_OPCODE_WORKSPACES:
-            show_tab_for_opcode(app, TAB_WORKSPACES);
+            show_tab_for_opcode(app, workspaces_tab_mode());
             break;
         case COFI_OPCODE_HARPOON:
             show_tab_for_opcode(app, harpoon_tab_mode());

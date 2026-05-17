@@ -92,11 +92,7 @@ static void test_registry_add_and_get(void) {
 static void test_dynamic_tab_assignment(void) {
     cofi_registry_reset();
 
-    CofiTabProvider legacy, dynamic_one, dynamic_two;
-    cofi_init_provider_defaults(&legacy);
-    legacy.id = "legacy";
-    legacy.tab_mode = TAB_WORKSPACES;
-    int legacy_id = cofi_register_tab_provider(&legacy);
+    CofiTabProvider dynamic_one, dynamic_two;
 
     cofi_init_provider_defaults(&dynamic_one);
     dynamic_one.id = "dynamic-one";
@@ -110,7 +106,6 @@ static void test_dynamic_tab_assignment(void) {
 
     const CofiTabProvider *first = cofi_get_provider(dynamic_one_id);
     const CofiTabProvider *second = cofi_get_provider(dynamic_two_id);
-    ASSERT_EQ("legacy provider registered", legacy_id, 0);
     ASSERT_NOT_NULL("dynamic provider one exists", first);
     ASSERT_NOT_NULL("dynamic provider two exists", second);
     ASSERT_EQ("first dynamic tab starts after legacy enum",
@@ -122,10 +117,9 @@ static void test_dynamic_tab_assignment(void) {
 
     int tabs[8];
     int count = cofi_list_provider_tabs(tabs, 8);
-    ASSERT_EQ("provider tab list count", count, 3);
-    ASSERT_EQ("legacy tab ordered before dynamic tabs", tabs[0], TAB_WORKSPACES);
-    ASSERT_EQ("dynamic tab one listed", tabs[1], TAB_COUNT + 1);
-    ASSERT_EQ("dynamic tab two listed", tabs[2], TAB_COUNT + 2);
+    ASSERT_EQ("provider tab list count", count, 2);
+    ASSERT_EQ("dynamic tab one listed", tabs[0], TAB_COUNT + 1);
+    ASSERT_EQ("dynamic tab two listed", tabs[1], TAB_COUNT + 2);
 }
 
 static void test_get_provider_for_tab(void) {
