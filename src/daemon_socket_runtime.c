@@ -7,25 +7,22 @@
 #include <gdk/gdkx.h>
 #include <X11/Xatom.h>
 
-#include "apps_provider.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
 #include "daemon_socket.h"
 #include "display.h"
 #include "filter.h"
-#include "harpoon_provider.h"
 #include "log.h"
-#include "names_provider.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
-#include "workspaces_provider.h"
 #include "x11_utils.h"
 
 static gboolean process_daemon_socket_events(GIOChannel *source, GIOCondition condition,
                                              gpointer data);
 static void show_tab_for_opcode(AppData *app, TabMode tab);
+static void show_provider_for_opcode(AppData *app, const char *provider_id);
 static void refresh_focus_timestamp(AppData *app);
 static void mark_window_user_time(AppData *app, guint32 ts);
 
@@ -123,6 +120,26 @@ static void show_tab_for_opcode(AppData *app, TabMode tab) {
     }
 }
 
+static void show_provider_for_opcode(AppData *app, const char *provider_id) {
+    if (!app || !provider_id) {
+        return;
+    }
+
+    int id = cofi_get_provider_id(provider_id);
+    if (id < 0 || !cofi_provider_is_enabled(id)) {
+        log_warn("Provider '%s' is disabled; ignoring delegate", provider_id);
+        return;
+    }
+
+    const CofiTabProvider *provider = cofi_get_provider(id);
+    if (!provider) {
+        log_warn("Provider '%s' is unavailable; ignoring delegate", provider_id);
+        return;
+    }
+
+    show_tab_for_opcode(app, (TabMode)provider->tab_mode);
+}
+
 static void mark_window_user_time(AppData *app, guint32 ts) {
     if (!app || !app->display || !app->own_window_id || ts == 0) {
         return;
@@ -154,16 +171,16 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_WINDOWS);
             break;
         case COFI_OPCODE_WORKSPACES:
-            show_tab_for_opcode(app, workspaces_tab_mode());
+            show_provider_for_opcode(app, "workspaces");
             break;
         case COFI_OPCODE_HARPOON:
-            show_tab_for_opcode(app, harpoon_tab_mode());
+            show_provider_for_opcode(app, "harpoon");
             break;
         case COFI_OPCODE_NAMES:
-            show_tab_for_opcode(app, names_tab_mode());
+            show_provider_for_opcode(app, "names");
             break;
         case COFI_OPCODE_APPLICATIONS:
-            show_tab_for_opcode(app, apps_tab_mode());
+            show_provider_for_opcode(app, "apps");
             break;
         case COFI_OPCODE_COMMAND:
             app->current_tab = TAB_WINDOWS;

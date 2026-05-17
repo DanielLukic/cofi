@@ -232,18 +232,18 @@ The remaining work is narrow:
 Do not introduce a broad `CofiPrefixSpec` unless the simple provider field is no
 longer enough.
 
-## Phase 6: Delegate Surfaces
+## Phase 6: Delegate Surfaces (guard landed)
 
-Daemon and hotkey delegates are not a plugin API today. Some paths already query
-providers, especially Run via `cofi_get_provider_for_prefix('!')`, but fixed
-opcodes and `ShowMode` values still encode core knowledge.
+Daemon and hotkey delegates are not a plugin API today. Some paths query
+providers, especially Run via `cofi_get_provider_for_prefix('!')`, while fixed
+opcodes and `ShowMode` values still encode compatibility knowledge.
 
-Defer this until command and tab ownership are stable.
+The current guard layer resolves provider IDs before surfacing provider-backed
+daemon opcodes or the Workspaces hotkey. Disabled providers fail closed before
+the window is shown.
 
-Future acceptance:
+Remaining acceptance:
 
-- disabled plugin daemon delegates fail closed;
-- disabled plugin hotkey delegates fail closed;
 - fixed opcodes remain backward compatible;
 - any new plugin-facing delegate uses a string/action id rather than requiring a
   new core opcode.

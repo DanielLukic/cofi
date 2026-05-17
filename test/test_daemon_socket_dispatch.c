@@ -34,7 +34,9 @@ static int xchangeproperty_calls = 0;
 static int xflush_calls = 0;
 static guint32 user_time_property_value_at_set = 0;
 static CofiTabProvider run_provider_stub;
+static CofiTabProvider delegate_providers[4];
 static int run_provider_available = 1;
+static const char *disabled_provider_id = NULL;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
@@ -178,6 +180,25 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
+int cofi_get_provider_id(const char *id) {
+    if (!id) return -1;
+    if (strcmp(id, "workspaces") == 0) return 0;
+    if (strcmp(id, "harpoon") == 0) return 1;
+    if (strcmp(id, "names") == 0) return 2;
+    if (strcmp(id, "apps") == 0) return 3;
+    return -1;
+}
+int cofi_provider_is_enabled(int provider_id) {
+    const CofiTabProvider *provider = provider_id >= 0 && provider_id < 4
+        ? &delegate_providers[provider_id]
+        : NULL;
+    if (!provider || !provider->id) return 0;
+    return !disabled_provider_id || strcmp(disabled_provider_id, provider->id) != 0;
+}
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    if (provider_id < 0 || provider_id >= 4) return NULL;
+    return &delegate_providers[provider_id];
+}
 CofiActionStatus cofi_call_on_command_args(int id, AppData *app, const char *args) {
     (void)id; (void)app; (void)args; return COFI_NO_OP;
 }
@@ -210,6 +231,16 @@ static void reset_mocks(void) {
     run_provider_stub.tab_mode = TAB_COUNT + 1;
     run_provider_stub.prefix_char = '!';
     run_provider_available = 1;
+    disabled_provider_id = NULL;
+    memset(delegate_providers, 0, sizeof(delegate_providers));
+    delegate_providers[0].id = "workspaces";
+    delegate_providers[0].tab_mode = TEST_WORKSPACES_TAB;
+    delegate_providers[1].id = "harpoon";
+    delegate_providers[1].tab_mode = TEST_HARPOON_TAB;
+    delegate_providers[2].id = "names";
+    delegate_providers[2].tab_mode = TEST_NAMES_TAB;
+    delegate_providers[3].id = "apps";
+    delegate_providers[3].tab_mode = TEST_APPS_TAB;
 }
 
 static AppData make_app(void) {
@@ -323,11 +354,25 @@ static void test_run_opcode_ignores_disabled_provider(void) {
     ASSERT_TRUE("disabled run provider does not enter modal", cofi_enter_modal_calls == 0);
 }
 
+static void test_tab_opcode_ignores_disabled_provider(void) {
+    AppData app = make_app();
+    reset_mocks();
+
+    disabled_provider_id = "apps";
+    daemon_socket_dispatch_opcode(&app, COFI_OPCODE_APPLICATIONS);
+
+    ASSERT_TRUE("disabled apps provider does not show window", show_window_calls == 0);
+    ASSERT_TRUE("disabled apps provider does not switch tab", switch_tab_calls == 0);
+    ASSERT_TRUE("disabled apps provider leaves current tab unchanged",
+                app.current_tab == TAB_WINDOWS);
+}
+
 int main(void) {
     test_tab_opcode_dispatch();
     test_command_opcode_dispatch();
     test_run_opcode_dispatch();
     test_run_opcode_ignores_disabled_provider();
+    test_tab_opcode_ignores_disabled_provider();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
