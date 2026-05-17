@@ -1,10 +1,13 @@
 #include "run_provider.h"
 
 #include "app_data.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
+#include "cofi_modal.h"
 #include "detach_launch.h"
 #include "log.h"
 #include "run_mode.h"
+#include "window_lifecycle.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
@@ -94,6 +97,31 @@ static void run_on_enter(AppData *app) {
 static const char *const s_run_aliases[] = {"r", NULL};
 static CofiTabProvider s_run_provider;
 
+static gboolean run_command_handler(AppData *app,
+                                    WindowInfo *window __attribute__((unused)),
+                                    const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("run");
+    if (!provider) {
+        return FALSE;
+    }
+
+    if (args && args[0] != '\0') {
+        CofiActionStatus status = run_on_command_args(app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        }
+        return FALSE;
+    }
+
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+        app->active_prefix_claim = '!';
+    }
+    cofi_enter_modal(app, provider);
+    return FALSE;
+}
+
 void run_provider_register(void) {
     cofi_init_provider_defaults(&s_run_provider);
     s_run_provider.tab_mode                = TAB_RUN;
@@ -102,6 +130,10 @@ void run_provider_register(void) {
     s_run_provider.primary_cmd             = "run";
     s_run_provider.aliases                 = s_run_aliases;
     s_run_provider.prefix_char             = '!';
+    s_run_provider.command_description     = "Switch to run mode";
+    s_run_provider.command_help_format     = "run, r";
+    s_run_provider.command_handler         = run_command_handler;
+    s_run_provider.command_keeps_open_on_hotkey_auto = 1;
     s_run_provider.required                = 0;
     s_run_provider.modal_policy            = COFI_MODAL_CLEAR_THEN_RETURN;
     s_run_provider.hidden_by_default       = 1;

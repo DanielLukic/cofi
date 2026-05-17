@@ -460,33 +460,6 @@ static void test_ui_handler_behavior(void) {
     }
 }
 
-static void test_cmd_run_behavior(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-
-    const CommandDef *cmd = find_command("run");
-    ASSERT_TRUE("run command exists", cmd != NULL);
-    if (!cmd) return;
-
-    g_cmd_args_calls = 0;
-    hide_window_calls = 0;
-    g_cmd_args_result = COFI_HANDLED_HIDE;
-    gboolean result = cmd->handler(&app, NULL, "xterm");
-    ASSERT_TRUE("run with arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("run with arg dispatches to provider", g_cmd_args_calls == 1);
-    ASSERT_TRUE("run with arg passes command string", strcmp(g_cmd_args_last, "xterm") == 0);
-    ASSERT_TRUE("run with arg hides after provider hide status", hide_window_calls == 1);
-
-    g_cmd_args_calls = 0;
-    g_enter_modal_calls_cmd = 0;
-    hide_window_calls = 0;
-    result = cmd->handler(&app, NULL, "");
-    ASSERT_TRUE("run without arg returns FALSE", result == FALSE);
-    ASSERT_TRUE("run without arg does not dispatch args", g_cmd_args_calls == 0);
-    ASSERT_TRUE("run without arg enters run modal", g_enter_modal_calls_cmd == 1);
-    ASSERT_TRUE("run without arg does not hide", hide_window_calls == 0);
-}
-
 int main(void) {
     printf("Command handler behavior regression tests\n");
     printf("========================================\n\n");
@@ -498,7 +471,6 @@ int main(void) {
     test_jump_slot_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
-    test_cmd_run_behavior();
 
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);

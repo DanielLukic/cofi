@@ -23,6 +23,10 @@ static int g_detach_calls;
 static char g_last_detach_command[256];
 static gboolean g_detach_result = TRUE;
 static int g_update_display_calls;
+static int g_exit_command_mode_calls;
+static int g_hide_window_calls;
+static int g_enter_modal_calls;
+static const CofiTabProvider *g_last_modal_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -37,6 +41,22 @@ gboolean detach_launch_shell(const char *command) {
 void update_display(AppData *app) {
     (void)app;
     g_update_display_calls++;
+}
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void hide_window(AppData *app) {
+    (void)app;
+    g_hide_window_calls++;
+}
+
+void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
+    (void)app;
+    g_enter_modal_calls++;
+    g_last_modal_provider = provider;
 }
 
 int get_max_display_lines_dynamic(AppData *app) {
@@ -159,6 +179,61 @@ static void test_empty_command_args_surface_path_is_noop(void) {
     ASSERT_TRUE(":run empty args does not add history", app.run_mode.history_count == 0);
 }
 
+static void test_registered_command_metadata(void) {
+    const CofiTabProvider *p = registered_run_provider();
+
+    ASSERT_TRUE("run command registered", p != NULL);
+    ASSERT_TRUE("run command primary", p && strcmp(p->primary_cmd, "run") == 0);
+    ASSERT_TRUE("run command alias", p && p->aliases && strcmp(p->aliases[0], "r") == 0);
+    ASSERT_TRUE("run command help", p && strcmp(p->command_help_format, "run, r") == 0);
+    ASSERT_TRUE("run command description",
+                p && strcmp(p->command_description, "Switch to run mode") == 0);
+    ASSERT_TRUE("run command handler registered", p && p->command_handler != NULL);
+    ASSERT_TRUE("run command keeps open", p && p->command_keeps_open_on_hotkey_auto == 1);
+}
+
+static void test_command_handler_launches_args_and_hides(void) {
+    AppData app;
+    const CofiTabProvider *p = registered_run_provider();
+    setup_app(&app);
+    reset_launch_capture();
+    g_exit_command_mode_calls = 0;
+    g_hide_window_calls = 0;
+
+    gboolean result = p->command_handler(&app, NULL, "xterm");
+
+    ASSERT_TRUE("run command with args returns false", result == FALSE);
+    ASSERT_TRUE("run command with args exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("run command with args launches once", g_detach_calls == 1);
+    ASSERT_TRUE("run command with args captures command",
+                strcmp(g_last_detach_command, "xterm") == 0);
+    ASSERT_TRUE("run command with args adds history",
+                app.run_mode.history_count == 1 &&
+                strcmp(app.run_mode.history[0], "xterm") == 0);
+    ASSERT_TRUE("run command with args hides after launch", g_hide_window_calls == 1);
+}
+
+static void test_command_handler_without_args_enters_modal(void) {
+    AppData app;
+    const CofiTabProvider *p = registered_run_provider();
+    setup_app(&app);
+    g_exit_command_mode_calls = 0;
+    g_hide_window_calls = 0;
+    g_enter_modal_calls = 0;
+    g_last_modal_provider = NULL;
+    reset_launch_capture();
+
+    gboolean result = p->command_handler(&app, NULL, "");
+
+    ASSERT_TRUE("run command without args returns false", result == FALSE);
+    ASSERT_TRUE("run command without args exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("run command without args does not launch", g_detach_calls == 0);
+    ASSERT_TRUE("run command without args does not hide", g_hide_window_calls == 0);
+    ASSERT_TRUE("run command without args sets prefix claim", app.active_prefix_claim == '!');
+    ASSERT_TRUE("run command without args enters modal", g_enter_modal_calls == 1);
+    ASSERT_TRUE("run command without args uses run provider modal", g_last_modal_provider == p);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("SKIP: GTK unavailable\n");
@@ -173,6 +248,9 @@ int main(int argc, char **argv) {
     test_empty_enter_reexecutes_selected_history_without_dup();
     test_command_args_launch_and_add_history();
     test_empty_command_args_surface_path_is_noop();
+    test_registered_command_metadata();
+    test_command_handler_launches_args_and_hides();
+    test_command_handler_without_args_enters_modal();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

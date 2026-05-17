@@ -204,25 +204,6 @@ gboolean cmd_sessions(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
-gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
-                 const char *args) {
-    exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
-    if (!provider) return FALSE;
-
-    if (args && args[0] != '\0') {
-        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
-        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
-        if (status == COFI_HANDLED_HIDE)
-            hide_window(app);
-        return FALSE;
-    }
-    app->prefix_origin_tab = app->current_tab;
-    app->active_prefix_claim = '!';
-    cofi_enter_modal(app, provider);
-    return FALSE;
-}
-
 gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     ShowMode mode = SHOW_MODE_WINDOWS;
 
