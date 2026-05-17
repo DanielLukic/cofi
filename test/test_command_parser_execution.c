@@ -2,6 +2,7 @@
 #include <string.h>
 #include "../src/command_parser.h"
 #include "../src/command_registry.h"
+#include "../src/core_commands.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -146,6 +147,7 @@ int main(void) {
     printf("===================================\n\n");
 
     cofi_command_registry_reset();
+    cofi_register_core_commands();
     register_provider_commands();
 
     test_parse_command_for_execution_alias_resolution();

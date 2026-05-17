@@ -2,6 +2,8 @@
 #include <string.h>
 #include <assert.h>
 #include "../src/command_parser.h"
+#include "../src/command_registry.h"
+#include "../src/core_commands.h"
 
 // Test structure
 typedef struct {
@@ -41,6 +43,9 @@ void run_test(const TestCase *test) {
 int main() {
     printf("Testing Command Parsing\n");
     printf("=======================\n\n");
+
+    cofi_command_registry_reset();
+    cofi_register_core_commands();
     
     TestCase tests[] = {
         // Backward compatibility - commands with spaces

@@ -2,6 +2,8 @@
 #include <string.h>
 
 #include "../src/app_data.h"
+#include "../src/command_registry.h"
+#include "../src/core_commands.h"
 #include "../src/overlay_rules.h"
 
 static int pass = 0;
@@ -217,6 +219,9 @@ int main(int argc, char **argv) {
 
     printf("Overlay rules tests\n");
     printf("===================\n\n");
+
+    cofi_command_registry_reset();
+    cofi_register_core_commands();
 
     test_add_rule_persists_only();
     test_add_rule_rejects_invalid_command();

@@ -11,6 +11,8 @@ Progress:
   path; `TabMode` is reserved for core sentinel values.
 - Phase 4 has landed for provider commands: provider modules now register
   `CommandSpec` entries directly with `command_registry`.
+- Core commands now live in `core_commands.c`; `command_registry.c` is the
+  storage/lookup registry, not a command owner.
 
 ## Problem
 
@@ -40,8 +42,8 @@ Already-good pieces:
 
 Remaining broken windows:
 
-- Core command truth is now centralized in `command_registry`, but core commands
-  still register from one built-in list.
+- Core command truth is now centralized in `core_commands.c` as the built-in
+  core plugin shape.
 - Provider command metadata no longer lives on `CofiTabProvider`; providers
   register `CommandSpec` entries directly.
 - All provider tabs now use dynamic tab handles. Provider-specific static
@@ -188,14 +190,14 @@ Progress:
 
 - Provider-backed commands have moved out of the legacy command tables and are
   registered by their provider modules through `command_registry`.
-- Core commands now use one `CommandSpec` shape via `command_registry`, so parse
+- Core commands now use one `CommandSpec` shape via `core_commands.c`, so parse
   metadata, handlers, help text, activation policy, keep-open policy, and owner
   metadata are no longer split between `COMMAND_PARSE_DEFS[]` and
   `COMMAND_DEFINITIONS[]`.
 - Command fields were removed from `CofiTabProvider`; it is back to tab/list,
   prefix, lifecycle, action, and slot responsibilities.
-- Remaining work: decide whether the core command list should stay as the
-  built-in `core` plugin shape or be decomposed further.
+- Remaining work: only decompose core commands further if a concrete domain
+  boundary needs it; do not split them just for symmetry.
 
 Suggested order:
 

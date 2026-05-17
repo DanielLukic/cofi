@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "../src/command_registry.h"
+#include "../src/core_commands.h"
 #include "../src/command_handlers_window.h"
 #include "../src/command_handlers_workspace.h"
 #include "../src/command_handlers_tiling.h"
@@ -75,6 +76,9 @@ static void test_domain_handler_mappings(void) {
 int main(void) {
     printf("Command handler split tests\n");
     printf("===========================\n\n");
+
+    cofi_command_registry_reset();
+    cofi_register_core_commands();
 
     test_domain_handler_mappings();
 

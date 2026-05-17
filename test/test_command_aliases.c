@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "../src/command_parser.h"
+#include "../src/command_registry.h"
+#include "../src/core_commands.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -367,6 +369,9 @@ static void test_multi_digit_args(void) {
 int main(void) {
     printf("Command Parser Alias & Edge Case Tests\n");
     printf("=======================================\n");
+
+    cofi_command_registry_reset();
+    cofi_register_core_commands();
 
     test_workspace_aliases();
     test_tile_aliases();

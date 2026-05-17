@@ -25,7 +25,7 @@
 #include "app_init.h"
 #include "cli_args.h"
 #include "command_mode.h"
-#include "command_registry.h"
+#include "core_commands.h"
 #include "daemon_socket.h"
 #include "daemon_socket_runtime.h"
 #include "display.h"

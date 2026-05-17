@@ -6,6 +6,7 @@
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 #include "../src/command_registry.h"
+#include "../src/core_commands.h"
 #include "../src/daemon_socket.h"
 #include "../src/tiling.h"
 
@@ -235,6 +236,7 @@ static const CommandSpec s_workspaces_command = {
 
 static void register_tab_visibility_commands(void) {
     cofi_command_registry_reset();
+    cofi_register_core_commands();
     cofi_register_command(&s_apps_command);
     cofi_register_command(&s_names_command);
     cofi_register_command(&s_tab_rules_command);

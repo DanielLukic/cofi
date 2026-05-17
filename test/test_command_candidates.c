@@ -5,6 +5,7 @@
 #include "../src/command_api.h"
 #include "../src/display_pipeline.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/core_commands.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -165,6 +166,7 @@ static void test_disabled_provider_command_candidates_are_hidden(void) {
 
     cofi_registry_reset();
     cofi_command_registry_reset();
+    cofi_register_core_commands();
     cofi_init_provider_defaults(&provider);
     provider.id = "profiles";
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
@@ -250,6 +252,9 @@ static void test_format_candidate_strip_appended_after_prior_content(void) {
 int main(void) {
     printf("Command candidate tests\n");
     printf("=======================\n\n");
+
+    cofi_command_registry_reset();
+    cofi_register_core_commands();
 
     test_is_verb_prefix_accepts_valid();
     test_is_verb_prefix_rejects_invalid();

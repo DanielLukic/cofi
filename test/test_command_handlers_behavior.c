@@ -4,6 +4,7 @@
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 #include "../src/command_registry.h"
+#include "../src/core_commands.h"
 #include "../src/tiling.h"
 #include "../src/x11_utils.h"
 
@@ -88,6 +89,7 @@ static const CommandSpec s_rules_command = {
 
 static void init_stub_providers(void) {
     cofi_command_registry_reset();
+    cofi_register_core_commands();
     cofi_register_command(&s_rules_command);
 
     memset(&g_stub_run_provider, 0, sizeof(g_stub_run_provider));

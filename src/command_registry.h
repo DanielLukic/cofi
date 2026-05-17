@@ -22,7 +22,6 @@ typedef struct {
 } CommandSpec;
 
 int cofi_register_command(const CommandSpec *spec);
-void cofi_register_core_commands(void);
 void cofi_command_registry_reset(void);
 
 int cofi_command_count(void);

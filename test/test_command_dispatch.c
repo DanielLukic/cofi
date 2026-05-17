@@ -4,6 +4,7 @@
 
 // Include command metadata and parser APIs under test.
 #include "../src/command_registry.h"
+#include "../src/core_commands.h"
 #include "../src/command_api.h"
 #include "../src/command_parser.h"
 #include "../src/cofi_tab_provider.h"
@@ -601,6 +602,7 @@ int main(void) {
 
     cofi_registry_reset();
     cofi_command_registry_reset();
+    cofi_register_core_commands();
     register_provider_commands();
 
     test_activates_field();
