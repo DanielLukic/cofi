@@ -175,8 +175,18 @@ void cofi_exit_modal(AppData *app) {
     cofi_exit_modal_calls++;
     app->command_mode.state = CMD_MODE_NORMAL;
 }
-const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
-    if (prefix == '!' && run_provider_available) return &run_provider_stub;
+const CofiTabProvider *cofi_get_provider_for_delegate_opcode(int opcode) {
+    if (opcode == COFI_OPCODE_RUN) {
+        return run_provider_available ? &run_provider_stub : NULL;
+    }
+    for (int i = 0; i < 4; i++) {
+        const CofiTabProvider *provider = &delegate_providers[i];
+        if (provider->delegate_opcode != opcode) continue;
+        if (disabled_provider_id && strcmp(disabled_provider_id, provider->id) == 0) {
+            return NULL;
+        }
+        return provider;
+    }
     return NULL;
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
@@ -230,17 +240,22 @@ static void reset_mocks(void) {
     memset(&run_provider_stub, 0, sizeof(run_provider_stub));
     run_provider_stub.tab_mode = TAB_COUNT + 1;
     run_provider_stub.prefix_char = '!';
+    run_provider_stub.delegate_opcode = COFI_OPCODE_RUN;
     run_provider_available = 1;
     disabled_provider_id = NULL;
     memset(delegate_providers, 0, sizeof(delegate_providers));
     delegate_providers[0].id = "workspaces";
     delegate_providers[0].tab_mode = TEST_WORKSPACES_TAB;
+    delegate_providers[0].delegate_opcode = COFI_OPCODE_WORKSPACES;
     delegate_providers[1].id = "harpoon";
     delegate_providers[1].tab_mode = TEST_HARPOON_TAB;
+    delegate_providers[1].delegate_opcode = COFI_OPCODE_HARPOON;
     delegate_providers[2].id = "names";
     delegate_providers[2].tab_mode = TEST_NAMES_TAB;
+    delegate_providers[2].delegate_opcode = COFI_OPCODE_NAMES;
     delegate_providers[3].id = "apps";
     delegate_providers[3].tab_mode = TEST_APPS_TAB;
+    delegate_providers[3].delegate_opcode = COFI_OPCODE_APPLICATIONS;
 }
 
 static AppData make_app(void) {

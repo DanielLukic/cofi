@@ -191,6 +191,21 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix; return NULL;
 }
 
+const CofiTabProvider *cofi_get_provider_for_delegate_opcode(int opcode) {
+    switch (opcode) {
+        case COFI_OPCODE_WORKSPACES:
+            return cofi_get_provider_for_tab(TEST_WORKSPACES_TAB);
+        case COFI_OPCODE_HARPOON:
+            return cofi_get_provider_for_tab(TEST_HARPOON_TAB);
+        case COFI_OPCODE_NAMES:
+            return cofi_get_provider_for_tab(TEST_NAMES_TAB);
+        case COFI_OPCODE_APPLICATIONS:
+            return cofi_get_provider_for_tab(TEST_APPS_TAB);
+        default:
+            return NULL;
+    }
+}
+
 static gboolean noop_provider_command(AppData *app, WindowInfo *window, const char *args) {
     (void)app;
     (void)window;

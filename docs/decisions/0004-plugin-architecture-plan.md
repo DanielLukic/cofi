@@ -15,6 +15,8 @@ Progress:
   storage/lookup registry, not a command owner.
 - Built-in startup registration now goes through `builtin_plugins.c`, keeping
   `app_setup.c` out of provider-specific registration details.
+- Provider-backed daemon opcodes and hotkey modes now resolve through provider
+  metadata.
 
 ## Problem
 
@@ -54,7 +56,8 @@ Remaining broken windows:
   `TAB_*` enum values have been removed.
 - `>` remains a core-owned prefix claim in `prefix_tabs.c`; provider tab
   prefixes live on provider metadata.
-- Daemon opcodes and some hotkey modes still directly name tabs/modes.
+- Provider-backed daemon opcodes and hotkey modes no longer name provider IDs in
+  core dispatch.
 
 ## Terms
 
@@ -240,15 +243,15 @@ The remaining work is narrow:
 Do not introduce a broad `CofiPrefixSpec` unless the simple provider field is no
 longer enough.
 
-## Phase 6: Delegate Surfaces (guard landed)
+## Phase 6: Delegate Surfaces (metadata landed)
 
 Daemon and hotkey delegates are not a plugin API today. Some paths query
 providers, especially Run via `cofi_get_provider_for_prefix('!')`, while fixed
 opcodes and `ShowMode` values still encode compatibility knowledge.
 
-The current guard layer resolves provider IDs before surfacing provider-backed
-daemon opcodes or the Workspaces hotkey. Disabled providers fail closed before
-the window is shown.
+The current guard layer resolves provider-backed daemon opcodes and hotkey modes
+through provider metadata. Disabled providers fail closed before the window is
+shown.
 
 Remaining acceptance:
 

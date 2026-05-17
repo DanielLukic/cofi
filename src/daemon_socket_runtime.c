@@ -22,7 +22,8 @@
 static gboolean process_daemon_socket_events(GIOChannel *source, GIOCondition condition,
                                              gpointer data);
 static void show_tab_for_opcode(AppData *app, TabMode tab);
-static void show_provider_for_opcode(AppData *app, const char *provider_id);
+static const CofiTabProvider *provider_for_opcode(uint8_t opcode);
+static void show_provider_for_opcode(AppData *app, uint8_t opcode);
 static void refresh_focus_timestamp(AppData *app);
 static void mark_window_user_time(AppData *app, guint32 ts);
 
@@ -120,20 +121,22 @@ static void show_tab_for_opcode(AppData *app, TabMode tab) {
     }
 }
 
-static void show_provider_for_opcode(AppData *app, const char *provider_id) {
-    if (!app || !provider_id) {
-        return;
-    }
-
-    int id = cofi_get_provider_id(provider_id);
-    if (id < 0 || !cofi_provider_is_enabled(id)) {
-        log_warn("Provider '%s' is disabled; ignoring delegate", provider_id);
-        return;
-    }
-
-    const CofiTabProvider *provider = cofi_get_provider(id);
+static const CofiTabProvider *provider_for_opcode(uint8_t opcode) {
+    const CofiTabProvider *provider = cofi_get_provider_for_delegate_opcode(opcode);
     if (!provider) {
-        log_warn("Provider '%s' is unavailable; ignoring delegate", provider_id);
+        log_warn("No enabled provider for delegate opcode %u (%s); ignoring delegate",
+                 opcode, daemon_socket_opcode_name(opcode));
+    }
+    return provider;
+}
+
+static void show_provider_for_opcode(AppData *app, uint8_t opcode) {
+    if (!app) {
+        return;
+    }
+
+    const CofiTabProvider *provider = provider_for_opcode(opcode);
+    if (!provider) {
         return;
     }
 
@@ -171,16 +174,16 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_WINDOWS);
             break;
         case COFI_OPCODE_WORKSPACES:
-            show_provider_for_opcode(app, "workspaces");
+            show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_HARPOON:
-            show_provider_for_opcode(app, "harpoon");
+            show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_NAMES:
-            show_provider_for_opcode(app, "names");
+            show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_APPLICATIONS:
-            show_provider_for_opcode(app, "apps");
+            show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_COMMAND:
             app->current_tab = TAB_WINDOWS;
@@ -189,9 +192,8 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             enter_command_mode(app);
             break;
         case COFI_OPCODE_RUN: {
-            const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
+            const CofiTabProvider *provider = provider_for_opcode(opcode);
             if (!provider) {
-                log_warn("Run provider is disabled; ignoring run delegate");
                 break;
             }
             app->current_tab = TAB_WINDOWS;

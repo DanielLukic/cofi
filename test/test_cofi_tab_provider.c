@@ -3,6 +3,8 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
+#include "../src/daemon_socket.h"
+#include "../src/types.h"
 
 static int s_tests_run = 0;
 static int s_tests_passed = 0;
@@ -49,6 +51,8 @@ static void test_init_defaults(void) {
     ASSERT_NULL("init: shortcut_hint=NULL", (void *)p.shortcut_hint);
     ASSERT_NULL("init: get_shortcut_hint=NULL", (void *)p.get_shortcut_hint);
     ASSERT_NULL("init: tab_prefix_chars=NULL", (void *)p.tab_prefix_chars);
+    ASSERT_EQ("init: delegate_opcode=0", p.delegate_opcode, 0);
+    ASSERT_EQ("init: hotkey_mode_claim=0", p.hotkey_mode_claim, 0);
     ASSERT_NULL("init: on_tab_prefix=NULL", (void *)p.on_tab_prefix);
     ASSERT_NULL("init: on_enter_pressed=NULL", (void *)p.on_enter_pressed);
     ASSERT_NULL("init: handle_key=NULL", (void *)p.handle_key);
@@ -148,6 +152,8 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     p.tab_mode = 43;
     p.prefix_char = '!';
     p.tab_prefix_chars = "$";
+    p.delegate_opcode = COFI_OPCODE_APPLICATIONS;
+    p.hotkey_mode_claim = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_RUN);
     p.row_count = mock_row_count_5;
     p.on_command_args = mock_command_args;
     int id = cofi_register_tab_provider(&p);
@@ -157,6 +163,10 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     ASSERT_NOT_NULL("enabled lookup by prefix", cofi_get_provider_for_prefix('!'));
     ASSERT_NOT_NULL("enabled lookup by tab prefix",
                     cofi_get_provider_for_tab_prefix('$'));
+    ASSERT_NOT_NULL("enabled lookup by delegate opcode",
+                    cofi_get_provider_for_delegate_opcode(COFI_OPCODE_APPLICATIONS));
+    ASSERT_NOT_NULL("enabled lookup by hotkey mode",
+                    cofi_get_provider_for_hotkey_mode(SHOW_MODE_RUN));
 
     cofi_set_provider_enabled(id, 0);
 
@@ -166,6 +176,10 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     ASSERT_NULL("disabled lookup by prefix hidden", cofi_get_provider_for_prefix('!'));
     ASSERT_NULL("disabled lookup by tab prefix hidden",
                 cofi_get_provider_for_tab_prefix('$'));
+    ASSERT_NULL("disabled lookup by delegate opcode hidden",
+                cofi_get_provider_for_delegate_opcode(COFI_OPCODE_APPLICATIONS));
+    ASSERT_NULL("disabled lookup by hotkey mode hidden",
+                cofi_get_provider_for_hotkey_mode(SHOW_MODE_RUN));
     ASSERT_EQ("disabled row_count dispatch suppressed", cofi_call_row_count(id, NULL), 0);
     ASSERT_EQ("disabled command dispatch suppressed",
               cofi_call_on_command_args(id, NULL, "x"), COFI_NO_OP);

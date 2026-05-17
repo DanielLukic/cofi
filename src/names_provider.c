@@ -3,6 +3,7 @@
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
 #include "command_registry.h"
+#include "daemon_socket.h"
 #include "filter_names.h"
 #include "log.h"
 #include "match.h"
@@ -187,6 +188,7 @@ void names_provider_register(void) {
     s_names_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_names_provider.id = "names";
     s_names_provider.display_name = "NAMES";
+    s_names_provider.delegate_opcode = COFI_OPCODE_NAMES;
     s_names_provider.required = 0;
     s_names_provider.hidden_by_default = 1;
     s_names_provider.initial_selection_index = 0;

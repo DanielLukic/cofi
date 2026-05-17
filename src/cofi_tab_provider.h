@@ -4,6 +4,7 @@
 #include <glib.h>
 
 #define COFI_PROVIDER_DYNAMIC_TAB (-1)
+#define COFI_PROVIDER_HOTKEY_MODE(mode) ((int)(mode) + 1)
 
 /* Provider API — types + registry.
  * AppData is forward-declared here; providers that need full AppData access
@@ -57,6 +58,8 @@ typedef struct CofiTabProvider {
     const char *(*get_shortcut_hint)(AppData *app);
     char prefix_char;              /* modal prefix, e.g. ! or = */
     const char *tab_prefix_chars;  /* tab-claim prefixes, e.g. $ or \ */
+    int delegate_opcode;           /* COFI_OPCODE_* claim; 0 = none */
+    int hotkey_mode_claim;         /* COFI_PROVIDER_HOTKEY_MODE(...); 0 = none */
 
     int required;                  /* required providers cannot be disabled */
     int hidden_by_default;
@@ -134,5 +137,7 @@ void cofi_registry_reset(void);
 
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix);
 const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix);
+const CofiTabProvider *cofi_get_provider_for_delegate_opcode(int opcode);
+const CofiTabProvider *cofi_get_provider_for_hotkey_mode(int mode);
 
 #endif /* COFI_TAB_PROVIDER_H */

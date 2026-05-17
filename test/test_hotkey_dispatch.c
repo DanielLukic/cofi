@@ -96,20 +96,14 @@ void gtk_widget_grab_focus(GtkWidget *widget) {
     grab_focus_calls++;
 }
 
-const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
-    return prefix == '!' && run_enabled ? &run_provider : NULL;
-}
-
-int cofi_get_provider_id(const char *id) {
-    return id && strcmp(id, "workspaces") == 0 ? 0 : -1;
-}
-
-int cofi_provider_is_enabled(int provider_id) {
-    return provider_id == 0 && workspaces_enabled;
-}
-
-const CofiTabProvider *cofi_get_provider(int provider_id) {
-    return provider_id == 0 ? &workspaces_provider : NULL;
+const CofiTabProvider *cofi_get_provider_for_hotkey_mode(int mode) {
+    if (mode == SHOW_MODE_WORKSPACES) {
+        return workspaces_enabled ? &workspaces_provider : NULL;
+    }
+    if (mode == SHOW_MODE_RUN) {
+        return run_enabled ? &run_provider : NULL;
+    }
+    return NULL;
 }
 
 #include "../src/hotkey_dispatch.c"
@@ -127,10 +121,12 @@ static void reset_state(AppData *app) {
     memset(&workspaces_provider, 0, sizeof(workspaces_provider));
     workspaces_provider.id = "workspaces";
     workspaces_provider.tab_mode = TEST_WORKSPACES_TAB;
+    workspaces_provider.hotkey_mode_claim = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_WORKSPACES);
     memset(&run_provider, 0, sizeof(run_provider));
     run_provider.id = "run";
     run_provider.tab_mode = (TabMode)(TAB_COUNT + 2);
     run_provider.prefix_char = '!';
+    run_provider.hotkey_mode_claim = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_RUN);
 }
 
 static void test_hidden_workspaces_hotkey_surfaces_enabled_provider(void) {

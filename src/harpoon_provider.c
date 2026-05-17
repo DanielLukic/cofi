@@ -3,6 +3,7 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
+#include "daemon_socket.h"
 #include "log.h"
 #include "match.h"
 #include "overlay_manager.h"
@@ -195,6 +196,7 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_harpoon_provider.id = "harpoon";
     s_harpoon_provider.display_name = "HARPOON";
+    s_harpoon_provider.delegate_opcode = COFI_OPCODE_HARPOON;
     s_harpoon_provider.required = 0;
     s_harpoon_provider.hidden_by_default = 1;
     s_harpoon_provider.row_count = harpoon_row_count;

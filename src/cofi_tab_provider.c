@@ -249,3 +249,24 @@ const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) {
     }
     return NULL;
 }
+
+const CofiTabProvider *cofi_get_provider_for_delegate_opcode(int opcode) {
+    if (opcode <= 0) return NULL;
+    for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
+        if (s_registry[i].provider.delegate_opcode == opcode)
+            return &s_registry[i].provider;
+    }
+    return NULL;
+}
+
+const CofiTabProvider *cofi_get_provider_for_hotkey_mode(int mode) {
+    int claim = COFI_PROVIDER_HOTKEY_MODE(mode);
+    if (claim <= 0) return NULL;
+    for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
+        if (s_registry[i].provider.hotkey_mode_claim == claim)
+            return &s_registry[i].provider;
+    }
+    return NULL;
+}

@@ -6,10 +6,12 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
+#include "daemon_socket.h"
 #include "log.h"
 #include "match.h"
 #include "selection.h"
 #include "tab_switching.h"
+#include "types.h"
 #include "x11_utils.h"
 
 static gboolean workspaces_command_handler(AppData *app, WindowInfo *window, const char *args);
@@ -20,6 +22,8 @@ static CofiTabProvider s_workspaces_provider = {
     .tab_mode = COFI_PROVIDER_DYNAMIC_TAB,
     .id = "workspaces",
     .display_name = "WORKSPACES",
+    .delegate_opcode = COFI_OPCODE_WORKSPACES,
+    .hotkey_mode_claim = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_WORKSPACES),
     .required = 0,
     .hidden_by_default = 1,
 };

@@ -5,9 +5,11 @@
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "cofi_modal.h"
+#include "daemon_socket.h"
 #include "detach_launch.h"
 #include "log.h"
 #include "run_mode.h"
+#include "types.h"
 #include "window_lifecycle.h"
 
 #include <gtk/gtk.h>
@@ -143,6 +145,8 @@ void run_provider_register(void) {
     s_run_provider.id                      = "run";
     s_run_provider.display_name            = "RUN";
     s_run_provider.prefix_char             = '!';
+    s_run_provider.delegate_opcode         = COFI_OPCODE_RUN;
+    s_run_provider.hotkey_mode_claim       = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_RUN);
     s_run_provider.required                = 0;
     s_run_provider.modal_policy            = COFI_MODAL_CLEAR_THEN_RETURN;
     s_run_provider.hidden_by_default       = 1;

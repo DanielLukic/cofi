@@ -4,6 +4,7 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
+#include "daemon_socket.h"
 #include "log.h"
 #include "path_binaries.h"
 #include "selection.h"
@@ -153,6 +154,7 @@ void apps_provider_register(void) {
     s_apps_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_apps_provider.id = "apps";
     s_apps_provider.display_name = "APPS";
+    s_apps_provider.delegate_opcode = COFI_OPCODE_APPLICATIONS;
     s_apps_provider.tab_prefix_chars = "$\\";
     s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;

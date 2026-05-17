@@ -12,31 +12,24 @@
 #include "window_lifecycle.h"
 #include "x11_utils.h"
 
-static gboolean provider_tab_for_hotkey(const char *provider_id, TabMode *tab_out) {
-    if (!provider_id || !tab_out) return FALSE;
-
-    int id = cofi_get_provider_id(provider_id);
-    if (id < 0 || !cofi_provider_is_enabled(id)) {
-        log_warn("Provider '%s' is disabled; ignoring hotkey", provider_id);
-        return FALSE;
-    }
-
-    const CofiTabProvider *provider = cofi_get_provider(id);
+static const CofiTabProvider *provider_for_hotkey_mode(ShowMode mode) {
+    const CofiTabProvider *provider = cofi_get_provider_for_hotkey_mode(mode);
     if (!provider) {
-        log_warn("Provider '%s' is unavailable; ignoring hotkey", provider_id);
+        log_warn("No enabled provider for hotkey mode %d; ignoring hotkey", mode);
+    }
+    return provider;
+}
+
+static gboolean provider_tab_for_hotkey(ShowMode mode, TabMode *tab_out) {
+    if (!tab_out) return FALSE;
+
+    const CofiTabProvider *provider = provider_for_hotkey_mode(mode);
+    if (!provider) {
         return FALSE;
     }
 
     *tab_out = (TabMode)provider->tab_mode;
     return TRUE;
-}
-
-static const CofiTabProvider *run_provider_for_hotkey(void) {
-    const CofiTabProvider *provider = cofi_get_provider_for_prefix('!');
-    if (!provider) {
-        log_warn("Run provider is disabled; ignoring run hotkey");
-    }
-    return provider;
 }
 
 void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
@@ -49,7 +42,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
                 enter_command_mode(app);
                 break;
             case SHOW_MODE_RUN: {
-                const CofiTabProvider *provider = run_provider_for_hotkey();
+                const CofiTabProvider *provider = provider_for_hotkey_mode(mode);
                 if (!provider) {
                     return;
                 }
@@ -60,7 +53,7 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
             }
             case SHOW_MODE_WORKSPACES: {
                 TabMode workspaces_tab;
-                if (!provider_tab_for_hotkey("workspaces", &workspaces_tab)) {
+                if (!provider_tab_for_hotkey(mode, &workspaces_tab)) {
                     return;
                 }
                 app->current_tab = TAB_WINDOWS;
@@ -79,11 +72,11 @@ void dispatch_hotkey_mode(AppData *app, ShowMode mode) {
     TabMode workspaces_tab = TAB_WINDOWS;
     const CofiTabProvider *run_provider = NULL;
     if (mode == SHOW_MODE_WORKSPACES &&
-        !provider_tab_for_hotkey("workspaces", &workspaces_tab)) {
+        !provider_tab_for_hotkey(mode, &workspaces_tab)) {
         return;
     }
     if (mode == SHOW_MODE_RUN) {
-        run_provider = run_provider_for_hotkey();
+        run_provider = provider_for_hotkey_mode(mode);
         if (!run_provider) {
             return;
         }
