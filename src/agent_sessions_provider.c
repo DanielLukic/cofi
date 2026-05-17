@@ -104,10 +104,11 @@ static CofiActionStatus agent_sessions_on_enter_pressed(AppData *app,
                                                         int modifier_state) {
     (void)app;
     (void)filtered_idx;
-    (void)raw_idx;
     (void)entry_text;
     (void)modifier_state;
-    return COFI_NO_OP;
+    const AgentSessionResult *result = agent_session_at_row(raw_idx);
+    if (!result) return COFI_NO_OP;
+    return agent_sessions_launch_result(result) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
 static gboolean agent_sessions_command_handler(AppData *app,

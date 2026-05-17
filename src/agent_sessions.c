@@ -1,10 +1,12 @@
 #include "agent_sessions.h"
 
+#include "detach_launch.h"
 #include "fzf_algo.h"
 #include "log.h"
 
 #include <gio/gio.h>
 #include <json-glib/json-glib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define AGENT_SESSIONS_MAX_PROCESSED_LINES 3000
@@ -13,6 +15,12 @@ typedef struct {
     AgentSessionsMode *mode;
     int generation;
 } ReadContext;
+
+static gboolean default_launch_in_terminal(const char *command) {
+    return detach_launch_in_terminal_cmd(command);
+}
+
+static AgentSessionsLaunchImpl s_launch_impl = default_launch_in_terminal;
 
 static void notify_changed(AgentSessionsMode *mode) {
     if (mode && mode->changed_cb) {
@@ -209,6 +217,7 @@ static void fill_result_metadata(AgentSessionResult *result, const char *path) {
             char slug[AGENT_SESSION_PROJECT_LEN];
             copy_trimmed(slug, sizeof(slug), rest, (size_t)(slash - rest));
             claude_project_from_slug(slug, result->project, sizeof(result->project));
+            g_strlcpy(result->cwd, result->project, sizeof(result->cwd));
             const char *subagents = strstr(slash + 1, "/subagents/");
             if (subagents) {
                 char parent[AGENT_SESSION_ID_LEN];
@@ -238,6 +247,114 @@ static void fill_result_metadata(AgentSessionResult *result, const char *path) {
         basename_no_ext(path, result->session_id, sizeof(result->session_id));
     }
 }
+
+static void extract_cwd_from_object(JsonObject *obj, char *out, size_t out_size) {
+    if (!obj || !out || out_size == 0 || out[0] != '\0') return;
+    if (json_object_has_member(obj, "cwd")) {
+        JsonNode *cwd = json_object_get_member(obj, "cwd");
+        if (cwd && JSON_NODE_HOLDS_VALUE(cwd)) {
+            const char *text = json_node_get_string(cwd);
+            if (text && text[0]) {
+                g_strlcpy(out, text, out_size);
+                return;
+            }
+        }
+    }
+    if (json_object_has_member(obj, "payload")) {
+        JsonNode *payload = json_object_get_member(obj, "payload");
+        if (payload && JSON_NODE_HOLDS_OBJECT(payload)) {
+            extract_cwd_from_object(json_node_get_object(payload), out, out_size);
+        }
+    }
+}
+
+static gboolean extract_cwd_from_json_line(const char *line, char *out, size_t out_size) {
+    if (!line || !out || out_size == 0) return FALSE;
+    out[0] = '\0';
+    GError *error = NULL;
+    JsonParser *parser = json_parser_new();
+    gboolean ok = json_parser_load_from_data(parser, line, -1, &error);
+    if (!ok) {
+        g_clear_error(&error);
+        g_object_unref(parser);
+        return FALSE;
+    }
+    JsonNode *root = json_parser_get_root(parser);
+    if (root && JSON_NODE_HOLDS_OBJECT(root)) {
+        extract_cwd_from_object(json_node_get_object(root), out, out_size);
+    }
+    g_object_unref(parser);
+    return out[0] != '\0';
+}
+
+static void fill_cwd_from_session_file(const char *path, char *out, size_t out_size) {
+    if (!path || !out || out_size == 0 || out[0] != '\0') return;
+    FILE *file = fopen(path, "r");
+    if (!file) return;
+    char line[4096];
+    for (int i = 0; i < 80 && fgets(line, sizeof(line), file); i++) {
+        if (extract_cwd_from_json_line(line, out, out_size)) {
+            break;
+        }
+    }
+    fclose(file);
+}
+
+gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
+                                             char *out,
+                                             size_t out_size) {
+    if (!out || out_size == 0) return FALSE;
+    out[0] = '\0';
+    if (!result || result->session_id[0] == '\0' ||
+        strcmp(result->session_id, "history") == 0) {
+        return FALSE;
+    }
+
+    const char *binary = NULL;
+    const char *resume_verb = NULL;
+    if (strcmp(result->source, "claude") == 0) {
+        binary = "claude";
+        resume_verb = "--resume";
+    } else if (strcmp(result->source, "codex") == 0) {
+        binary = "codex";
+        resume_verb = "resume";
+    } else {
+        return FALSE;
+    }
+
+    char cwd[AGENT_SESSION_PATH_LEN];
+    g_strlcpy(cwd, result->cwd, sizeof(cwd));
+    fill_cwd_from_session_file(result->path, cwd, sizeof(cwd));
+
+    gchar *quoted_session = g_shell_quote(result->session_id);
+    gchar *command = g_strdup_printf("%s %s %s", binary, resume_verb, quoted_session);
+    if (cwd[0] != '\0') {
+        gchar *quoted_cwd = g_shell_quote(cwd);
+        gchar *with_cd = g_strdup_printf("cd %s && %s", quoted_cwd, command);
+        g_strlcpy(out, with_cd, out_size);
+        g_free(with_cd);
+        g_free(quoted_cwd);
+    } else {
+        g_strlcpy(out, command, out_size);
+    }
+    g_free(command);
+    g_free(quoted_session);
+    return out[0] != '\0';
+}
+
+gboolean agent_sessions_launch_result(const AgentSessionResult *result) {
+    char command[AGENT_SESSION_COMMAND_LEN];
+    if (!agent_sessions_build_resume_command(result, command, sizeof(command))) {
+        return FALSE;
+    }
+    return s_launch_impl(command);
+}
+
+#ifdef COFI_TESTING
+void agent_sessions_set_launch_impl_for_test(AgentSessionsLaunchImpl launch_impl) {
+    s_launch_impl = launch_impl ? launch_impl : default_launch_in_terminal;
+}
+#endif
 
 static AgentSessionResult *find_or_add_result(AgentSessionsMode *mode, const char *path) {
     if (!mode || !path) return NULL;
@@ -508,13 +625,7 @@ void agent_sessions_search(AgentSessionsMode *mode,
     mode->changed_cb = changed_cb;
     mode->changed_user_data = user_data;
 
-    if (strcmp(parsed.left, mode->current_left) == 0 && mode->searching) {
-        g_strlcpy(mode->query.refine, parsed.refine, sizeof(mode->query.refine));
-        agent_sessions_apply_refine(mode, parsed.refine);
-        notify_changed(mode);
-        return;
-    }
-    if (strcmp(parsed.left, mode->current_left) == 0 && !mode->searching) {
+    if (strcmp(parsed.left, mode->current_left) == 0) {
         g_strlcpy(mode->query.refine, parsed.refine, sizeof(mode->query.refine));
         agent_sessions_apply_refine(mode, parsed.refine);
         notify_changed(mode);
