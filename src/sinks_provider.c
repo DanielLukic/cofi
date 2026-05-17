@@ -1,6 +1,7 @@
 #include "sinks_provider.h"
 
 #include "app_data.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "harpoon_config.h"
 #include "log.h"
@@ -8,6 +9,7 @@
 #include "selection.h"
 #include "sinks.h"
 #include "slot_store.h"
+#include "tab_switching.h"
 #include "window_lifecycle.h"
 
 #include <gtk/gtk.h>
@@ -125,6 +127,39 @@ static CofiActionStatus sinks_on_command_args(AppData *app, const char *args) {
     return COFI_ACTION_ERROR;
 }
 
+static void sinks_show_command_error(AppData *app, const char *message) {
+    if (!app || !app->textbuffer) return;
+    gtk_text_buffer_set_text(app->textbuffer, message, -1);
+    app->command_mode.showing_help = TRUE;
+}
+
+static gboolean sinks_command_handler(AppData *app,
+                                      WindowInfo *window __attribute__((unused)),
+                                      const char *args) {
+    exit_command_mode(app);
+    const CofiTabProvider *provider = cofi_get_provider_for_command("sinks");
+    if (!provider) {
+        sinks_show_command_error(app, "Sinks provider not available.");
+        return FALSE;
+    }
+
+    if (args && args[0] != '\0') {
+        CofiActionStatus status = sinks_on_command_args(app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            sinks_show_command_error(app, "No matching sink or sink slot.");
+        }
+        return FALSE;
+    }
+
+    if (app) {
+        app->prefix_origin_tab = TAB_WINDOWS;
+    }
+    surface_tab(app, (TabMode)provider->tab_mode);
+    return FALSE;
+}
+
 static const char *const s_sinks_aliases[] = {"sink", NULL};
 static CofiTabProvider s_sinks_provider;
 
@@ -136,6 +171,10 @@ void sinks_provider_register(void) {
     s_sinks_provider.shortcut_hint = "Shortcuts: Ctrl+key=Assign sink slot  Alt+key=Activate sink slot";
     s_sinks_provider.primary_cmd = "sinks";
     s_sinks_provider.aliases = s_sinks_aliases;
+    s_sinks_provider.command_description = "Switch to audio sinks tab";
+    s_sinks_provider.command_help_format = "sinks, sink [@SLOT|SINK]";
+    s_sinks_provider.command_handler = sinks_command_handler;
+    s_sinks_provider.command_keeps_open_on_hotkey_auto = 1;
     s_sinks_provider.prefix_char = 0;
     s_sinks_provider.required = 0;
     s_sinks_provider.hidden_by_default = 1;

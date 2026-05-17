@@ -138,30 +138,6 @@ gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
     return surface_provider_command(app, "rules", "Rules provider not available.");
 }
 
-gboolean cmd_sinks(AppData *app, WindowInfo *window __attribute__((unused)),
-                   const char *args) {
-    exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("sinks");
-    if (!provider) {
-        show_error_in_display(app, "Sinks provider not available.");
-        return FALSE;
-    }
-
-    if (args && args[0] != '\0') {
-        CofiActionStatus status = cofi_call_on_command_args(
-            cofi_get_provider_id_for_tab(provider->tab_mode), app, args);
-        if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
-            show_error_in_display(app, "No matching sink or sink slot.");
-        }
-        return FALSE;
-    }
-    app->prefix_origin_tab = TAB_WINDOWS;
-    surface_tab(app, (TabMode)provider->tab_mode);
-    return FALSE;
-}
-
 gboolean cmd_proc(AppData *app, WindowInfo *window __attribute__((unused)),
                   const char *args) {
     exit_command_mode(app);

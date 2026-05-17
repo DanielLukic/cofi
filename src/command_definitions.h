@@ -194,14 +194,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
-        .primary = "sinks",
-        .aliases = {"sink", NULL},
-        .handler = cmd_sinks,
-        .description = "Switch to audio sinks tab",
-        .help_format = "sinks, sink [@SLOT|SINK]",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "proc",
         .aliases = {"ps", NULL},
         .handler = cmd_proc,
