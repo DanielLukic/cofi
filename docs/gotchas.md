@@ -81,8 +81,8 @@ See also:
   Reintroducing provider cases in `key_handler.c`, `selection.c`, or `display.c` is usually architecture drift.
 
 - Dynamic provider tabs are not `TAB_COUNT`.
-  `TAB_COUNT` is still the sentinel for legacy enum bounds. Runtime provider handles start after it.
-  Use registry helpers such as `cofi_list_provider_tabs()` instead of looping from `TAB_WINDOWS` to `TAB_COUNT` when you mean "all visible tabs."
+  `TAB_COUNT` is the sentinel for the core tab enum. Runtime provider handles start after it.
+  Use registry helpers such as `cofi_list_provider_tabs()` instead of looping from `TAB_WINDOWS` to `TAB_COUNT` when you mean "all visible provider tabs."
 
 - Provider enablement is stronger than hiding a tab.
   A disabled provider must fail closed across tab lookup, command lookup, prefix lookup, command candidates/help, and slots.

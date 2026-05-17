@@ -108,7 +108,7 @@ static void test_dynamic_tab_assignment(void) {
     const CofiTabProvider *second = cofi_get_provider(dynamic_two_id);
     ASSERT_NOT_NULL("dynamic provider one exists", first);
     ASSERT_NOT_NULL("dynamic provider two exists", second);
-    ASSERT_EQ("first dynamic tab starts after legacy enum",
+    ASSERT_EQ("first dynamic tab starts after core enum sentinel",
               first ? first->tab_mode : -1, TAB_COUNT + 1);
     ASSERT_EQ("second dynamic tab increments",
               second ? second->tab_mode : -1, TAB_COUNT + 2);

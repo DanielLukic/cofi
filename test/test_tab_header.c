@@ -20,9 +20,6 @@ static int fail = 0;
 
 int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
-    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
-        tabs[count++] = tab;
-    }
     if (max_tabs > count) {
         tabs[count++] = TEST_HARPOON_TAB;
     }

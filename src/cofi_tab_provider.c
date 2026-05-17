@@ -86,12 +86,6 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     if (!tabs || max_tabs <= 0) return 0;
 
     int count = 0;
-    for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
-        if (cofi_get_provider_id_for_tab(tab) >= 0) {
-            tabs[count++] = tab;
-        }
-    }
-
     for (int i = 0; i < s_count && count < max_tabs; i++) {
         int tab = s_registry[i].provider.tab_mode;
         if (tab >= TAB_COUNT && s_registry[i].enabled) {
