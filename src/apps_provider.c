@@ -90,6 +90,11 @@ static void apps_on_surface(AppData *app) {
     app->apps_mode = APPS_MODE_DEFAULT;
 }
 
+static void apps_on_tab_prefix(AppData *app, char prefix) {
+    if (!app) return;
+    app->apps_mode = prefix == '$' ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
+}
+
 static void apps_on_query_changed(AppData *app, const char *query) {
     filter_apps(app, query);
     reset_selection(app);
@@ -148,6 +153,7 @@ void apps_provider_register(void) {
     s_apps_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_apps_provider.id = "apps";
     s_apps_provider.display_name = "APPS";
+    s_apps_provider.tab_prefix_chars = "$\\";
     s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;
     s_apps_provider.initial_selection_index = 0;
@@ -158,6 +164,7 @@ void apps_provider_register(void) {
     s_apps_provider.on_enter = apps_on_enter;
     s_apps_provider.on_leave = apps_on_leave;
     s_apps_provider.on_surface = apps_on_surface;
+    s_apps_provider.on_tab_prefix = apps_on_tab_prefix;
     s_apps_provider.on_query_changed = apps_on_query_changed;
     s_apps_provider.on_enter_pressed = apps_on_enter_pressed;
     s_apps_provider_id = cofi_register_tab_provider(&s_apps_provider);

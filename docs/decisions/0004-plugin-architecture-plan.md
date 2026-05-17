@@ -215,17 +215,16 @@ Implementation can be a small command metadata registration API. It does not
 need to duplicate the provider registry; it should index metadata and point back
 to the owning provider/core owner.
 
-## Phase 5: Prefix Claims
+## Phase 5: Prefix Claims (Apps claims landed)
 
 Some prefix behavior is already registry-backed:
 
 - `!` resolves through the Run provider's `prefix_char`;
-- `=` resolves through the Calc provider's `prefix_char`.
+- `=` resolves through the Calc provider's `prefix_char`;
+- `$` and `\` resolve through Apps provider `tab_prefix_chars`.
 
 The remaining work is narrow:
 
-- `$` and `\` should be owned by Apps or by an explicit core/provider prefix
-  registration instead of `get_tab_claim()`;
 - `>` should be clearly core-owned if it remains a core tab claim;
 - disabled providers must make their prefixes fail closed;
 - paste/full-entry prefix behavior must not regress.

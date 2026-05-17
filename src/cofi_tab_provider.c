@@ -239,3 +239,13 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     }
     return NULL;
 }
+
+const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) {
+    for (int i = 0; i < s_count; i++) {
+        if (!s_registry[i].enabled) continue;
+        const char *chars = s_registry[i].provider.tab_prefix_chars;
+        if (chars && strchr(chars, prefix))
+            return &s_registry[i].provider;
+    }
+    return NULL;
+}

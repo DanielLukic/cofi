@@ -1,6 +1,5 @@
 #include "prefix_tabs.h"
 
-#include "apps_provider.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
@@ -11,26 +10,31 @@
 
 #include <gtk/gtk.h>
 
-static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
+static gboolean get_tab_claim(char prefix, const CofiTabProvider **provider_out,
+                              TabMode *target_tab) {
     if (!target_tab) {
         return FALSE;
     }
+    if (provider_out) {
+        *provider_out = NULL;
+    }
 
     switch (prefix) {
-        case '$':
-        case '\\': {
-            TabMode apps_tab = apps_tab_mode();
-            if (apps_tab == TAB_WINDOWS || !cofi_get_provider_for_tab(apps_tab))
-                return FALSE;
-            *target_tab = apps_tab;
-            return TRUE;
-        }
         case '>':
             *target_tab = TAB_WINDOWS;
             return TRUE;
         default:
-            return FALSE;
+            break;
     }
+
+    const CofiTabProvider *provider = cofi_get_provider_for_tab_prefix(prefix);
+    if (!provider) return FALSE;
+
+    *target_tab = (TabMode)provider->tab_mode;
+    if (provider_out) {
+        *provider_out = provider;
+    }
+    return TRUE;
 }
 
 void clear_prefix_tab_claim(AppData *app) {
@@ -45,7 +49,7 @@ gboolean cofi_is_prefix_char(char c) {
     if (c == ':') return TRUE;
     if (cofi_get_provider_for_prefix(c) != NULL) return TRUE;
     TabMode dummy;
-    return get_tab_claim(c, &dummy);
+    return get_tab_claim(c, NULL, &dummy);
 }
 
 void cofi_dispatch_prefix(AppData *app, char c) {
@@ -71,20 +75,22 @@ void cofi_dispatch_prefix(AppData *app, char c) {
     }
 
     /* tab claim → tab switch (e.g. $, \\, >) */
+    const CofiTabProvider *tab_provider = NULL;
     TabMode claimed_tab;
-    if (get_tab_claim(c, &claimed_tab)) {
-        gboolean claimed_apps = claimed_tab == apps_tab_mode();
-        if (claimed_apps)
-            app->apps_mode = (c == '$') ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
+    if (get_tab_claim(c, &tab_provider, &claimed_tab)) {
+        if (tab_provider && tab_provider->on_tab_prefix) {
+            tab_provider->on_tab_prefix(app, c);
+        }
         if (app->current_tab == claimed_tab) {
             /* same-tab toggle: clear entry, reset selection, refresh */
             app->suppress_entry_change = TRUE;
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
             app->suppress_entry_change = FALSE;
-            if (claimed_apps) {
-                filter_apps(app, "");
+            if (tab_provider && tab_provider->on_query_changed) {
+                tab_provider->on_query_changed(app, "");
+            } else {
+                reset_selection(app);
             }
-            reset_selection(app);
             update_display(app);
         } else {
             app->suppress_entry_change = TRUE;

@@ -193,6 +193,25 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     return NULL;
 }
 
+static void apps_on_tab_prefix_stub(AppData *app, char prefix) {
+    if (!app) return;
+    app->apps_mode = prefix == '$' ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
+}
+
+const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) {
+    if (prefix == '$' || prefix == '\\') {
+        static CofiTabProvider apps_provider;
+        memset(&apps_provider, 0, sizeof(apps_provider));
+        apps_provider.tab_mode = TEST_APPS_TAB;
+        apps_provider.id = "apps";
+        apps_provider.tab_prefix_chars = "$\\";
+        apps_provider.on_tab_prefix = apps_on_tab_prefix_stub;
+        apps_provider.on_query_changed = filter_apps;
+        return &apps_provider;
+    }
+    return NULL;
+}
+
 TabMode apps_tab_mode(void) {
     return TEST_APPS_TAB;
 }

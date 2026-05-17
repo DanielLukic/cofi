@@ -22,13 +22,12 @@ Prefix keys are single-character mode or tab claims:
 - `\` surfaces Apps in default mode.
 - `>` surfaces Windows.
 
-There are currently two implementation paths:
+Most prefix ownership is registry-backed:
 
-- `!` and `=` are provider prefixes resolved through the provider registry.
+- `!` and `=` are modal provider prefixes resolved through the provider registry.
   Disabled providers make these prefixes fail closed.
-- `$`, `\`, and `>` are still core tab-claim prefixes in `prefix_tabs.c`.
-  TFD-675 tracks moving the remaining plugin-owned claims behind the same
-  registry model.
+- `$` and `\` are Apps tab-claim prefixes resolved through the provider registry.
+- `>` remains a core tab-claim prefix for Windows.
 
 ## The Special `:` Rule
 

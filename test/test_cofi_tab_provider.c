@@ -48,6 +48,8 @@ static void test_init_defaults(void) {
     ASSERT_NULL("init: id=NULL", (void *)p.id);
     ASSERT_NULL("init: shortcut_hint=NULL", (void *)p.shortcut_hint);
     ASSERT_NULL("init: get_shortcut_hint=NULL", (void *)p.get_shortcut_hint);
+    ASSERT_NULL("init: tab_prefix_chars=NULL", (void *)p.tab_prefix_chars);
+    ASSERT_NULL("init: on_tab_prefix=NULL", (void *)p.on_tab_prefix);
     ASSERT_NULL("init: on_enter_pressed=NULL", (void *)p.on_enter_pressed);
     ASSERT_NULL("init: handle_key=NULL", (void *)p.handle_key);
     ASSERT_EQ("init: required=0", p.required, 0);
@@ -145,6 +147,7 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     p.id = "disabled";
     p.tab_mode = 43;
     p.prefix_char = '!';
+    p.tab_prefix_chars = "$";
     p.row_count = mock_row_count_5;
     p.on_command_args = mock_command_args;
     int id = cofi_register_tab_provider(&p);
@@ -152,6 +155,8 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     ASSERT_TRUE("provider starts enabled", cofi_provider_is_enabled(id));
     ASSERT_NOT_NULL("enabled lookup by tab", cofi_get_provider_for_tab(43));
     ASSERT_NOT_NULL("enabled lookup by prefix", cofi_get_provider_for_prefix('!'));
+    ASSERT_NOT_NULL("enabled lookup by tab prefix",
+                    cofi_get_provider_for_tab_prefix('$'));
 
     cofi_set_provider_enabled(id, 0);
 
@@ -159,6 +164,8 @@ static void test_disabled_provider_runtime_lookups_are_hidden(void) {
     ASSERT_NOT_NULL("raw lookup by id still works", cofi_get_provider(id));
     ASSERT_NULL("disabled lookup by tab hidden", cofi_get_provider_for_tab(43));
     ASSERT_NULL("disabled lookup by prefix hidden", cofi_get_provider_for_prefix('!'));
+    ASSERT_NULL("disabled lookup by tab prefix hidden",
+                cofi_get_provider_for_tab_prefix('$'));
     ASSERT_EQ("disabled row_count dispatch suppressed", cofi_call_row_count(id, NULL), 0);
     ASSERT_EQ("disabled command dispatch suppressed",
               cofi_call_on_command_args(id, NULL, "x"), COFI_NO_OP);

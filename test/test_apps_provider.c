@@ -216,6 +216,9 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("apps command handler set", s_apps_command.handler != NULL);
     ASSERT_TRUE("apps command keep-open policy",
                 s_apps_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("apps owns tab prefixes",
+                strcmp(s_apps_provider.tab_prefix_chars, "$\\") == 0);
+    ASSERT_TRUE("apps tab prefix hook set", s_apps_provider.on_tab_prefix != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {

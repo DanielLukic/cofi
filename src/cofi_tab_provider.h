@@ -47,15 +47,16 @@ typedef struct {
 } CofiRowCells;
 
 typedef struct CofiTabProvider {
-    /* Existing providers may use legacy TabMode values. New providers can set
-     * COFI_PROVIDER_DYNAMIC_TAB and receive a tab handle at registration. */
+    /* Providers can set COFI_PROVIDER_DYNAMIC_TAB and receive a tab handle at
+     * registration. Core keeps only TAB_WINDOWS as a static tab. */
     int tab_mode;
 
     const char *id;
     const char *display_name;
     const char *shortcut_hint;
     const char *(*get_shortcut_hint)(AppData *app);
-    char prefix_char;
+    char prefix_char;              /* modal prefix, e.g. ! or = */
+    const char *tab_prefix_chars;  /* tab-claim prefixes, e.g. $ or \ */
 
     int required;                  /* required providers cannot be disabled */
     int hidden_by_default;
@@ -72,6 +73,7 @@ typedef struct CofiTabProvider {
     void (*on_enter)(AppData *);
     void (*on_leave)(AppData *);
     void (*on_surface)(AppData *);
+    void (*on_tab_prefix)(AppData *, char prefix);
     void (*on_query_changed)(AppData *, const char *query);
     void (*on_selection_changed)(AppData *, int filtered_idx);
     gboolean (*handle_key)(GdkEventKey *, AppData *);
@@ -131,5 +133,6 @@ CofiActionStatus cofi_call_on_command_args(int provider_id, AppData *app,
 void cofi_registry_reset(void);
 
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix);
+const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix);
 
 #endif /* COFI_TAB_PROVIDER_H */
