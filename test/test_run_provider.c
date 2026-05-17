@@ -77,7 +77,8 @@ int get_max_display_lines_dynamic(AppData *app) {
 static void setup_app(AppData *app) {
     memset(app, 0, sizeof(*app));
     app->entry = gtk_entry_new();
-    app->current_tab = TAB_RUN;
+    const CofiTabProvider *p = cofi_get_provider(s_run_provider_id);
+    app->current_tab = p ? (TabMode)p->tab_mode : TAB_WINDOWS;
     app->selection.provider_index = 0;
     init_run_mode(&app->run_mode);
 }
@@ -85,7 +86,7 @@ static void setup_app(AppData *app) {
 static const CofiTabProvider *registered_run_provider(void) {
     cofi_registry_reset();
     run_provider_register();
-    return cofi_get_provider_for_tab(TAB_RUN);
+    return cofi_get_provider(s_run_provider_id);
 }
 
 static void seed_history(AppData *app) {
@@ -236,8 +237,10 @@ static void test_command_handler_without_args_enters_modal(void) {
     ASSERT_TRUE("run command without args does not hide", g_hide_window_calls == 0);
     ASSERT_TRUE("run command without args sets prefix claim", app.active_prefix_claim == '!');
     ASSERT_TRUE("run command without args enters modal", g_enter_modal_calls == 1);
-    ASSERT_TRUE("run command without args uses module provider modal",
-                g_last_modal_provider == &s_run_provider);
+    ASSERT_TRUE("run command without args uses registered provider modal",
+                g_last_modal_provider == cofi_get_provider(s_run_provider_id));
+    ASSERT_TRUE("run command without args uses dynamic tab provider",
+                g_last_modal_provider && g_last_modal_provider->tab_mode >= TAB_COUNT);
 }
 
 int main(int argc, char **argv) {

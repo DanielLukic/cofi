@@ -186,7 +186,7 @@ static void reset_mocks(void) {
     xflush_calls = 0;
     user_time_property_value_at_set = 0;
     memset(&run_provider_stub, 0, sizeof(run_provider_stub));
-    run_provider_stub.tab_mode = TAB_RUN;
+    run_provider_stub.tab_mode = TAB_COUNT + 1;
     run_provider_stub.prefix_char = '!';
     run_provider_available = 1;
 }

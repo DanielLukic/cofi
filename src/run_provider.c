@@ -96,10 +96,18 @@ static void run_on_enter(AppData *app) {
 }
 
 static CofiTabProvider s_run_provider;
+static int s_run_provider_id = -1;
+
+static const CofiTabProvider *run_registered_provider(void) {
+    return cofi_get_provider(s_run_provider_id);
+}
 
 static gboolean run_command_handler(AppData *app,
                                     WindowInfo *window __attribute__((unused)),
                                     const char *args) {
+    const CofiTabProvider *provider = run_registered_provider();
+    if (!provider) return FALSE;
+
     exit_command_mode(app);
 
     if (args && args[0] != '\0') {
@@ -114,7 +122,7 @@ static gboolean run_command_handler(AppData *app,
         app->prefix_origin_tab = app->current_tab;
         app->active_prefix_claim = '!';
     }
-    cofi_enter_modal(app, &s_run_provider);
+    cofi_enter_modal(app, provider);
     return FALSE;
 }
 
@@ -130,7 +138,8 @@ static const CommandSpec s_run_command = {
 
 void run_provider_register(void) {
     cofi_init_provider_defaults(&s_run_provider);
-    s_run_provider.tab_mode                = TAB_RUN;
+    s_run_provider_id = -1;
+    s_run_provider.tab_mode                = COFI_PROVIDER_DYNAMIC_TAB;
     s_run_provider.id                      = "run";
     s_run_provider.display_name            = "RUN";
     s_run_provider.prefix_char             = '!';
@@ -146,7 +155,8 @@ void run_provider_register(void) {
     s_run_provider.on_selection_changed    = run_on_selection_changed;
     s_run_provider.on_enter_pressed        = run_on_enter_pressed;
     s_run_provider.on_command_args         = run_on_command_args;
-    if (cofi_register_tab_provider(&s_run_provider) >= 0) {
+    s_run_provider_id = cofi_register_tab_provider(&s_run_provider);
+    if (s_run_provider_id >= 0) {
         cofi_register_command(&s_run_command);
     }
 }
