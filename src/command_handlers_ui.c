@@ -8,8 +8,6 @@
 #include "config.h"
 #include "detach_launch.h"
 #include "display.h"
-#include "hotkey_config.h"
-#include "hotkeys.h"
 #include "log.h"
 #include "slot_store.h"
 #include "tab_switching.h"
@@ -162,30 +160,6 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
 
     exit_command_mode(app);
     dispatch_hotkey_mode(app, mode);
-    return FALSE;
-}
-
-gboolean cmd_hotkeys(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
-    char key[64] = {0};
-    char cmd[256] = {0};
-    int action = parse_hotkey_command(args, key, sizeof(key), cmd, sizeof(cmd));
-
-    if (action == 1) {
-        add_hotkey_binding(&app->hotkey_config, key, cmd);
-        save_hotkey_config(&app->hotkey_config);
-        regrab_hotkeys(app);
-        log_info("Hotkey bound: %s → %s", key, cmd);
-    } else if (action == 2) {
-        if (remove_hotkey_binding(&app->hotkey_config, key)) {
-            save_hotkey_config(&app->hotkey_config);
-            regrab_hotkeys(app);
-            log_info("Hotkey unbound: %s", key);
-        } else {
-            log_warn("No hotkey binding for: %s", key);
-        }
-    }
-
-    surface_provider_command(app, "hotkeys", "Hotkeys provider not available.");
     return FALSE;
 }
 

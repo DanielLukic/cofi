@@ -323,6 +323,21 @@ void show_overlay(AppData *app, OverlayType type, void *data) {
 
 void cleanup_hotkeys(AppData *app) { (void)app; g_cleanup_hotkeys_calls++; }
 
+int parse_hotkey_command(const char *args, char *key, size_t key_size,
+                         char *cmd, size_t cmd_size) {
+    (void)args;
+    if (key && key_size > 0) key[0] = '\0';
+    if (cmd && cmd_size > 0) cmd[0] = '\0';
+    return 0;
+}
+
+int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command) {
+    (void)config;
+    (void)key;
+    (void)command;
+    return 1;
+}
+
 int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
     if (!config || !key) return 0;
 

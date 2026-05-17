@@ -12,7 +12,6 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "ew",      {"every-workspace", NULL},                      "+-", COMMAND_OWNER_CORE },
     { "help",    {"h", "?", NULL},                             NULL, COMMAND_OWNER_CORE },
     { "hmw",     {"hm", "horizontal-maximize-window", NULL},   NULL, COMMAND_OWNER_CORE },
-    { "hotkeys", {"hotkey", "hk", NULL},                       NULL, "hotkeys" },
     { "jw",      {"jump-workspace", "j", NULL},                "0123456789hjkl", COMMAND_OWNER_CORE },
     { "jump-slot", {"js", NULL},                                "123456789", COMMAND_OWNER_CORE },
     { "maw",     {"move-all-to-workspace", NULL},                "0123456789hjkl", COMMAND_OWNER_CORE },

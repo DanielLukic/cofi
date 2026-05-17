@@ -16,7 +16,7 @@
 STUB(cmd_always_below) STUB(cmd_assign_name) STUB(cmd_assign_slots)
 STUB(cmd_always_on_top) STUB(cmd_close_window)
 STUB(cmd_change_workspace) STUB(cmd_every_workspace) STUB(cmd_horizontal_maximize)
-STUB(cmd_hotkeys) STUB(cmd_jump_workspace) STUB(cmd_jump_slot) STUB(cmd_move_all_to_workspace)
+STUB(cmd_jump_workspace) STUB(cmd_jump_slot) STUB(cmd_move_all_to_workspace)
 STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
 STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
@@ -38,6 +38,7 @@ static const char *harpoon_aliases[] = {"hp", NULL};
 static const char *names_aliases[] = {"nm", NULL};
 static const char *rules_aliases[] = {"rl", NULL};
 static const char *config_aliases[] = {"conf", "cfg", NULL};
+static const char *hotkeys_aliases[] = {"hotkey", "hk", NULL};
 
 static void register_profiles_command_provider(void) {
     CofiTabProvider provider;
@@ -193,6 +194,20 @@ static void register_config_command_provider(void) {
     cofi_register_tab_provider(&provider);
 }
 
+static void register_hotkeys_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "hotkeys";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "hotkeys";
+    provider.aliases = hotkeys_aliases;
+    provider.command_help_format = "hotkeys [key] [command]";
+    provider.command_description = "Manage system hotkey bindings";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
+
 typedef struct {
     int seen;
     int fail_at;
@@ -267,7 +282,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("as",      0);   // assign-slots: assigns workspace slots
     ASSERT_ACTIVATES("cl",      0);   // close: window is closing
     ASSERT_ACTIVATES("help",    0);   // help: shows help text
-    ASSERT_ACTIVATES("hotkeys", 0);   // hotkeys: manages bindings
     ASSERT_ACTIVATES("jw",      0);   // jump-workspace: switches desktop, no window
     ASSERT_ACTIVATES("jump-slot", 0); // jump-slot: activates internally
     ASSERT_ACTIVATES("maw",     0);   // move-all: moves multiple windows
@@ -287,7 +301,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("set", 1);
     ASSERT_KEEP_OPEN("an", 1);
     ASSERT_KEEP_OPEN("rw", 1);
-    ASSERT_KEEP_OPEN("hotkeys", 1);
 
     ASSERT_KEEP_OPEN("jw", 0);
     ASSERT_KEEP_OPEN("cw", 0);
@@ -381,6 +394,15 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("cfg")) { printf("PASS: config provider alias cfg keeps open\n"); tests_passed++; }
     else { printf("FAIL: config provider alias cfg should keep open\n"); tests_failed++; }
 
+    if (should_keep_open_on_hotkey_auto("hotkeys")) { printf("PASS: hotkeys provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: hotkeys provider command should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("hotkey")) { printf("PASS: hotkeys provider alias hotkey keeps open\n"); tests_passed++; }
+    else { printf("FAIL: hotkeys provider alias hotkey should keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("hk")) { printf("PASS: hotkeys provider alias hk keeps open\n"); tests_passed++; }
+    else { printf("FAIL: hotkeys provider alias hk should keep open\n"); tests_failed++; }
+
     int proc_id = cofi_get_provider_id("proc");
     cofi_set_provider_enabled(proc_id, 0);
     if (!should_keep_open_on_hotkey_auto("proc")) { printf("PASS: disabled proc command does not keep open\n"); tests_passed++; }
@@ -422,6 +444,12 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("cfg")) { printf("PASS: disabled config alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled config alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(config_id, 1);
+
+    int hotkeys_id = cofi_get_provider_id("hotkeys");
+    cofi_set_provider_enabled(hotkeys_id, 0);
+    if (!should_keep_open_on_hotkey_auto("hk")) { printf("PASS: disabled hotkeys alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled hotkeys alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(hotkeys_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -661,6 +689,24 @@ static void test_provider_command_alias_resolution(void) {
         printf("FAIL: provider alias cfg did not resolve to config\n");
         tests_failed++;
     }
+
+    if (resolve_command_primary("hotkey", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "hotkeys") == 0) {
+        printf("PASS: provider alias hotkey resolves to hotkeys\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias hotkey did not resolve to hotkeys\n");
+        tests_failed++;
+    }
+
+    if (resolve_command_primary("hk", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "hotkeys") == 0) {
+        printf("PASS: provider alias hk resolves to hotkeys\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias hk did not resolve to hotkeys\n");
+        tests_failed++;
+    }
 }
 
 static void test_all_parse_defs_have_owner(void) {
@@ -683,13 +729,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 14 legacy non-activating = 25 central commands.
-    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, Rules, and Config are provider-owned and intentionally absent.
-    if (table_count == 25) {
+    // 11 activating + 13 legacy non-activating = 24 central commands.
+    // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon, Names, Rules, Config, and Hotkeys are provider-owned and intentionally absent.
+    if (table_count == 24) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 25 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 24 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -710,6 +756,7 @@ int main(void) {
     register_names_command_provider();
     register_rules_command_provider();
     register_config_command_provider();
+    register_hotkeys_command_provider();
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();

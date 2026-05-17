@@ -433,24 +433,6 @@ static void test_ui_handler_behavior(void) {
     ASSERT_TRUE("show rules is accepted", result == FALSE);
     ASSERT_TRUE("show rules surfaces rules tab", app.current_tab == TAB_RULES);
 
-    cmd = find_command("hotkeys");
-    ASSERT_TRUE("hotkeys command exists", cmd != NULL);
-    if (cmd) {
-        parse_hotkey_action = 0;
-        app.current_tab = TAB_WINDOWS;
-        result = cmd->handler(&app, NULL, "");
-        ASSERT_TRUE("hotkeys bare surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
-
-        parse_hotkey_action = 1;
-        app.current_tab = TAB_WINDOWS;
-        result = cmd->handler(&app, NULL, "bind");
-        ASSERT_TRUE("hotkeys mutation surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
-
-        parse_hotkey_action = 2;
-        app.current_tab = TAB_WINDOWS;
-        result = cmd->handler(&app, NULL, "unbind");
-        ASSERT_TRUE("hotkeys remove surfaces hotkeys tab", result == FALSE && app.current_tab == TAB_HOTKEYS);
-    }
 }
 
 int main(void) {

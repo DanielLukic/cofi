@@ -87,14 +87,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
-        .primary = "hotkeys",
-        .aliases = {"hotkey", "hk", NULL},
-        .handler = cmd_hotkeys,
-        .description = "Manage system hotkey bindings",
-        .help_format = "hotkeys [key] [command]",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "jw",
         .aliases = {"jump-workspace", "j", NULL},
         .handler = cmd_jump_workspace,

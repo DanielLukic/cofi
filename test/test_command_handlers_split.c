@@ -39,7 +39,6 @@ STUB_HANDLER(cmd_set_config)
 STUB_HANDLER(cmd_profiles)
 STUB_HANDLER(cmd_run)
 STUB_HANDLER(cmd_show)
-STUB_HANDLER(cmd_hotkeys)
 STUB_HANDLER(cmd_calc)
 
 static int tests_run = 0;

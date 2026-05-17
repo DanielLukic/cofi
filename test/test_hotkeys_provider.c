@@ -20,6 +20,17 @@ static int tests_passed = 0;
     } while (0)
 
 static int g_reset_selection_calls;
+static int g_exit_command_mode_calls;
+static int g_surface_tab_calls;
+static TabMode g_last_surface_tab = -1;
+static int g_parse_hotkey_action;
+static int g_add_hotkey_calls;
+static int g_remove_hotkey_calls;
+static int g_save_hotkey_calls;
+static int g_regrab_hotkey_calls;
+static int g_remove_hotkey_result = 1;
+static char g_last_hotkey_key[64];
+static char g_last_hotkey_command[256];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -47,22 +58,62 @@ void cleanup_hotkeys(AppData *app) { (void)app; }
 void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
 }
-int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
-    (void)config; (void)key;
+int parse_hotkey_command(const char *args, char *key_out, size_t key_size,
+                         char *cmd_out, size_t cmd_size) {
+    (void)args;
+    g_strlcpy(key_out, "Mod4+x", key_size);
+    g_strlcpy(cmd_out, "show windows", cmd_size);
+    return g_parse_hotkey_action;
+}
+int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command) {
+    (void)config;
+    g_add_hotkey_calls++;
+    g_strlcpy(g_last_hotkey_key, key, sizeof(g_last_hotkey_key));
+    g_strlcpy(g_last_hotkey_command, command, sizeof(g_last_hotkey_command));
     return 1;
+}
+int remove_hotkey_binding(HotkeyConfig *config, const char *key) {
+    (void)config;
+    g_remove_hotkey_calls++;
+    g_strlcpy(g_last_hotkey_key, key, sizeof(g_last_hotkey_key));
+    return g_remove_hotkey_result;
 }
 int save_hotkey_config(const HotkeyConfig *config) {
     (void)config;
+    g_save_hotkey_calls++;
     return 1;
 }
-void regrab_hotkeys(AppData *app) { (void)app; }
+void regrab_hotkeys(AppData *app) {
+    (void)app;
+    g_regrab_hotkey_calls++;
+}
 void update_display(AppData *app) { (void)app; }
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+void surface_tab(AppData *app, TabMode tab) {
+    if (app) app->current_tab = tab;
+    g_surface_tab_calls++;
+    g_last_surface_tab = tab;
+}
 
 #include "../src/hotkeys_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
     g_reset_selection_calls = 0;
+    g_exit_command_mode_calls = 0;
+    g_surface_tab_calls = 0;
+    g_last_surface_tab = -1;
+    g_parse_hotkey_action = 0;
+    g_add_hotkey_calls = 0;
+    g_remove_hotkey_calls = 0;
+    g_save_hotkey_calls = 0;
+    g_regrab_hotkey_calls = 0;
+    g_remove_hotkey_result = 1;
+    g_last_hotkey_key[0] = '\0';
+    g_last_hotkey_command[0] = '\0';
 }
 
 static void seed_hotkeys(AppData *app) {
@@ -154,6 +205,84 @@ static void test_select_key(void) {
     ASSERT_TRUE("missing key resets selection", app.selection.provider_index == 0);
 }
 
+static void test_command_metadata(void) {
+    hotkeys_provider_register();
+
+    ASSERT_TRUE("provider primary command is hotkeys",
+                strcmp(s_hotkeys_provider.primary_cmd, "hotkeys") == 0);
+    ASSERT_TRUE("provider alias is hotkey",
+                s_hotkeys_provider.aliases && strcmp(s_hotkeys_provider.aliases[0], "hotkey") == 0);
+    ASSERT_TRUE("provider second alias is hk",
+                s_hotkeys_provider.aliases && strcmp(s_hotkeys_provider.aliases[1], "hk") == 0);
+    ASSERT_TRUE("provider command has help",
+                strcmp(s_hotkeys_provider.command_help_format, "hotkeys [key] [command]") == 0);
+    ASSERT_TRUE("provider command keeps open",
+                s_hotkeys_provider.command_keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_hotkeys_provider.command_handler != NULL);
+}
+
+static void test_command_handler_surfaces_tab(void) {
+    AppData app;
+    reset_state(&app);
+    app.current_tab = TAB_WINDOWS;
+
+    gboolean result = s_hotkeys_provider.command_handler(&app, NULL, "");
+
+    ASSERT_TRUE("hotkeys command returns false", result == FALSE);
+    ASSERT_TRUE("hotkeys command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("hotkeys command surfaces hotkeys tab",
+                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_HOTKEYS &&
+                app.current_tab == TAB_HOTKEYS);
+    ASSERT_TRUE("hotkeys command records origin tab",
+                app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("hotkeys bare command does not mutate bindings",
+                g_add_hotkey_calls == 0 && g_remove_hotkey_calls == 0 &&
+                g_save_hotkey_calls == 0 && g_regrab_hotkey_calls == 0);
+}
+
+static void test_command_handler_adds_binding(void) {
+    AppData app;
+    reset_state(&app);
+    g_parse_hotkey_action = 1;
+
+    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x show windows");
+
+    ASSERT_TRUE("hotkeys add command calls add", g_add_hotkey_calls == 1);
+    ASSERT_TRUE("hotkeys add command captures key", strcmp(g_last_hotkey_key, "Mod4+x") == 0);
+    ASSERT_TRUE("hotkeys add command captures command", strcmp(g_last_hotkey_command, "show windows") == 0);
+    ASSERT_TRUE("hotkeys add command saves and regrabs",
+                g_save_hotkey_calls == 1 && g_regrab_hotkey_calls == 1);
+    ASSERT_TRUE("hotkeys add command surfaces tab", app.current_tab == TAB_HOTKEYS);
+}
+
+static void test_command_handler_removes_binding(void) {
+    AppData app;
+    reset_state(&app);
+    g_parse_hotkey_action = 2;
+
+    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x");
+
+    ASSERT_TRUE("hotkeys remove command calls remove", g_remove_hotkey_calls == 1);
+    ASSERT_TRUE("hotkeys remove command captures key", strcmp(g_last_hotkey_key, "Mod4+x") == 0);
+    ASSERT_TRUE("hotkeys remove command saves and regrabs",
+                g_save_hotkey_calls == 1 && g_regrab_hotkey_calls == 1);
+    ASSERT_TRUE("hotkeys remove command surfaces tab", app.current_tab == TAB_HOTKEYS);
+}
+
+static void test_command_handler_missing_remove_still_surfaces(void) {
+    AppData app;
+    reset_state(&app);
+    g_parse_hotkey_action = 2;
+    g_remove_hotkey_result = 0;
+
+    s_hotkeys_provider.command_handler(&app, NULL, "Mod4+x");
+
+    ASSERT_TRUE("missing hotkeys remove still calls remove", g_remove_hotkey_calls == 1);
+    ASSERT_TRUE("missing hotkeys remove does not save or regrab",
+                g_save_hotkey_calls == 0 && g_regrab_hotkey_calls == 0);
+    ASSERT_TRUE("missing hotkeys remove still surfaces tab", app.current_tab == TAB_HOTKEYS);
+}
+
 int main(void) {
     printf("Hotkeys provider tests\n");
     printf("======================\n\n");
@@ -163,6 +292,11 @@ int main(void) {
     test_query_resets_selection();
     test_selected_binding_clamps_and_returns_master_index();
     test_select_key();
+    test_command_metadata();
+    test_command_handler_surfaces_tab();
+    test_command_handler_adds_binding();
+    test_command_handler_removes_binding();
+    test_command_handler_missing_remove_still_surfaces();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

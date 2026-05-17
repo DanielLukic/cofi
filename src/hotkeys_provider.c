@@ -1,6 +1,7 @@
 #include "hotkeys_provider.h"
 
 #include "cofi_tab_provider.h"
+#include "command_mode.h"
 #include "display.h"
 #include "hotkey_config.h"
 #include "hotkeys.h"
@@ -8,6 +9,7 @@
 #include "match.h"
 #include "overlay_manager.h"
 #include "selection.h"
+#include "tab_switching.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -198,6 +200,37 @@ gboolean handle_hotkeys_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_hotkeys_provider;
+static const char *s_hotkeys_aliases[] = {"hotkey", "hk", NULL};
+
+static gboolean hotkeys_command_handler(AppData *app,
+                                        WindowInfo *window __attribute__((unused)),
+                                        const char *args) {
+    if (!app) return FALSE;
+
+    char key[64] = {0};
+    char cmd[256] = {0};
+    int action = parse_hotkey_command(args, key, sizeof(key), cmd, sizeof(cmd));
+
+    if (action == 1) {
+        add_hotkey_binding(&app->hotkey_config, key, cmd);
+        save_hotkey_config(&app->hotkey_config);
+        regrab_hotkeys(app);
+        log_info("Hotkey bound: %s -> %s", key, cmd);
+    } else if (action == 2) {
+        if (remove_hotkey_binding(&app->hotkey_config, key)) {
+            save_hotkey_config(&app->hotkey_config);
+            regrab_hotkeys(app);
+            log_info("Hotkey unbound: %s", key);
+        } else {
+            log_warn("No hotkey binding for: %s", key);
+        }
+    }
+
+    exit_command_mode(app);
+    app->prefix_origin_tab = app->current_tab;
+    surface_tab(app, (TabMode)s_hotkeys_provider.tab_mode);
+    return FALSE;
+}
 
 void hotkeys_provider_register(void) {
     cofi_init_provider_defaults(&s_hotkeys_provider);
@@ -205,6 +238,11 @@ void hotkeys_provider_register(void) {
     s_hotkeys_provider.id = "hotkeys";
     s_hotkeys_provider.display_name = "HOTKEYS";
     s_hotkeys_provider.primary_cmd = "hotkeys";
+    s_hotkeys_provider.aliases = s_hotkeys_aliases;
+    s_hotkeys_provider.command_description = "Manage system hotkey bindings";
+    s_hotkeys_provider.command_help_format = "hotkeys [key] [command]";
+    s_hotkeys_provider.command_handler = hotkeys_command_handler;
+    s_hotkeys_provider.command_keeps_open_on_hotkey_auto = 1;
     s_hotkeys_provider.required = 0;
     s_hotkeys_provider.hidden_by_default = 0;
     s_hotkeys_provider.initial_selection_index = 0;
