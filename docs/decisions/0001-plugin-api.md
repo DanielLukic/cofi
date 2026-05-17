@@ -53,13 +53,13 @@ Revised after round-1 review by sam + claudio. Key changes from v1:
 - Added **row capabilities flags** (actionable, slottable, error).
 - Added **modal_policy** declaration (Esc semantics: return-tab vs hide vs keep-query).
 - Added `init_provider_defaults` helper so providers don't need to set every field.
-- `on_query_changed` and `pipe_actions` are KEPT in the contract (already validated by proc), even though the migration ports them late.
+- `on_query_changed` is KEPT in the contract. `pipe_actions` was removed after the proc migration showed the provider table was not consumed by core dispatch; proc pipe actions remain proc-local.
 - Cut `mode_indicator` field — derivable from `prefix_char` (or `display_name` first char if no prefix).
 
 ## Goals (unchanged)
 
 - Adding a new list-with-action tab = ~3 source files, not ~13.
-- Selection preservation, scroll, modal lifecycle, persistent slots, pipe actions, command-mode integration: all owned by core.
+- Selection preservation, scroll, modal lifecycle, persistent slots, and command-mode integration: all owned by core. Proc pipe actions remain proc-local until another provider needs the abstraction.
 - Existing tabs adopt incrementally; nothing is forced.
 
 ## Non-goals (unchanged)
@@ -103,23 +103,6 @@ typedef struct {
     int row_flags;               /* CofiRowFlags */
 } CofiRowCells;
 
-typedef struct {
-    const char *token;            /* "k" */
-    const char *aliases[8];       /* {"kill", "term", NULL} — NULL-terminated */
-    void       *user_data;        /* opaque per-action payload, e.g. signal int */
-    CofiActionStatus (*handler)(AppData *, void *const *payloads, int count, void *user_data);
-        /* payloads: array of provider's row identities (always array, even for count=1).
-           count: 1 for selected, N for all-visible. */
-} CofiPipeAction;
-
-typedef struct {
-    const CofiPipeAction *actions;  /* NULL-terminated array */
-} CofiPipeActionTable;
-```
-
-## Provider struct
-
-```c
 typedef struct CofiTabProvider {
     /* identity — required */
     const char *id;                  /* "calc", "sinks", "run", "proc" — also slot_store scope */
@@ -167,9 +150,6 @@ typedef struct CofiTabProvider {
         /* `:foo bar baz` → on_command_args("bar baz")
            empty args → core surfaces tab, does NOT call this. */
 
-    /* pipe action support — optional */
-    const CofiPipeActionTable *pipe_actions;
-
     /* persistent slot integration — optional */
     int slot_store_enabled;           /* 1 → core wires Ctrl+letter / Alt+letter */
     const char *(*slot_payload_for)(AppData *, int raw_idx);
@@ -210,7 +190,7 @@ Core maintains the mapping `filtered_to_raw[filtered_idx] → raw_idx` and provi
 - Display rendering: lays out `CofiRowCells` columns, right-aligns numeric, prepends `[a]` slot decoration when applicable
 - Modal lifecycle: prefix claim or `:foo` → set indicator (derived), clear input, surface tab, fire `on_enter`
 - Esc handling: per `modal_policy`
-- Pipe parser: splits `<filter> | <action> [all]`, dispatches via `pipe_actions`, calls handler with resolved payload(s)
+- Pipe parser: proc-local for now; splits `<filter> | <action> [all]`, resolves proc actions in `proc.c`
 - Selection preservation: snapshots `row_identity` before filter, restores after
 - `:foo arg` short-circuit via `on_command_args`
 - Hide-cofi via `CofiActionStatus`
@@ -295,21 +275,9 @@ run_provider.modal_policy = COFI_MODAL_CLEAR_THEN_RETURN;
 
 ### proc
 
-Pipe table + score override:
+Proc-local pipe parser + score override:
 
 ```c
-static const CofiPipeAction proc_pipe_actions[] = {
-    {"k", {"kill", "term", "t", NULL}, (void *)(intptr_t)SIGTERM, proc_signal_handler},
-    {"9", {"kill9", "force", NULL},    (void *)(intptr_t)SIGKILL, proc_signal_handler},
-    {"h", {"hup", NULL},               (void *)(intptr_t)SIGHUP,  proc_signal_handler},
-    {"s", {"stop", NULL},              (void *)(intptr_t)SIGSTOP, proc_signal_handler},
-    {"c", {"cont", NULL},              (void *)(intptr_t)SIGCONT, proc_signal_handler},
-    {"w", {"show", "raise", NULL},     NULL,                       proc_show_handler},
-    {NULL}
-};
-static const CofiPipeActionTable proc_pipe_table = { proc_pipe_actions };
-
-proc_provider.pipe_actions = &proc_pipe_table;
 proc_provider.on_query_changed = proc_filter_and_resort;  /* /proc parsing not needed; reuse cached inventory + re-score */
 proc_provider.score_row = proc_weighted_score;            /* basename×10 + cmdline, plus `!` and `$` modes */
 ```
@@ -343,7 +311,7 @@ Apps porting is a TODO, not a blocker for v1.
 2. **Port calc** — simplest list-with-action. Validates `format_row` cells, `modal_policy`, basic Enter action.
 3. **Port sinks** — adds tick + slot_store + command_args. Validates async + persistent state.
 4. **Port run** — adds `on_selection_changed`. Validates entry-coupled selection.
-5. **Port proc** — adds `pipe_actions` + `score_row` + `on_query_changed`. Validates the action table and weighted scoring.
+5. **Port proc** — adds weighted scoring + `on_query_changed`. Proc pipe actions remain proc-local.
 6. **(Optional) Port apps** — pressure test.
 
 Each port is a separate commit; each one validates a different facet.

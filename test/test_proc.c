@@ -451,6 +451,8 @@ static void test_action_alias_resolution(void) {
     ASSERT_EQ_INT("hup signal", SIGHUP, sig);
     ASSERT_EQ_INT("stop -> SIGSTOP", 1, proc_resolve_action_test_hook("stop", &sig, &all));
     ASSERT_EQ_INT("stop signal", SIGSTOP, sig);
+    ASSERT_EQ_INT("s resolves as show", 1, proc_resolve_action_test_hook("s", &sig, &all));
+    ASSERT_EQ_INT("s show signal is zero", 0, sig);
     ASSERT_EQ_INT("cont -> SIGCONT", 1, proc_resolve_action_test_hook("cont", &sig, &all));
     ASSERT_EQ_INT("cont signal", SIGCONT, sig);
 }
@@ -585,6 +587,17 @@ static void test_show_action_parent_walk_depths(void) {
     g_show_map_count = 1;
     ASSERT_EQ_INT("show depth0 success", 1, proc_execute_action_test_hook(&app, "alpha | show", 0));
     ASSERT_EQ_INT("show depth0 activate called", 1, g_activate_calls);
+
+    init_app(&app);
+    g_entry_text = "alpha";
+    app.proc_mode.proc_count = 1;
+    app.proc_mode.procs[0] = make_proc(1000, "alpha", "alpha", 100);
+    proc_filter(&app, "alpha");
+    g_show_map[0] = (ShowMap){ .pid = 1000, .win = 0x1111 };
+    g_show_map_count = 1;
+    g_activate_calls = 0;
+    ASSERT_EQ_INT("s show alias success", 1, proc_execute_action_test_hook(&app, "alpha | s", 0));
+    ASSERT_EQ_INT("s show alias activates", 1, g_activate_calls);
 
     init_app(&app);
     g_entry_text = "alpha";

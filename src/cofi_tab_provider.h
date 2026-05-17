@@ -46,18 +46,6 @@ typedef struct {
     int row_flags;
 } CofiRowCells;
 
-typedef struct CofiPipeAction {
-    const char *token;
-    const char *aliases[8];   /* NULL-terminated */
-    void *user_data;
-    CofiActionStatus (*handler)(AppData *, void *const *payloads, int count,
-                                void *user_data);
-} CofiPipeAction;
-
-typedef struct {
-    const CofiPipeAction *actions;   /* NULL-terminated array */
-} CofiPipeActionTable;
-
 typedef struct CofiTabProvider {
     /* Existing providers may use legacy TabMode values. New providers can set
      * COFI_PROVIDER_DYNAMIC_TAB and receive a tab handle at registration. */
@@ -94,8 +82,6 @@ typedef struct CofiTabProvider {
     CofiActionStatus (*on_enter_pressed)(AppData *, int filtered_idx, int raw_idx,
                                          const char *entry_text, int modifier_state);
     CofiActionStatus (*on_command_args)(AppData *, const char *args);
-
-    const CofiPipeActionTable *pipe_actions;
 
     int slot_store_enabled;
     const char *(*slot_payload_for)(AppData *, int raw_idx);

@@ -591,9 +591,9 @@ static const char *proc_action_tokens[] = {
     "k", "kill", "term", "t",
     "9", "kill9", "force",
     "h", "hup",
-    "s", "stop",
+    "stop",
     "c", "cont",
-    "show", "w"
+    "s", "show", "w"
 };
 
 static gboolean resolve_action_token(const char *token, int *signal_out, int *type_out) {
@@ -622,8 +622,7 @@ static gboolean resolve_action_token(const char *token, int *signal_out, int *ty
         if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
-    if (g_ascii_strcasecmp(token, "s") == 0 ||
-        g_ascii_strcasecmp(token, "stop") == 0) {
+    if (g_ascii_strcasecmp(token, "stop") == 0) {
         *signal_out = SIGSTOP;
         if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
@@ -634,7 +633,8 @@ static gboolean resolve_action_token(const char *token, int *signal_out, int *ty
         if (type_out) *type_out = PROC_ACTION_SIGNAL;
         return TRUE;
     }
-    if (g_ascii_strcasecmp(token, "show") == 0 ||
+    if (g_ascii_strcasecmp(token, "s") == 0 ||
+        g_ascii_strcasecmp(token, "show") == 0 ||
         g_ascii_strcasecmp(token, "w") == 0) {
         *signal_out = 0;
         if (type_out) *type_out = PROC_ACTION_SHOW;

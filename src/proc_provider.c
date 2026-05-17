@@ -9,8 +9,6 @@
 #include "tab_switching.h"
 
 #include <gtk/gtk.h>
-#include <signal.h>
-#include <stdint.h>
 
 static CofiTabProvider s_proc_provider;
 static int s_proc_provider_id = -1;
@@ -54,31 +52,6 @@ static gboolean proc_command_handler(AppData *app,
     return FALSE;
 }
 
-static CofiActionStatus proc_signal_handler(AppData *app, void *const *payloads, int count,
-                                            void *user_data) {
-    (void)payloads;
-    (void)count;
-    (void)user_data;
-    if (!app) return COFI_NO_OP;
-    return proc_execute_action_with_modifiers(app, gtk_entry_get_text(GTK_ENTRY(app->entry)), 0)
-               ? COFI_HANDLED_HIDE
-               : COFI_NO_OP;
-}
-
-static const CofiPipeAction s_proc_actions[] = {
-    {"k", {"kill", "term", "t", NULL}, (void *)(intptr_t)SIGTERM, proc_signal_handler},
-    {"9", {"kill9", "force", NULL}, (void *)(intptr_t)SIGKILL, proc_signal_handler},
-    {"h", {"hup", NULL}, (void *)(intptr_t)SIGHUP, proc_signal_handler},
-    {"s", {"stop", NULL}, (void *)(intptr_t)SIGSTOP, proc_signal_handler},
-    {"c", {"cont", NULL}, (void *)(intptr_t)SIGCONT, proc_signal_handler},
-    {"w", {"show", "raise", NULL}, NULL, proc_signal_handler},
-    {NULL, {NULL}, NULL, NULL}
-};
-
-static const CofiPipeActionTable s_proc_pipe_table = {
-    .actions = s_proc_actions,
-};
-
 static const CommandSpec s_proc_command = {
     .primary = "proc",
     .aliases = {"ps", NULL},
@@ -111,7 +84,6 @@ void proc_provider_register(void) {
     s_proc_provider.tick_interval_ms = 1500;
     s_proc_provider.on_enter_pressed = proc_provider_on_enter_pressed;
     s_proc_provider.on_command_args = proc_provider_on_command_args;
-    s_proc_provider.pipe_actions = &s_proc_pipe_table;
     s_proc_provider.slot_store_enabled = 0;
     s_proc_provider_id = cofi_register_tab_provider(&s_proc_provider);
     if (s_proc_provider_id >= 0) {
