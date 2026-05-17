@@ -23,8 +23,11 @@ static int tests_passed = 0;
 
 static int g_reset_selection_calls;
 static int g_launch_calls;
+static int g_hide_window_calls;
+static int g_exit_command_mode_calls;
 static char g_last_launch_arg0[256];
 static char g_last_launch_arg1[256];
+static CofiTabProvider g_registered_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -35,13 +38,45 @@ void reset_selection(AppData *app) {
     g_reset_selection_calls++;
 }
 
+void exit_command_mode(AppData *app) {
+    (void)app;
+    g_exit_command_mode_calls++;
+}
+
+void hide_window(AppData *app) {
+    (void)app;
+    g_hide_window_calls++;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    if (app) app->current_tab = tab;
+}
+
 void cofi_init_provider_defaults(CofiTabProvider *p) {
     if (p) memset(p, 0, sizeof(*p));
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    if (p) g_registered_provider = *p;
     return 0;
+}
+
+const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
+    if (!command || !g_registered_provider.primary_cmd) {
+        return NULL;
+    }
+    if (strcmp(command, g_registered_provider.primary_cmd) == 0) {
+        return &g_registered_provider;
+    }
+    if (g_registered_provider.aliases) {
+        for (int i = 0; g_registered_provider.aliases[i]; i++) {
+            if (strcmp(command, g_registered_provider.aliases[i]) == 0) {
+                return &g_registered_provider;
+            }
+        }
+    }
+    return NULL;
 }
 
 gboolean detach_launch_argv_array(const char *const *argv) {
@@ -73,8 +108,11 @@ static void reset_state(AppData *app) {
     init_browser_profiles_mode(&s_profiles_mode);
     g_reset_selection_calls = 0;
     g_launch_calls = 0;
+    g_hide_window_calls = 0;
+    g_exit_command_mode_calls = 0;
     g_last_launch_arg0[0] = '\0';
     g_last_launch_arg1[0] = '\0';
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     browser_profiles_set_program_resolver_test_hook(fake_program_resolver);
     browser_profiles_set_launch_impl_test_hook(fake_launch_impl);
 }
@@ -214,6 +252,53 @@ static void test_command_at_slot_recalls_profile(void) {
     slot_store_free(&app.harpoon.store);
 }
 
+static void test_provider_registers_command_metadata(void) {
+    AppData app;
+    reset_state(&app);
+
+    profiles_provider_register();
+
+    ASSERT_TRUE("profiles primary command registered",
+                strcmp(g_registered_provider.primary_cmd, "profiles") == 0);
+    ASSERT_TRUE("profiles chrome alias registered",
+                strcmp(g_registered_provider.aliases[0], "chrome") == 0);
+    ASSERT_TRUE("profiles help format registered",
+                strcmp(g_registered_provider.command_help_format,
+                       "profiles, chrome [@SLOT|PROFILE]") == 0);
+    ASSERT_TRUE("profiles command handler registered",
+                g_registered_provider.command_handler != NULL);
+    ASSERT_TRUE("profiles command keeps cofi open for auto hotkeys",
+                g_registered_provider.command_keeps_open_on_hotkey_auto == 1);
+}
+
+static void test_command_handler_surfaces_and_recalls_slots(void) {
+    AppData app;
+    reset_state(&app);
+    profiles_provider_register();
+
+    app.current_tab = TAB_WINDOWS;
+    gboolean result = g_registered_provider.command_handler(&app, NULL, "");
+    ASSERT_TRUE("command without args returns false", result == FALSE);
+    ASSERT_TRUE("command without args exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("command without args surfaces profiles tab", app.current_tab == TAB_PROFILES);
+    ASSERT_TRUE("command without args does not hide", g_hide_window_calls == 0);
+
+    slot_store_init(&app.harpoon.store);
+    slot_assign(&app.harpoon.store, 'a', "profiles", "profile:chrome:Default");
+    g_exit_command_mode_calls = 0;
+    g_hide_window_calls = 0;
+    g_launch_calls = 0;
+
+    result = g_registered_provider.command_handler(&app, NULL, "@a");
+    ASSERT_TRUE("command with slot returns false", result == FALSE);
+    ASSERT_TRUE("command with slot exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("command with slot launches profile", g_launch_calls == 1);
+    ASSERT_TRUE("command with slot hides after launch", g_hide_window_calls == 1);
+    ASSERT_TRUE("command with slot uses profile directory",
+                strcmp(g_last_launch_arg1, "--profile-directory=Default") == 0);
+    slot_store_free(&app.harpoon.store);
+}
+
 int main(void) {
     printf("Profiles provider tests\n");
     printf("=======================\n\n");
@@ -225,6 +310,8 @@ int main(void) {
     test_enter_launches_profile();
     test_slot_payload_and_recall();
     test_command_at_slot_recalls_profile();
+    test_provider_registers_command_metadata();
+    test_command_handler_surfaces_and_recalls_slots();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

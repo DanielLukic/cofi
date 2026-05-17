@@ -189,6 +189,8 @@ int cofi_get_provider_id(const char *id) {
 int cofi_provider_is_enabled(int provider_id) {
     return provider_id >= 0 && provider_id != disabled_provider_tab;
 }
+int cofi_provider_count(void) { return 0; }
+const CofiTabProvider *cofi_get_provider(int provider_id) { (void)provider_id; return NULL; }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;

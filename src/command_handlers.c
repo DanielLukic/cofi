@@ -1,4 +1,5 @@
 #include "command_api.h"
+#include "cofi_tab_provider.h"
 #include "command_parser.h"
 
 #ifndef COMMAND_POLICY_ONLY
@@ -10,6 +11,16 @@
 #endif
 
 #include <string.h>
+
+static const CofiTabProvider *find_provider_command_by_primary(const char *primary) {
+    const CofiTabProvider *provider = cofi_get_provider_for_command(primary);
+    if (!provider || !provider->primary_cmd ||
+        strcmp(provider->primary_cmd, primary) != 0 ||
+        !provider->command_handler) {
+        return NULL;
+    }
+    return provider;
+}
 
 #ifndef COMMAND_POLICY_ONLY
 typedef struct {
@@ -57,14 +68,34 @@ static gboolean execute_single_command(const char *command, AppData *app,
         return TRUE;
     }
 
-    const CommandDef *cmd = find_command_by_primary(primary);
-    if (!cmd || !command_primary_is_available(primary)) {
+    if (!command_primary_is_available(primary)) {
         log_warn("Unknown command: '%s'. Type 'help' for available commands.", primary);
         return FALSE;
     }
 
-    gboolean result = cmd->handler(app, window, arg);
-    if (result && cmd->activates && !background) {
+    const CommandDef *cmd = find_command_by_primary(primary);
+    const CofiTabProvider *provider = NULL;
+    CofiCommandHandler handler = NULL;
+    int activates = 0;
+
+    if (cmd) {
+        handler = cmd->handler;
+        activates = cmd->activates;
+    } else {
+        provider = find_provider_command_by_primary(primary);
+        if (provider) {
+            handler = provider->command_handler;
+            activates = provider->command_activates;
+        }
+    }
+
+    if (!handler) {
+        log_warn("Unknown command: '%s'. Type 'help' for available commands.", primary);
+        return FALSE;
+    }
+
+    gboolean result = handler(app, window, arg);
+    if (result && activates && !background) {
         activate_commanded_window(app, window);
     }
 
@@ -116,7 +147,6 @@ static gboolean keeps_open_always(const char *primary) {
            strcmp(primary, "hotkeys") == 0 ||
            strcmp(primary, "sinks") == 0 ||
            strcmp(primary, "proc") == 0 ||
-           strcmp(primary, "profiles") == 0 ||
            strcmp(primary, "tmux") == 0 ||
            strcmp(primary, "rules") == 0;
 }
@@ -134,6 +164,11 @@ static gboolean command_keeps_open(const char *primary, const char *arg) {
     }
 
     if (keeps_open_always(primary)) {
+        return TRUE;
+    }
+
+    const CofiTabProvider *provider = find_provider_command_by_primary(primary);
+    if (provider && provider->command_keeps_open_on_hotkey_auto) {
         return TRUE;
     }
 

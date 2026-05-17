@@ -7,6 +7,7 @@
 #include "../src/command_api.h"
 #include "../src/command_parse_defs.h"
 #include "../src/command_parser.h"
+#include "../src/cofi_tab_provider.h"
 
 // Stub all command handlers — we only need the table metadata, not execution.
 #define STUB(name) gboolean name(AppData *a, WindowInfo *w, const char *s) { \
@@ -21,10 +22,26 @@ STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
 STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
 STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
 STUB(cmd_workspaces) STUB(cmd_harpoon) STUB(cmd_names) STUB(cmd_rules) STUB(cmd_calc)
-STUB(cmd_sinks) STUB(cmd_proc) STUB(cmd_profiles) STUB(cmd_sessions) STUB(cmd_run) STUB(cmd_help)
+STUB(cmd_sinks) STUB(cmd_proc) STUB(cmd_sessions) STUB(cmd_run) STUB(cmd_help)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
+
+static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
+
+static void register_profiles_command_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "profiles";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "profiles";
+    provider.aliases = profiles_aliases;
+    provider.command_help_format = "profiles, chrome [@SLOT|PROFILE]";
+    provider.command_description = "Switch to browser profiles tab";
+    provider.command_keeps_open_on_hotkey_auto = 1;
+    provider.command_handler = cmd_run; /* non-NULL sentinel for policy tests */
+    cofi_register_tab_provider(&provider);
+}
 
 typedef struct {
     int seen;
@@ -114,7 +131,6 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("sinks",   0);   // sinks: surfaces tab
     ASSERT_ACTIVATES("proc",    0);   // proc: surfaces tab
-    ASSERT_ACTIVATES("profiles", 0);  // profiles: surfaces tab
     ASSERT_ACTIVATES("tmux",    0);   // tmux: surfaces tab
     ASSERT_ACTIVATES("show",    0);   // show: switches view
     ASSERT_ACTIVATES("sw",      0);   // swap-windows: swaps geometry only
@@ -136,7 +152,6 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("rules", 1);
     ASSERT_KEEP_OPEN("sinks", 1);
     ASSERT_KEEP_OPEN("proc", 1);
-    ASSERT_KEEP_OPEN("profiles", 1);
     ASSERT_KEEP_OPEN("tmux", 1);
     ASSERT_KEEP_OPEN("workspaces", 1);
 
@@ -177,6 +192,9 @@ static void test_should_keep_open_runtime_policy(void) {
 
     if (!should_keep_open_on_hotkey_auto("mw,cw2")) { printf("PASS: non-UI chain does not keep open\n"); tests_passed++; }
     else { printf("FAIL: mw,cw2 should not keep open\n"); tests_failed++; }
+
+    if (should_keep_open_on_hotkey_auto("profiles")) { printf("PASS: profiles provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: profiles provider command should keep open\n"); tests_failed++; }
 }
 
 static void test_command_chain_semantics(void) {
@@ -296,6 +314,29 @@ static void test_alias_drift_guard(void) {
     }
 }
 
+static void test_provider_command_alias_resolution(void) {
+    printf("\n--- Provider command alias resolution ---\n");
+    char resolved[64] = {0};
+
+    if (resolve_command_primary("profiles", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "profiles") == 0) {
+        printf("PASS: provider primary profiles resolves to itself\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider primary profiles did not resolve\n");
+        tests_failed++;
+    }
+
+    if (resolve_command_primary("chrome", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "profiles") == 0) {
+        printf("PASS: provider alias chrome resolves to profiles\n");
+        tests_passed++;
+    } else {
+        printf("FAIL: provider alias chrome did not resolve to profiles\n");
+        tests_failed++;
+    }
+}
+
 static void test_all_parse_defs_have_owner(void) {
     printf("\n--- Command ownership guard ---\n");
     for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
@@ -316,12 +357,13 @@ static void test_all_commands_covered(void) {
     for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
         table_count++;
     }
-    // 11 activating + 25 non-activating = 36 commands (includes jump-slot)
-    if (table_count == 36) {
+    // 11 activating + 24 legacy non-activating = 35 central commands.
+    // Profiles is provider-owned and intentionally absent from this table.
+    if (table_count == 35) {
         printf("PASS: command table has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 36 — update test!\n", table_count);
+        printf("FAIL: command table has %d commands, test expects 35 — update test!\n", table_count);
         tests_failed++;
     }
 }
@@ -330,12 +372,16 @@ int main(void) {
     printf("Command dispatch tests\n");
     printf("======================\n\n");
 
+    cofi_registry_reset();
+    register_profiles_command_provider();
+
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();
     test_should_keep_open_runtime_policy();
     test_command_chain_semantics();
     test_window_state_alias_arg_resolution();
     test_alias_drift_guard();
+    test_provider_command_alias_resolution();
     test_all_parse_defs_have_owner();
     test_all_commands_covered();
 

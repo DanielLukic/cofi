@@ -2,16 +2,20 @@
 
 #include "app_data.h"
 #include "browser_profiles.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "log.h"
 #include "selection.h"
 #include "slot_store.h"
+#include "tab_switching.h"
+#include "window_lifecycle.h"
 
 #include <gtk/gtk.h>
 #include <string.h>
 
 static BrowserProfilesMode s_profiles_mode;
 static const char *PROFILE_SLOT_PREFIX = "profile:chrome:";
+static CofiTabProvider s_profiles_provider;
 
 static BrowserProfileEntry *profile_at_row(AppData *app, int raw_idx) {
     (void)app;
@@ -154,8 +158,38 @@ static CofiActionStatus profiles_on_command_args(AppData *app, const char *args)
     return browser_profiles_launch(profile) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+static gboolean profiles_command_handler(AppData *app,
+                                         WindowInfo *window __attribute__((unused)),
+                                         const char *args) {
+    exit_command_mode(app);
+
+    if (args && args[0] != '\0') {
+        CofiActionStatus status = profiles_on_command_args(app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            if (app && app->textbuffer) {
+                gtk_text_buffer_set_text(app->textbuffer,
+                                         "No matching browser profile.",
+                                         -1);
+                app->command_mode.showing_help = TRUE;
+            }
+        }
+        return FALSE;
+    }
+
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+    }
+    const CofiTabProvider *provider = cofi_get_provider_for_command("profiles");
+    if (!provider) {
+        return FALSE;
+    }
+    surface_tab(app, (TabMode)provider->tab_mode);
+    return FALSE;
+}
+
 static const char *const s_profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
-static CofiTabProvider s_profiles_provider;
 
 void profiles_provider_register(void) {
     cofi_init_provider_defaults(&s_profiles_provider);
@@ -165,6 +199,10 @@ void profiles_provider_register(void) {
     s_profiles_provider.display_name = "PROFILES";
     s_profiles_provider.primary_cmd = "profiles";
     s_profiles_provider.aliases = s_profiles_aliases;
+    s_profiles_provider.command_description = "Switch to browser profiles tab";
+    s_profiles_provider.command_help_format = "profiles, chrome [@SLOT|PROFILE]";
+    s_profiles_provider.command_handler = profiles_command_handler;
+    s_profiles_provider.command_keeps_open_on_hotkey_auto = 1;
     s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
     s_profiles_provider.required = 0;
     s_profiles_provider.hidden_by_default = 1;

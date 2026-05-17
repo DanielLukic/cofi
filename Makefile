@@ -233,12 +233,12 @@ test-integration: $(TARGET)
 	@test/integration/run_all.sh
 
 # Build command parsing test
-test_command_parsing: test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o $(LDFLAGS)
+test_command_parsing: test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build command parser execution-path test
-test_command_parser_execution: test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -o test/test_command_parser_execution test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o $(LDFLAGS)
+test_command_parser_execution: test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_parser_execution test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build config round-trip test
 test_config_roundtrip: test/test_config_roundtrip.c src/config.o src/log.o src/utils.o
@@ -265,8 +265,8 @@ test_match_scoring: test/test_match_scoring.c src/match.o
 	$(CC) $(CFLAGS) -o test/test_match_scoring test/test_match_scoring.c src/match.o $(LDFLAGS)
 
 # Build command alias edge case test
-test_command_aliases: test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -o test/test_command_aliases test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o $(LDFLAGS)
+test_command_aliases: test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_aliases test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build wildcard match test
 test_wildcard_match: test/test_wildcard_match.c src/window_matcher.o src/log.o
@@ -277,8 +277,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/command_handlers.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -333,8 +333,8 @@ test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o
 
 # Build rules overlay behavior tests
 # (tests rules CRUD persistence-only behavior and clamp)
-test_overlay_rules: test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o
-	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o $(LDFLAGS)
+test_overlay_rules: test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o

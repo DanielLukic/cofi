@@ -226,31 +226,6 @@ gboolean cmd_sessions(AppData *app, WindowInfo *window __attribute__((unused)),
     return FALSE;
 }
 
-gboolean cmd_profiles(AppData *app, WindowInfo *window __attribute__((unused)),
-                      const char *args) {
-    exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("profiles");
-    if (!provider) {
-        show_error_in_display(app, "Profiles provider not available.");
-        return FALSE;
-    }
-
-    if (args && args[0] != '\0') {
-        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
-        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
-        if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
-            show_error_in_display(app, "No matching browser profile.");
-        }
-        return FALSE;
-    }
-
-    app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)provider->tab_mode);
-    return FALSE;
-}
-
 gboolean cmd_run(AppData *app, WindowInfo *window __attribute__((unused)),
                  const char *args) {
     exit_command_mode(app);
@@ -412,6 +387,17 @@ char *generate_command_help_text(HelpFormat format, int width) {
         buffer_size += strlen(COMMAND_DEFINITIONS[i].description);
         buffer_size += 100;
     }
+    for (int i = 0; i < cofi_provider_count(); i++) {
+        if (!cofi_provider_is_enabled(i)) continue;
+        const CofiTabProvider *provider = cofi_get_provider(i);
+        if (!provider || !provider->command_help_format ||
+            !provider->command_description) {
+            continue;
+        }
+        buffer_size += strlen(provider->command_help_format);
+        buffer_size += strlen(provider->command_description);
+        buffer_size += 100;
+    }
 
     char *help_text = malloc(buffer_size);
     if (!help_text) {
@@ -434,6 +420,18 @@ char *generate_command_help_text(HelpFormat format, int width) {
         append_wrapped_command_line(commands,
                                     COMMAND_DEFINITIONS[i].help_format,
                                     COMMAND_DEFINITIONS[i].description,
+                                    width);
+    }
+    for (int i = 0; i < cofi_provider_count(); i++) {
+        if (!cofi_provider_is_enabled(i)) continue;
+        const CofiTabProvider *provider = cofi_get_provider(i);
+        if (!provider || !provider->command_help_format ||
+            !provider->command_description) {
+            continue;
+        }
+        append_wrapped_command_line(commands,
+                                    provider->command_help_format,
+                                    provider->command_description,
                                     width);
     }
     strcat(help_text, commands->str);

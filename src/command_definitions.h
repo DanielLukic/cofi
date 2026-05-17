@@ -22,7 +22,7 @@ typedef struct {
     int keeps_open_on_hotkey_auto;          // Auto-! hotkeys keep cofi open after command
 } CommandDef;
 
-// Master command definitions - single source of truth
+// Legacy/core command definitions. Provider-owned commands live on CofiTabProvider.
 static const CommandDef COMMAND_DEFINITIONS[] = {
     {
         .primary = "ab",
@@ -215,14 +215,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .handler = cmd_proc,
         .description = "Switch to process manager tab",
         .help_format = "proc, ps",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
-        .primary = "profiles",
-        .aliases = {"chrome", "browser", "browsers", NULL},
-        .handler = cmd_profiles,
-        .description = "Switch to browser profiles tab",
-        .help_format = "profiles, chrome [@SLOT|PROFILE]",
         .keeps_open_on_hotkey_auto = 1
     },
     {

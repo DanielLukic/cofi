@@ -13,7 +13,11 @@
 typedef struct AppData AppData;
 #define APPDATA_TYPEDEF_DEFINED
 #endif
+typedef struct WindowInfo WindowInfo;
 typedef struct _GdkEventKey GdkEventKey;
+
+typedef gboolean (*CofiCommandHandler)(AppData *app, WindowInfo *window,
+                                       const char *args);
 
 typedef enum {
     COFI_HANDLED_HIDE,     /* core hides cofi window */
@@ -69,6 +73,12 @@ typedef struct CofiTabProvider {
     const char *primary_cmd;
     const char *const *aliases;   /* NULL-terminated */
     char prefix_char;
+
+    const char *command_description;
+    const char *command_help_format;
+    CofiCommandHandler command_handler;
+    int command_activates;
+    int command_keeps_open_on_hotkey_auto;
 
     int required;                  /* required providers cannot be disabled */
     int hidden_by_default;

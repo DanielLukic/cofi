@@ -1,9 +1,23 @@
 #include <stdio.h>
 #include <string.h>
 #include "../src/command_parser.h"
+#include "../src/cofi_tab_provider.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
+
+static const char *profiles_aliases[] = {"chrome", "browser", "browsers", NULL};
+
+static void register_profiles_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "profiles";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "profiles";
+    provider.aliases = profiles_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
 
 static void assert_true(const char *name, int condition) {
     if (condition) {
@@ -42,6 +56,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("hotkey alias resolves to hotkeys",
                 parse_command_for_execution("hotkey Mod4+w show windows", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "hotkeys") == 0 && strcmp(arg, "Mod4+w show windows") == 0);
+
+    assert_true("provider alias chrome resolves to profiles",
+                parse_command_for_execution("chrome gs", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "profiles") == 0 && strcmp(arg, "gs") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -58,6 +76,9 @@ static void test_next_command_segment(void) {
 int main(void) {
     printf("Command parser execution-path tests\n");
     printf("===================================\n\n");
+
+    cofi_registry_reset();
+    register_profiles_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

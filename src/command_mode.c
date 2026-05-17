@@ -122,6 +122,28 @@ static gboolean has_candidate(const char *candidates[], int count, const char *v
     return FALSE;
 }
 
+static void add_command_candidate_names(const char *matches[], int *match_count,
+                                        const char *const names[], int name_count,
+                                        const char *text) {
+    for (int n = 0; n < name_count; n++) {
+        const char *name = names[n];
+        if (!name || strncmp(name, text, strlen(text)) != 0) {
+            continue;
+        }
+        if (strlen(name) > 12) {
+            continue;
+        }
+        if (has_candidate(matches, *match_count, name)) {
+            continue;
+        }
+
+        matches[(*match_count)++] = name;
+        if (*match_count == COMMAND_CANDIDATE_SCAN_MAX) {
+            return;
+        }
+    }
+}
+
 void command_update_candidates(CommandMode *cmd, const char *text) {
     if (!cmd) {
         return;
@@ -150,27 +172,31 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
             names[name_count++] = COMMAND_PARSE_DEFS[i].aliases[alias];
         }
 
-        for (int n = 0; n < name_count; n++) {
-            const char *name = names[n];
-            if (strncmp(name, text, strlen(text)) != 0) {
-                continue;
-            }
-            if (strlen(name) > 12) {
-                continue;
-            }
-            if (has_candidate(matches, match_count, name)) {
-                continue;
-            }
-
-            matches[match_count++] = name;
-            if (match_count == COMMAND_CANDIDATE_SCAN_MAX) {
-                break;
-            }
-        }
+        add_command_candidate_names(matches, &match_count, names, name_count, text);
 
         if (match_count == COMMAND_CANDIDATE_SCAN_MAX) {
             break;
         }
+    }
+
+    for (int i = 0; i < cofi_provider_count() && match_count < COMMAND_CANDIDATE_SCAN_MAX; i++) {
+        if (!cofi_provider_is_enabled(i)) {
+            continue;
+        }
+        const CofiTabProvider *provider = cofi_get_provider(i);
+        if (!provider || !provider->primary_cmd) {
+            continue;
+        }
+
+        const char *names[6] = {0};
+        int name_count = 0;
+        names[name_count++] = provider->primary_cmd;
+        if (provider->aliases) {
+            for (int alias = 0; alias < 5 && provider->aliases[alias]; alias++) {
+                names[name_count++] = provider->aliases[alias];
+            }
+        }
+        add_command_candidate_names(matches, &match_count, names, name_count, text);
     }
 
     qsort(matches, match_count, sizeof(matches[0]), candidate_cmp);

@@ -1,6 +1,7 @@
 #include "command_parser.h"
 #include "command_api.h"
 #include "command_parse_defs.h"
+#include "cofi_tab_provider.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -31,6 +32,9 @@ static int is_exact_command(const char *token) {
         for (int a = 0; a < 5 && COMMAND_PARSE_DEFS[i].aliases[a]; a++) {
             if (strcmp(token, COMMAND_PARSE_DEFS[i].aliases[a]) == 0) return 1;
         }
+    }
+    if (cofi_get_provider_for_command(token)) {
+        return 1;
     }
     return 0;
 }
@@ -100,6 +104,12 @@ gboolean resolve_command_primary(const char *cmd_name, char *primary_out, size_t
                 return TRUE;
             }
         }
+    }
+    const CofiTabProvider *provider = cofi_get_provider_for_command(cmd_name);
+    if (provider && provider->primary_cmd) {
+        strncpy(primary_out, provider->primary_cmd, primary_size - 1);
+        primary_out[primary_size - 1] = '\0';
+        return TRUE;
     }
     return FALSE;
 }
