@@ -15,6 +15,8 @@
 #include <gtk/gtk.h>
 #include <string.h>
 
+static CofiTabProvider s_sinks_provider;
+
 static int sinks_row_count(AppData *app) {
     if (!app) return 0;
     if (app->sinks_mode.last_error[0] != '\0') return 1;
@@ -137,11 +139,6 @@ static gboolean sinks_command_handler(AppData *app,
                                       WindowInfo *window __attribute__((unused)),
                                       const char *args) {
     exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("sinks");
-    if (!provider) {
-        sinks_show_command_error(app, "Sinks provider not available.");
-        return FALSE;
-    }
 
     if (args && args[0] != '\0') {
         CofiActionStatus status = sinks_on_command_args(app, args);
@@ -156,12 +153,11 @@ static gboolean sinks_command_handler(AppData *app,
     if (app) {
         app->prefix_origin_tab = TAB_WINDOWS;
     }
-    surface_tab(app, (TabMode)provider->tab_mode);
+    surface_tab(app, (TabMode)s_sinks_provider.tab_mode);
     return FALSE;
 }
 
 static const char *const s_sinks_aliases[] = {"sink", NULL};
-static CofiTabProvider s_sinks_provider;
 
 void sinks_provider_register(void) {
     cofi_init_provider_defaults(&s_sinks_provider);

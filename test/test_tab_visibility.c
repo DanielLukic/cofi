@@ -154,6 +154,12 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
     return FALSE;
 }
 
+static void test_apps_on_surface(AppData *app) {
+    if (app) {
+        app->apps_mode = APPS_MODE_DEFAULT;
+    }
+}
+
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix; return NULL;
 }
@@ -166,6 +172,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     switch (tab_mode) {
         case TAB_APPS:
             provider.id = "apps";
+            provider.on_surface = test_apps_on_surface;
             break;
         case TAB_CONFIG:
             provider.id = "config";
@@ -552,6 +559,7 @@ static void test_surface_tab_surfaces_hidden_tab(void) {
 static void test_cmd_show_apps_resets_to_default_mode(void) {
     AppData app = make_app();
     app.current_tab = TAB_APPS;
+    app.prefix_origin_tab = TAB_WINDOWS;
     app.apps_mode = APPS_MODE_PATH;
 
     reset_counters();
@@ -559,6 +567,19 @@ static void test_cmd_show_apps_resets_to_default_mode(void) {
 
     ASSERT_TRUE("cmd_show apps resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
     ASSERT_TRUE("cmd_show apps switches tab", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("cmd_show apps records origin tab", app.prefix_origin_tab == TAB_APPS);
+}
+
+static void test_cmd_show_provider_records_origin_tab(void) {
+    AppData app = make_app();
+    app.current_tab = TAB_WINDOWS;
+
+    reset_counters();
+    cmd_show(&app, NULL, "workspaces");
+
+    ASSERT_TRUE("cmd_show workspaces switches tab", app.current_tab == TAB_WORKSPACES);
+    ASSERT_TRUE("cmd_show workspaces records origin tab",
+                app.prefix_origin_tab == TAB_WINDOWS);
 }
 
 static void test_daemon_opcode_applications_resets_mode(void) {
@@ -752,6 +773,7 @@ int main(void) {
     test_daemon_opcode_harpoon_switches_to_harpoon_tab();
     test_surface_tab_surfaces_hidden_tab();
     test_cmd_show_apps_resets_to_default_mode();
+    test_cmd_show_provider_records_origin_tab();
     test_daemon_opcode_applications_resets_mode();
     test_tab_switching_skips_hidden_tabs();
     test_show_all_tabs_cycles_hidden_tabs();

@@ -94,6 +94,7 @@ typedef struct CofiTabProvider {
 
     void (*on_enter)(AppData *);
     void (*on_leave)(AppData *);
+    void (*on_surface)(AppData *);
     void (*on_query_changed)(AppData *, const char *query);
     void (*on_selection_changed)(AppData *, int filtered_idx);
     gboolean (*handle_key)(GdkEventKey *, AppData *);

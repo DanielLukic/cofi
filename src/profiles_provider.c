@@ -181,11 +181,7 @@ static gboolean profiles_command_handler(AppData *app,
     if (app) {
         app->prefix_origin_tab = app->current_tab;
     }
-    const CofiTabProvider *provider = cofi_get_provider_for_command("profiles");
-    if (!provider) {
-        return FALSE;
-    }
-    surface_tab(app, (TabMode)provider->tab_mode);
+    surface_tab(app, (TabMode)s_profiles_provider.tab_mode);
     return FALSE;
 }
 

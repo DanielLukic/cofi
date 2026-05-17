@@ -231,7 +231,8 @@ static void test_command_handler_without_args_enters_modal(void) {
     ASSERT_TRUE("run command without args does not hide", g_hide_window_calls == 0);
     ASSERT_TRUE("run command without args sets prefix claim", app.active_prefix_claim == '!');
     ASSERT_TRUE("run command without args enters modal", g_enter_modal_calls == 1);
-    ASSERT_TRUE("run command without args uses run provider modal", g_last_modal_provider == p);
+    ASSERT_TRUE("run command without args uses module provider modal",
+                g_last_modal_provider == &s_run_provider);
 }
 
 int main(int argc, char **argv) {

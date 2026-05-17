@@ -80,9 +80,10 @@ static gboolean surface_provider_command(AppData *app, const char *command) {
         return FALSE;
     }
     exit_command_mode(app);
-    if (provider->id && strcmp(provider->id, "apps") == 0) {
-        app->apps_mode = APPS_MODE_DEFAULT;
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
     }
+    if (provider->on_surface) provider->on_surface(app);
     surface_tab(app, (TabMode)provider->tab_mode);
     return FALSE;
 }

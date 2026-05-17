@@ -101,10 +101,6 @@ static gboolean run_command_handler(AppData *app,
                                     WindowInfo *window __attribute__((unused)),
                                     const char *args) {
     exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("run");
-    if (!provider) {
-        return FALSE;
-    }
 
     if (args && args[0] != '\0') {
         CofiActionStatus status = run_on_command_args(app, args);
@@ -118,7 +114,7 @@ static gboolean run_command_handler(AppData *app,
         app->prefix_origin_tab = app->current_tab;
         app->active_prefix_claim = '!';
     }
-    cofi_enter_modal(app, provider);
+    cofi_enter_modal(app, &s_run_provider);
     return FALSE;
 }
 

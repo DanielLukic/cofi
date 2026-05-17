@@ -80,16 +80,12 @@ static gboolean calc_command_handler(AppData *app,
                                      WindowInfo *window __attribute__((unused)),
                                      const char *args) {
     exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("calc");
-    if (!provider) {
-        return FALSE;
-    }
 
     if (app) {
         app->prefix_origin_tab = app->current_tab;
         app->active_prefix_claim = '=';
     }
-    cofi_enter_modal(app, provider);
+    cofi_enter_modal(app, &s_calc_provider);
 
     if (args && args[0] != '\0') {
         calc_on_command_args(app, args);

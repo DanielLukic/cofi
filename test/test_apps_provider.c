@@ -208,6 +208,7 @@ static void test_command_handler_surfaces_tab(void) {
     reset_state(&app);
     apps_provider_register();
     app.current_tab = TAB_WINDOWS;
+    app.apps_mode = APPS_MODE_PATH;
 
     gboolean result = s_apps_provider.command_handler(&app, NULL, "");
 
@@ -216,6 +217,7 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("apps command surfaces Apps tab",
                 g_surface_tab_calls == 1 && g_last_surface_tab == TAB_APPS);
     ASSERT_TRUE("apps command records origin", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("apps command resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
 int main(void) {

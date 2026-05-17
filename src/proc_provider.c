@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <stdint.h>
 
+static CofiTabProvider s_proc_provider;
+
 static CofiActionStatus proc_provider_on_enter_pressed(AppData *app, int filtered_idx,
                                                        int raw_idx, const char *entry_text,
                                                        int modifier_state) {
@@ -31,25 +33,14 @@ static CofiActionStatus proc_provider_on_command_args(AppData *app, const char *
     return COFI_NO_OP;
 }
 
-static void proc_show_command_error(AppData *app, const char *message) {
-    if (!app || !app->textbuffer) return;
-    gtk_text_buffer_set_text(app->textbuffer, message, -1);
-    app->command_mode.showing_help = TRUE;
-}
-
 static gboolean proc_command_handler(AppData *app,
                                      WindowInfo *window __attribute__((unused)),
                                      const char *args) {
     exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("proc");
-    if (!provider) {
-        proc_show_command_error(app, "Proc provider not available.");
-        return FALSE;
-    }
     if (app) {
         app->prefix_origin_tab = app->current_tab;
     }
-    surface_tab(app, (TabMode)provider->tab_mode);
+    surface_tab(app, (TabMode)s_proc_provider.tab_mode);
     if (args && args[0] != '\0') {
         proc_provider_on_command_args(app, args);
     }
@@ -82,7 +73,6 @@ static const CofiPipeActionTable s_proc_pipe_table = {
 };
 
 static const char *const s_proc_aliases[] = {"ps", NULL};
-static CofiTabProvider s_proc_provider;
 
 void proc_provider_register(void) {
     cofi_init_provider_defaults(&s_proc_provider);
