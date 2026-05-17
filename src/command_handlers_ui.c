@@ -73,14 +73,16 @@ static void handle_set_error(AppData *app, const char *error_text) {
     show_error_in_display(app, msg);
 }
 
-static gboolean surface_provider_command(AppData *app, const char *command,
-                                         const char *error_text) {
+static gboolean surface_provider_command(AppData *app, const char *command) {
     const CofiTabProvider *provider = cofi_get_provider_for_command(command);
     if (!provider) {
-        show_error_in_display(app, error_text);
+        show_error_in_display(app, "Usage: show <tab>");
         return FALSE;
     }
     exit_command_mode(app);
+    if (provider->id && strcmp(provider->id, "apps") == 0) {
+        app->apps_mode = APPS_MODE_DEFAULT;
+    }
     surface_tab(app, (TabMode)provider->tab_mode);
     return FALSE;
 }
@@ -124,37 +126,8 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             }
             mode = SHOW_MODE_RUN;
         }
-        else if (strcmp(args, "workspaces") == 0) {
-            return surface_provider_command(app, "workspaces", "Workspaces provider not available.");
-        }
-        else if (strcmp(args, "harpoon") == 0) {
-            return surface_provider_command(app, "harpoon", "Harpoon provider not available.");
-        }
-        else if (strcmp(args, "names") == 0) {
-            return surface_provider_command(app, "names", "Names provider not available.");
-        } else if (strcmp(args, "config") == 0) {
-            return surface_provider_command(app, "config", "Config provider not available.");
-        } else if (strcmp(args, "rules") == 0) {
-            return surface_provider_command(app, "rules", "Rules provider not available.");
-        } else if (strcmp(args, "apps") == 0) {
-            const CofiTabProvider *provider = cofi_get_provider_for_command("apps");
-            if (!provider) {
-                show_error_in_display(app, "Apps provider not available.");
-                return FALSE;
-            }
-            exit_command_mode(app);
-            app->apps_mode = APPS_MODE_DEFAULT;
-            surface_tab(app, (TabMode)provider->tab_mode);
-            return FALSE;
-        } else {
-            const CofiTabProvider *provider = cofi_get_provider_for_command(args);
-            if (provider) {
-                exit_command_mode(app);
-                surface_tab(app, (TabMode)provider->tab_mode);
-                return FALSE;
-            }
-            show_error_in_display(app, "Usage: show <tab>");
-            return FALSE;
+        else {
+            return surface_provider_command(app, args);
         }
     }
 

@@ -163,7 +163,29 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TAB_WINDOWS || tab_mode == disabled_provider_tab) return NULL;
     memset(&provider, 0, sizeof(provider));
     provider.tab_mode = tab_mode;
-    provider.id = "test";
+    switch (tab_mode) {
+        case TAB_APPS:
+            provider.id = "apps";
+            break;
+        case TAB_CONFIG:
+            provider.id = "config";
+            break;
+        case TAB_HARPOON:
+            provider.id = "harpoon";
+            break;
+        case TAB_NAMES:
+            provider.id = "names";
+            break;
+        case TAB_RULES:
+            provider.id = "rules";
+            break;
+        case TAB_WORKSPACES:
+            provider.id = "workspaces";
+            break;
+        default:
+            provider.id = "test";
+            break;
+    }
     return &provider;
 }
 const CofiTabProvider *cofi_get_provider_for_command(const char *command) {
