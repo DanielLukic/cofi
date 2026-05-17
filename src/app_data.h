@@ -35,7 +35,6 @@ typedef enum {
     TAB_HOTKEYS,
     TAB_RULES,
     TAB_APPS,
-    TAB_SESSIONS,
     TAB_COUNT
 } TabMode;
 

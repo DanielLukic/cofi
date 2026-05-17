@@ -61,6 +61,8 @@ static gboolean g_stub_has_selected_session;
 static SessionFolder g_stub_selected_folder;
 static gboolean g_stub_has_selected_folder;
 
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
 static void *g_last_overlay_data;
@@ -131,10 +133,12 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     rules_provider.tab_mode = TAB_RULES;
     rules_provider.handle_key = handle_rules_tab_keys;
-    sessions_provider.tab_mode = TAB_SESSIONS;
+    sessions_provider.tab_mode = TEST_SESSIONS_TAB;
     sessions_provider.handle_key = handle_sessions_tab_keys;
     harpoon_provider.tab_mode = TAB_HARPOON;
     harpoon_provider.handle_key = handle_harpoon_tab_keys;
+
+    if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
 
     switch ((TabMode)tab_mode) {
         case TAB_HARPOON: return &harpoon_provider;
@@ -142,7 +146,6 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         case TAB_CONFIG: return &config_provider;
         case TAB_HOTKEYS: return &hotkeys_provider;
         case TAB_RULES: return &rules_provider;
-        case TAB_SESSIONS: return &sessions_provider;
         default: return NULL;
     }
 }
@@ -409,7 +412,7 @@ void show_session_new_overlay(AppData *app,
 }
 
 gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_SESSIONS) {
+    if (app->current_tab != TEST_SESSIONS_TAB) {
         return FALSE;
     }
 
@@ -859,7 +862,7 @@ static void test_sessions_tab_shortcuts_open_session_overlays(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = TEST_SESSIONS_TAB;
     g_stub_has_selected_session = TRUE;
     g_stub_selected_session.backend = SESSION_BACKEND_TMUX;
     strncpy(g_stub_selected_session.name, "work:api session",
@@ -901,7 +904,7 @@ static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) 
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = TEST_SESSIONS_TAB;
     g_stub_has_selected_session = TRUE;
     g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
     strncpy(g_stub_selected_session.name, "zj work",
@@ -928,7 +931,7 @@ static void test_sessions_tab_rename_ignores_zellij_session_row(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = TEST_SESSIONS_TAB;
     g_stub_has_selected_session = TRUE;
     g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
     strncpy(g_stub_selected_session.name, "zj work",
@@ -946,7 +949,7 @@ static void test_sessions_tab_delete_and_rename_ignore_folder_rows(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = TEST_SESSIONS_TAB;
 
     GdkEventKey del_ev = make_key(GDK_KEY_Delete, 0);
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
@@ -964,7 +967,7 @@ static void test_sessions_tab_insert_on_folder_uses_folder_dir(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = TEST_SESSIONS_TAB;
     g_stub_has_selected_folder = TRUE;
     g_stub_selected_folder.path = "/home/user/Projects/cofi";
     g_stub_selected_folder.label = "cofi";

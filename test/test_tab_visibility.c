@@ -30,6 +30,8 @@ static int show_window_calls = 0;
 static int exit_command_mode_calls = 0;
 static int disabled_provider_tab = -1;
 
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
     if (text && text[0] == '\0') {
@@ -242,7 +244,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
             provider.id = "workspaces";
             break;
         default:
-            provider.id = "test";
+            if (tab_mode == TEST_SESSIONS_TAB) {
+                provider.id = "sessions";
+            } else {
+                provider.id = "test";
+            }
             break;
     }
     return &provider;
@@ -255,6 +261,7 @@ int cofi_get_provider_id(const char *id) {
     if (strcmp(id, "names") == 0) return TAB_NAMES;
     if (strcmp(id, "rules") == 0) return TAB_RULES;
     if (strcmp(id, "workspaces") == 0) return TAB_WORKSPACES;
+    if (strcmp(id, "sessions") == 0) return TEST_SESSIONS_TAB;
     return -1;
 }
 int cofi_provider_is_enabled(int provider_id) {
@@ -269,6 +276,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
     for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
         tabs[count++] = tab;
+    }
+    if (count < max_tabs) {
+        tabs[count++] = TEST_SESSIONS_TAB;
     }
     return count;
 }
@@ -443,7 +453,7 @@ static AppData make_app(void) {
 static AppData make_default_visibility_app(void) {
     AppData app = make_app();
 
-    for (int i = TAB_WINDOWS; i < TAB_COUNT; i++) {
+    for (int i = TAB_WINDOWS; i < COFI_MAX_TAB_HANDLES; i++) {
         app.tab_visibility[i] = TAB_VIS_HIDDEN;
     }
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
@@ -466,7 +476,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_HOTKEYS,
         TAB_RULES,
         TAB_APPS,
-        TAB_SESSIONS,
+        TEST_SESSIONS_TAB,
         TAB_WINDOWS
     };
 
@@ -489,7 +499,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
-        TAB_SESSIONS,
+        TEST_SESSIONS_TAB,
         TAB_APPS,
         TAB_RULES,
         TAB_HOTKEYS,
@@ -655,7 +665,7 @@ static void test_show_all_tabs_cycles_hidden_tabs(void) {
     ASSERT_TRUE("show_all_tabs tab switch handled", handled == TRUE);
     ASSERT_TRUE("show_all_tabs includes hidden workspaces", app.current_tab == TAB_WORKSPACES);
     ASSERT_TRUE("hidden tab reports visible with show_all_tabs",
-                tab_is_visible(&app, TAB_SESSIONS) == TRUE);
+                tab_is_visible(&app, TEST_SESSIONS_TAB) == TRUE);
 }
 
 static void test_show_all_tabs_skips_unavailable_provider_tabs(void) {

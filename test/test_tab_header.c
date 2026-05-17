@@ -4,6 +4,10 @@
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
 
+#define TEST_DYNAMIC_TAB  ((TabMode)(TAB_COUNT + 1))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_PROFILES_TAB ((TabMode)(TAB_COUNT + 3))
+
 static int pass = 0;
 static int fail = 0;
 
@@ -18,28 +22,38 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
         tabs[count++] = tab;
     }
     if (max_tabs > count) {
-        tabs[count++] = TAB_COUNT + 1;
+        tabs[count++] = TEST_DYNAMIC_TAB;
     }
     if (max_tabs > count) {
-        tabs[count++] = TAB_COUNT + 2;
+        tabs[count++] = TEST_SESSIONS_TAB;
+    }
+    if (max_tabs > count) {
+        tabs[count++] = TEST_PROFILES_TAB;
     }
     return count;
 }
 
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider dynamic_provider;
-    if (tab_mode == TAB_COUNT + 1) {
+    if (tab_mode == TEST_DYNAMIC_TAB) {
         memset(&dynamic_provider, 0, sizeof(dynamic_provider));
         dynamic_provider.id = "dynamic";
         dynamic_provider.display_name = "Dynamic";
-        dynamic_provider.tab_mode = TAB_COUNT + 1;
+        dynamic_provider.tab_mode = TEST_DYNAMIC_TAB;
         return &dynamic_provider;
     }
-    if (tab_mode == TAB_COUNT + 2) {
+    if (tab_mode == TEST_SESSIONS_TAB) {
+        memset(&dynamic_provider, 0, sizeof(dynamic_provider));
+        dynamic_provider.id = "sessions";
+        dynamic_provider.display_name = "Sessions";
+        dynamic_provider.tab_mode = TEST_SESSIONS_TAB;
+        return &dynamic_provider;
+    }
+    if (tab_mode == TEST_PROFILES_TAB) {
         memset(&dynamic_provider, 0, sizeof(dynamic_provider));
         dynamic_provider.id = "profiles";
         dynamic_provider.display_name = "Profiles";
-        dynamic_provider.tab_mode = TAB_COUNT + 2;
+        dynamic_provider.tab_mode = TEST_PROFILES_TAB;
         return &dynamic_provider;
     }
     return NULL;
@@ -86,7 +100,7 @@ static void test_show_all_tabs_makes_hidden_tabs_visible(void) {
     app.config.show_all_tabs = 1;
 
     GString *out = g_string_new("");
-    tab_header_format(&app, TAB_SESSIONS, 200, out);
+    tab_header_format(&app, TEST_SESSIONS_TAB, 200, out);
 
     ASSERT_TRUE("show all header includes hidden sessions",
                 strstr(out->str, "[ SESSIONS ]") != NULL);
@@ -99,10 +113,10 @@ static void test_dynamic_tab_renders_provider_name(void) {
     AppData app;
     init_hidden_tabs(&app);
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
-    app.tab_visibility[TAB_COUNT + 1] = TAB_VIS_PINNED;
+    app.tab_visibility[TEST_DYNAMIC_TAB] = TAB_VIS_PINNED;
 
     GString *out = g_string_new("");
-    tab_header_format(&app, (TabMode)(TAB_COUNT + 1), 120, out);
+    tab_header_format(&app, TEST_DYNAMIC_TAB, 120, out);
 
     ASSERT_TRUE("dynamic tab renders provider display name",
                 strstr(out->str, "[ DYNAMIC ]") != NULL);

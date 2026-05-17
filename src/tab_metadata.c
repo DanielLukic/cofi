@@ -22,7 +22,6 @@ const char *tab_display_name(TabMode tab) {
         case TAB_HOTKEYS:    return "Hotkeys";
         case TAB_RULES:      return "Rules";
         case TAB_APPS:       return "Apps";
-        case TAB_SESSIONS:   return "Sessions";
         case TAB_COUNT:      return NULL;
     }
     return provider_tab_name(tab);
@@ -40,7 +39,6 @@ const char *tab_active_name(TabMode tab) {
         case TAB_HOTKEYS:    return "HOTKEYS";
         case TAB_RULES:      return "RULES";
         case TAB_APPS:       return "APPS";
-        case TAB_SESSIONS:   return "SESSIONS";
         case TAB_COUNT:      return NULL;
     }
 
@@ -66,7 +64,6 @@ const char *tab_log_name(TabMode tab) {
         case TAB_HOTKEYS:    return "hotkeys";
         case TAB_RULES:      return "rules";
         case TAB_APPS:       return "apps";
-        case TAB_SESSIONS:   return "sessions";
         case TAB_COUNT:      return NULL;
     }
 

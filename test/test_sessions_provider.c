@@ -196,7 +196,7 @@ const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
 static const CofiTabProvider *registered_sessions_provider(void) {
     cofi_registry_reset();
     sessions_provider_register();
-    return cofi_get_provider_for_tab(TAB_SESSIONS);
+    return cofi_get_provider(s_sessions_provider_id);
 }
 
 static void reset_capture(void) {
@@ -241,6 +241,7 @@ static void test_registered_command_metadata(void) {
     const CofiTabProvider *p = registered_sessions_provider();
 
     ASSERT_TRUE("sessions provider registered", p != NULL);
+    ASSERT_TRUE("sessions provider uses dynamic tab", p->tab_mode >= TAB_COUNT);
     ASSERT_TRUE("sessions command primary", strcmp(s_sessions_command.primary, "sessions") == 0);
     ASSERT_TRUE("sessions command alias tmux",
                 strcmp(s_sessions_command.aliases[0], "tmux") == 0);
@@ -257,7 +258,7 @@ static void test_registered_command_metadata(void) {
 
 static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
-    registered_sessions_provider();
+    const CofiTabProvider *p = registered_sessions_provider();
     setup_app(&app);
     reset_capture();
 
@@ -267,7 +268,7 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     ASSERT_TRUE("sessions command without args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("sessions command without args surfaces once", g_surface_tab_calls == 1);
     ASSERT_TRUE("sessions command without args surfaces sessions tab",
-                g_last_surface_tab == TAB_SESSIONS);
+                p && g_last_surface_tab == (TabMode)p->tab_mode);
     ASSERT_TRUE("sessions command without args keeps origin windows",
                 app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("sessions command without args does not hide", g_hide_window_calls == 0);

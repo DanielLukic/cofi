@@ -114,13 +114,14 @@ static void test_init_app_data_initializes_hotkey_grab_state(void) {
 static void test_init_app_data_preserves_startup_provider_tab(void) {
     printf("\n--- init_app_data preserves startup provider tab ---\n");
 
+    const TabMode startup_provider_tab = (TabMode)(TAB_COUNT + 1);
     AppData app;
     memset(&app, 0, sizeof(app));
-    app.current_tab = TAB_SESSIONS;
+    app.current_tab = startup_provider_tab;
 
     init_app_data(&app);
 
-    ASSERT_TRUE("startup sessions tab preserved", app.current_tab == TAB_SESSIONS);
+    ASSERT_TRUE("startup provider tab preserved", app.current_tab == startup_provider_tab);
 }
 
 static void test_init_app_data_resets_invalid_tab(void) {

@@ -1,11 +1,21 @@
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../src/cofi_tab_provider.h"
 #include "../src/tab_metadata.h"
 
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
-    (void)tab_mode;
+    static CofiTabProvider sessions_provider;
+    if (tab_mode == TEST_SESSIONS_TAB) {
+        memset(&sessions_provider, 0, sizeof(sessions_provider));
+        sessions_provider.id = "sessions";
+        sessions_provider.display_name = "Sessions";
+        sessions_provider.tab_mode = TEST_SESSIONS_TAB;
+        return &sessions_provider;
+    }
     return NULL;
 }
 
@@ -59,9 +69,9 @@ int main(void) {
         ASSERT_TRUE("log name lowercase", all_lower_ascii(tab_log_name((TabMode)tab)));
     }
 
-    ASSERT_TRUE("sessions tab display name", strcmp(tab_display_name(TAB_SESSIONS), "Sessions") == 0);
-    ASSERT_TRUE("sessions tab active name", strcmp(tab_active_name(TAB_SESSIONS), "SESSIONS") == 0);
-    ASSERT_TRUE("sessions tab log name", strcmp(tab_log_name(TAB_SESSIONS), "sessions") == 0);
+    ASSERT_TRUE("sessions tab display name", strcmp(tab_display_name(TEST_SESSIONS_TAB), "Sessions") == 0);
+    ASSERT_TRUE("sessions tab active name", strcmp(tab_active_name(TEST_SESSIONS_TAB), "SESSIONS") == 0);
+    ASSERT_TRUE("sessions tab log name", strcmp(tab_log_name(TEST_SESSIONS_TAB), "sessions") == 0);
 
     ASSERT_TRUE("TAB_COUNT has no display name", tab_display_name(TAB_COUNT) == NULL);
     ASSERT_TRUE("TAB_COUNT has no active name", tab_active_name(TAB_COUNT) == NULL);

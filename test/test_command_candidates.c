@@ -173,7 +173,7 @@ static void test_disabled_provider_command_candidates_are_hidden(void) {
 
     cofi_init_provider_defaults(&provider);
     provider.id = "sessions";
-    provider.tab_mode = TAB_SESSIONS;
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     int sessions_id = cofi_register_tab_provider(&provider);
     cofi_register_command(&sessions_command);
 

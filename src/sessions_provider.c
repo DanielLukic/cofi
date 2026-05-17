@@ -12,6 +12,12 @@
 #include "window_lifecycle.h"
 
 static CofiTabProvider s_sessions_provider;
+static int s_sessions_provider_id = -1;
+
+static TabMode sessions_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_sessions_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij) {
     SessionBackend backend = prefer_zellij ? SESSION_BACKEND_ZELLIJ : SESSION_BACKEND_TMUX;
@@ -32,7 +38,7 @@ static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij)
 }
 
 gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_SESSIONS) {
+    if (app->current_tab != sessions_tab_mode()) {
         return FALSE;
     }
 
@@ -119,7 +125,7 @@ static gboolean sessions_command_handler(AppData *app,
     if (app) {
         app->prefix_origin_tab = app->current_tab;
     }
-    surface_tab(app, (TabMode)s_sessions_provider.tab_mode);
+    surface_tab(app, sessions_tab_mode());
     return FALSE;
 }
 
@@ -135,7 +141,7 @@ static const CommandSpec s_sessions_command = {
 
 void sessions_provider_register(void) {
     cofi_init_provider_defaults(&s_sessions_provider);
-    s_sessions_provider.tab_mode = TAB_SESSIONS;
+    s_sessions_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_sessions_provider.id = "sessions";
     s_sessions_provider.display_name = "SESSIONS";
     s_sessions_provider.get_shortcut_hint = sessions_get_shortcut_hint;
@@ -158,7 +164,8 @@ void sessions_provider_register(void) {
     s_sessions_provider.slot_store_enabled = 1;
     s_sessions_provider.slot_payload_for = sessions_slot_payload_for;
     s_sessions_provider.slot_recall = sessions_slot_recall;
-    if (cofi_register_tab_provider(&s_sessions_provider) >= 0) {
+    s_sessions_provider_id = cofi_register_tab_provider(&s_sessions_provider);
+    if (s_sessions_provider_id >= 0) {
         cofi_register_command(&s_sessions_command);
     }
 }
