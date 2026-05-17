@@ -35,6 +35,22 @@ static const char *sample_local_state =
     "  }"
     "}";
 
+static void seed_profile(BrowserProfileEntry *entry,
+                         const char *name,
+                         const char *email,
+                         const char *profile_dir,
+                         double active_time) {
+    memset(entry, 0, sizeof(*entry));
+    entry->backend = BROWSER_PROFILE_CHROME;
+    g_strlcpy(entry->browser_id, "chrome", sizeof(entry->browser_id));
+    g_strlcpy(entry->browser_name, "Chrome", sizeof(entry->browser_name));
+    g_strlcpy(entry->executable, "google-chrome", sizeof(entry->executable));
+    g_strlcpy(entry->name, name, sizeof(entry->name));
+    g_strlcpy(entry->email, email, sizeof(entry->email));
+    g_strlcpy(entry->profile_dir, profile_dir, sizeof(entry->profile_dir));
+    entry->active_time = active_time;
+}
+
 int main(void) {
     BrowserProfileEntry profiles[MAX_BROWSER_PROFILES];
     char error[256];
@@ -71,6 +87,24 @@ int main(void) {
                                                       sizeof(error));
     ASSERT_TRUE("empty json returns zero profiles", count == 0);
     ASSERT_TRUE("empty json reports error", error[0] != '\0');
+
+    BrowserProfilesMode mode;
+    init_browser_profiles_mode(&mode);
+    mode.profile_count = 3;
+    seed_profile(&mode.profiles[0], "Drew", "profile.secondary@example.test", "Default", 300.0);
+    seed_profile(&mode.profiles[1], "Hannah", "profile.third@example.test", "Profile 11", 200.0);
+    seed_profile(&mode.profiles[2], "GS", "profile.primary@example.test", "Profile 14", 100.0);
+
+    browser_profiles_filter(&mode, "Hel");
+    ASSERT_TRUE("profile-name fuzzy match wins over email-only match",
+                mode.filtered_count > 0 && mode.filtered_indices[0] == 1);
+
+    browser_profiles_filter(&mode, "gh");
+    ASSERT_TRUE("domain-plus-name fuzzy match finds Hannah",
+                mode.filtered_count > 0 && mode.filtered_indices[0] == 1);
+
+    browser_profiles_filter(&mode, "gc");
+    ASSERT_TRUE("browser marker can still show chrome profiles", mode.filtered_count == 3);
 
     printf("\nResults: %d/%d tests passed\n", tests_run - tests_failed, tests_run);
     return tests_failed == 0 ? 0 : 1;

@@ -167,6 +167,63 @@ typedef struct {
     score_t score;
 } ProfileHit;
 
+static score_t profile_field_score(const char *query,
+                                   const char *field,
+                                   score_t boost) {
+    if (!field || field[0] == '\0' || !fzf_has_match(query, field)) {
+        return SCORE_MIN;
+    }
+    return fzf_fuzzy_match(query, field) + boost;
+}
+
+static const char *email_domain(const char *email) {
+    const char *at = email ? strchr(email, '@') : NULL;
+    return at && at[1] ? at + 1 : "";
+}
+
+static score_t profile_composite_score(const char *query,
+                                       const char *left,
+                                       const char *right,
+                                       score_t boost) {
+    char text[512];
+    g_snprintf(text, sizeof(text), "%s %s", left ? left : "", right ? right : "");
+    return profile_field_score(query, text, boost);
+}
+
+static score_t profile_match_score(const BrowserProfileEntry *profile,
+                                   const char *query) {
+    if (!profile || !query || query[0] == '\0') {
+        return SCORE_MIN;
+    }
+
+    score_t best = SCORE_MIN;
+    score_t score = profile_field_score(query, profile->name, 3000);
+    if (score > best) best = score;
+
+    score = profile_field_score(query, profile->email, 2000);
+    if (score > best) best = score;
+
+    score = profile_field_score(query, profile->profile_dir, 1000);
+    if (score > best) best = score;
+
+    score = profile_composite_score(query, profile->name, profile->email, 1500);
+    if (score > best) best = score;
+
+    score = profile_composite_score(query, email_domain(profile->email), profile->name, 1500);
+    if (score > best) best = score;
+
+    score = profile_field_score(query, "gc", 100);
+    if (score > best) best = score;
+
+    score = profile_field_score(query, profile->browser_name, 50);
+    if (score > best) best = score;
+
+    score = profile_field_score(query, profile->browser_id, 50);
+    if (score > best) best = score;
+
+    return best;
+}
+
 static int profile_hit_cmp(const void *lhs, const void *rhs) {
     const ProfileHit *left = (const ProfileHit *)lhs;
     const ProfileHit *right = (const ProfileHit *)rhs;
@@ -190,13 +247,12 @@ void browser_profiles_filter(BrowserProfilesMode *mode, const char *filter) {
     ProfileHit hits[MAX_BROWSER_PROFILES];
     int hit_count = 0;
     for (int i = 0; i < mode->profile_count; i++) {
-        char match_text[512];
-        browser_profiles_format_match_text(&mode->profiles[i], match_text, sizeof(match_text));
-        if (!fzf_has_match(query, match_text)) {
+        score_t score = profile_match_score(&mode->profiles[i], query);
+        if (score == SCORE_MIN) {
             continue;
         }
         hits[hit_count].raw_index = i;
-        hits[hit_count].score = fzf_fuzzy_match(query, match_text);
+        hits[hit_count].score = score;
         hit_count++;
     }
 
