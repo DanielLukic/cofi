@@ -10,6 +10,25 @@
 
 #include <gtk/gtk.h>
 
+static gboolean get_core_tab_claim(char prefix, TabMode *target_tab) {
+    if (!target_tab) {
+        return FALSE;
+    }
+
+    /*
+     * Keep this list intentionally small. Provider tab prefixes such as Apps'
+     * '$' and '\' live on CofiTabProvider.tab_prefix_chars; '>' stays here
+     * because Windows is a core surface, not a provider.
+     */
+    switch (prefix) {
+        case '>':
+            *target_tab = TAB_WINDOWS;
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
 static gboolean get_tab_claim(char prefix, const CofiTabProvider **provider_out,
                               TabMode *target_tab) {
     if (!target_tab) {
@@ -19,13 +38,7 @@ static gboolean get_tab_claim(char prefix, const CofiTabProvider **provider_out,
         *provider_out = NULL;
     }
 
-    switch (prefix) {
-        case '>':
-            *target_tab = TAB_WINDOWS;
-            return TRUE;
-        default:
-            break;
-    }
+    if (get_core_tab_claim(prefix, target_tab)) return TRUE;
 
     const CofiTabProvider *provider = cofi_get_provider_for_tab_prefix(prefix);
     if (!provider) return FALSE;

@@ -83,6 +83,8 @@ static char g_last_filter_apps[64];
 
 static int g_reset_selection_calls;
 static int g_update_display_calls;
+static int g_tab_prefix_lookup_calls;
+static char g_last_tab_prefix_lookup;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_modal_prefix_stub;
 
@@ -199,6 +201,8 @@ static void apps_on_tab_prefix_stub(AppData *app, char prefix) {
 }
 
 const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) {
+    g_tab_prefix_lookup_calls++;
+    g_last_tab_prefix_lookup = prefix;
     if (prefix == '$' || prefix == '\\') {
         static CofiTabProvider apps_provider;
         memset(&apps_provider, 0, sizeof(apps_provider));
@@ -572,6 +576,8 @@ static void reset_captures(void) {
     g_last_filter_apps[0] = '\0';
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
+    g_tab_prefix_lookup_calls = 0;
+    g_last_tab_prefix_lookup = '\0';
     memset(&g_modal_prefix_stub, 0, sizeof(g_modal_prefix_stub));
     g_modal_prefix_stub.tab_mode = TAB_COUNT + 1;
     g_modal_prefix_stub.id = "calc";
@@ -1136,6 +1142,20 @@ static void test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty(
     ASSERT_TRUE("Leading '>' also claims Windows tab", app.current_tab == TAB_WINDOWS && app.active_prefix_claim == '>');
 }
 
+static void test_gt_prefix_is_core_claim(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TEST_APPS_TAB;
+
+    gtk_entry_set_text(GTK_ENTRY(app.entry), ">term");
+    on_entry_changed(GTK_ENTRY(app.entry), &app);
+
+    ASSERT_TRUE("Leading '>' switches to core Windows tab", app.current_tab == TAB_WINDOWS);
+    ASSERT_TRUE("Leading '>' is not resolved through provider tab prefixes",
+                g_tab_prefix_lookup_calls == 0);
+}
+
 static void test_tab_key_clears_prefix_claim_before_tab_switching(void) {
     AppData app;
     init_app(&app);
@@ -1331,6 +1351,7 @@ int main(int argc, char **argv) {
     test_on_entry_changed_provider_prefix_preserves_remainder();
     test_on_entry_changed_prefix_tabs_claim_and_restore_origin();
     test_on_entry_changed_placeholder_prefixes_stay_claimed_until_empty();
+    test_gt_prefix_is_core_claim();
     test_tab_key_clears_prefix_claim_before_tab_switching();
     test_backslash_cross_tab_enters_apps_default_mode();
     test_dollar_cross_tab_enters_apps_path_mode();

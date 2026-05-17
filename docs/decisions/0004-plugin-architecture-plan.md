@@ -46,7 +46,8 @@ Remaining broken windows:
   register `CommandSpec` entries directly.
 - All provider tabs now use dynamic tab handles. Provider-specific static
   `TAB_*` enum values have been removed.
-- `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
+- `>` remains a core-owned prefix claim in `prefix_tabs.c`; provider tab
+  prefixes live on provider metadata.
 - Daemon opcodes and some hotkey modes still directly name tabs/modes.
 
 ## Terms
@@ -215,7 +216,7 @@ Implementation can be a small command metadata registration API. It does not
 need to duplicate the provider registry; it should index metadata and point back
 to the owning provider/core owner.
 
-## Phase 5: Prefix Claims (Apps claims landed)
+## Phase 5: Prefix Claims (provider claims landed)
 
 Some prefix behavior is already registry-backed:
 
@@ -225,7 +226,8 @@ Some prefix behavior is already registry-backed:
 
 The remaining work is narrow:
 
-- `>` should be clearly core-owned if it remains a core tab claim;
+- `>` stays clearly core-owned because Windows is a core surface, not a
+  provider tab;
 - disabled providers must make their prefixes fail closed;
 - paste/full-entry prefix behavior must not regress.
 
