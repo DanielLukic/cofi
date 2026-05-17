@@ -138,31 +138,6 @@ gboolean cmd_rules(AppData *app, WindowInfo *window __attribute__((unused)),
     return surface_provider_command(app, "rules", "Rules provider not available.");
 }
 
-gboolean cmd_sessions(AppData *app, WindowInfo *window __attribute__((unused)),
-                  const char *args) {
-    exit_command_mode(app);
-    const CofiTabProvider *provider = cofi_get_provider_for_command("sessions");
-    if (!provider) {
-        show_error_in_display(app, "Sessions provider not available.");
-        return FALSE;
-    }
-
-    if (args && args[0] != '\0') {
-        int provider_id = cofi_get_provider_id_for_tab(provider->tab_mode);
-        CofiActionStatus status = cofi_call_on_command_args(provider_id, app, args);
-        if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
-            show_error_in_display(app, "No matching tmux/zellij session.");
-        }
-        return FALSE;
-    }
-
-    app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)provider->tab_mode);
-    return FALSE;
-}
-
 gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), const char *args) {
     ShowMode mode = SHOW_MODE_WINDOWS;
 

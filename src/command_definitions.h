@@ -225,14 +225,6 @@ static const CommandDef COMMAND_DEFINITIONS[] = {
         .activates = 1
     },
     {
-        .primary = "tmux",
-        .aliases = {"tx", "zj", "zellij", "sessions", NULL},
-        .handler = cmd_sessions,
-        .description = "Switch to sessions tab",
-        .help_format = "tmux, tx, zj, zellij, sessions [@SLOT|SESSION]",
-        .keeps_open_on_hotkey_auto = 1
-    },
-    {
         .primary = "tw",
         .aliases = {"tile-window", "t", NULL},
         .handler = cmd_tile_window,

@@ -11,6 +11,7 @@ static const char *calc_aliases[] = {"ca", NULL};
 static const char *run_aliases[] = {"r", NULL};
 static const char *sinks_aliases[] = {"sink", NULL};
 static const char *proc_aliases[] = {"ps", NULL};
+static const char *sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
 
 static void register_profiles_provider(void) {
     CofiTabProvider provider;
@@ -63,6 +64,17 @@ static void register_proc_provider(void) {
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     provider.primary_cmd = "proc";
     provider.aliases = proc_aliases;
+    provider.command_handler = (CofiCommandHandler)1;
+    cofi_register_tab_provider(&provider);
+}
+
+static void register_sessions_provider(void) {
+    CofiTabProvider provider;
+    cofi_init_provider_defaults(&provider);
+    provider.id = "sessions";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.primary_cmd = "sessions";
+    provider.aliases = sessions_aliases;
     provider.command_handler = (CofiCommandHandler)1;
     cofi_register_tab_provider(&provider);
 }
@@ -124,6 +136,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
     assert_true("provider alias ps resolves to proc",
                 parse_command_for_execution("ps firefox", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "proc") == 0 && strcmp(arg, "firefox") == 0);
+
+    assert_true("provider alias zellij resolves to sessions",
+                parse_command_for_execution("zellij work api", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "sessions") == 0 && strcmp(arg, "work api") == 0);
 }
 
 static void test_next_command_segment(void) {
@@ -147,6 +163,7 @@ int main(void) {
     register_run_provider();
     register_sinks_provider();
     register_proc_provider();
+    register_sessions_provider();
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();

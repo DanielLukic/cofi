@@ -145,9 +145,6 @@ static gboolean keeps_open_always(const char *primary) {
            strcmp(primary, "an") == 0 ||
            strcmp(primary, "rw") == 0 ||
            strcmp(primary, "hotkeys") == 0 ||
-           strcmp(primary, "sinks") == 0 ||
-           strcmp(primary, "proc") == 0 ||
-           strcmp(primary, "tmux") == 0 ||
            strcmp(primary, "rules") == 0;
 }
 

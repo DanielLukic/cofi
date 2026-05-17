@@ -1,11 +1,17 @@
 #include "sessions_provider.h"
 
 #include "app_data.h"
+#include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "overlay_manager.h"
 #include "sessions.h"
 #include "sessions_parse.h"
 #include "slot_store.h"
+#include "tab_switching.h"
+#include "window_lifecycle.h"
+
+static const char *const s_sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
+static CofiTabProvider s_sessions_provider;
 
 static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij) {
     SessionBackend backend = prefer_zellij ? SESSION_BACKEND_ZELLIJ : SESSION_BACKEND_TMUX;
@@ -89,8 +95,33 @@ static CofiActionStatus sessions_provider_on_command_args(AppData *app, const ch
     return COFI_ACTION_ERROR;
 }
 
-static const char *const s_sessions_aliases[] = {"tmux", "tx", "zj", "zellij", NULL};
-static CofiTabProvider s_sessions_provider;
+static void sessions_show_command_error(AppData *app, const char *message) {
+    if (!app || !app->textbuffer) return;
+    gtk_text_buffer_set_text(app->textbuffer, message, -1);
+    app->command_mode.showing_help = TRUE;
+}
+
+static gboolean sessions_command_handler(AppData *app,
+                                         WindowInfo *window __attribute__((unused)),
+                                         const char *args) {
+    exit_command_mode(app);
+
+    if (args && args[0] != '\0') {
+        CofiActionStatus status = sessions_provider_on_command_args(app, args);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            sessions_show_command_error(app, "No matching tmux/zellij session.");
+        }
+        return FALSE;
+    }
+
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+    }
+    surface_tab(app, (TabMode)s_sessions_provider.tab_mode);
+    return FALSE;
+}
 
 void sessions_provider_register(void) {
     cofi_init_provider_defaults(&s_sessions_provider);
@@ -100,6 +131,10 @@ void sessions_provider_register(void) {
     s_sessions_provider.get_shortcut_hint = sessions_get_shortcut_hint;
     s_sessions_provider.primary_cmd = "sessions";
     s_sessions_provider.aliases = s_sessions_aliases;
+    s_sessions_provider.command_description = "Switch to sessions tab";
+    s_sessions_provider.command_help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]";
+    s_sessions_provider.command_handler = sessions_command_handler;
+    s_sessions_provider.command_keeps_open_on_hotkey_auto = 1;
     s_sessions_provider.prefix_char = 0;
     s_sessions_provider.required = 0;
     s_sessions_provider.hidden_by_default = 1;

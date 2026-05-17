@@ -30,7 +30,6 @@ const CommandParseDef COMMAND_PARSE_DEFS[] = {
     { "show",    {"s", NULL},                                    NULL, COMMAND_OWNER_CORE },
     { "sw",      {"swap-windows", NULL},                         NULL, COMMAND_OWNER_CORE },
     { "tm",      {"toggle-monitor", NULL},                       NULL, COMMAND_OWNER_CORE },
-    { "tmux",    {"tx", "zj", "zellij", "sessions", NULL},        NULL, "sessions" },
     { "tw",      {"tile-window", "t", NULL},                   "0123456789LRTBFClrtbfc", COMMAND_OWNER_CORE },
     { "vmw",     {"vm", "vertical-maximize-window", NULL},     NULL, COMMAND_OWNER_CORE },
     { "workspaces", {"ws", NULL},                                NULL, "workspaces" },
