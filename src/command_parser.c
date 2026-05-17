@@ -1,6 +1,6 @@
 #include "command_parser.h"
 #include "command_api.h"
-#include "command_parse_defs.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 
 #include <ctype.h>
@@ -27,11 +27,8 @@ void trim_whitespace_in_place(char *text) {
 }
 
 static int is_exact_command(const char *token) {
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        if (strcmp(token, COMMAND_PARSE_DEFS[i].primary) == 0) return 1;
-        for (int a = 0; a < 5 && COMMAND_PARSE_DEFS[i].aliases[a]; a++) {
-            if (strcmp(token, COMMAND_PARSE_DEFS[i].aliases[a]) == 0) return 1;
-        }
+    if (cofi_command_for_token(token)) {
+        return 1;
     }
     if (cofi_get_provider_for_command(token)) {
         return 1;
@@ -49,17 +46,18 @@ static void split_compact_command(const char *token, char *cmd_out, char *arg_ou
     const char *best_primary = NULL;
     size_t best_name_len = 0;
 
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        const char *suffix = COMMAND_PARSE_DEFS[i].compact_suffix;
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
+        const char *suffix = spec ? spec->compact_suffix : NULL;
         if (!suffix) {
             continue;
         }
 
         const char *names[7];
         int count = 0;
-        names[count++] = COMMAND_PARSE_DEFS[i].primary;
-        for (int a = 0; a < 5 && COMMAND_PARSE_DEFS[i].aliases[a]; a++) {
-            names[count++] = COMMAND_PARSE_DEFS[i].aliases[a];
+        names[count++] = spec->primary;
+        for (int a = 0; a < 5 && spec->aliases[a]; a++) {
+            names[count++] = spec->aliases[a];
         }
 
         for (int n = 0; n < count; n++) {
@@ -74,7 +72,7 @@ static void split_compact_command(const char *token, char *cmd_out, char *arg_ou
                 continue;
             }
             if (name_len > best_name_len) {
-                best_primary = COMMAND_PARSE_DEFS[i].primary;
+                best_primary = spec->primary;
                 best_name_len = name_len;
             }
         }
@@ -92,18 +90,11 @@ gboolean resolve_command_primary(const char *cmd_name, char *primary_out, size_t
     }
 
     primary_out[0] = '\0';
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        if (strcmp(cmd_name, COMMAND_PARSE_DEFS[i].primary) == 0) {
-            strncpy(primary_out, COMMAND_PARSE_DEFS[i].primary, primary_size - 1);
-            return TRUE;
-        }
-
-        for (int a = 0; a < 5 && COMMAND_PARSE_DEFS[i].aliases[a]; a++) {
-            if (strcmp(cmd_name, COMMAND_PARSE_DEFS[i].aliases[a]) == 0) {
-                strncpy(primary_out, COMMAND_PARSE_DEFS[i].primary, primary_size - 1);
-                return TRUE;
-            }
-        }
+    const CommandSpec *spec = cofi_command_for_token(cmd_name);
+    if (spec && spec->primary) {
+        strncpy(primary_out, spec->primary, primary_size - 1);
+        primary_out[primary_size - 1] = '\0';
+        return TRUE;
     }
     const CofiTabProvider *provider = cofi_get_provider_for_command(cmd_name);
     if (provider && provider->primary_cmd) {

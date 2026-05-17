@@ -25,6 +25,7 @@
 #include "app_init.h"
 #include "cli_args.h"
 #include "command_mode.h"
+#include "command_registry.h"
 #include "daemon_socket.h"
 #include "daemon_socket_runtime.h"
 #include "display.h"
@@ -349,6 +350,7 @@ int run_cofi(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
     init_app_data(&app);
+    cofi_register_core_commands();
     apps_provider_register();
     calc_provider_register();
     config_provider_register();

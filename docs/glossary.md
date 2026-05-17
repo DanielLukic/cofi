@@ -36,7 +36,7 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 - **Plugin** — broader architecture term for a compiled-in capability module. A plugin may expose a provider tab, commands, prefixes, slots, config rows, or later rule predicates/actions. Today most plugin work is represented by providers.
 - **Dynamic tab handle** — a runtime tab id assigned when a provider registers with `COFI_PROVIDER_DYNAMIC_TAB`. Legacy providers still use static `TAB_*` values while the architecture migrates.
 - **Provider enablement** — config-driven enabled/disabled state for providers. Disabled providers disappear from tabs, command candidates/help, command dispatch, prefixes, and slots; required providers cannot be disabled.
-- **Command mode** — vim-style `:` prefix entering compact commands (see `:help`). Implemented in `src/command_mode.c`; parse metadata lives in `src/command_parse_defs.c`.
+- **Command mode** — vim-style `:` prefix entering compact commands (see `:help`). Implemented in `src/command_mode.c`; core command metadata lives in `src/command_registry.c`, while provider-owned commands live on providers during the plugin migration.
 - **Modal provider mode** — a provider-owned temporary mode entered by a prefix such as `!` (Run) or `=` (Calc). Core owns the modal lifecycle; the provider owns rows and actions.
 - **Run mode** — `!` prefix for launching shell commands with session-only history. Backed by `src/run_mode.c` and surfaced through the Run provider.
 - **Auto-execute marker** — an entered query starting with `!` that triggers immediate launch on Enter without confirmation.

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/command_definitions.h"
+#include "../src/command_registry.h"
 #include "../src/command_handlers_window.h"
 #include "../src/command_handlers_workspace.h"
 #include "../src/command_handlers_tiling.h"
@@ -55,20 +55,11 @@ static int tests_passed = 0;
         } \
     } while (0)
 
-static const CommandDef *find_command(const char *primary) {
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
-        if (strcmp(COMMAND_DEFINITIONS[i].primary, primary) == 0) {
-            return &COMMAND_DEFINITIONS[i];
-        }
-    }
-    return NULL;
-}
-
 static void test_domain_handler_mappings(void) {
-    const CommandDef *cw = find_command("cw");
-    const CommandDef *tw = find_command("tw");
-    const CommandDef *show = find_command("show");
-    const CommandDef *sw = find_command("sw");
+    const CommandSpec *cw = cofi_command_by_primary("cw");
+    const CommandSpec *tw = cofi_command_by_primary("tw");
+    const CommandSpec *show = cofi_command_by_primary("show");
+    const CommandSpec *sw = cofi_command_by_primary("sw");
 
     ASSERT_TRUE("cw exists", cw != NULL);
     ASSERT_TRUE("tw exists", tw != NULL);

@@ -4,7 +4,7 @@
 #include "cofi_modal.h"
 #include "command_availability.h"
 #include "cofi_tab_provider.h"
-#include "command_definitions.h"
+#include "command_registry.h"
 #include "config.h"
 #include "detach_launch.h"
 #include "display.h"
@@ -198,9 +198,11 @@ static void append_wrapped_command_line(GString *out, const char *help_format,
 
 char *generate_command_help_text(HelpFormat format, int width) {
     size_t buffer_size = 1024;
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-        buffer_size += strlen(COMMAND_DEFINITIONS[i].help_format);
-        buffer_size += strlen(COMMAND_DEFINITIONS[i].description);
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
+        if (!spec || !spec->help_format || !spec->description) continue;
+        buffer_size += strlen(spec->help_format);
+        buffer_size += strlen(spec->description);
         buffer_size += 100;
     }
     for (int i = 0; i < cofi_provider_count(); i++) {
@@ -229,13 +231,14 @@ char *generate_command_help_text(HelpFormat format, int width) {
 
     strcat(help_text, "Available commands:\n\n");
     GString *commands = g_string_new(NULL);
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-        if (!command_primary_is_available(COMMAND_DEFINITIONS[i].primary)) {
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
+        if (!spec || !command_primary_is_available(spec->primary)) {
             continue;
         }
         append_wrapped_command_line(commands,
-                                    COMMAND_DEFINITIONS[i].help_format,
-                                    COMMAND_DEFINITIONS[i].description,
+                                    spec->help_format,
+                                    spec->description,
                                     width);
     }
     for (int i = 0; i < cofi_provider_count(); i++) {

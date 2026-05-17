@@ -3,7 +3,7 @@
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
-#include "../src/command_definitions.h"
+#include "../src/command_registry.h"
 #include "../src/tiling.h"
 #include "../src/x11_utils.h"
 
@@ -256,22 +256,13 @@ int format_hotkey_display(const HotkeyConfig *config, char *buffer, size_t size)
     return 0;
 }
 
-static const CommandDef *find_command(const char *primary) {
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
-        if (strcmp(COMMAND_DEFINITIONS[i].primary, primary) == 0) {
-            return &COMMAND_DEFINITIONS[i];
-        }
-    }
-    return NULL;
-}
-
 static void test_window_handler_behavior(void) {
     AppData app;
     WindowInfo window;
     memset(&app, 0, sizeof(app));
     memset(&window, 0, sizeof(window));
 
-    const CommandDef *cmd = find_command("an");
+    const CommandSpec *cmd = cofi_command_by_primary("an");
     ASSERT_TRUE("window command 'an' exists", cmd != NULL);
 
     if (!cmd) return;
@@ -297,7 +288,7 @@ static void test_window_state_handler(const char *cmd_name, const char *atom_nam
     memset(&window, 0, sizeof(window));
     window.id = 0xBEEF;
 
-    const CommandDef *cmd = find_command(cmd_name);
+    const CommandSpec *cmd = cofi_command_by_primary(cmd_name);
     ASSERT_TRUE("window state command exists", cmd != NULL);
     if (!cmd) return;
 
@@ -349,7 +340,7 @@ static void test_workspace_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
 
-    const CommandDef *cmd = find_command("rw");
+    const CommandSpec *cmd = cofi_command_by_primary("rw");
     ASSERT_TRUE("workspace command 'rw' exists", cmd != NULL);
     if (!cmd) return;
 
@@ -362,7 +353,7 @@ static void test_jump_slot_handler_behavior(void) {
     memset(&app, 0, sizeof(app));
     app.display = (Display *)0x1;
 
-    const CommandDef *cmd = find_command("jump-slot");
+    const CommandSpec *cmd = cofi_command_by_primary("jump-slot");
     ASSERT_TRUE("jump-slot command exists", cmd != NULL);
     if (!cmd) return;
 
@@ -402,7 +393,7 @@ static void test_tiling_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
 
-    const CommandDef *cmd = find_command("mouse");
+    const CommandSpec *cmd = cofi_command_by_primary("mouse");
     ASSERT_TRUE("tiling command 'mouse' exists", cmd != NULL);
     if (!cmd) return;
 
@@ -414,7 +405,7 @@ static void test_ui_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
 
-    const CommandDef *cmd = find_command("show");
+    const CommandSpec *cmd = cofi_command_by_primary("show");
     ASSERT_TRUE("ui command 'show' exists", cmd != NULL);
     if (!cmd) return;
 

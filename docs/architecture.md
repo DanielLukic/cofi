@@ -71,8 +71,8 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **`src/main.c`** — argv parse, decide daemon vs delegate, GTK setup, daemon bootstrap, handoff to UI surface.
 - **`src/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
-- **`src/command_parse_defs.c`** — parse metadata for `:` commands: primary names, aliases, compact suffixes, and explicit command owner (`core` or provider id). This table is still central by design today; TFD-675 tracks moving provider-owned command metadata into owner modules over time.
-- **`src/command_parser.c`** — compact-syntax splitter (`tw3`, `jw1`) and alias resolution using the parse metadata.
+- **`src/command_registry.c`** — built-in core command registration and command lookup metadata: primary names, aliases, compact suffixes, handlers, help text, activation policy, keep-open policy, and explicit owner.
+- **`src/command_parser.c`** — compact-syntax splitter (`tw3`, `jw1`) and alias resolution using the command registry plus provider command lookup.
 - **`src/command_availability.c`** — owner-aware availability gate for command candidates, help, and dispatch.
 - **`src/command_mode.c`** + `src/command_handlers*.c` — execution of `:` commands.
 

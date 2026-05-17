@@ -8,7 +8,7 @@
 #include "selection.h"
 #include "dynamic_display.h"
 #include "command_availability.h"
-#include "command_parse_defs.h"
+#include "command_registry.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -159,17 +159,18 @@ void command_update_candidates(CommandMode *cmd, const char *text) {
     const char *matches[COMMAND_CANDIDATE_SCAN_MAX] = {0};
     int match_count = 0;
 
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        if (!command_primary_is_available(COMMAND_PARSE_DEFS[i].primary)) {
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
+        if (!spec || !command_primary_is_available(spec->primary)) {
             continue;
         }
 
         const char *names[6] = {0};
         int name_count = 0;
 
-        names[name_count++] = COMMAND_PARSE_DEFS[i].primary;
-        for (int alias = 0; alias < 5 && COMMAND_PARSE_DEFS[i].aliases[alias]; alias++) {
-            names[name_count++] = COMMAND_PARSE_DEFS[i].aliases[alias];
+        names[name_count++] = spec->primary;
+        for (int alias = 0; alias < 5 && spec->aliases[alias]; alias++) {
+            names[name_count++] = spec->aliases[alias];
         }
 
         add_command_candidate_names(matches, &match_count, names, name_count, text);

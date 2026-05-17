@@ -3,9 +3,8 @@
 #include <gtk/gtk.h>
 
 // Include command metadata and parser APIs under test.
-#include "../src/command_definitions.h"
+#include "../src/command_registry.h"
 #include "../src/command_api.h"
-#include "../src/command_parse_defs.h"
 #include "../src/command_parser.h"
 #include "../src/cofi_tab_provider.h"
 
@@ -230,46 +229,32 @@ typedef struct {
 } SegmentVisitState;
 
 #define ASSERT_ACTIVATES(cmd_name, expected) do { \
-    int found = 0; \
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) { \
-        if (strcmp(COMMAND_DEFINITIONS[i].primary, (cmd_name)) == 0) { \
-            found = 1; \
-            if (COMMAND_DEFINITIONS[i].activates != (expected)) { \
-                printf("FAIL: %s .activates — expected %d, got %d\n", \
-                       (cmd_name), (expected), COMMAND_DEFINITIONS[i].activates); \
-                tests_failed++; \
-            } else { \
-                printf("PASS: %s .activates = %d\n", (cmd_name), (expected)); \
-                tests_passed++; \
-            } \
-            break; \
-        } \
-    } \
-    if (!found) { \
-        printf("FAIL: %s not found in COMMAND_DEFINITIONS\n", (cmd_name)); \
+    const CommandSpec *spec = cofi_command_by_primary((cmd_name)); \
+    if (!spec) { \
+        printf("FAIL: %s not found in command registry\n", (cmd_name)); \
         tests_failed++; \
+    } else if (spec->activates != (expected)) { \
+        printf("FAIL: %s .activates — expected %d, got %d\n", \
+               (cmd_name), (expected), spec->activates); \
+        tests_failed++; \
+    } else { \
+        printf("PASS: %s .activates = %d\n", (cmd_name), (expected)); \
+        tests_passed++; \
     } \
 } while (0)
 
 #define ASSERT_KEEP_OPEN(cmd_name, expected) do { \
-    int found = 0; \
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) { \
-        if (strcmp(COMMAND_DEFINITIONS[i].primary, (cmd_name)) == 0) { \
-            found = 1; \
-            if (COMMAND_DEFINITIONS[i].keeps_open_on_hotkey_auto != (expected)) { \
-                printf("FAIL: %s .keeps_open_on_hotkey_auto — expected %d, got %d\n", \
-                       (cmd_name), (expected), COMMAND_DEFINITIONS[i].keeps_open_on_hotkey_auto); \
-                tests_failed++; \
-            } else { \
-                printf("PASS: %s .keeps_open_on_hotkey_auto = %d\n", (cmd_name), (expected)); \
-                tests_passed++; \
-            } \
-            break; \
-        } \
-    } \
-    if (!found) { \
-        printf("FAIL: %s not found in COMMAND_DEFINITIONS\n", (cmd_name)); \
+    const CommandSpec *spec = cofi_command_by_primary((cmd_name)); \
+    if (!spec) { \
+        printf("FAIL: %s not found in command registry\n", (cmd_name)); \
         tests_failed++; \
+    } else if (spec->keeps_open_on_hotkey_auto != (expected)) { \
+        printf("FAIL: %s .keeps_open_on_hotkey_auto — expected %d, got %d\n", \
+               (cmd_name), (expected), spec->keeps_open_on_hotkey_auto); \
+        tests_failed++; \
+    } else { \
+        printf("PASS: %s .keeps_open_on_hotkey_auto = %d\n", (cmd_name), (expected)); \
+        tests_passed++; \
     } \
 } while (0)
 
@@ -573,10 +558,11 @@ static void test_window_state_alias_arg_resolution(void) {
 }
 
 static void test_alias_drift_guard(void) {
-    printf("\n--- Alias drift guard (definitions vs parser) ---\n");
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
+    printf("\n--- Alias drift guard (registry vs parser) ---\n");
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
         char resolved[64] = {0};
-        const char *primary = COMMAND_DEFINITIONS[i].primary;
+        const char *primary = spec->primary;
 
         if (!resolve_command_primary(primary, resolved, sizeof(resolved)) || strcmp(resolved, primary) != 0) {
             printf("FAIL: primary '%s' does not resolve to itself\n", primary);
@@ -584,8 +570,8 @@ static void test_alias_drift_guard(void) {
             continue;
         }
 
-        for (int a = 0; a < 5 && COMMAND_DEFINITIONS[i].aliases[a]; a++) {
-            const char *alias = COMMAND_DEFINITIONS[i].aliases[a];
+        for (int a = 0; a < 5 && spec->aliases[a]; a++) {
+            const char *alias = spec->aliases[a];
             if (!resolve_command_primary(alias, resolved, sizeof(resolved)) || strcmp(resolved, primary) != 0) {
                 printf("FAIL: alias '%s' does not resolve to '%s'\n", alias, primary);
                 tests_failed++;
@@ -747,13 +733,14 @@ static void test_provider_command_alias_resolution(void) {
 
 static void test_all_parse_defs_have_owner(void) {
     printf("\n--- Command ownership guard ---\n");
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        const char *owner = COMMAND_PARSE_DEFS[i].owner_provider_id;
+    for (int i = 0; i < cofi_command_count(); i++) {
+        const CommandSpec *spec = cofi_command_at(i);
+        const char *owner = spec->owner_provider_id;
         if (owner && owner[0] != '\0') {
-            printf("PASS: %s has owner %s\n", COMMAND_PARSE_DEFS[i].primary, owner);
+            printf("PASS: %s has owner %s\n", spec->primary, owner);
             tests_passed++;
         } else {
-            printf("FAIL: %s has no command owner\n", COMMAND_PARSE_DEFS[i].primary);
+            printf("FAIL: %s has no command owner\n", spec->primary);
             tests_failed++;
         }
     }
@@ -761,19 +748,16 @@ static void test_all_parse_defs_have_owner(void) {
 
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
-    int table_count = 0;
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary; i++) {
-        table_count++;
-    }
+    int table_count = cofi_command_count();
     // 11 activating + 13 legacy non-activating = 24 central commands.
     // Profiles, Calc, Run, Sinks, Proc, Sessions, Workspaces, Harpoon,
     // Names, Rules, Config, Hotkeys, and Apps are provider-owned and
     // intentionally absent.
     if (table_count == 24) {
-        printf("PASS: command table has %d commands (all covered)\n", table_count);
+        printf("PASS: command registry has %d core commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command table has %d commands, test expects 24 — update test!\n", table_count);
+        printf("FAIL: command registry has %d core commands, test expects 24 — update test!\n", table_count);
         tests_failed++;
     }
 }

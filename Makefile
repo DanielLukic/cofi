@@ -76,9 +76,8 @@ SOURCES = src/main.c \
           src/command_handlers_workspace.c \
           src/command_handlers_tiling.c \
           src/command_handlers_ui.c \
-          src/command_definitions.c \
+          src/command_registry.c \
           src/command_availability.c \
-          src/command_parse_defs.c \
           src/command_parser.c \
           src/monitor_move.c \
           src/selection.c \
@@ -234,12 +233,12 @@ test-integration: $(TARGET)
 	@test/integration/run_all.sh
 
 # Build command parsing test
-test_command_parsing: test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
+test_command_parsing: test/test_command_parsing.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_parsing test/test_command_parsing.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build command parser execution-path test
-test_command_parser_execution: test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_command_parser_execution test/test_command_parser_execution.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
+test_command_parser_execution: test/test_command_parser_execution.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_parser_execution test/test_command_parser_execution.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build config round-trip test
 test_config_roundtrip: test/test_config_roundtrip.c src/config.o src/log.o src/utils.o
@@ -266,8 +265,8 @@ test_match_scoring: test/test_match_scoring.c src/match.o
 	$(CC) $(CFLAGS) -o test/test_match_scoring test/test_match_scoring.c src/match.o $(LDFLAGS)
 
 # Build command alias edge case test
-test_command_aliases: test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_command_aliases test/test_command_aliases.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
+test_command_aliases: test/test_command_aliases.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_command_aliases test/test_command_aliases.c test/command_handler_stubs.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build wildcard match test
 test_wildcard_match: test/test_wildcard_match.c src/window_matcher.o src/log.o
@@ -278,8 +277,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_definitions.o
-	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o src/command_definitions.o src/command_handlers.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/command_registry.o src/cofi_tab_provider.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -334,20 +333,20 @@ test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o
 
 # Build rules overlay behavior tests
 # (tests rules CRUD persistence-only behavior and clamp)
-test_overlay_rules: test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c src/overlay_rules.o src/command_parser.o src/command_parse_defs.o src/cofi_tab_provider.o $(LDFLAGS)
+test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o
 	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o $(LDFLAGS)
 
 # Build command handlers split tests
-test_command_handlers_split: test/test_command_handlers_split.c src/command_definitions.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c src/command_definitions.o $(LDFLAGS)
+test_command_handlers_split: test/test_command_handlers_split.c src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c src/command_registry.o $(LDFLAGS)
 
 # Build command handler behavior regression tests
-test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_definitions.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_definitions.o src/command_availability.o src/command_parse_defs.o src/slot_store.o src/log.o $(LDFLAGS)
+test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_registry.o src/command_availability.o src/slot_store.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/command_registry.o src/command_availability.o src/slot_store.o src/log.o $(LDFLAGS)
 
 # Build proc parser/behavior tests
 test_proc: test/test_proc.c
@@ -400,8 +399,8 @@ test/test_detach_survival_bin: test/test_detach_survival_bin.c
 	$(CC) -o $@ $<
 
 # Build command mode targeting tests
-test_command_mode_targeting: test/test_command_mode_targeting.c src/command_parse_defs.o src/log.o src/nav_keys.o
-	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c src/command_parse_defs.o src/log.o src/nav_keys.o $(LDFLAGS)
+test_command_mode_targeting: test/test_command_mode_targeting.c test/command_handler_stubs.c src/command_registry.o src/log.o src/nav_keys.o
+	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c test/command_handler_stubs.c src/command_registry.o src/log.o src/nav_keys.o $(LDFLAGS)
 
 # Build CLI run-flag parsing tests
 test_cli_args_run: test/test_cli_args_run.c src/cli_args.o src/config.o src/log.o src/utils.o
@@ -420,8 +419,8 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o src/command_definitions.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_parse_defs.o src/command_definitions.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/command_registry.o $(LDFLAGS)
 
 # Build tab header overflow tests
 test_tab_header: test/test_tab_header.c src/tab_metadata.o
@@ -432,8 +431,8 @@ test_tab_metadata: test/test_tab_metadata.c src/tab_metadata.o
 	$(CC) $(CFLAGS) -o test/test_tab_metadata test/test_tab_metadata.c src/tab_metadata.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c src/cofi_tab_provider.o src/command_availability.o src/command_parse_defs.o src/nav_keys.o src/tab_metadata.o src/tab_header.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c src/cofi_tab_provider.o src/command_availability.o src/command_parse_defs.o src/nav_keys.o src/tab_metadata.o src/tab_header.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)

@@ -1,10 +1,10 @@
 #include "command_api.h"
 #include "cofi_tab_provider.h"
 #include "command_parser.h"
+#include "command_registry.h"
 
 #ifndef COMMAND_POLICY_ONLY
 #include "command_availability.h"
-#include "command_definitions.h"
 #include "log.h"
 #include "selection.h"
 #include "x11_utils.h"
@@ -46,15 +46,6 @@ static void activate_commanded_window(AppData *app, WindowInfo *win) {
     log_commanded_window(app, win);
 }
 
-static const CommandDef *find_command_by_primary(const char *primary) {
-    for (int i = 0; COMMAND_DEFINITIONS[i].primary != NULL; i++) {
-        if (strcmp(primary, COMMAND_DEFINITIONS[i].primary) == 0) {
-            return &COMMAND_DEFINITIONS[i];
-        }
-    }
-    return NULL;
-}
-
 static gboolean execute_single_command(const char *command, AppData *app,
                                        WindowInfo *window, gboolean background) {
     char primary[128] = {0};
@@ -73,7 +64,7 @@ static gboolean execute_single_command(const char *command, AppData *app,
         return FALSE;
     }
 
-    const CommandDef *cmd = find_command_by_primary(primary);
+    const CommandSpec *cmd = cofi_command_by_primary(primary);
     const CofiTabProvider *provider = NULL;
     CofiCommandHandler handler = NULL;
     int activates = 0;
@@ -137,27 +128,13 @@ gboolean execute_command_background(const char *command, AppData *app, WindowInf
 }
 #endif
 
-static gboolean keeps_open_always(const char *primary) {
-    return strcmp(primary, "show") == 0 ||
-           strcmp(primary, "help") == 0 ||
-           strcmp(primary, "set") == 0 ||
-           strcmp(primary, "an") == 0 ||
-           strcmp(primary, "rw") == 0;
-}
-
-static gboolean keeps_open_without_arg(const char *primary) {
-    return strcmp(primary, "cw") == 0 ||
-           strcmp(primary, "jw") == 0 ||
-           strcmp(primary, "maw") == 0 ||
-           strcmp(primary, "tw") == 0;
-}
-
 static gboolean command_keeps_open(const char *primary, const char *arg) {
     if (!primary || primary[0] == '\0') {
         return FALSE;
     }
 
-    if (keeps_open_always(primary)) {
+    const CommandSpec *cmd = cofi_command_by_primary(primary);
+    if (cmd && cmd->keeps_open_on_hotkey_auto) {
         return TRUE;
     }
 
@@ -166,7 +143,7 @@ static gboolean command_keeps_open(const char *primary, const char *arg) {
         return TRUE;
     }
 
-    return (!arg || arg[0] == '\0') && keeps_open_without_arg(primary);
+    return cmd && cmd->keeps_open_without_arg && (!arg || arg[0] == '\0');
 }
 
 gboolean should_keep_open_on_hotkey_auto(const char *command) {

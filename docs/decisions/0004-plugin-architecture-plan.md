@@ -37,10 +37,11 @@ Already-good pieces:
 
 Remaining broken windows:
 
-- Command truth is still split across `COMMAND_PARSE_DEFS[]` and
-  `COMMAND_DEFINITIONS[]`, with aliases, compact suffixes, keep-open policy,
-  activation policy, and handlers spread across central tables.
-- Core commands and provider commands are mixed in that same table.
+- Core command truth is now centralized in `command_registry`, but core commands
+  still register from one built-in list.
+- Provider-owned commands live on their providers today; the remaining cleanup
+  is making provider modules register command specs through the same registry
+  API instead of exposing command fields on `CofiTabProvider`.
 - Existing provider tabs still use legacy static `TabMode` values during
   migration, though new provider tabs can use dynamic handles.
 - `$`, `\`, and `>` prefix claims still live in `prefix_tabs.c`.
@@ -168,8 +169,18 @@ move toward plugins rather than table cleanup.
 ## Phase 4: Move Command Metadata to Owners
 
 Once ownership is explicit and tab handles are no longer hardcoded for new
-providers, move provider-owned command metadata out of the central command
-tables one module at a time.
+providers, move command metadata out of central tables one module at a time.
+
+Progress:
+
+- Provider-backed commands have moved out of the legacy command tables and live
+  on their provider modules.
+- Core commands now use one `CommandSpec` shape via `command_registry`, so parse
+  metadata, handlers, help text, activation policy, keep-open policy, and owner
+  metadata are no longer split between `COMMAND_PARSE_DEFS[]` and
+  `COMMAND_DEFINITIONS[]`.
+- Remaining work: make providers call the command registry directly for their
+  command specs, then remove command fields from `CofiTabProvider`.
 
 Suggested order:
 
@@ -181,7 +192,7 @@ Suggested order:
 Acceptance for each migrated plugin:
 
 - its command metadata lives in the owning module;
-- central metadata no longer lists that plugin command;
+- central core metadata no longer lists that plugin command;
 - aliases are preserved;
 - disabled plugin command dispatch fails closed;
 - command candidates/help/parser behavior remain unchanged when enabled.

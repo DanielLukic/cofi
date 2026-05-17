@@ -1,18 +1,14 @@
 #include "command_availability.h"
 
-#include "command_parse_defs.h"
+#include "command_registry.h"
 #include "cofi_tab_provider.h"
 
 #include <string.h>
 
 static const char *command_owner(const char *primary) {
     if (!primary) return NULL;
-    for (int i = 0; COMMAND_PARSE_DEFS[i].primary; i++) {
-        if (strcmp(COMMAND_PARSE_DEFS[i].primary, primary) == 0) {
-            return COMMAND_PARSE_DEFS[i].owner_provider_id;
-        }
-    }
-    return NULL;
+    const CommandSpec *spec = cofi_command_by_primary(primary);
+    return spec ? spec->owner_provider_id : NULL;
 }
 
 int command_primary_is_available(const char *primary) {
