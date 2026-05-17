@@ -171,6 +171,46 @@ static void test_launch_result_uses_terminal_launcher(void) {
     agent_sessions_set_launch_impl_for_test(NULL);
 }
 
+static void test_delete_result_rejects_unknown_path(void) {
+    char path[] = "/tmp/cofi-agent-session-XXXXXX.jsonl";
+    int fd = mkstemps(path, 6);
+    ASSERT_TRUE("create temp guarded delete session", fd >= 0);
+    if (fd < 0) return;
+    close(fd);
+    ASSERT_TRUE("write temp guarded delete session",
+                g_file_set_contents(path, "{\"type\":\"x\"}\n", -1, NULL));
+
+    AgentSessionResult result = {0};
+    g_strlcpy(result.source, "codex", sizeof(result.source));
+    g_strlcpy(result.path, path, sizeof(result.path));
+
+    ASSERT_TRUE("plain temp path is not deleted",
+                !agent_sessions_delete_result(&result));
+    ASSERT_TRUE("plain temp file still exists",
+                g_file_test(path, G_FILE_TEST_EXISTS));
+    unlink(path);
+}
+
+static void test_remove_path_updates_visible_results(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    agent_sessions_ingest_match_for_test(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl",
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco alpha\"}}");
+    agent_sessions_ingest_match_for_test(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-marco/def.jsonl",
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco beta\"}}");
+
+    ASSERT_TRUE("two visible before remove", mode.filtered_count == 2);
+    agent_sessions_remove_path(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl");
+    ASSERT_TRUE("one visible after remove", mode.filtered_count == 1);
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_STR("remaining result", result->session_id, "def");
+}
+
 int main(void) {
     test_query_split();
     test_extract_claude_message_text();
@@ -181,6 +221,8 @@ int main(void) {
     test_build_codex_resume_command();
     test_build_codex_resume_command_reads_cwd_from_file();
     test_launch_result_uses_terminal_launcher();
+    test_delete_result_rejects_unknown_path();
+    test_remove_path_updates_visible_results();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

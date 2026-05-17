@@ -35,6 +35,10 @@ void show_session_new_overlay(AppData *app,
                               SessionBackend backend,
                               const char *start_dir,
                               const char *initial_name);
+void show_agent_session_delete_overlay(AppData *app,
+                                       const char *source,
+                                       const char *session_id,
+                                       const char *path);
 
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {

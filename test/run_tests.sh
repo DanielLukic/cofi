@@ -574,6 +574,15 @@ if [ -f test_calc_provider ]; then
     fi
 fi
 
+if [ -f test_agent_sessions_provider ]; then
+    echo ""
+    echo "Running agent sessions provider tests..."
+    ./test_agent_sessions_provider
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_cofi_tab_provider ]; then
     echo ""
     echo "Running CofiTabProvider registry tests..."

@@ -72,6 +72,9 @@ gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
                                              char *out,
                                              size_t out_size);
 gboolean agent_sessions_launch_result(const AgentSessionResult *result);
+gboolean agent_sessions_delete_path(const char *path);
+gboolean agent_sessions_delete_result(const AgentSessionResult *result);
+void agent_sessions_remove_path(AgentSessionsMode *mode, const char *path);
 
 #ifdef COFI_TESTING
 void agent_sessions_set_launch_impl_for_test(AgentSessionsLaunchImpl launch_impl);

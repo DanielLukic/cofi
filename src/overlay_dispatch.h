@@ -20,5 +20,9 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);
+void show_agent_session_delete_overlay(AppData *app,
+                                       const char *source,
+                                       const char *session_id,
+                                       const char *path);
 
 #endif

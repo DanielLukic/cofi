@@ -6,6 +6,7 @@
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "display.h"
+#include "overlay_manager.h"
 #include "selection.h"
 #include "tab_switching.h"
 
@@ -111,6 +112,41 @@ static CofiActionStatus agent_sessions_on_enter_pressed(AppData *app,
     return agent_sessions_launch_result(result) ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+void agent_sessions_provider_remove_path(AppData *app, const char *path) {
+    if (!path || path[0] == '\0') return;
+    agent_sessions_cancel(&s_agent_sessions_mode);
+    agent_sessions_remove_path(&s_agent_sessions_mode, path);
+    if (app) {
+        validate_selection(app);
+        update_scroll_position(app);
+        update_display(app);
+    }
+}
+
+static gboolean agent_sessions_handle_key(GdkEventKey *event, AppData *app) {
+    if (!app || app->current_tab != agent_sessions_tab_mode()) {
+        return FALSE;
+    }
+
+    gboolean delete_key =
+        event->keyval == GDK_KEY_Delete ||
+        event->keyval == GDK_KEY_KP_Delete ||
+        ((event->state & GDK_CONTROL_MASK) &&
+         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
+    if (!delete_key) {
+        return FALSE;
+    }
+
+    const AgentSessionResult *result =
+        agent_session_at_row(app->selection.provider_index);
+    if (!result) {
+        return FALSE;
+    }
+    show_agent_session_delete_overlay(app, result->source,
+                                      result->session_id, result->path);
+    return TRUE;
+}
+
 static gboolean agent_sessions_command_handler(AppData *app,
                                                WindowInfo *window __attribute__((unused)),
                                                const char *args __attribute__((unused))) {
@@ -139,7 +175,8 @@ void agent_sessions_provider_register(void) {
     s_agent_sessions_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_agent_sessions_provider.id = "agent-sessions";
     s_agent_sessions_provider.display_name = "AGENTS";
-    s_agent_sessions_provider.shortcut_hint = "Search: terms | refine";
+    s_agent_sessions_provider.shortcut_hint =
+        "Search: terms | refine   Enter=Resume  Ctrl+D/Delete=Delete";
     s_agent_sessions_provider.required = 0;
     s_agent_sessions_provider.hidden_by_default = 1;
     s_agent_sessions_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
@@ -152,6 +189,7 @@ void agent_sessions_provider_register(void) {
     s_agent_sessions_provider.on_leave = agent_sessions_on_leave;
     s_agent_sessions_provider.on_query_changed = agent_sessions_on_query_changed;
     s_agent_sessions_provider.on_enter_pressed = agent_sessions_on_enter_pressed;
+    s_agent_sessions_provider.handle_key = agent_sessions_handle_key;
 
     s_agent_sessions_provider_id = cofi_register_tab_provider(&s_agent_sessions_provider);
     if (s_agent_sessions_provider_id >= 0) {

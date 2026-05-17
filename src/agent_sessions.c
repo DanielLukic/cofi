@@ -5,7 +5,9 @@
 #include "log.h"
 
 #include <gio/gio.h>
+#include <glib/gstdio.h>
 #include <json-glib/json-glib.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,6 +17,8 @@ typedef struct {
     AgentSessionsMode *mode;
     int generation;
 } ReadContext;
+
+static gchar *home_path(const char *first, const char *second);
 
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
@@ -348,6 +352,56 @@ gboolean agent_sessions_launch_result(const AgentSessionResult *result) {
         return FALSE;
     }
     return s_launch_impl(command);
+}
+
+static gboolean path_is_under_dir(const char *path, const char *dir) {
+    if (!path || !dir || !dir[0]) return FALSE;
+    size_t len = strlen(dir);
+    return strncmp(path, dir, len) == 0 && (path[len] == '/' || path[len] == '\0');
+}
+
+static gboolean path_allowed_for_delete(const char *path) {
+    if (!path || !g_str_has_suffix(path, ".jsonl")) return FALSE;
+    gchar *canonical = g_canonicalize_filename(path, NULL);
+    gchar *claude_root = home_path(".claude", "projects");
+    gchar *codex_root = home_path(".codex", "sessions");
+    gboolean allowed = path_is_under_dir(canonical, claude_root) ||
+                       path_is_under_dir(canonical, codex_root);
+    g_free(canonical);
+    g_free(claude_root);
+    g_free(codex_root);
+    return allowed;
+}
+
+gboolean agent_sessions_delete_path(const char *path) {
+    if (!path_allowed_for_delete(path)) {
+        log_warn("Refusing to delete non-agent-session path: %s", path ? path : "(null)");
+        return FALSE;
+    }
+    if (g_remove(path) != 0) {
+        log_warn("Failed to delete agent session '%s': %s", path, g_strerror(errno));
+        return FALSE;
+    }
+    log_info("Deleted agent session file: %s", path);
+    return TRUE;
+}
+
+gboolean agent_sessions_delete_result(const AgentSessionResult *result) {
+    return result ? agent_sessions_delete_path(result->path) : FALSE;
+}
+
+void agent_sessions_remove_path(AgentSessionsMode *mode, const char *path) {
+    if (!mode || !path || !path[0]) return;
+    for (int i = 0; i < mode->result_count; i++) {
+        if (strcmp(mode->results[i].path, path) != 0) continue;
+        for (int j = i; j < mode->result_count - 1; j++) {
+            mode->results[j] = mode->results[j + 1];
+        }
+        mode->result_count--;
+        memset(&mode->results[mode->result_count], 0, sizeof(mode->results[0]));
+        agent_sessions_apply_refine(mode, NULL);
+        return;
+    }
 }
 
 #ifdef COFI_TESTING

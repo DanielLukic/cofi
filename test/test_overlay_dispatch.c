@@ -41,6 +41,7 @@ static void test_overlay_should_focus_name_entry(void) {
     ASSERT_TRUE("workspace rename does not focus entry", !overlay_should_focus_name_entry(OVERLAY_WORKSPACE_RENAME));
     ASSERT_TRUE("rule delete does not focus entry", !overlay_should_focus_name_entry(OVERLAY_RULE_DELETE));
     ASSERT_TRUE("session kill does not focus entry", !overlay_should_focus_name_entry(OVERLAY_SESSION_KILL));
+    ASSERT_TRUE("agent session delete does not focus entry", !overlay_should_focus_name_entry(OVERLAY_AGENT_SESSION_DELETE));
 }
 
 static void test_hotkey_add_capture_policy(void) {

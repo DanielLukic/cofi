@@ -1,0 +1,72 @@
+#include "overlay_agent_sessions.h"
+
+#include "agent_sessions_provider.h"
+#include "display.h"
+#include "gtk_utils.h"
+#include "log.h"
+#include "overlay_manager.h"
+
+static GtkWidget *create_left_label(const char *text) {
+    GtkWidget *label = gtk_label_new(text);
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+    return label;
+}
+
+void create_agent_session_delete_overlay_content(GtkWidget *parent_container,
+                                                 AppData *app) {
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title = gtk_label_new("Delete Agent Session?");
+    gtk_widget_set_name(title, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
+
+    char info[1024];
+    g_snprintf(info, sizeof(info),
+               "Source: %s\nSession: %s\nFile: %s",
+               app->agent_session_delete.source,
+               app->agent_session_delete.session_id,
+               app->agent_session_delete.path);
+    GtkWidget *info_label = create_left_label(info);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *inst = create_centered_label("Y, Ctrl+D, or Delete = delete  N or Esc = cancel");
+    gtk_widget_set_opacity(inst, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+}
+
+gboolean handle_agent_session_delete_key_press(AppData *app, GdkEventKey *event) {
+    gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
+                       event->keyval == GDK_KEY_Delete ||
+                       event->keyval == GDK_KEY_KP_Delete ||
+                       ((event->state & GDK_CONTROL_MASK) &&
+                        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
+    if (confirm) {
+        char path[AGENT_SESSION_PATH_LEN];
+        g_strlcpy(path, app->agent_session_delete.path, sizeof(path));
+
+        gboolean deleted = agent_sessions_delete_path(path);
+        hide_overlay(app);
+        if (deleted) {
+            agent_sessions_provider_remove_path(app, path);
+        } else {
+            log_warn("Agent session delete failed for '%s'", path);
+            update_display(app);
+        }
+        return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
+        hide_overlay(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    return FALSE;
+}
