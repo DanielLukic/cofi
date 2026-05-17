@@ -91,7 +91,7 @@ static void init_stub_providers(void) {
     memset(&g_stub_rules_provider, 0, sizeof(g_stub_rules_provider));
 
     g_stub_run_provider.tab_mode = TAB_RUN;
-    g_stub_calc_provider.tab_mode = TAB_CALC;
+    g_stub_calc_provider.tab_mode = TAB_COUNT + 1;
     g_stub_config_provider.tab_mode = TAB_CONFIG;
     g_stub_hotkeys_provider.tab_mode = TAB_HOTKEYS;
     g_stub_rules_provider.tab_mode = TAB_RULES;

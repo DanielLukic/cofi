@@ -22,7 +22,6 @@ const char *tab_display_name(TabMode tab) {
         case TAB_HOTKEYS:    return "Hotkeys";
         case TAB_RULES:      return "Rules";
         case TAB_APPS:       return "Apps";
-        case TAB_CALC:       return "Calc";
         case TAB_SINKS:      return "Sinks";
         case TAB_RUN:        return "Run";
         case TAB_PROC:       return "Proc";
@@ -44,7 +43,6 @@ const char *tab_active_name(TabMode tab) {
         case TAB_HOTKEYS:    return "HOTKEYS";
         case TAB_RULES:      return "RULES";
         case TAB_APPS:       return "APPS";
-        case TAB_CALC:       return "CALC";
         case TAB_SINKS:      return "SINKS";
         case TAB_RUN:        return "RUN";
         case TAB_PROC:       return "PROC";
@@ -74,7 +72,6 @@ const char *tab_log_name(TabMode tab) {
         case TAB_HOTKEYS:    return "hotkeys";
         case TAB_RULES:      return "rules";
         case TAB_APPS:       return "apps";
-        case TAB_CALC:       return "calc";
         case TAB_SINKS:      return "sinks";
         case TAB_RUN:        return "run";
         case TAB_PROC:       return "proc";

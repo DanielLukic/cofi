@@ -103,7 +103,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### Providers and plugin architecture
 
 - **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Sessions, and Profiles.
-- **Dynamic tab handles** — provider tabs can request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. Profiles uses this path; older providers still use legacy `TAB_*` handles during migration.
+- **Dynamic tab handles** — provider tabs can request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. Profiles and Calc use this path; older providers still use legacy `TAB_*` handles during migration.
 - **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
 - **Commands** — commands register `CommandSpec` entries with `command_registry`. Provider command specs live in their provider modules; core commands live in the built-in core registration list. Provider-owned commands are hidden when that provider is disabled.
 - **Plan** — [docs/decisions/0004-plugin-architecture-plan.md](decisions/0004-plugin-architecture-plan.md) is the current TFD-675 roadmap for reducing remaining central tables and hardcoded surfaces.

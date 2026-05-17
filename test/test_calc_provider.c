@@ -63,6 +63,7 @@ static void test_command_handler_enters_modal_and_evaluates_args(void) {
     AppData app = {0};
     cofi_registry_reset();
     calc_provider_register();
+    const CofiTabProvider *registered_provider = cofi_get_provider(s_calc_provider_id);
 
     ASSERT_TRUE("calc command handler registered for test", s_calc_command.handler != NULL);
     if (!s_calc_command.handler) return;
@@ -76,8 +77,10 @@ static void test_command_handler_enters_modal_and_evaluates_args(void) {
     ASSERT_TRUE("calc command returns false", result == FALSE);
     ASSERT_TRUE("calc command exits command mode", exit_command_mode_calls == 1);
     ASSERT_TRUE("calc command enters modal", enter_modal_calls == 1);
-    ASSERT_TRUE("calc command uses module provider modal",
-                last_modal_provider == &s_calc_provider);
+    ASSERT_TRUE("calc command uses registered provider modal",
+                last_modal_provider == registered_provider);
+    ASSERT_TRUE("calc command uses dynamic tab provider",
+                registered_provider && registered_provider->tab_mode >= TAB_COUNT);
     ASSERT_TRUE("calc command sets prefix claim", app.active_prefix_claim == '=');
     ASSERT_TRUE("calc command evaluates args", app.calc_mode.count == 1);
     ASSERT_STR("calc command stores result", app.calc_mode.entries[0].result, "2");

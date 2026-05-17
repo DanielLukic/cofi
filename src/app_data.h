@@ -35,7 +35,6 @@ typedef enum {
     TAB_HOTKEYS,
     TAB_RULES,
     TAB_APPS,
-    TAB_CALC,
     TAB_SINKS,
     TAB_RUN,
     TAB_PROC,

@@ -75,17 +75,25 @@ static void calc_on_enter(AppData *app) {
 /* ---- provider registration ---- */
 
 static CofiTabProvider s_calc_provider;
+static int s_calc_provider_id = -1;
+
+static const CofiTabProvider *calc_registered_provider(void) {
+    return cofi_get_provider(s_calc_provider_id);
+}
 
 static gboolean calc_command_handler(AppData *app,
                                      WindowInfo *window __attribute__((unused)),
                                      const char *args) {
+    const CofiTabProvider *provider = calc_registered_provider();
+    if (!provider) return FALSE;
+
     exit_command_mode(app);
 
     if (app) {
         app->prefix_origin_tab = app->current_tab;
         app->active_prefix_claim = '=';
     }
-    cofi_enter_modal(app, &s_calc_provider);
+    cofi_enter_modal(app, provider);
 
     if (args && args[0] != '\0') {
         calc_on_command_args(app, args);
@@ -105,7 +113,8 @@ static const CommandSpec s_calc_command = {
 
 void calc_provider_register(void) {
     cofi_init_provider_defaults(&s_calc_provider);
-    s_calc_provider.tab_mode     = TAB_CALC;
+    s_calc_provider_id = -1;
+    s_calc_provider.tab_mode     = COFI_PROVIDER_DYNAMIC_TAB;
     s_calc_provider.id           = "calc";
     s_calc_provider.display_name = "CALC";
     s_calc_provider.prefix_char  = '=';
@@ -118,7 +127,8 @@ void calc_provider_register(void) {
     s_calc_provider.row_identity      = calc_row_identity;
     s_calc_provider.on_enter_pressed  = calc_on_enter_pressed;
     s_calc_provider.on_command_args   = calc_on_command_args;
-    if (cofi_register_tab_provider(&s_calc_provider) >= 0) {
+    s_calc_provider_id = cofi_register_tab_provider(&s_calc_provider);
+    if (s_calc_provider_id >= 0) {
         cofi_register_command(&s_calc_command);
     }
 }

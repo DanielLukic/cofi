@@ -150,10 +150,10 @@ void exit_command_mode(AppData *app) {
 }
 
 void cofi_enter_modal(AppData *app, const CofiTabProvider *provider) {
-    (void)provider;
     g_enter_modal_calls++;
     if (app) {
-        app->current_tab = TAB_CALC;
+        if (provider)
+            app->current_tab = (TabMode)provider->tab_mode;
         app->command_mode.state = CMD_MODE_MODAL;
         if (app->entry)
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
@@ -536,6 +536,10 @@ static void reset_captures(void) {
     g_last_filter_apps[0] = '\0';
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
+    memset(&g_modal_prefix_stub, 0, sizeof(g_modal_prefix_stub));
+    g_modal_prefix_stub.tab_mode = TAB_COUNT + 1;
+    g_modal_prefix_stub.id = "calc";
+    g_modal_prefix_stub.prefix_char = '=';
 }
 
 static void init_app(AppData *app) {
