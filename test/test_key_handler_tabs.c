@@ -62,7 +62,8 @@ static SessionFolder g_stub_selected_folder;
 static gboolean g_stub_has_selected_folder;
 
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 2))
+#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 2))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 3))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -126,7 +127,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     memset(&rules_provider, 0, sizeof(rules_provider));
     memset(&sessions_provider, 0, sizeof(sessions_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
-    names_provider.tab_mode = TAB_NAMES;
+    names_provider.tab_mode = TEST_NAMES_TAB;
     names_provider.handle_key = handle_names_tab_keys;
     config_provider.tab_mode = TAB_CONFIG;
     config_provider.handle_key = handle_config_tab_keys;
@@ -140,10 +141,10 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     harpoon_provider.handle_key = handle_harpoon_tab_keys;
 
     if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
+    if (tab_mode == TEST_NAMES_TAB) return &names_provider;
 
     switch ((TabMode)tab_mode) {
         case TAB_HARPOON: return &harpoon_provider;
-        case TAB_NAMES: return &names_provider;
         case TAB_CONFIG: return &config_provider;
         case TAB_HOTKEYS: return &hotkeys_provider;
         case TAB_RULES: return &rules_provider;
@@ -153,6 +154,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
 TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    static CofiTabProvider names_provider;
+    (void)provider_id;
+    memset(&names_provider, 0, sizeof(names_provider));
+    names_provider.tab_mode = TEST_NAMES_TAB;
+    return &names_provider;
+}
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }
@@ -542,7 +550,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.filtered_names_count = 2;
     app.selection.provider_index = 1;
     strcpy(app.filtered_names[0].custom_name, "alpha");
@@ -565,7 +573,7 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.names.count = 2;
     strcpy(app.names.entries[0].custom_name, "alpha");
     strcpy(app.names.entries[1].custom_name, "beta");
@@ -590,7 +598,7 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.names.count = 0;
     app.filtered_names_count = 1;
     app.selection.provider_index = 0;

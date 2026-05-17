@@ -32,7 +32,7 @@ static void set_startup_delegate(AppData *app, uint8_t opcode) {
             app->current_tab = TAB_HARPOON;
             break;
         case COFI_OPCODE_NAMES:
-            app->current_tab = TAB_NAMES;
+            app->current_tab = TAB_WINDOWS;
             break;
         case COFI_OPCODE_APPLICATIONS:
             app->current_tab = TAB_WINDOWS;

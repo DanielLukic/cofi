@@ -36,10 +36,15 @@ static guint32 user_time_property_value_at_set = 0;
 static CofiTabProvider run_provider_stub;
 static int run_provider_available = 1;
 
-#define TEST_APPS_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 3))
 
 TabMode apps_tab_mode(void) {
     return TEST_APPS_TAB;
+}
+
+TabMode names_tab_mode(void) {
+    return TEST_NAMES_TAB;
 }
 
 void show_window(AppData *app) {
@@ -215,7 +220,7 @@ static void test_tab_opcode_dispatch(void) {
         {COFI_OPCODE_WINDOWS, TAB_WINDOWS},
         {COFI_OPCODE_WORKSPACES, TAB_WORKSPACES},
         {COFI_OPCODE_HARPOON, TAB_HARPOON},
-        {COFI_OPCODE_NAMES, TAB_NAMES},
+        {COFI_OPCODE_NAMES, TEST_NAMES_TAB},
         {COFI_OPCODE_APPLICATIONS, TEST_APPS_TAB}
     };
 

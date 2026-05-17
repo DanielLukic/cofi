@@ -123,7 +123,7 @@ void names_select_custom_name(AppData *app, const char *custom_name) {
 }
 
 gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TAB_NAMES) {
+    if (app->current_tab != names_tab_mode()) {
         return FALSE;
     }
 
@@ -154,6 +154,12 @@ gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
 }
 
 static CofiTabProvider s_names_provider;
+static int s_names_provider_id = -1;
+
+TabMode names_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_names_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static gboolean names_command_handler(AppData *app,
                                       WindowInfo *window __attribute__((unused)),
@@ -162,7 +168,7 @@ static gboolean names_command_handler(AppData *app,
 
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
-    surface_tab(app, (TabMode)s_names_provider.tab_mode);
+    surface_tab(app, names_tab_mode());
     return FALSE;
 }
 
@@ -178,7 +184,7 @@ static const CommandSpec s_names_command = {
 
 void names_provider_register(void) {
     cofi_init_provider_defaults(&s_names_provider);
-    s_names_provider.tab_mode = TAB_NAMES;
+    s_names_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_names_provider.id = "names";
     s_names_provider.display_name = "NAMES";
     s_names_provider.required = 0;
@@ -192,7 +198,8 @@ void names_provider_register(void) {
     s_names_provider.on_query_changed = names_on_query_changed;
     s_names_provider.handle_key = handle_names_tab_keys;
     s_names_provider.shortcut_hint = "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name";
-    if (cofi_register_tab_provider(&s_names_provider) >= 0) {
+    s_names_provider_id = cofi_register_tab_provider(&s_names_provider);
+    if (s_names_provider_id >= 0) {
         cofi_register_command(&s_names_command);
     }
 }

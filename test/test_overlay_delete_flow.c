@@ -23,6 +23,8 @@ static int g_save_named_windows_calls;
 static int g_delete_custom_name_calls;
 static int g_filter_names_calls;
 
+#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 1))
+
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
     (void)file;
@@ -182,6 +184,10 @@ void names_select_custom_name(AppData *app, const char *custom_name) {
     (void)custom_name;
 }
 
+TabMode names_tab_mode(void) {
+    return TEST_NAMES_TAB;
+}
+
 static void reset_captures(void) {
     g_hide_overlay_calls = 0;
     g_update_display_calls = 0;
@@ -250,7 +256,7 @@ static void test_name_delete_confirm_y_deletes_and_clamps_last_row(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_NAME_DELETE;
 
@@ -285,7 +291,7 @@ static void test_name_delete_confirm_ctrl_d_deletes_and_hides_overlay(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_NAME_DELETE;
 
@@ -314,7 +320,7 @@ static void test_name_delete_confirm_ctrl_d_works_for_orphan_fallback(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_NAME_DELETE;
 
@@ -341,7 +347,7 @@ static void test_name_delete_cancel_n_clears_state_and_hides_overlay(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_NAME_DELETE;
 
@@ -378,7 +384,7 @@ static void test_name_delete_cancel_esc_clears_state_via_overlay_manager(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TAB_NAMES;
+    app.current_tab = TEST_NAMES_TAB;
     app.overlay_active = TRUE;
     app.current_overlay = OVERLAY_NAME_DELETE;
 

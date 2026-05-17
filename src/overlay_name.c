@@ -75,7 +75,7 @@ void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *ap
 
 void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
     NamedWindow *selected = names_selected_entry(app);
-    if (app->current_tab != TAB_NAMES || !selected) {
+    if (app->current_tab != names_tab_mode() || !selected) {
         GtkWidget *error_label = gtk_label_new("No named window selected for editing");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;

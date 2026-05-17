@@ -15,6 +15,7 @@
 #include "display.h"
 #include "filter.h"
 #include "log.h"
+#include "names_provider.h"
 #include "selection.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -157,7 +158,7 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_HARPOON);
             break;
         case COFI_OPCODE_NAMES:
-            show_tab_for_opcode(app, TAB_NAMES);
+            show_tab_for_opcode(app, names_tab_mode());
             break;
         case COFI_OPCODE_APPLICATIONS:
             show_tab_for_opcode(app, apps_tab_mode());

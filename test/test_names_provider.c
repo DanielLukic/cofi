@@ -24,6 +24,7 @@ static int g_reset_selection_calls;
 static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static TabMode g_last_surface_tab = -1;
+static CofiTabProvider g_registered_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -54,8 +55,13 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
+    g_registered_provider = *p;
+    g_registered_provider.tab_mode = (TabMode)(TAB_COUNT + 1);
     return 0;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return provider_id == 0 ? &g_registered_provider : NULL;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -92,6 +98,7 @@ static void reset_state(AppData *app) {
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
     g_last_surface_tab = -1;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
 }
 
 static void seed_names(AppData *app) {
@@ -193,11 +200,13 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider command keeps open",
                 s_names_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_names_command.handler != NULL);
+    ASSERT_TRUE("names provider uses dynamic tab", g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
     AppData app;
     reset_state(&app);
+    names_provider_register();
     app.current_tab = TAB_WINDOWS;
 
     gboolean result = s_names_command.handler(&app, NULL, NULL);
@@ -206,7 +215,8 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("names command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("names command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("names command surfaces names tab", g_surface_tab_calls == 1 &&
-                g_last_surface_tab == TAB_NAMES && app.current_tab == TAB_NAMES);
+                g_last_surface_tab == (TabMode)g_registered_provider.tab_mode &&
+                app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 int main(void) {

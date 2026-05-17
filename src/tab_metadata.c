@@ -17,7 +17,6 @@ const char *tab_display_name(TabMode tab) {
         case TAB_WINDOWS:    return "Windows";
         case TAB_WORKSPACES: return "Workspaces";
         case TAB_HARPOON:    return "Harpoon";
-        case TAB_NAMES:      return "Names";
         case TAB_CONFIG:     return "Config";
         case TAB_HOTKEYS:    return "Hotkeys";
         case TAB_RULES:      return "Rules";
@@ -33,7 +32,6 @@ const char *tab_active_name(TabMode tab) {
         case TAB_WINDOWS:    return "WINDOWS";
         case TAB_WORKSPACES: return "WORKSPACES";
         case TAB_HARPOON:    return "HARPOON";
-        case TAB_NAMES:      return "NAMES";
         case TAB_CONFIG:     return "CONFIG";
         case TAB_HOTKEYS:    return "HOTKEYS";
         case TAB_RULES:      return "RULES";
@@ -57,7 +55,6 @@ const char *tab_log_name(TabMode tab) {
         case TAB_WINDOWS:    return "windows";
         case TAB_WORKSPACES: return "workspaces";
         case TAB_HARPOON:    return "harpoon";
-        case TAB_NAMES:      return "names";
         case TAB_CONFIG:     return "config";
         case TAB_HOTKEYS:    return "hotkeys";
         case TAB_RULES:      return "rules";

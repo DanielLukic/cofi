@@ -4,6 +4,7 @@
 #include "app_data.h"
 
 void names_provider_register(void);
+TabMode names_tab_mode(void);
 gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
 
 NamedWindow *names_selected_entry(AppData *app);
