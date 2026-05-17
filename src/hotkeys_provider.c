@@ -248,7 +248,7 @@ void hotkeys_provider_register(void) {
     s_hotkeys_provider.id = "hotkeys";
     s_hotkeys_provider.display_name = "HOTKEYS";
     s_hotkeys_provider.required = 0;
-    s_hotkeys_provider.hidden_by_default = 0;
+    s_hotkeys_provider.hidden_by_default = 1;
     s_hotkeys_provider.initial_selection_index = 0;
     s_hotkeys_provider.row_count = hotkeys_row_count;
     s_hotkeys_provider.format_row = hotkeys_format_row;

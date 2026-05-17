@@ -18,11 +18,13 @@ static gboolean get_tab_claim(char prefix, TabMode *target_tab) {
 
     switch (prefix) {
         case '$':
-        case '\\':
-            if (!cofi_get_provider_for_tab(TAB_APPS))
+        case '\\': {
+            TabMode apps_tab = apps_tab_mode();
+            if (apps_tab == TAB_WINDOWS || !cofi_get_provider_for_tab(apps_tab))
                 return FALSE;
-            *target_tab = TAB_APPS;
+            *target_tab = apps_tab;
             return TRUE;
+        }
         case '>':
             *target_tab = TAB_WINDOWS;
             return TRUE;
@@ -71,14 +73,15 @@ void cofi_dispatch_prefix(AppData *app, char c) {
     /* tab claim → tab switch (e.g. $, \\, >) */
     TabMode claimed_tab;
     if (get_tab_claim(c, &claimed_tab)) {
-        if (claimed_tab == TAB_APPS)
+        gboolean claimed_apps = claimed_tab == apps_tab_mode();
+        if (claimed_apps)
             app->apps_mode = (c == '$') ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
         if (app->current_tab == claimed_tab) {
             /* same-tab toggle: clear entry, reset selection, refresh */
             app->suppress_entry_change = TRUE;
             gtk_entry_set_text(GTK_ENTRY(app->entry), "");
             app->suppress_entry_change = FALSE;
-            if (claimed_tab == TAB_APPS) {
+            if (claimed_apps) {
                 filter_apps(app, "");
             }
             reset_selection(app);

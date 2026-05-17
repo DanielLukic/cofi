@@ -118,7 +118,7 @@ static void clear_cache(void) {
 }
 
 static void maybe_refresh_apps_tab(AppData *app) {
-    if (!app || app->current_tab != TAB_APPS || !app->entry) {
+    if (!app || app->current_tab != apps_tab_mode() || !app->entry) {
         return;
     }
 

@@ -13,6 +13,7 @@
 #include "x11_utils.h"
 #include "atom_cache.h"
 #include "command_mode.h"
+#include "cofi_tab_provider.h"
 #include "run_mode.h"
 #include "selection.h"
 #include "rules_config.h"
@@ -31,7 +32,20 @@ void init_tab_visibility(AppData *app) {
     }
 
     app->tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
-    app->tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+}
+
+void apply_provider_default_visibility(AppData *app) {
+    if (!app) {
+        return;
+    }
+
+    for (int i = 0; i < cofi_provider_count(); i++) {
+        if (!cofi_provider_is_enabled(i)) continue;
+        const CofiTabProvider *provider = cofi_get_provider(i);
+        if (!provider || provider->hidden_by_default) continue;
+        if (provider->tab_mode < TAB_WINDOWS || provider->tab_mode >= COFI_MAX_TAB_HANDLES) continue;
+        app->tab_visibility[provider->tab_mode] = TAB_VIS_PINNED;
+    }
 }
 
 void init_app_data(AppData *app) {

@@ -7,6 +7,7 @@
 #define TEST_DYNAMIC_TAB  ((TabMode)(TAB_COUNT + 1))
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_PROFILES_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 4))
 
 static int pass = 0;
 static int fail = 0;
@@ -20,6 +21,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
     for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
         tabs[count++] = tab;
+    }
+    if (max_tabs > count) {
+        tabs[count++] = TEST_APPS_TAB;
     }
     if (max_tabs > count) {
         tabs[count++] = TEST_DYNAMIC_TAB;
@@ -56,6 +60,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         dynamic_provider.tab_mode = TEST_PROFILES_TAB;
         return &dynamic_provider;
     }
+    if (tab_mode == TEST_APPS_TAB) {
+        memset(&dynamic_provider, 0, sizeof(dynamic_provider));
+        dynamic_provider.id = "apps";
+        dynamic_provider.display_name = "Apps";
+        dynamic_provider.tab_mode = TEST_APPS_TAB;
+        return &dynamic_provider;
+    }
     return NULL;
 }
 
@@ -78,7 +89,7 @@ static void test_full_header_when_it_fits(void) {
     AppData app;
     init_hidden_tabs(&app);
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
-    app.tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+    app.tab_visibility[TEST_APPS_TAB] = TAB_VIS_PINNED;
 
     GString *out = g_string_new("");
     tab_header_format(&app, TAB_WINDOWS, 120, out);
@@ -96,7 +107,7 @@ static void test_show_all_tabs_makes_hidden_tabs_visible(void) {
     AppData app;
     init_hidden_tabs(&app);
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
-    app.tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+    app.tab_visibility[TEST_APPS_TAB] = TAB_VIS_PINNED;
     app.config.show_all_tabs = 1;
 
     GString *out = g_string_new("");
@@ -129,7 +140,7 @@ static void test_overflow_keeps_current_tab_visible(void) {
     app.config.show_all_tabs = 1;
 
     GString *out = g_string_new("");
-    tab_header_format(&app, TAB_APPS, 48, out);
+    tab_header_format(&app, TEST_APPS_TAB, 48, out);
 
     ASSERT_TRUE("overflow includes active tab",
                 strstr(out->str, "[ APPS ]") != NULL);

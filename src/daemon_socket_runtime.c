@@ -7,6 +7,7 @@
 #include <gdk/gdkx.h>
 #include <X11/Xatom.h>
 
+#include "apps_provider.h"
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
 #include "command_mode.h"
@@ -159,7 +160,7 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_tab_for_opcode(app, TAB_NAMES);
             break;
         case COFI_OPCODE_APPLICATIONS:
-            show_tab_for_opcode(app, TAB_APPS);
+            show_tab_for_opcode(app, apps_tab_mode());
             break;
         case COFI_OPCODE_COMMAND:
             app->current_tab = TAB_WINDOWS;

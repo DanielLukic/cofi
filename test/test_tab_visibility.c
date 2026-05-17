@@ -30,7 +30,8 @@ static int show_window_calls = 0;
 static int exit_command_mode_calls = 0;
 static int disabled_provider_tab = -1;
 
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 1))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -163,6 +164,10 @@ static void test_apps_on_surface(AppData *app) {
     }
 }
 
+TabMode apps_tab_mode(void) {
+    return TEST_APPS_TAB;
+}
+
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     (void)prefix; return NULL;
 }
@@ -223,11 +228,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TAB_WINDOWS || tab_mode == disabled_provider_tab) return NULL;
     memset(&provider, 0, sizeof(provider));
     provider.tab_mode = tab_mode;
+    if (tab_mode == TEST_APPS_TAB) {
+        provider.id = "apps";
+        provider.on_surface = test_apps_on_surface;
+        return &provider;
+    }
+
     switch (tab_mode) {
-        case TAB_APPS:
-            provider.id = "apps";
-            provider.on_surface = test_apps_on_surface;
-            break;
         case TAB_CONFIG:
             provider.id = "config";
             break;
@@ -255,7 +262,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 }
 int cofi_get_provider_id(const char *id) {
     if (!id) return -1;
-    if (strcmp(id, "apps") == 0) return TAB_APPS;
+    if (strcmp(id, "apps") == 0) return TEST_APPS_TAB;
     if (strcmp(id, "config") == 0) return TAB_CONFIG;
     if (strcmp(id, "harpoon") == 0) return TAB_HARPOON;
     if (strcmp(id, "names") == 0) return TAB_NAMES;
@@ -276,6 +283,9 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
     int count = 0;
     for (int tab = TAB_WINDOWS + 1; tab < TAB_COUNT && count < max_tabs; tab++) {
         tabs[count++] = tab;
+    }
+    if (count < max_tabs) {
+        tabs[count++] = TEST_APPS_TAB;
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_SESSIONS_TAB;
@@ -457,7 +467,7 @@ static AppData make_default_visibility_app(void) {
         app.tab_visibility[i] = TAB_VIS_HIDDEN;
     }
     app.tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
-    app.tab_visibility[TAB_APPS] = TAB_VIS_PINNED;
+    app.tab_visibility[TEST_APPS_TAB] = TAB_VIS_PINNED;
 
     return app;
 }
@@ -475,7 +485,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TAB_CONFIG,
         TAB_HOTKEYS,
         TAB_RULES,
-        TAB_APPS,
+        TEST_APPS_TAB,
         TEST_SESSIONS_TAB,
         TAB_WINDOWS
     };
@@ -500,7 +510,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
 
     TabMode expected[] = {
         TEST_SESSIONS_TAB,
-        TAB_APPS,
+        TEST_APPS_TAB,
         TAB_RULES,
         TAB_HOTKEYS,
         TAB_CONFIG,
@@ -526,7 +536,7 @@ static void test_switch_to_tab_updates_state_and_clears_entry(void) {
 
     for (int tab = TAB_WINDOWS; tab < TAB_COUNT; tab++) {
         reset_counters();
-        app.current_tab = (tab == TAB_WINDOWS) ? TAB_APPS : TAB_WINDOWS;
+        app.current_tab = (tab == TAB_WINDOWS) ? TEST_APPS_TAB : TAB_WINDOWS;
 
         switch_to_tab(&app, (TabMode)tab);
 
@@ -604,7 +614,7 @@ static void test_surface_tab_surfaces_hidden_tab(void) {
 
 static void test_cmd_show_apps_resets_to_default_mode(void) {
     AppData app = make_app();
-    app.current_tab = TAB_APPS;
+    app.current_tab = TEST_APPS_TAB;
     app.prefix_origin_tab = TAB_WINDOWS;
     app.apps_mode = APPS_MODE_PATH;
 
@@ -612,8 +622,8 @@ static void test_cmd_show_apps_resets_to_default_mode(void) {
     cmd_show(&app, NULL, "apps");
 
     ASSERT_TRUE("cmd_show apps resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
-    ASSERT_TRUE("cmd_show apps switches tab", app.current_tab == TAB_APPS);
-    ASSERT_TRUE("cmd_show apps records origin tab", app.prefix_origin_tab == TAB_APPS);
+    ASSERT_TRUE("cmd_show apps switches tab", app.current_tab == TEST_APPS_TAB);
+    ASSERT_TRUE("cmd_show apps records origin tab", app.prefix_origin_tab == TEST_APPS_TAB);
 }
 
 static void test_cmd_show_provider_records_origin_tab(void) {
@@ -630,11 +640,11 @@ static void test_cmd_show_provider_records_origin_tab(void) {
 
 static void test_daemon_opcode_applications_resets_mode(void) {
     AppData app = make_app();
-    app.current_tab = TAB_APPS;
+    app.current_tab = TEST_APPS_TAB;
     app.apps_mode = APPS_MODE_PATH;
 
     reset_counters();
-    show_tab_for_opcode(&app, TAB_APPS);
+    show_tab_for_opcode(&app, TEST_APPS_TAB);
 
     ASSERT_TRUE("daemon Applications opcode resets mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
@@ -647,7 +657,7 @@ static void test_tab_switching_skips_hidden_tabs(void) {
 
     gboolean handled = handle_tab_switching(&event, &app);
     ASSERT_TRUE("tab switch handled with hidden tabs", handled == TRUE);
-    ASSERT_TRUE("forward skips hidden to apps", app.current_tab == TAB_APPS);
+    ASSERT_TRUE("forward skips hidden to apps", app.current_tab == TEST_APPS_TAB);
 
     handled = handle_tab_switching(&event, &app);
     ASSERT_TRUE("tab switch wraps pinned tabs", handled == TRUE);

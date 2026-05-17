@@ -25,6 +25,7 @@ static int g_switch_to_tab_calls;
 static int g_surface_tab_calls;
 
 #define TEST_MODAL_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 2))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -80,7 +81,7 @@ static void setup_app(AppData *app) {
     app->entry = gtk_entry_new();
     app->mode_indicator = gtk_label_new(">");
     app->current_tab = TAB_WINDOWS;
-    app->prefix_origin_tab = TAB_APPS;
+    app->prefix_origin_tab = TEST_APPS_TAB;
     app->tab_visibility[TAB_WINDOWS] = TAB_VIS_PINNED;
     app->tab_visibility[TEST_MODAL_TAB] = TAB_VIS_HIDDEN;
     app->window_visible = TRUE;

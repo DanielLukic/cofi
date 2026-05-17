@@ -62,6 +62,7 @@ static SessionFolder g_stub_selected_folder;
 static gboolean g_stub_has_selected_folder;
 
 #define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 2))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -151,6 +152,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
+TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 void move_selection_up(AppData *app) { (void)app; }

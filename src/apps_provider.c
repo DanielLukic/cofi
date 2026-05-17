@@ -12,6 +12,12 @@
 #include <gtk/gtk.h>
 
 static CofiTabProvider s_apps_provider;
+static int s_apps_provider_id = -1;
+
+TabMode apps_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_apps_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
 
 static int apps_row_count(AppData *app) {
     if (!app) return 0;
@@ -110,7 +116,7 @@ static gboolean apps_command_handler(AppData *app,
     exit_command_mode(app);
     app->prefix_origin_tab = app->current_tab;
     apps_on_surface(app);
-    surface_tab(app, (TabMode)s_apps_provider.tab_mode);
+    surface_tab(app, apps_tab_mode());
     return FALSE;
 }
 
@@ -139,7 +145,7 @@ static const CommandSpec s_apps_command = {
 
 void apps_provider_register(void) {
     cofi_init_provider_defaults(&s_apps_provider);
-    s_apps_provider.tab_mode = TAB_APPS;
+    s_apps_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_apps_provider.id = "apps";
     s_apps_provider.display_name = "APPS";
     s_apps_provider.required = 0;
@@ -154,7 +160,8 @@ void apps_provider_register(void) {
     s_apps_provider.on_surface = apps_on_surface;
     s_apps_provider.on_query_changed = apps_on_query_changed;
     s_apps_provider.on_enter_pressed = apps_on_enter_pressed;
-    if (cofi_register_tab_provider(&s_apps_provider) >= 0) {
+    s_apps_provider_id = cofi_register_tab_provider(&s_apps_provider);
+    if (s_apps_provider_id >= 0) {
         cofi_register_command(&s_apps_command);
     }
 }

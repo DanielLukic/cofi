@@ -44,6 +44,7 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
 
 #define TEST_SINKS_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 2))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -83,6 +84,7 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix;
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return g_provider_for_tab; }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return 0; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
+TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 
 static const char *test_sink_slot_payload(AppData *app, int raw_idx) {
     (void)app; (void)raw_idx;

@@ -368,6 +368,7 @@ int run_cofi(int argc, char *argv[]) {
 
     load_config(&app.config);
     cofi_apply_disabled_providers(app.config.disabled_providers);
+    apply_provider_default_visibility(&app);
     if (app.current_tab != TAB_WINDOWS && !cofi_get_provider_for_tab(app.current_tab)) {
         app.current_tab = TAB_WINDOWS;
     }

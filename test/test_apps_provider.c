@@ -32,6 +32,8 @@ static gboolean g_path_scanning;
 static char g_last_filter_query[64];
 static char g_last_path_query[64];
 static const AppEntry *g_last_launched_app;
+static CofiTabProvider g_registered_provider;
+static int g_registered_provider_id;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -90,8 +92,15 @@ void cofi_init_provider_defaults(CofiTabProvider *p) {
 }
 
 int cofi_register_tab_provider(const CofiTabProvider *p) {
-    (void)p;
-    return 0;
+    if (!p) return -1;
+    g_registered_provider = *p;
+    g_registered_provider.tab_mode = TAB_COUNT + 1;
+    g_registered_provider_id = 0;
+    return g_registered_provider_id;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    return provider_id == g_registered_provider_id ? &g_registered_provider : NULL;
 }
 
 int cofi_register_command(const CommandSpec *spec) {
@@ -115,6 +124,8 @@ static void reset_state(AppData *app) {
     g_last_filter_query[0] = '\0';
     g_last_path_query[0] = '\0';
     g_last_launched_app = NULL;
+    memset(&g_registered_provider, 0, sizeof(g_registered_provider));
+    g_registered_provider_id = -1;
 }
 
 static void test_no_match_row(void) {
@@ -192,6 +203,7 @@ static void test_command_metadata(void) {
     reset_state(&app);
     apps_provider_register();
 
+    ASSERT_TRUE("apps provider uses dynamic tab", g_registered_provider.tab_mode >= TAB_COUNT);
     ASSERT_TRUE("apps command primary",
                 strcmp(s_apps_command.primary, "apps") == 0);
     ASSERT_TRUE("apps alias applications",
@@ -218,7 +230,7 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("apps command returns false", result == FALSE);
     ASSERT_TRUE("apps command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("apps command surfaces Apps tab",
-                g_surface_tab_calls == 1 && g_last_surface_tab == TAB_APPS);
+                g_surface_tab_calls == 1 && g_last_surface_tab == (TabMode)g_registered_provider.tab_mode);
     ASSERT_TRUE("apps command records origin", app.prefix_origin_tab == TAB_WINDOWS);
     ASSERT_TRUE("apps command resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
 }

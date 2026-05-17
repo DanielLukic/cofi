@@ -31,6 +31,8 @@ static int g_switch_name_calls;
 static char g_last_switch_name[MAX_SINK_NAME_LEN];
 static gboolean g_switch_result = TRUE;
 
+#define TEST_APPS_TAB ((TabMode)(TAB_COUNT + 2))
+
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
     (void)file;
@@ -150,7 +152,7 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
     const CofiTabProvider *provider = registered_sinks_provider();
     setup_app(&app);
-    app.current_tab = TAB_APPS;
+    app.current_tab = TEST_APPS_TAB;
     reset_capture();
 
     gboolean result = s_sinks_command.handler(&app, NULL, "");
@@ -160,7 +162,7 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     ASSERT_TRUE("sinks command without args surfaces once", g_surface_tab_calls == 1);
     ASSERT_TRUE("sinks command without args surfaces sinks tab",
                 provider && g_last_surface_tab == (TabMode)provider->tab_mode);
-    ASSERT_TRUE("sinks command without args records origin tab", app.prefix_origin_tab == TAB_APPS);
+    ASSERT_TRUE("sinks command without args records origin tab", app.prefix_origin_tab == TEST_APPS_TAB);
     ASSERT_TRUE("sinks command without args does not hide", g_hide_window_calls == 0);
     teardown_app(&app);
 }
