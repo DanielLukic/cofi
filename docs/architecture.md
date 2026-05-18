@@ -158,4 +158,4 @@ These are the rules that don't live in any one file but must hold across the sys
 - **Build:** `mise run build` wraps `make` (incremental, header deps via `-MMD -MP` in `.d` files). After header changes, `mise run rebuild` because the dep tracking is partial.
 - **Test:** `mise run test` wraps `make test`, which builds and runs 70 standalone test binaries from `test/test_*.c`. Each test links specific `src/*.o` files plus stubs for cross-cutting deps it doesn't exercise.
 - **CI:** `.github/workflows/build.yml` runs `make` + `make test` on every push.
-- **Pre-push hook:** `scripts/hooks/pre-push` runs `make test` locally so a Git hook does not require mise; install via `bash scripts/install-hooks.sh`.
+- **Pre-push hook:** `scripts/hooks/pre-push` checks out each pushed ref tip in a temporary detached worktree and runs `make test` there, so the tested tree matches the ref being pushed without requiring mise; install via `bash scripts/install-hooks.sh`.

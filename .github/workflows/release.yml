@@ -16,12 +16,12 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libx11-dev build-essential
+        sudo apt-get install -y libgtk-3-dev libx11-dev libjson-glib-dev build-essential
     
     - name: Build release binary
       run: |
         make clean
-        make BUILD_NUMBER=${{ github.run_number }} CFLAGS="-O2 -Wall -Wextra $(pkg-config --cflags gtk+-3.0 x11) -DBUILD_NUMBER=${{ github.run_number }}"
+        make BUILD_NUMBER=${{ github.run_number }} CFLAGS="-O2 -Wall -Wextra -Wno-deprecated-declarations -MMD -MP $(pkg-config --cflags gtk+-3.0 x11 gio-2.0 json-glib-1.0) -DBUILD_NUMBER=${{ github.run_number }}"
         strip cofi
     
     - name: Get version

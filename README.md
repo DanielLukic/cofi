@@ -26,13 +26,14 @@ COFI is a fast window switcher for X11 Linux desktops, written in C with GTK3. I
 
 - GTK3 development libraries
 - X11 development libraries  
+- JSON-GLib development libraries
 - GNU Make
 - GCC
 
 On Debian/Ubuntu:
 
 ```bash
-sudo apt install libgtk-3-dev libx11-dev build-essential
+sudo apt install libgtk-3-dev libx11-dev libjson-glib-dev build-essential
 ```
 
 ### Compilation

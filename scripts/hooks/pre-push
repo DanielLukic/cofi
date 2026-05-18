@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cofi pre-push hook: run the test suite before letting a push out.
+# cofi pre-push hook: run the test suite for pushed ref tips.
 # Install via: bash scripts/install-hooks.sh
 set -euo pipefail
 
@@ -8,25 +8,76 @@ cd "$repo_root"
 
 zero_sha="0000000000000000000000000000000000000000"
 ref_count=0
-has_non_delete_ref=0
+commits=()
+worktrees=()
+tmp_root=""
+
+cleanup() {
+    local wt
+    for wt in "${worktrees[@]}"; do
+        git -C "$repo_root" worktree remove --force "$wt" >/dev/null 2>&1 || true
+    done
+    if [[ -n "$tmp_root" ]]; then
+        rmdir "$tmp_root" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup EXIT
+
+has_commit() {
+    local commit="$1"
+    local existing
+    for existing in "${commits[@]}"; do
+        if [[ "$existing" == "$commit" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 while read -r local_ref local_sha remote_ref remote_sha; do
     ref_count=$((ref_count + 1))
-    if [[ "$local_sha" != "$zero_sha" ]]; then
-        has_non_delete_ref=1
+    if [[ "$local_sha" == "$zero_sha" ]]; then
+        continue
+    fi
+
+    if ! commit="$(git rev-parse --verify --quiet "${local_sha}^{commit}")"; then
+        echo "[pre-push] skipping non-commit ref $local_ref ($local_sha)"
+        continue
+    fi
+    if ! has_commit "$commit"; then
+        commits+=("$commit")
     fi
 done
 
-if [[ "$ref_count" -gt 0 && "$has_non_delete_ref" -eq 0 ]]; then
+if [[ "$ref_count" -gt 0 && "${#commits[@]}" -eq 0 ]]; then
     echo "[pre-push] delete-only push; skipping make test"
     exit 0
 fi
 
-echo "[pre-push] make test"
-if ! make test >/tmp/cofi-pre-push.log 2>&1; then
-    echo "[pre-push] FAILED — see /tmp/cofi-pre-push.log" >&2
-    tail -40 /tmp/cofi-pre-push.log >&2
-    echo "[pre-push] push aborted. Fix tests, or bypass with --no-verify (discouraged)." >&2
-    exit 1
+if [[ "${#commits[@]}" -eq 0 ]]; then
+    echo "[pre-push] no refs on stdin; testing HEAD"
+    commits=("$(git rev-parse --verify HEAD)")
 fi
-echo "[pre-push] tests passed"
+
+tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/cofi-pre-push.XXXXXX")"
+
+for commit in "${commits[@]}"; do
+    short_sha="$(git rev-parse --short "$commit")"
+    worktree="$tmp_root/$short_sha"
+    log_file="${TMPDIR:-/tmp}/cofi-pre-push-$short_sha.log"
+
+    echo "[pre-push] checking out $short_sha in temporary worktree"
+    git worktree add --detach --quiet "$worktree" "$commit"
+    worktrees+=("$worktree")
+
+    echo "[pre-push] make test ($short_sha)"
+    if ! (cd "$worktree" && make test) >"$log_file" 2>&1; then
+        echo "[pre-push] FAILED for $short_sha — see $log_file" >&2
+        tail -40 "$log_file" >&2
+        echo "[pre-push] push aborted. Fix tests, or bypass with --no-verify (discouraged)." >&2
+        exit 1
+    fi
+    rm -f "$log_file"
+done
+
+echo "[pre-push] tests passed for ${#commits[@]} pushed ref tip(s)"

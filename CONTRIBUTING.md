@@ -41,7 +41,7 @@ Body explains *why*, not *what* — well-named code already shows the what.
 
 ## Pull requests
 
-1. Run `make test` locally (the pre-push hook will run it again).
+1. Run `make test` locally (the pre-push hook will run it again in a temporary worktree for the ref tip being pushed).
 2. Push the branch — GitHub Actions runs the `Build` workflow (compile + `make test`) on every push.
 3. Open a PR targeting `develop`. Include a short summary and a test plan.
 4. Wait for the maintainer to review and merge. Don't self-merge.
