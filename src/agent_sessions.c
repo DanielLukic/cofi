@@ -27,6 +27,9 @@ static unsigned int term_mask_for_text(const AgentSessionQuery *query,
                                        const char *fallback);
 static unsigned int metadata_mask_for_result(const AgentSessionQuery *query,
                                              const AgentSessionResult *result);
+static gboolean codex_thread_id_from_session(const char *session_id,
+                                             char *out,
+                                             size_t out_size);
 
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
@@ -249,6 +252,30 @@ int agent_sessions_extract_name_metadata(const char *line, char *out, size_t out
                 }
             }
         }
+        if (g_strcmp0(type, "event_msg") == 0 &&
+            json_object_has_member(obj, "payload")) {
+            JsonNode *payload = json_object_get_member(obj, "payload");
+            if (payload && JSON_NODE_HOLDS_OBJECT(payload)) {
+                JsonObject *payload_obj = json_node_get_object(payload);
+                const char *payload_type = NULL;
+                if (json_object_has_member(payload_obj, "type")) {
+                    JsonNode *node = json_object_get_member(payload_obj, "type");
+                    if (node && JSON_NODE_HOLDS_VALUE(node)) {
+                        payload_type = json_node_get_string(node);
+                    }
+                }
+                if (g_strcmp0(payload_type, "thread_name_updated") == 0 &&
+                    json_object_has_member(payload_obj, "thread_name")) {
+                    JsonNode *node = json_object_get_member(payload_obj, "thread_name");
+                    if (node && JSON_NODE_HOLDS_VALUE(node)) {
+                        const char *name = json_node_get_string(node);
+                        if (name && name[0] != '\0') {
+                            g_strlcpy(out, name, out_size);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     g_object_unref(parser);
@@ -434,7 +461,17 @@ gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
     g_strlcpy(cwd, result->cwd, sizeof(cwd));
     fill_cwd_from_session_file(result->path, cwd, sizeof(cwd));
 
-    gchar *quoted_session = g_shell_quote(result->session_id);
+    char resume_id[AGENT_SESSION_ID_LEN];
+    g_strlcpy(resume_id, result->session_id, sizeof(resume_id));
+    if (strcmp(result->source, "codex") == 0) {
+        char thread_id[AGENT_SESSION_ID_LEN];
+        if (codex_thread_id_from_session(result->session_id,
+                                         thread_id, sizeof(thread_id))) {
+            g_strlcpy(resume_id, thread_id, sizeof(resume_id));
+        }
+    }
+
+    gchar *quoted_session = g_shell_quote(resume_id);
     gchar *command = g_strdup_printf("%s %s %s", binary, resume_verb, quoted_session);
     if (cwd[0] != '\0' && g_file_test(cwd, G_FILE_TEST_IS_DIR)) {
         gchar *quoted_cwd = g_shell_quote(cwd);
@@ -487,6 +524,41 @@ static gboolean path_allowed_for_claude_rename(const char *path) {
     return allowed;
 }
 
+static gboolean path_allowed_for_codex_rename(const char *path) {
+    if (!path || !g_str_has_suffix(path, ".jsonl")) return FALSE;
+    gchar *canonical = g_canonicalize_filename(path, NULL);
+    gchar *codex_root = home_path(".codex", "sessions");
+    gboolean allowed = path_is_under_dir(canonical, codex_root);
+    g_free(canonical);
+    g_free(codex_root);
+    return allowed;
+}
+
+static gboolean uuidish(const char *text) {
+    if (!text || strlen(text) != 36) return FALSE;
+    for (int i = 0; i < 36; i++) {
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (text[i] != '-') return FALSE;
+        } else if (!g_ascii_isxdigit((guchar)text[i])) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+static gboolean codex_thread_id_from_session(const char *session_id,
+                                             char *out,
+                                             size_t out_size) {
+    if (!out || out_size == 0) return FALSE;
+    out[0] = '\0';
+    if (!session_id) return FALSE;
+    size_t len = strlen(session_id);
+    const char *candidate = len >= 36 ? session_id + len - 36 : session_id;
+    if (!uuidish(candidate)) return FALSE;
+    g_strlcpy(out, candidate, out_size);
+    return TRUE;
+}
+
 static gchar *build_name_record(const char *type,
                                 const char *field,
                                 const char *name,
@@ -499,6 +571,44 @@ static gchar *build_name_record(const char *type,
     json_builder_add_string_value(builder, name);
     json_builder_set_member_name(builder, "sessionId");
     json_builder_add_string_value(builder, session_id);
+    json_builder_end_object(builder);
+
+    JsonNode *root = json_builder_get_root(builder);
+    JsonGenerator *generator = json_generator_new();
+    json_generator_set_root(generator, root);
+    gchar *json = json_generator_to_data(generator, NULL);
+
+    g_object_unref(generator);
+    json_node_free(root);
+    g_object_unref(builder);
+    return json;
+}
+
+static gchar *build_codex_name_record(const char *thread_id, const char *name) {
+    time_t now = time(NULL);
+    struct tm utc_tm;
+    char timestamp[32];
+    if (!gmtime_r(&now, &utc_tm) ||
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ",
+                 &utc_tm) == 0) {
+        g_strlcpy(timestamp, "1970-01-01T00:00:00Z", sizeof(timestamp));
+    }
+
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "timestamp");
+    json_builder_add_string_value(builder, timestamp);
+    json_builder_set_member_name(builder, "type");
+    json_builder_add_string_value(builder, "event_msg");
+    json_builder_set_member_name(builder, "payload");
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "type");
+    json_builder_add_string_value(builder, "thread_name_updated");
+    json_builder_set_member_name(builder, "thread_id");
+    json_builder_add_string_value(builder, thread_id);
+    json_builder_set_member_name(builder, "thread_name");
+    json_builder_add_string_value(builder, name);
+    json_builder_end_object(builder);
     json_builder_end_object(builder);
 
     JsonNode *root = json_builder_get_root(builder);
@@ -545,6 +655,35 @@ static gboolean write_claude_name_records(const char *path,
     return ok;
 }
 
+static gboolean write_codex_name_record(const char *path,
+                                        const char *session_id,
+                                        const char *name) {
+    char thread_id[AGENT_SESSION_ID_LEN];
+    if (!path || !session_id || !name || name[0] == '\0' ||
+        !codex_thread_id_from_session(session_id, thread_id, sizeof(thread_id))) {
+        return FALSE;
+    }
+
+    gchar *record = build_codex_name_record(thread_id, name);
+    FILE *file = fopen(path, "a");
+    if (!file) {
+        log_warn("Failed to open Codex session for rename '%s': %s",
+                 path, g_strerror(errno));
+        g_free(record);
+        return FALSE;
+    }
+
+    gboolean ok = fprintf(file, "%s\n", record) > 0;
+    if (fclose(file) != 0) {
+        ok = FALSE;
+    }
+    g_free(record);
+    if (!ok) {
+        log_warn("Failed to append Codex session name record to '%s'", path);
+    }
+    return ok;
+}
+
 gboolean agent_sessions_delete_path(const char *path) {
     if (!path_allowed_for_delete(path)) {
         log_warn("Refusing to delete non-agent-session path: %s", path ? path : "(null)");
@@ -566,17 +705,25 @@ gboolean agent_sessions_rename_result(const AgentSessionResult *result,
                                       const char *name) {
     char trimmed[AGENT_SESSION_NAME_LEN];
     copy_trimmed(trimmed, sizeof(trimmed), name ? name : "", strlen(name ? name : ""));
-    if (!result || strcmp(result->source, "claude") != 0 ||
-        strcmp(result->session_id, "history") == 0 ||
-        trimmed[0] == '\0' ||
-        !path_allowed_for_claude_rename(result->path)) {
+    if (!result || strcmp(result->session_id, "history") == 0 ||
+        trimmed[0] == '\0') {
         return FALSE;
     }
-    if (!write_claude_name_records(result->path, result->session_id, trimmed)) {
+    if (strcmp(result->source, "claude") == 0) {
+        if (!path_allowed_for_claude_rename(result->path) ||
+            !write_claude_name_records(result->path, result->session_id, trimmed)) {
+            return FALSE;
+        }
+    } else if (strcmp(result->source, "codex") == 0) {
+        if (!path_allowed_for_codex_rename(result->path) ||
+            !write_codex_name_record(result->path, result->session_id, trimmed)) {
+            return FALSE;
+        }
+    } else {
         return FALSE;
     }
-    log_info("Renamed Claude agent session '%s' to '%s'",
-             result->session_id, trimmed);
+    log_info("Renamed %s agent session '%s' to '%s'",
+             result->source, result->session_id, trimmed);
     return TRUE;
 }
 
@@ -620,6 +767,12 @@ gboolean agent_sessions_write_claude_name_records_for_test(const char *path,
                                                            const char *session_id,
                                                            const char *name) {
     return write_claude_name_records(path, session_id, name);
+}
+
+gboolean agent_sessions_write_codex_name_record_for_test(const char *path,
+                                                         const char *session_id,
+                                                         const char *name) {
+    return write_codex_name_record(path, session_id, name);
 }
 #endif
 

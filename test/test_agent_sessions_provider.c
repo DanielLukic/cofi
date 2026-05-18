@@ -177,6 +177,14 @@ static void seed_codex_result(void) {
     agent_sessions_ingest_match_for_test(
         &s_agent_sessions_mode,
         "/home/user/.codex/sessions/2026/05/18/abc.jsonl",
+        "{\"timestamp\":\"2026-05-18T09:00:00Z\","
+        "\"type\":\"event_msg\","
+        "\"payload\":{\"type\":\"thread_name_updated\","
+        "\"thread_id\":\"019d86e4-179d-7360-9bac-b66fafe6361c\","
+        "\"thread_name\":\"Codex Marco\"}}");
+    agent_sessions_ingest_match_for_test(
+        &s_agent_sessions_mode,
+        "/home/user/.codex/sessions/2026/05/18/abc.jsonl",
         "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\","
         "\"content\":[{\"type\":\"input_text\",\"text\":\"marco alpha\"}]}}");
 }
@@ -289,7 +297,7 @@ static void test_enter_launches_selected_session(void) {
                 strstr(g_last_launch_command, "claude --resume 'abc'") != NULL);
 }
 
-static void test_ctrl_e_opens_rename_overlay_for_claude(void) {
+static void test_ctrl_r_opens_rename_overlay_for_claude(void) {
     AppData app;
     reset_state(&app);
     agent_sessions_provider_register();
@@ -299,11 +307,11 @@ static void test_ctrl_e_opens_rename_overlay_for_claude(void) {
 
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
-    event.keyval = GDK_KEY_e;
+    event.keyval = GDK_KEY_r;
     event.state = GDK_CONTROL_MASK;
     gboolean handled = g_registered_provider.handle_key(&event, &app);
 
-    ASSERT_TRUE("Ctrl+E opens rename overlay", handled == TRUE);
+    ASSERT_TRUE("Ctrl+R opens rename overlay", handled == TRUE);
     ASSERT_TRUE("rename overlay called", g_rename_overlay_calls == 1);
     ASSERT_TRUE("rename overlay receives path",
                 strcmp(g_last_rename_path,
@@ -312,7 +320,7 @@ static void test_ctrl_e_opens_rename_overlay_for_claude(void) {
                 strcmp(g_last_rename_name, "Marco Thread") == 0);
 }
 
-static void test_ctrl_e_ignores_codex_until_supported(void) {
+static void test_ctrl_r_opens_rename_overlay_for_codex(void) {
     AppData app;
     reset_state(&app);
     agent_sessions_provider_register();
@@ -322,12 +330,17 @@ static void test_ctrl_e_ignores_codex_until_supported(void) {
 
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
-    event.keyval = GDK_KEY_e;
+    event.keyval = GDK_KEY_r;
     event.state = GDK_CONTROL_MASK;
     gboolean handled = g_registered_provider.handle_key(&event, &app);
 
-    ASSERT_TRUE("Ctrl+E ignores codex", handled == FALSE);
-    ASSERT_TRUE("rename overlay not called", g_rename_overlay_calls == 0);
+    ASSERT_TRUE("Ctrl+R opens codex rename overlay", handled == TRUE);
+    ASSERT_TRUE("codex rename overlay called", g_rename_overlay_calls == 1);
+    ASSERT_TRUE("codex rename overlay receives path",
+                strcmp(g_last_rename_path,
+                       "/home/user/.codex/sessions/2026/05/18/abc.jsonl") == 0);
+    ASSERT_TRUE("codex rename overlay receives current name",
+                strcmp(g_last_rename_name, "Codex Marco") == 0);
 }
 
 static void test_status_row_does_not_open_overlay(void) {
@@ -360,6 +373,40 @@ static void test_remove_path_refreshes_provider_surface(void) {
     ASSERT_TRUE("display updated", g_update_display_calls == 1);
 }
 
+static void test_rename_preserves_selected_session_after_reorder(void) {
+    AppData app;
+    reset_state(&app);
+    agent_sessions_provider_register();
+    app.selection.provider_index = 1;
+    agent_sessions_parse_query("selectedname", &s_agent_sessions_mode.query);
+    const char *selected_path =
+        "/home/user/.claude/projects/-home-user-Projects-zzz/selected.jsonl";
+
+    agent_sessions_ingest_match_for_test(
+        &s_agent_sessions_mode,
+        "/home/user/.claude/projects/-home-user-Projects-aaa/other.jsonl",
+        "{\"type\":\"user\",\"message\":{\"content\":\"selectedname other\"}}");
+    agent_sessions_ingest_match_for_test(
+        &s_agent_sessions_mode,
+        selected_path,
+        "{\"type\":\"user\",\"message\":{\"content\":\"selectedname chosen\"}}");
+
+    const AgentSessionResult *before =
+        agent_sessions_result_at(&s_agent_sessions_mode, app.selection.provider_index);
+    ASSERT_TRUE("selected row starts on chosen session",
+                before && strcmp(before->path, selected_path) == 0);
+
+    agent_sessions_provider_rename_path(&app, selected_path, "selectedname renamed");
+
+    const AgentSessionResult *after =
+        agent_sessions_result_at(&s_agent_sessions_mode, app.selection.provider_index);
+    ASSERT_TRUE("rename preserves selected session after reorder",
+                after && strcmp(after->path, selected_path) == 0);
+    ASSERT_TRUE("renamed session moved to top", app.selection.provider_index == 0);
+    ASSERT_TRUE("scroll updated once", g_update_scroll_calls == 1);
+    ASSERT_TRUE("display updated once", g_update_display_calls == 1);
+}
+
 int main(void) {
     printf("Agent sessions provider tests\n");
     printf("=============================\n\n");
@@ -370,10 +417,11 @@ int main(void) {
     test_row_uses_session_metadata_columns();
     test_row_hides_duplicate_title_snippet();
     test_enter_launches_selected_session();
-    test_ctrl_e_opens_rename_overlay_for_claude();
-    test_ctrl_e_ignores_codex_until_supported();
+    test_ctrl_r_opens_rename_overlay_for_claude();
+    test_ctrl_r_opens_rename_overlay_for_codex();
     test_status_row_does_not_open_overlay();
     test_remove_path_refreshes_provider_surface();
+    test_rename_preserves_selected_session_after_reorder();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

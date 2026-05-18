@@ -107,6 +107,20 @@ static void test_extract_claude_session_name_metadata(void) {
     ASSERT_STR("agent name", name, "Pascal");
 }
 
+static void test_extract_codex_session_name_metadata(void) {
+    char name[AGENT_SESSION_NAME_LEN];
+
+    ASSERT_TRUE("extract codex thread name",
+                agent_sessions_extract_name_metadata(
+                    "{\"timestamp\":\"2026-05-18T09:00:00Z\","
+                    "\"type\":\"event_msg\","
+                    "\"payload\":{\"type\":\"thread_name_updated\","
+                    "\"thread_id\":\"019d86e4-179d-7360-9bac-b66fafe6361c\","
+                    "\"thread_name\":\"Marco Thread\"}}",
+                    name, sizeof(name)));
+    ASSERT_STR("codex thread name", name, "Marco Thread");
+}
+
 static void test_group_requires_all_terms_across_lines(void) {
     AgentSessionsMode mode;
     agent_sessions_init(&mode);
@@ -374,6 +388,37 @@ static void test_write_claude_name_records_escapes_json(void) {
     unlink(path);
 }
 
+static void test_write_codex_name_record_escapes_json(void) {
+    char path[] = "/tmp/cofi-agent-session-codex-name-XXXXXX";
+    int fd = mkstemp(path);
+    ASSERT_TRUE("create temp codex name session", fd >= 0);
+    if (fd < 0) return;
+    close(fd);
+
+    ASSERT_TRUE("write codex name record",
+                agent_sessions_write_codex_name_record_for_test(
+                    path,
+                    "rollout-2026-04-13T14-49-48-019d86e4-179d-7360-9bac-b66fafe6361c",
+                    "Plan \"B\""));
+
+    gchar *content = NULL;
+    gsize len = 0;
+    ASSERT_TRUE("read temp codex name session",
+                g_file_get_contents(path, &content, &len, NULL));
+    ASSERT_TRUE("writes codex event type",
+                strstr(content, "\"type\":\"event_msg\"") != NULL);
+    ASSERT_TRUE("writes codex thread name update",
+                strstr(content, "\"type\":\"thread_name_updated\"") != NULL);
+    ASSERT_TRUE("writes codex thread id",
+                strstr(content,
+                       "\"thread_id\":\"019d86e4-179d-7360-9bac-b66fafe6361c\"") != NULL);
+    ASSERT_TRUE("escapes codex quotes",
+                strstr(content, "Plan \\\"B\\\"") != NULL);
+
+    g_free(content);
+    unlink(path);
+}
+
 static void test_build_claude_resume_command(void) {
     AgentSessionResult result = {0};
     g_strlcpy(result.source, "claude", sizeof(result.source));
@@ -412,6 +457,21 @@ static void test_build_codex_resume_command(void) {
                 agent_sessions_build_resume_command(&result, command, sizeof(command)));
     ASSERT_STR("codex resume command", command,
                "cd '/home/user/Projects/cofi' && codex resume '019d3573-7342-7b43-85b0-c999341c4ba5'");
+}
+
+static void test_build_codex_resume_command_uses_rollout_uuid(void) {
+    AgentSessionResult result = {0};
+    g_strlcpy(result.source, "codex", sizeof(result.source));
+    g_strlcpy(result.cwd, "/home/user/Projects/cofi", sizeof(result.cwd));
+    g_strlcpy(result.session_id,
+              "rollout-2026-04-13T14-49-48-019d86e4-179d-7360-9bac-b66fafe6361c",
+              sizeof(result.session_id));
+    char command[AGENT_SESSION_COMMAND_LEN];
+
+    ASSERT_TRUE("build codex rollout resume command",
+                agent_sessions_build_resume_command(&result, command, sizeof(command)));
+    ASSERT_STR("codex rollout resume command uses uuid", command,
+               "cd '/home/user/Projects/cofi' && codex resume '019d86e4-179d-7360-9bac-b66fafe6361c'");
 }
 
 static void test_build_codex_resume_command_reads_cwd_from_file(void) {
@@ -503,6 +563,7 @@ int main(void) {
     test_extract_codex_payload_text();
     test_extract_claude_string_array_text();
     test_extract_claude_session_name_metadata();
+    test_extract_codex_session_name_metadata();
     test_group_requires_all_terms_across_lines();
     test_project_label_uses_basename_outside_projects();
     test_claude_subagent_hits_collapse_to_parent_session();
@@ -517,9 +578,11 @@ int main(void) {
     test_rg_argv_excludes_history_files();
     test_ingest_caps_hit_count_per_session();
     test_write_claude_name_records_escapes_json();
+    test_write_codex_name_record_escapes_json();
     test_build_claude_resume_command();
     test_resume_command_skips_stale_cwd();
     test_build_codex_resume_command();
+    test_build_codex_resume_command_uses_rollout_uuid();
     test_build_codex_resume_command_reads_cwd_from_file();
     test_launch_result_uses_terminal_launcher();
     test_delete_result_rejects_unknown_path();

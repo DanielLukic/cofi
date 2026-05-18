@@ -449,7 +449,7 @@ run_agent_sessions_rename_key() {
     xdotool type --clearmodifiers "alpha"
     wait_for_log_line "Agent sessions search complete: 1 matching sessions" "agent session search"
 
-    xdotool key ctrl+e
+    xdotool key ctrl+r
     sleep 0.2
     xdotool type --clearmodifiers "Renamed Agent Session"
     xdotool key Return
@@ -462,7 +462,7 @@ run_agent_sessions_rename_key() {
         fi
         sleep 0.1
     done
-    fail "$CASE_NAME: Ctrl+E rename did not append Claude name records"
+    fail "$CASE_NAME: Ctrl+R rename did not append Claude name records"
 }
 
 run_case() (

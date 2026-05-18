@@ -38,6 +38,21 @@ static const AgentSessionResult *agent_session_at_row(int raw_idx) {
     return agent_sessions_result_at(&s_agent_sessions_mode, raw_idx);
 }
 
+static void agent_sessions_select_path(AppData *app, const char *path) {
+    if (!app || !path || path[0] == '\0') return;
+    for (int i = 0; i < s_agent_sessions_mode.filtered_count; i++) {
+        const AgentSessionResult *result =
+            agent_sessions_result_at(&s_agent_sessions_mode, i);
+        if (result && strcmp(result->path, path) == 0) {
+            app->selection.provider_index = i;
+            update_scroll_position(app);
+            return;
+        }
+    }
+    validate_selection(app);
+    update_scroll_position(app);
+}
+
 static void agent_sessions_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     (void)app;
     const AgentSessionResult *result = agent_session_at_row(raw_idx);
@@ -136,8 +151,7 @@ void agent_sessions_provider_rename_path(AppData *app,
     if (!path || path[0] == '\0' || !name) return;
     agent_sessions_rename_path(&s_agent_sessions_mode, path, name);
     if (app) {
-        validate_selection(app);
-        update_scroll_position(app);
+        agent_sessions_select_path(app, path);
         update_display(app);
     }
 }
@@ -149,7 +163,7 @@ static gboolean agent_sessions_handle_key(GdkEventKey *event, AppData *app) {
 
     gboolean rename_key =
         (event->state & GDK_CONTROL_MASK) &&
-        (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E);
+        (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R);
     gboolean delete_key =
         event->keyval == GDK_KEY_Delete ||
         event->keyval == GDK_KEY_KP_Delete ||
@@ -165,7 +179,8 @@ static gboolean agent_sessions_handle_key(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
     if (rename_key) {
-        if (strcmp(result->source, "claude") != 0 ||
+        if ((strcmp(result->source, "claude") != 0 &&
+             strcmp(result->source, "codex") != 0) ||
             strcmp(result->session_id, "history") == 0) {
             return FALSE;
         }
@@ -208,7 +223,7 @@ void agent_sessions_provider_register(void) {
     s_agent_sessions_provider.id = "agent-sessions";
     s_agent_sessions_provider.display_name = "AGENTS";
     s_agent_sessions_provider.shortcut_hint =
-        "Search: terms | refine   Enter=Resume  Ctrl+E=Rename Claude  Ctrl+D/Delete=Delete";
+        "Search: terms | refine   Enter=Resume  Ctrl+R=Rename  Ctrl+D/Delete=Delete";
     s_agent_sessions_provider.required = 0;
     s_agent_sessions_provider.hidden_by_default = 1;
     s_agent_sessions_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

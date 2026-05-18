@@ -94,6 +94,9 @@ void agent_sessions_set_launch_impl_for_test(AgentSessionsLaunchImpl launch_impl
 gboolean agent_sessions_write_claude_name_records_for_test(const char *path,
                                                            const char *session_id,
                                                            const char *name);
+gboolean agent_sessions_write_codex_name_record_for_test(const char *path,
+                                                         const char *session_id,
+                                                         const char *name);
 #endif
 
 int agent_sessions_parse_query(const char *input, AgentSessionQuery *out);

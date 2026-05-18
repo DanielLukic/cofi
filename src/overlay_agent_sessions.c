@@ -49,7 +49,7 @@ void create_agent_session_rename_overlay_content(GtkWidget *parent_container,
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title = gtk_label_new("Rename Claude Session");
+    GtkWidget *title = gtk_label_new("Rename Agent Session");
     gtk_widget_set_name(title, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
 
