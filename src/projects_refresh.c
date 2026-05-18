@@ -1,11 +1,11 @@
-#include "sessions.h"
+#include "projects.h"
 
 #include "app_data.h"
-#include "sessions_parse.h"
+#include "projects_parse.h"
 
 #include <gtk/gtk.h>
 
-static void refresh_tmux_backend(SessionsMode *mode) {
+static void refresh_tmux_backend(ProjectsMode *mode) {
     gchar *tmux = g_find_program_in_path("tmux");
     if (tmux) {
         gchar *argv[] = {
@@ -33,8 +33,8 @@ static void refresh_tmux_backend(SessionsMode *mode) {
             g_clear_error(&error);
         } else {
             char parse_error[256];
-            mode->session_count = sessions_parse_tmux_list(stdout_str, mode->sessions,
-                                                           MAX_SESSIONS,
+            mode->session_count = projects_parse_tmux_list(stdout_str, mode->projects,
+                                                           MAX_PROJECTS,
                                                            parse_error,
                                                            sizeof(parse_error));
             if (mode->session_count == 0) {
@@ -51,10 +51,10 @@ static void refresh_tmux_backend(SessionsMode *mode) {
     }
 }
 
-static void refresh_zellij_backend(SessionsMode *mode) {
+static void refresh_zellij_backend(ProjectsMode *mode) {
     gchar *zellij = g_find_program_in_path("zellij");
     if (!zellij) return;
-    if (mode->session_count >= MAX_SESSIONS) {
+    if (mode->session_count >= MAX_PROJECTS) {
         g_free(zellij);
         return;
     }
@@ -68,9 +68,9 @@ static void refresh_zellij_backend(SessionsMode *mode) {
                                     NULL, NULL, &stdout_str, NULL, &wait_status, &error);
     if (spawned && g_spawn_check_wait_status(wait_status, &error)) {
         char parse_error[256];
-        int added = sessions_parse_zellij_list(stdout_str,
-                                               mode->sessions + mode->session_count,
-                                               MAX_SESSIONS - mode->session_count,
+        int added = projects_parse_zellij_list(stdout_str,
+                                               mode->projects + mode->session_count,
+                                               MAX_PROJECTS - mode->session_count,
                                                parse_error, sizeof(parse_error));
         mode->session_count += added;
         if (added > 0) {
@@ -82,7 +82,7 @@ static void refresh_zellij_backend(SessionsMode *mode) {
     g_free(zellij);
 }
 
-static void refresh_zoxide_backend(SessionsMode *mode) {
+static void refresh_zoxide_backend(ProjectsMode *mode) {
     gchar *zoxide = g_find_program_in_path("zoxide");
     if (zoxide) {
         gchar *argv[] = {zoxide, "query", "-l", NULL};
@@ -94,8 +94,8 @@ static void refresh_zoxide_backend(SessionsMode *mode) {
                                         NULL, NULL, &stdout_str, NULL, &wait_status, &error);
         if (spawned && g_spawn_check_wait_status(wait_status, &error)) {
             char parse_error[256];
-            mode->folder_count = sessions_parse_zoxide_list(stdout_str, mode->folders,
-                                                            MAX_SESSION_FOLDERS,
+            mode->folder_count = projects_parse_zoxide_list(stdout_str, mode->folders,
+                                                            MAX_PROJECT_FOLDERS,
                                                             parse_error,
                                                             sizeof(parse_error));
         }
@@ -105,10 +105,10 @@ static void refresh_zoxide_backend(SessionsMode *mode) {
     }
 }
 
-void sessions_refresh(AppData *app) {
+void projects_refresh(AppData *app) {
     if (!app) return;
-    SessionsMode *mode = &app->sessions_mode;
-    sessions_clear_folders(mode->folders, mode->folder_count);
+    ProjectsMode *mode = &app->projects_mode;
+    projects_clear_folders(mode->folders, mode->folder_count);
     mode->session_count = 0;
     mode->folder_count = 0;
     mode->filtered_count = 0;
@@ -119,5 +119,5 @@ void sessions_refresh(AppData *app) {
     refresh_zoxide_backend(mode);
 
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
-    sessions_filter(app, query);
+    projects_filter(app, query);
 }

@@ -155,10 +155,10 @@ static void test_disabled_provider_command_candidates_are_hidden(void) {
         .owner_provider_id = "profiles",
         .handler = (CommandHandler)1,
     };
-    static const CommandSpec sessions_command = {
-        .primary = "sessions",
-        .aliases = {"tmux", "tx", "zj", "zellij", NULL},
-        .owner_provider_id = "sessions",
+    static const CommandSpec projects_command = {
+        .primary = "projects",
+        .aliases = {"project", "tmux", "tx", "zj", "zellij"},
+        .owner_provider_id = "projects",
         .handler = (CommandHandler)1,
     };
     CofiTabProvider provider;
@@ -174,24 +174,24 @@ static void test_disabled_provider_command_candidates_are_hidden(void) {
     cofi_register_command(&profiles_command);
 
     cofi_init_provider_defaults(&provider);
-    provider.id = "sessions";
+    provider.id = "projects";
     provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
-    int sessions_id = cofi_register_tab_provider(&provider);
-    cofi_register_command(&sessions_command);
+    int projects_id = cofi_register_tab_provider(&provider);
+    cofi_register_command(&projects_command);
 
     command_update_candidates(&cmd, "ch");
     ASSERT_TRUE("enabled profile alias appears", strip_has_candidate(&cmd, "chrome"));
 
     command_update_candidates(&cmd, "zj");
-    ASSERT_TRUE("enabled sessions alias appears", strip_has_candidate(&cmd, "zj"));
+    ASSERT_TRUE("enabled projects alias appears", strip_has_candidate(&cmd, "zj"));
 
     cofi_set_provider_enabled(profiles_id, 0);
     command_update_candidates(&cmd, "ch");
     ASSERT_TRUE("disabled profile alias hidden", !strip_has_candidate(&cmd, "chrome"));
 
-    cofi_set_provider_enabled(sessions_id, 0);
+    cofi_set_provider_enabled(projects_id, 0);
     command_update_candidates(&cmd, "zj");
-    ASSERT_TRUE("disabled sessions alias hidden", !strip_has_candidate(&cmd, "zj"));
+    ASSERT_TRUE("disabled projects alias hidden", !strip_has_candidate(&cmd, "zj"));
 }
 
 static void test_zzzz_hides(void) {

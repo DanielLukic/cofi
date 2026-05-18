@@ -60,14 +60,14 @@ SOURCES = src/main.c \
           src/sinks.c \
           src/proc.c \
           src/process_windows.c \
-          src/sessions.c \
-          src/sessions_refresh.c \
-          src/sessions_parse.c \
-          src/sessions_commands.c \
-          src/sessions_folder_windows.c \
-          src/sessions_window_env.c \
-          src/sessions_tmux_windows.c \
-          src/sessions_zellij_windows.c \
+          src/projects.c \
+          src/projects_refresh.c \
+          src/projects_parse.c \
+          src/projects_commands.c \
+          src/projects_folder_windows.c \
+          src/projects_window_env.c \
+          src/projects_tmux_windows.c \
+          src/projects_zellij_windows.c \
           src/system_actions.c \
           src/path_binaries.c \
           src/detach_launch.c \
@@ -94,7 +94,7 @@ SOURCES = src/main.c \
           src/overlay_name.c \
           src/overlay_rules.c \
           src/overlay_agent_sessions.c \
-          src/overlay_sessions.c \
+          src/overlay_projects.c \
           src/overlay_config.c \
           src/overlay_workspace.c \
           src/tiling_overlay.c \
@@ -132,7 +132,7 @@ SOURCES = src/main.c \
           src/sinks_provider.c \
           src/run_provider.c \
           src/proc_provider.c \
-          src/sessions_provider.c \
+          src/projects_provider.c \
           src/profiles_provider.c \
           src/cofi_modal.c \
           src/tinyexpr.c \
@@ -230,7 +230,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_hotkey_dispatch test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_workspaces_provider test_hotkeys_provider test_names_provider test_rules_provider test_agent_sessions test_agent_sessions_provider test_browser_profiles test_profiles_provider test_sinks test_sinks_provider test_proc test_proc_provider test_sessions test_sessions_provider test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_header test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_plugin_boundaries test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_hotkey_dispatch test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_workspaces_provider test_hotkeys_provider test_names_provider test_rules_provider test_agent_sessions test_agent_sessions_provider test_browser_profiles test_profiles_provider test_sinks test_sinks_provider test_proc test_proc_provider test_projects test_projects_provider test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_header test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_plugin_boundaries test_cofi_modal test_run_provider
 	cd test && ./run_tests.sh
 
 .PHONY: test-integration
@@ -366,14 +366,14 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_sessions_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/sessions_parse.o src/command_registry.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/names_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)
@@ -496,12 +496,12 @@ test_sinks_provider: test/test_sinks_provider.c
 test_proc_provider: test/test_proc_provider.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_proc_provider test/test_proc_provider.c $(LDFLAGS)
 
-# Build sessions tab parser and command tests
-test_sessions: test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o src/sessions_window_env.c src/sessions_window_env.h src/sessions_tmux_windows.c src/sessions_tmux_windows.h src/sessions_zellij_windows.c src/sessions_zellij_windows.h
-	$(CC) $(CFLAGS) -o test/test_sessions test/test_sessions.c src/sessions_parse.o src/sessions_commands.o src/sessions_folder_windows.o $(LDFLAGS)
+# Build projects tab parser and command tests
+test_projects: test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_folder_windows.o src/projects_window_env.c src/projects_window_env.h src/projects_tmux_windows.c src/projects_tmux_windows.h src/projects_zellij_windows.c src/projects_zellij_windows.h
+	$(CC) $(CFLAGS) -o test/test_projects test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_folder_windows.o $(LDFLAGS)
 
-test_sessions_provider: test/test_sessions_provider.c
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sessions_provider test/test_sessions_provider.c $(LDFLAGS)
+test_projects_provider: test/test_projects_provider.c
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c $(LDFLAGS)
 
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)

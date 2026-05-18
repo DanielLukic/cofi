@@ -38,7 +38,7 @@ static int disabled_provider_tab = -1;
 #define TEST_CONFIG_TAB     ((TabMode)(TAB_COUNT + 5))
 #define TEST_HOTKEYS_TAB    ((TabMode)(TAB_COUNT + 6))
 #define TEST_RULES_TAB      ((TabMode)(TAB_COUNT + 7))
-#define TEST_SESSIONS_TAB   ((TabMode)(TAB_COUNT + 8))
+#define TEST_PROJECTS_TAB   ((TabMode)(TAB_COUNT + 8))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -290,8 +290,8 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     }
     if (tab_mode == TEST_NAMES_TAB) {
         provider.id = "names";
-    } else if (tab_mode == TEST_SESSIONS_TAB) {
-        provider.id = "sessions";
+    } else if (tab_mode == TEST_PROJECTS_TAB) {
+        provider.id = "projects";
     } else {
         provider.id = "test";
     }
@@ -306,7 +306,7 @@ int cofi_get_provider_id(const char *id) {
     if (strcmp(id, "names") == 0) return TEST_NAMES_TAB;
     if (strcmp(id, "rules") == 0) return TEST_RULES_TAB;
     if (strcmp(id, "workspaces") == 0) return TEST_WORKSPACES_TAB;
-    if (strcmp(id, "sessions") == 0) return TEST_SESSIONS_TAB;
+    if (strcmp(id, "projects") == 0) return TEST_PROJECTS_TAB;
     return -1;
 }
 int cofi_provider_is_enabled(int provider_id) {
@@ -343,7 +343,7 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
         tabs[count++] = TEST_RULES_TAB;
     }
     if (count < max_tabs) {
-        tabs[count++] = TEST_SESSIONS_TAB;
+        tabs[count++] = TEST_PROJECTS_TAB;
     }
     return count;
 }
@@ -541,7 +541,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TEST_CONFIG_TAB,
         TEST_HOTKEYS_TAB,
         TEST_RULES_TAB,
-        TEST_SESSIONS_TAB,
+        TEST_PROJECTS_TAB,
         TAB_WINDOWS
     };
 
@@ -564,7 +564,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
     event.state = GDK_SHIFT_MASK;
 
     TabMode expected[] = {
-        TEST_SESSIONS_TAB,
+        TEST_PROJECTS_TAB,
         TEST_RULES_TAB,
         TEST_HOTKEYS_TAB,
         TEST_CONFIG_TAB,
@@ -730,7 +730,7 @@ static void test_show_all_tabs_cycles_hidden_tabs(void) {
     ASSERT_TRUE("show_all_tabs tab switch handled", handled == TRUE);
     ASSERT_TRUE("show_all_tabs includes hidden workspaces", app.current_tab == TEST_WORKSPACES_TAB);
     ASSERT_TRUE("hidden tab reports visible with show_all_tabs",
-                tab_is_visible(&app, TEST_SESSIONS_TAB) == TRUE);
+                tab_is_visible(&app, TEST_PROJECTS_TAB) == TRUE);
 }
 
 static void test_show_all_tabs_skips_unavailable_provider_tabs(void) {

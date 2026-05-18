@@ -1,4 +1,4 @@
-#include "sessions_window_env.h"
+#include "projects_window_env.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -19,7 +19,7 @@ static const char *next_env_entry(const char *data, size_t len, size_t *offset) 
     return entry;
 }
 
-gboolean sessions_windowid_from_environ(const char *environ_data,
+gboolean projects_windowid_from_environ(const char *environ_data,
                                         size_t len,
                                         Window *window_out) {
     if (window_out) *window_out = 0;

@@ -65,37 +65,37 @@ static void test_builtin_registration_shape(void) {
 static void test_builtin_disabled_provider_hides_command_and_tab(void) {
     reset_and_register_builtins();
 
-    int sessions_id = cofi_get_provider_id("sessions");
-    const CofiTabProvider *sessions = cofi_get_provider(sessions_id);
-    ASSERT_NOT_NULL("sessions provider registered", sessions);
+    int projects_id = cofi_get_provider_id("projects");
+    const CofiTabProvider *projects = cofi_get_provider(projects_id);
+    ASSERT_NOT_NULL("projects provider registered", projects);
 
     const CommandSpec *tmux = cofi_command_for_token("tmux");
     ASSERT_NOT_NULL("tmux alias resolves before disable", tmux);
-    ASSERT_TRUE("tmux alias resolves to sessions",
-                tmux && strcmp(tmux->primary, "sessions") == 0);
-    ASSERT_TRUE("sessions command available before disable",
-                command_primary_is_available("sessions"));
+    ASSERT_TRUE("tmux alias resolves to projects",
+                tmux && strcmp(tmux->primary, "projects") == 0);
+    ASSERT_TRUE("projects command available before disable",
+                command_primary_is_available("projects"));
 
     AppData app;
     memset(&app, 0, sizeof(app));
     app.config.show_all_tabs = 1;
     GString *header = g_string_new("");
-    tab_header_format(&app, (TabMode)sessions->tab_mode, 300, header);
-    ASSERT_TRUE("show_all_tabs includes sessions before disable",
-                strstr(header->str, "SESSIONS") != NULL);
+    tab_header_format(&app, (TabMode)projects->tab_mode, 300, header);
+    ASSERT_TRUE("show_all_tabs includes projects before disable",
+                strstr(header->str, "PROJECTS") != NULL);
     g_string_free(header, TRUE);
 
-    cofi_set_provider_enabled(sessions_id, 0);
+    cofi_set_provider_enabled(projects_id, 0);
 
     ASSERT_NOT_NULL("raw tmux alias still exists in command registry",
                     cofi_command_for_token("tmux"));
-    ASSERT_TRUE("disabled sessions command unavailable",
-                !command_primary_is_available("sessions"));
+    ASSERT_TRUE("disabled projects command unavailable",
+                !command_primary_is_available("projects"));
 
     header = g_string_new("");
     tab_header_format(&app, TAB_WINDOWS, 300, header);
-    ASSERT_TRUE("disabled sessions hidden from show_all_tabs header",
-                strstr(header->str, "SESSIONS") == NULL);
+    ASSERT_TRUE("disabled projects hidden from show_all_tabs header",
+                strstr(header->str, "PROJECTS") == NULL);
     g_string_free(header, TRUE);
 }
 
@@ -121,7 +121,7 @@ static void test_command_registration_rejects_collisions(void) {
     reset_and_register_builtins();
 
     static const CommandSpec primary_collision = {
-        .primary = "sessions",
+        .primary = "projects",
         .owner_provider_id = COMMAND_OWNER_CORE,
     };
     static const CommandSpec alias_collision = {

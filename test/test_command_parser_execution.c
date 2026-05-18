@@ -21,7 +21,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = noop_handler},
     {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = noop_handler},
     {.primary = "proc", .aliases = {"ps", NULL}, .owner_provider_id = "proc", .handler = noop_handler},
-    {.primary = "sessions", .aliases = {"tmux", "tx", "zj", "zellij", NULL}, .owner_provider_id = "sessions", .handler = noop_handler},
+    {.primary = "projects", .aliases = {"project", "tmux", "tx", "zj", "zellij"}, .owner_provider_id = "projects", .handler = noop_handler},
     {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = noop_handler},
     {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = noop_handler},
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = noop_handler},
@@ -107,9 +107,9 @@ static void test_parse_command_for_execution_alias_resolution(void) {
                 parse_command_for_execution("ps firefox", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "proc") == 0 && strcmp(arg, "firefox") == 0);
 
-    assert_true("provider alias zellij resolves to sessions",
+    assert_true("provider alias zellij resolves to projects",
                 parse_command_for_execution("zellij work api", cmd, arg, sizeof(cmd), sizeof(arg)) &&
-                strcmp(cmd, "sessions") == 0 && strcmp(arg, "work api") == 0);
+                strcmp(cmd, "projects") == 0 && strcmp(arg, "work api") == 0);
 
     assert_true("provider alias ws resolves to workspaces",
                 parse_command_for_execution("ws", cmd, arg, sizeof(cmd), sizeof(arg)) &&

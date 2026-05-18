@@ -146,11 +146,11 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 - `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
-## Sessions Tab
+## Projects Tab
 
-Hidden Sessions surface triggered via `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessions`, `:show tmux`, or `:show sessions`.
+Hidden Projects surface triggered via `:projects`, `:project`, `:tmux`, `:tx`, `:zj`, `:zellij`, `:show tmux`, or `:show projects`.
 
-- Sessions are listed from `tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
+- Tmux sessions are listed from `tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
 - Zellij sessions are listed from `zellij list-sessions --short` when `zellij` is available
 - Zoxide folders are listed from `zoxide query -l` when `zoxide` is available
 - The logical list keeps tmux sessions first, then zellij sessions, then zoxide folders; because cofi renders provider rows bottom-up, folders appear above sessions
@@ -164,13 +164,13 @@ Hidden Sessions surface triggered via `:tmux`, `:tx`, `:zj`, `:zellij`, `:sessio
 - `F2` on a tmux session opens a rename dialog; zellij, folder, and status rows are ignored
 - `Insert` opens a new-session dialog; on folder rows it starts in that folder, otherwise it starts in `$HOME`
 - `Shift+Insert` opens the new-session dialog with zellij preselected
-- `Ctrl+key` assigns a per-Sessions slot for the selected tmux session, zellij session, or folder
-- `Alt+key` recalls a per-Sessions slot; session slots open the session and folder slots open the folder
+- `Ctrl+key` assigns a per-Projects slot for the selected tmux session, zellij session, or folder
+- `Alt+key` recalls a per-Projects slot; session slots open the session and folder slots open the folder
 - Tmux session names are treated as exact tmux targets and shell-quoted before launch
 - Zellij session names are shell-quoted before attach or kill commands
 - Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
-- `:tmux <session>` attaches an existing session by exact name; it does not create sessions
-- `:tmux <key>` recalls a Sessions slot only when no exact session named `<key>` exists
+- `:tmux <session>` attaches an existing session by exact name; it does not create a new tmux session
+- `:tmux <key>` recalls a Projects slot only when no exact session named `<key>` exists
 
 ## Single Instance
 
@@ -460,7 +460,7 @@ Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tab
 6. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
 7. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
 8. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
-9. **Sessions** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+9. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 

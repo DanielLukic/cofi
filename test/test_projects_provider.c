@@ -29,7 +29,7 @@ static int g_surface_tab_calls;
 static TabMode g_last_surface_tab;
 static int g_refresh_calls;
 static int g_attach_named_calls;
-static char g_last_attach_name[MAX_SESSION_NAME_LEN];
+static char g_last_attach_name[MAX_PROJECT_SESSION_NAME_LEN];
 static int g_slot_recall_calls;
 static char g_last_slot_payload[SLOT_STORE_PAYLOAD_LEN];
 static gboolean g_has_named_result;
@@ -63,47 +63,47 @@ int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
 
-void sessions_refresh(AppData *app) {
+void projects_refresh(AppData *app) {
     (void)app;
     g_refresh_calls++;
 }
 
-gboolean sessions_has_named(AppData *app, const char *name) {
+gboolean projects_has_named(AppData *app, const char *name) {
     (void)app;
     return g_has_named_result && name && strcmp(name, "work") == 0;
 }
 
-CofiActionStatus sessions_attach_named(AppData *app, const char *name) {
+CofiActionStatus projects_attach_named(AppData *app, const char *name) {
     (void)app;
     g_attach_named_calls++;
     g_strlcpy(g_last_attach_name, name ? name : "", sizeof(g_last_attach_name));
     return g_attach_named_result;
 }
 
-CofiActionStatus sessions_slot_recall(AppData *app, const char *payload) {
+CofiActionStatus projects_slot_recall(AppData *app, const char *payload) {
     (void)app;
     g_slot_recall_calls++;
     g_strlcpy(g_last_slot_payload, payload ? payload : "", sizeof(g_last_slot_payload));
     return g_slot_recall_result;
 }
 
-SessionEntry *sessions_selected_session(AppData *app) {
+ProjectSessionEntry *projects_selected_session(AppData *app) {
     (void)app;
     return NULL;
 }
 
-SessionFolder *sessions_selected_folder(AppData *app) {
+ProjectFolder *projects_selected_folder(AppData *app) {
     (void)app;
     return NULL;
 }
 
-gchar *sessions_build_folder_session_name(const char *path) {
+gchar *projects_build_folder_session_name(const char *path) {
     (void)path;
     return g_strdup("folder");
 }
 
-void show_session_new_overlay(AppData *app,
-                              SessionBackend backend,
+void show_project_new_overlay(AppData *app,
+                              ProjectBackend backend,
                               const char *start_dir,
                               const char *initial_name) {
     (void)app;
@@ -112,78 +112,78 @@ void show_session_new_overlay(AppData *app,
     (void)initial_name;
 }
 
-void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend) {
+void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend) {
     (void)app;
     (void)session_name;
     (void)backend;
 }
 
-void show_session_rename_overlay(AppData *app, const char *session_name) {
+void show_project_rename_overlay(AppData *app, const char *session_name) {
     (void)app;
     (void)session_name;
 }
 
-SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx) {
+ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return NULL;
 }
 
-CofiActionStatus sessions_open_folder(AppData *app, const char *path) {
+CofiActionStatus projects_open_folder(AppData *app, const char *path) {
     (void)app;
     (void)path;
     return COFI_HANDLED_HIDE;
 }
 
-CofiActionStatus sessions_attach_visible(AppData *app, int visible_idx) {
+CofiActionStatus projects_attach_visible(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return COFI_HANDLED_HIDE;
 }
 
-int sessions_row_count(AppData *app) {
+int projects_row_count(AppData *app) {
     (void)app;
     return 0;
 }
 
-void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
+void projects_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
     (void)app;
     (void)visible_idx;
     if (out) out->cell_count = 0;
 }
 
-const char *sessions_match_string(AppData *app, int visible_idx) {
+const char *projects_match_string(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return "";
 }
 
-const char *sessions_row_identity(AppData *app, int visible_idx) {
+const char *projects_row_identity(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return "";
 }
 
-void sessions_on_enter(AppData *app) {
+void projects_on_enter(AppData *app) {
     (void)app;
 }
 
-void sessions_on_query_changed(AppData *app, const char *query) {
+void projects_on_query_changed(AppData *app, const char *query) {
     (void)app;
     (void)query;
 }
 
-void sessions_on_tick(AppData *app, int generation) {
+void projects_on_tick(AppData *app, int generation) {
     (void)app;
     (void)generation;
 }
 
-const char *sessions_get_shortcut_hint(AppData *app) {
+const char *projects_get_shortcut_hint(AppData *app) {
     (void)app;
     return "";
 }
 
-const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
+const char *projects_slot_payload_for(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return NULL;
@@ -191,12 +191,12 @@ const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
 
 #include "../src/cofi_tab_provider.c"
 #include "../src/slot_store.c"
-#include "../src/sessions_provider.c"
+#include "../src/projects_provider.c"
 
-static const CofiTabProvider *registered_sessions_provider(void) {
+static const CofiTabProvider *registered_projects_provider(void) {
     cofi_registry_reset();
-    sessions_provider_register();
-    return cofi_get_provider(s_sessions_provider_id);
+    projects_provider_register();
+    return cofi_get_provider(s_projects_provider_id);
 }
 
 static void reset_capture(void) {
@@ -238,114 +238,116 @@ static void read_textbuffer(GtkTextBuffer *buffer, char *out, size_t out_size) {
 }
 
 static void test_registered_command_metadata(void) {
-    const CofiTabProvider *p = registered_sessions_provider();
+    const CofiTabProvider *p = registered_projects_provider();
 
-    ASSERT_TRUE("sessions provider registered", p != NULL);
-    ASSERT_TRUE("sessions provider uses dynamic tab", p->tab_mode >= TAB_COUNT);
-    ASSERT_TRUE("sessions command primary", strcmp(s_sessions_command.primary, "sessions") == 0);
-    ASSERT_TRUE("sessions command alias tmux",
-                strcmp(s_sessions_command.aliases[0], "tmux") == 0);
-    ASSERT_TRUE("sessions command alias zellij",
-                strcmp(s_sessions_command.aliases[3], "zellij") == 0);
-    ASSERT_TRUE("sessions command help",
-                strcmp(s_sessions_command.help_format,
-                       "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]") == 0);
-    ASSERT_TRUE("sessions command description",
-                strcmp(s_sessions_command.description, "Switch to sessions tab") == 0);
-    ASSERT_TRUE("sessions command handler registered", s_sessions_command.handler != NULL);
-    ASSERT_TRUE("sessions command keeps open", s_sessions_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("projects provider registered", p != NULL);
+    ASSERT_TRUE("projects provider uses dynamic tab", p->tab_mode >= TAB_COUNT);
+    ASSERT_TRUE("projects command primary", strcmp(s_projects_command.primary, "projects") == 0);
+    ASSERT_TRUE("projects command alias project",
+                strcmp(s_projects_command.aliases[0], "project") == 0);
+    ASSERT_TRUE("projects command alias tmux",
+                strcmp(s_projects_command.aliases[1], "tmux") == 0);
+    ASSERT_TRUE("projects command alias zellij",
+                strcmp(s_projects_command.aliases[4], "zellij") == 0);
+    ASSERT_TRUE("projects command help",
+                strcmp(s_projects_command.help_format,
+                       "projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]") == 0);
+    ASSERT_TRUE("projects command description",
+                strcmp(s_projects_command.description, "Switch to projects tab") == 0);
+    ASSERT_TRUE("projects command handler registered", s_projects_command.handler != NULL);
+    ASSERT_TRUE("projects command keeps open", s_projects_command.keeps_open_on_hotkey_auto == 1);
 }
 
 static void test_command_handler_without_args_surfaces_tab(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    const CofiTabProvider *p = registered_projects_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = s_sessions_command.handler(&app, NULL, "");
+    gboolean result = s_projects_command.handler(&app, NULL, "");
 
-    ASSERT_TRUE("sessions command without args returns false", result == FALSE);
-    ASSERT_TRUE("sessions command without args exits command mode", g_exit_command_mode_calls == 1);
-    ASSERT_TRUE("sessions command without args surfaces once", g_surface_tab_calls == 1);
-    ASSERT_TRUE("sessions command without args surfaces sessions tab",
+    ASSERT_TRUE("projects command without args returns false", result == FALSE);
+    ASSERT_TRUE("projects command without args exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("projects command without args surfaces once", g_surface_tab_calls == 1);
+    ASSERT_TRUE("projects command without args surfaces projects tab",
                 p && g_last_surface_tab == (TabMode)p->tab_mode);
-    ASSERT_TRUE("sessions command without args keeps origin windows",
+    ASSERT_TRUE("projects command without args keeps origin windows",
                 app.prefix_origin_tab == TAB_WINDOWS);
-    ASSERT_TRUE("sessions command without args does not hide", g_hide_window_calls == 0);
+    ASSERT_TRUE("projects command without args does not hide", g_hide_window_calls == 0);
     teardown_app(&app);
 }
 
 static void test_command_handler_named_session_hides(void) {
     AppData app;
-    registered_sessions_provider();
+    registered_projects_provider();
     setup_app(&app);
     reset_capture();
     g_has_named_result = TRUE;
 
-    gboolean result = s_sessions_command.handler(&app, NULL, "work");
+    gboolean result = s_projects_command.handler(&app, NULL, "work");
 
-    ASSERT_TRUE("sessions named command returns false", result == FALSE);
-    ASSERT_TRUE("sessions named command refreshes", g_refresh_calls == 1);
-    ASSERT_TRUE("sessions named command attaches", g_attach_named_calls == 1);
-    ASSERT_TRUE("sessions named command passes name", strcmp(g_last_attach_name, "work") == 0);
-    ASSERT_TRUE("sessions named command hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("projects named command returns false", result == FALSE);
+    ASSERT_TRUE("projects named command refreshes", g_refresh_calls == 1);
+    ASSERT_TRUE("projects named command attaches", g_attach_named_calls == 1);
+    ASSERT_TRUE("projects named command passes name", strcmp(g_last_attach_name, "work") == 0);
+    ASSERT_TRUE("projects named command hides", g_hide_window_calls == 1);
     teardown_app(&app);
 }
 
 static void test_command_handler_recalls_slot_and_hides(void) {
     AppData app;
-    registered_sessions_provider();
+    registered_projects_provider();
     setup_app(&app);
-    slot_assign(&app.harpoon.store, 'a', "sessions", "session:tmux:work");
+    slot_assign(&app.harpoon.store, 'a', "projects", "session:tmux:work");
     reset_capture();
 
-    gboolean result = s_sessions_command.handler(&app, NULL, "@a");
+    gboolean result = s_projects_command.handler(&app, NULL, "@a");
 
-    ASSERT_TRUE("sessions slot command returns false", result == FALSE);
-    ASSERT_TRUE("sessions slot command recalls", g_slot_recall_calls == 1);
-    ASSERT_TRUE("sessions slot command passes payload",
+    ASSERT_TRUE("projects slot command returns false", result == FALSE);
+    ASSERT_TRUE("projects slot command recalls", g_slot_recall_calls == 1);
+    ASSERT_TRUE("projects slot command passes payload",
                 strcmp(g_last_slot_payload, "session:tmux:work") == 0);
-    ASSERT_TRUE("sessions slot command hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("projects slot command hides", g_hide_window_calls == 1);
     teardown_app(&app);
 }
 
 static void test_command_handler_invalid_arg_shows_error(void) {
     AppData app;
-    registered_sessions_provider();
+    registered_projects_provider();
     setup_app(&app);
     reset_capture();
 
-    gboolean result = s_sessions_command.handler(&app, NULL, "missing");
+    gboolean result = s_projects_command.handler(&app, NULL, "missing");
 
     char text[128];
     read_textbuffer(app.textbuffer, text, sizeof(text));
-    ASSERT_TRUE("sessions invalid command returns false", result == FALSE);
-    ASSERT_TRUE("sessions invalid command does not hide", g_hide_window_calls == 0);
-    ASSERT_TRUE("sessions invalid command sets help state", app.command_mode.showing_help);
-    ASSERT_TRUE("sessions invalid command shows error",
+    ASSERT_TRUE("projects invalid command returns false", result == FALSE);
+    ASSERT_TRUE("projects invalid command does not hide", g_hide_window_calls == 0);
+    ASSERT_TRUE("projects invalid command sets help state", app.command_mode.showing_help);
+    ASSERT_TRUE("projects invalid command shows error",
                 strcmp(text, "No matching tmux/zellij session.") == 0);
     teardown_app(&app);
 }
 
 static void test_command_args_contract(void) {
     AppData app;
-    const CofiTabProvider *p = registered_sessions_provider();
+    const CofiTabProvider *p = registered_projects_provider();
     setup_app(&app);
     reset_capture();
 
-    ASSERT_TRUE("sessions empty command args no-op",
+    ASSERT_TRUE("projects empty command args no-op",
                 p->on_command_args(&app, "") == COFI_NO_OP);
 
     g_has_named_result = TRUE;
-    ASSERT_TRUE("sessions named command args hide",
+    ASSERT_TRUE("projects named command args hide",
                 p->on_command_args(&app, "work") == COFI_HANDLED_HIDE);
 
     g_has_named_result = FALSE;
-    slot_assign(&app.harpoon.store, 'b', "sessions", "session:zellij:work");
-    ASSERT_TRUE("sessions slot command args hide",
+    slot_assign(&app.harpoon.store, 'b', "projects", "session:zellij:work");
+    ASSERT_TRUE("projects slot command args hide",
                 p->on_command_args(&app, "@b") == COFI_HANDLED_HIDE);
 
-    ASSERT_TRUE("sessions missing command args error",
+    ASSERT_TRUE("projects missing command args error",
                 p->on_command_args(&app, "missing") == COFI_ACTION_ERROR);
     teardown_app(&app);
 }
@@ -356,7 +358,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    printf("sessions_provider behavioral tests\n");
+    printf("projects_provider behavioral tests\n");
     printf("===================================\n\n");
 
     test_registered_command_metadata();

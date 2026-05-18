@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/sessions.h"
-#include "../src/sessions_commands.h"
-#include "../src/sessions_folder_windows.h"
-#include "../src/sessions_parse.h"
-#include "../src/sessions_tmux_windows.h"
-#include "../src/sessions_window_env.h"
-#include "../src/sessions_zellij_windows.h"
+#include "../src/projects.h"
+#include "../src/projects_commands.h"
+#include "../src/projects_folder_windows.h"
+#include "../src/projects_parse.h"
+#include "../src/projects_tmux_windows.h"
+#include "../src/projects_window_env.h"
+#include "../src/projects_zellij_windows.h"
 #include "../src/log.h"
 
 void activate_window(Display *display, Window window_id) {
@@ -38,9 +38,9 @@ gboolean process_find_window_for_pid_ancestry(AppData *app,
     return FALSE;
 }
 
-#include "../src/sessions_window_env.c"
-#include "../src/sessions_tmux_windows.c"
-#include "../src/sessions_zellij_windows.c"
+#include "../src/projects_window_env.c"
+#include "../src/projects_tmux_windows.c"
+#include "../src/projects_zellij_windows.c"
 
 static int pass = 0;
 static int fail = 0;
@@ -59,31 +59,31 @@ static int fail = 0;
 #define ASSERT_STR_EQ(name, expected, actual) \
     ASSERT_TRUE(name, strcmp((expected), (actual)) == 0)
 
-static void test_parse_formatted_sessions(void) {
+static void test_parse_formatted_projects(void) {
     const char *output =
         "cofi\t2\t1\n"
         "linear work\t1\t0\n"
         "scrcpy:debug\t3\t2\n";
-    SessionEntry sessions[MAX_SESSIONS];
+    ProjectSessionEntry projects[MAX_PROJECTS];
     char error[256];
 
-    int count = sessions_parse_tmux_list(output, sessions, MAX_SESSIONS,
+    int count = projects_parse_tmux_list(output, projects, MAX_PROJECTS,
                                          error, sizeof(error));
 
     ASSERT_EQ_INT("parse count", 3, count);
-    ASSERT_STR_EQ("first session name", "cofi", sessions[0].name);
-    ASSERT_EQ_INT("first windows", 2, sessions[0].windows);
-    ASSERT_EQ_INT("first attached", 1, sessions[0].attached);
-    ASSERT_STR_EQ("space in session name preserved", "linear work", sessions[1].name);
-    ASSERT_STR_EQ("colon in session name preserved", "scrcpy:debug", sessions[2].name);
+    ASSERT_STR_EQ("first session name", "cofi", projects[0].name);
+    ASSERT_EQ_INT("first windows", 2, projects[0].windows);
+    ASSERT_EQ_INT("first attached", 1, projects[0].attached);
+    ASSERT_STR_EQ("space in session name preserved", "linear work", projects[1].name);
+    ASSERT_STR_EQ("colon in session name preserved", "scrcpy:debug", projects[2].name);
     ASSERT_STR_EQ("no parse error", "", error);
 }
 
-static void test_empty_output_reports_no_sessions(void) {
-    SessionEntry sessions[MAX_SESSIONS];
+static void test_empty_output_reports_no_projects(void) {
+    ProjectSessionEntry projects[MAX_PROJECTS];
     char error[256];
 
-    int count = sessions_parse_tmux_list("", sessions, MAX_SESSIONS,
+    int count = projects_parse_tmux_list("", projects, MAX_PROJECTS,
                                          error, sizeof(error));
 
     ASSERT_EQ_INT("empty output count", 0, count);
@@ -95,20 +95,20 @@ static void test_malformed_lines_are_ignored(void) {
         "not enough fields\n"
         "bad\tNaN\t0\n"
         "valid\t4\t0\n";
-    SessionEntry sessions[MAX_SESSIONS];
+    ProjectSessionEntry projects[MAX_PROJECTS];
     char error[256];
 
-    int count = sessions_parse_tmux_list(output, sessions, MAX_SESSIONS,
+    int count = projects_parse_tmux_list(output, projects, MAX_PROJECTS,
                                          error, sizeof(error));
 
     ASSERT_EQ_INT("malformed lines skipped", 1, count);
-    ASSERT_STR_EQ("valid line parsed", "valid", sessions[0].name);
-    ASSERT_EQ_INT("valid windows parsed", 4, sessions[0].windows);
+    ASSERT_STR_EQ("valid line parsed", "valid", projects[0].name);
+    ASSERT_EQ_INT("valid windows parsed", 4, projects[0].windows);
     ASSERT_STR_EQ("malformed skipped without error when valid rows exist", "", error);
 }
 
 static void test_attach_command_uses_exact_shell_quoted_target(void) {
-    gchar *cmd = sessions_build_tmux_attach_command("work:api session");
+    gchar *cmd = projects_build_tmux_attach_command("work:api session");
 
     ASSERT_STR_EQ("attach command exact target quoted",
                   "tmux attach-session -t '=work:api session'", cmd);
@@ -119,10 +119,10 @@ static void test_parse_zoxide_folders(void) {
     const char *output =
         "/home/user/Projects/cofi\n"
         "/home/user/Projects/codex-msgnr\n";
-    SessionFolder folders[MAX_SESSION_FOLDERS];
+    ProjectFolder folders[MAX_PROJECT_FOLDERS];
     char error[256];
 
-    int count = sessions_parse_zoxide_list(output, folders, MAX_SESSION_FOLDERS,
+    int count = projects_parse_zoxide_list(output, folders, MAX_PROJECT_FOLDERS,
                                            error, sizeof(error));
 
     ASSERT_EQ_INT("zoxide folder count", 2, count);
@@ -130,12 +130,12 @@ static void test_parse_zoxide_folders(void) {
     ASSERT_STR_EQ("first zoxide label", "cofi", folders[0].label);
     ASSERT_STR_EQ("second zoxide label", "codex-msgnr", folders[1].label);
     ASSERT_STR_EQ("zoxide parse no error", "", error);
-    sessions_clear_folders(folders, count);
+    projects_clear_folders(folders, count);
 }
 
 static void test_folder_session_command_uses_start_directory(void) {
-    gchar *session_name = sessions_build_folder_session_name("/home/user/Projects/cofi");
-    gchar *cmd = sessions_build_tmux_new_command(session_name, "/home/user/Projects/cofi");
+    gchar *session_name = projects_build_folder_session_name("/home/user/Projects/cofi");
+    gchar *cmd = projects_build_tmux_new_command(session_name, "/home/user/Projects/cofi");
 
     ASSERT_STR_EQ("folder command creates or attaches in directory",
                   "tmux new-session -A -s 'cofi' -c '/home/user/Projects/cofi'", cmd);
@@ -144,8 +144,8 @@ static void test_folder_session_command_uses_start_directory(void) {
 }
 
 static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
-    gchar *session_name = sessions_build_folder_session_name("/tmp/work:api session");
-    gchar *cmd = sessions_build_tmux_new_command(session_name, "/tmp/work:api session");
+    gchar *session_name = projects_build_folder_session_name("/tmp/work:api session");
+    gchar *cmd = projects_build_tmux_new_command(session_name, "/tmp/work:api session");
 
     ASSERT_STR_EQ("folder command quotes path and sanitizes session name",
                   "tmux new-session -A -s 'work_api_session' -c '/tmp/work:api session'", cmd);
@@ -154,8 +154,8 @@ static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
 }
 
 static void test_folder_session_name_replaces_tmux_separators(void) {
-    gchar *session_name = sessions_build_folder_session_name("/tmp/my.project");
-    gchar *cmd = sessions_build_tmux_new_command(session_name, "/tmp/my.project");
+    gchar *session_name = projects_build_folder_session_name("/tmp/my.project");
+    gchar *cmd = projects_build_tmux_new_command(session_name, "/tmp/my.project");
 
     ASSERT_STR_EQ("folder command replaces dot in session name",
                   "tmux new-session -A -s 'my_project' -c '/tmp/my.project'", cmd);
@@ -164,7 +164,7 @@ static void test_folder_session_name_replaces_tmux_separators(void) {
 }
 
 static void test_kill_command_uses_exact_target(void) {
-    gchar *cmd = sessions_build_tmux_kill_command("work:api session");
+    gchar *cmd = projects_build_tmux_kill_command("work:api session");
 
     ASSERT_STR_EQ("kill command exact target quoted",
                   "tmux kill-session -t '=work:api session'", cmd);
@@ -172,7 +172,7 @@ static void test_kill_command_uses_exact_target(void) {
 }
 
 static void test_rename_command_quotes_old_and_new_names(void) {
-    gchar *cmd = sessions_build_tmux_rename_command("work:api session", "renamed session");
+    gchar *cmd = projects_build_tmux_rename_command("work:api session", "renamed session");
 
     ASSERT_STR_EQ("rename command quotes exact target and new name",
                   "tmux rename-session -t '=work:api session' 'renamed session'", cmd);
@@ -180,28 +180,28 @@ static void test_rename_command_quotes_old_and_new_names(void) {
 }
 
 static void test_new_session_command_uses_home_directory(void) {
-    gchar *cmd = sessions_build_tmux_new_command("scratch", "/home/user");
+    gchar *cmd = projects_build_tmux_new_command("scratch", "/home/user");
 
     ASSERT_STR_EQ("new session command starts in home",
                   "tmux new-session -A -s 'scratch' -c '/home/user'", cmd);
     g_free(cmd);
 }
 
-static void test_parse_zellij_sessions(void) {
-    SessionEntry sessions[4];
+static void test_parse_zellij_projects(void) {
+    ProjectSessionEntry projects[4];
     char error[128];
-    int count = sessions_parse_zellij_list(
-        "home\nwork api\ncofi\n", sessions, 4, error, sizeof(error));
+    int count = projects_parse_zellij_list(
+        "home\nwork api\ncofi\n", projects, 4, error, sizeof(error));
 
     ASSERT_EQ_INT("zellij parse count", 3, count);
-    ASSERT_STR_EQ("zellij first session name", "home", sessions[0].name);
-    ASSERT_STR_EQ("zellij preserves spaces", "work api", sessions[1].name);
-    ASSERT_EQ_INT("zellij backend marker", SESSION_BACKEND_ZELLIJ, sessions[0].backend);
+    ASSERT_STR_EQ("zellij first session name", "home", projects[0].name);
+    ASSERT_STR_EQ("zellij preserves spaces", "work api", projects[1].name);
+    ASSERT_EQ_INT("zellij backend marker", PROJECT_BACKEND_ZELLIJ, projects[0].backend);
     ASSERT_STR_EQ("zellij parse no error", "", error);
 }
 
 static void test_zellij_attach_command_quotes_name(void) {
-    gchar *cmd = sessions_build_zellij_attach_command("work api");
+    gchar *cmd = projects_build_zellij_attach_command("work api");
 
     ASSERT_STR_EQ("zellij attach command creates missing session",
                   "zellij attach --create 'work api'", cmd);
@@ -209,7 +209,7 @@ static void test_zellij_attach_command_quotes_name(void) {
 }
 
 static void test_zellij_kill_command_quotes_name(void) {
-    gchar *cmd = sessions_build_zellij_kill_command("work api");
+    gchar *cmd = projects_build_zellij_kill_command("work api");
 
     ASSERT_STR_EQ("zellij kill command quotes name",
                   "zellij kill-session 'work api'", cmd);
@@ -217,7 +217,7 @@ static void test_zellij_kill_command_quotes_name(void) {
 }
 
 static void test_zellij_new_command_starts_in_directory(void) {
-    gchar *cmd = sessions_build_zellij_new_command("work api", "/tmp/work api");
+    gchar *cmd = projects_build_zellij_new_command("work api", "/tmp/work api");
 
     ASSERT_STR_EQ("zellij new command changes directory before attach",
                   "cd '/tmp/work api' && zellij attach --create 'work api'", cmd);
@@ -226,7 +226,7 @@ static void test_zellij_new_command_starts_in_directory(void) {
 
 static void test_tmux_client_pid_parser(void) {
     pid_t pids[4];
-    int count = sessions_parse_tmux_client_pids("123\nbad\n1\n456\n", pids, 4);
+    int count = projects_parse_tmux_client_pids("123\nbad\n1\n456\n", pids, 4);
 
     ASSERT_EQ_INT("tmux client pid count", 2, count);
     ASSERT_EQ_INT("tmux first client pid", 123, (int)pids[0]);
@@ -235,7 +235,7 @@ static void test_tmux_client_pid_parser(void) {
 
 static void test_tmux_client_pid_parser_ignores_empty_output(void) {
     pid_t pids[2] = {99, 88};
-    int count = sessions_parse_tmux_client_pids("\n\n", pids, 2);
+    int count = projects_parse_tmux_client_pids("\n\n", pids, 2);
 
     ASSERT_EQ_INT("tmux empty client pid count", 0, count);
     ASSERT_EQ_INT("tmux empty leaves first pid untouched", 99, (int)pids[0]);
@@ -245,7 +245,7 @@ static void test_zellij_cmdline_matches_short_attach(void) {
     const char cmdline[] = "/usr/bin/zellij\0a\0coiner-dev\0";
 
     ASSERT_TRUE("zellij short attach cmdline matches session",
-                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
                                                         "coiner-dev"));
 }
 
@@ -253,7 +253,7 @@ static void test_zellij_cmdline_matches_attach_create(void) {
     const char cmdline[] = "zellij\0attach\0--create\0work api\0";
 
     ASSERT_TRUE("zellij attach create cmdline matches session",
-                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
                                                         "work api"));
 }
 
@@ -261,7 +261,7 @@ static void test_zellij_cmdline_matches_session_option(void) {
     const char cmdline[] = "zellij\0--session\0coiner-dev\0";
 
     ASSERT_TRUE("zellij session option cmdline matches session",
-                sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
                                                         "coiner-dev"));
 }
 
@@ -270,10 +270,10 @@ static void test_zellij_cmdline_rejects_server_and_other_session(void) {
     const char other[] = "zellij\0attach\0--create\0other\0";
 
     ASSERT_TRUE("zellij server cmdline rejected",
-                !sessions_zellij_cmdline_matches_session(server, sizeof(server),
+                !projects_zellij_cmdline_matches_session(server, sizeof(server),
                                                          "coiner-dev"));
     ASSERT_TRUE("zellij other session cmdline rejected",
-                !sessions_zellij_cmdline_matches_session(other, sizeof(other),
+                !projects_zellij_cmdline_matches_session(other, sizeof(other),
                                                          "coiner-dev"));
 }
 
@@ -281,7 +281,7 @@ static void test_zellij_cmdline_rejects_action_with_session_option(void) {
     const char cmdline[] = "zellij\0--session\0coiner-dev\0action\0list-clients\0";
 
     ASSERT_TRUE("zellij action cmdline rejected",
-                !sessions_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                !projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
                                                          "coiner-dev"));
 }
 
@@ -290,7 +290,7 @@ static void test_zellij_windowid_from_environ(void) {
     Window window = 0;
 
     ASSERT_TRUE("zellij environ windowid parsed",
-                sessions_windowid_from_environ(environ_data, sizeof(environ_data),
+                projects_windowid_from_environ(environ_data, sizeof(environ_data),
                                                &window));
     ASSERT_EQ_ULONG("zellij environ windowid value", 64284440UL, window);
 }
@@ -301,52 +301,52 @@ static void test_zellij_windowid_rejects_invalid_environ(void) {
     Window window = 123;
 
     ASSERT_TRUE("zellij invalid windowid rejected",
-                !sessions_windowid_from_environ(invalid, sizeof(invalid), &window));
+                !projects_windowid_from_environ(invalid, sizeof(invalid), &window));
     ASSERT_EQ_ULONG("zellij invalid clears windowid", 0UL, window);
 
     window = 123;
     ASSERT_TRUE("zellij zero windowid rejected",
-                !sessions_windowid_from_environ(zero, sizeof(zero), &window));
+                !projects_windowid_from_environ(zero, sizeof(zero), &window));
     ASSERT_EQ_ULONG("zellij zero clears windowid", 0UL, window);
 }
 
 static void test_match_text_includes_short_backend_markers(void) {
-    SessionEntry tmux_session = {
-        .backend = SESSION_BACKEND_TMUX,
+    ProjectSessionEntry tmux_session = {
+        .backend = PROJECT_BACKEND_TMUX,
         .windows = 2,
         .attached = 1,
     };
     g_strlcpy(tmux_session.name, "cofi", sizeof(tmux_session.name));
 
-    SessionEntry zellij_session = {
-        .backend = SESSION_BACKEND_ZELLIJ,
+    ProjectSessionEntry zellij_session = {
+        .backend = PROJECT_BACKEND_ZELLIJ,
         .windows = -1,
         .attached = -1,
     };
     g_strlcpy(zellij_session.name, "cofi", sizeof(zellij_session.name));
 
-    SessionFolder folder = {
+    ProjectFolder folder = {
         .path = "/home/user/Projects/cofi",
         .label = "cofi",
     };
 
     char text[256];
-    sessions_format_session_match_text(&tmux_session, text, sizeof(text));
+    projects_format_session_match_text(&tmux_session, text, sizeof(text));
     ASSERT_STR_EQ("tmux match row has [t] marker",
                   "[t] cofi 2 wins 1 client", text);
 
-    sessions_format_session_match_text(&zellij_session, text, sizeof(text));
+    projects_format_session_match_text(&zellij_session, text, sizeof(text));
     ASSERT_STR_EQ("zellij match row has [z] marker", "[z] cofi", text);
 
-    sessions_format_folder_match_text(&folder, text, sizeof(text));
+    projects_format_folder_match_text(&folder, text, sizeof(text));
     ASSERT_STR_EQ("folder match row has [d] marker",
                   "[d] cofi /home/user/Projects/cofi", text);
 }
 
 static void test_slot_payloads_are_typed(void) {
-    gchar *tmux = sessions_build_session_slot_payload(SESSION_BACKEND_TMUX, "cofi");
-    gchar *zellij = sessions_build_session_slot_payload(SESSION_BACKEND_ZELLIJ, "cofi");
-    gchar *folder = sessions_build_folder_slot_payload("/home/user/Projects/cofi");
+    gchar *tmux = projects_build_session_slot_payload(PROJECT_BACKEND_TMUX, "cofi");
+    gchar *zellij = projects_build_session_slot_payload(PROJECT_BACKEND_ZELLIJ, "cofi");
+    gchar *folder = projects_build_folder_slot_payload("/home/user/Projects/cofi");
 
     ASSERT_STR_EQ("tmux slot payload includes backend",
                   "session:tmux:cofi", tmux);
@@ -361,28 +361,28 @@ static void test_slot_payloads_are_typed(void) {
 }
 
 static void test_parse_slot_payloads(void) {
-    SessionSlotTarget target;
+    ProjectSlotTarget target;
 
     ASSERT_TRUE("parse tmux slot payload",
-                sessions_parse_slot_payload("session:tmux:work:api", &target));
-    ASSERT_EQ_INT("tmux slot kind", SESSION_SLOT_SESSION, target.kind);
-    ASSERT_EQ_INT("tmux slot backend", SESSION_BACKEND_TMUX, target.backend);
+                projects_parse_slot_payload("session:tmux:work:api", &target));
+    ASSERT_EQ_INT("tmux slot kind", PROJECT_SLOT_SESSION, target.kind);
+    ASSERT_EQ_INT("tmux slot backend", PROJECT_BACKEND_TMUX, target.backend);
     ASSERT_STR_EQ("tmux slot value preserves colon", "work:api", target.value);
 
     ASSERT_TRUE("parse zellij slot payload",
-                sessions_parse_slot_payload("session:zellij:work", &target));
-    ASSERT_EQ_INT("zellij slot backend", SESSION_BACKEND_ZELLIJ, target.backend);
+                projects_parse_slot_payload("session:zellij:work", &target));
+    ASSERT_EQ_INT("zellij slot backend", PROJECT_BACKEND_ZELLIJ, target.backend);
     ASSERT_STR_EQ("zellij slot value", "work", target.value);
 
     ASSERT_TRUE("parse folder slot payload",
-                sessions_parse_slot_payload("folder:/home/user/Projects/cofi", &target));
-    ASSERT_EQ_INT("folder slot kind", SESSION_SLOT_FOLDER, target.kind);
+                projects_parse_slot_payload("folder:/home/user/Projects/cofi", &target));
+    ASSERT_EQ_INT("folder slot kind", PROJECT_SLOT_FOLDER, target.kind);
     ASSERT_STR_EQ("folder slot value", "/home/user/Projects/cofi", target.value);
 
     ASSERT_TRUE("reject empty typed payload",
-                !sessions_parse_slot_payload("session:tmux:", &target));
+                !projects_parse_slot_payload("session:tmux:", &target));
     ASSERT_TRUE("reject unknown typed payload",
-                !sessions_parse_slot_payload("tmux:cofi", &target));
+                !projects_parse_slot_payload("tmux:cofi", &target));
 }
 
 static WindowInfo test_window(Window id,
@@ -409,7 +409,7 @@ static void test_caja_folder_window_matches_exact_basename(void) {
     Window found = 0;
 
     ASSERT_TRUE("find caja folder by exact basename",
-                sessions_find_caja_folder_window(windows, 3, NULL, 0,
+                projects_find_caja_folder_window(windows, 3, NULL, 0,
                                                  "/home/user/Projects/cofi", &found));
     ASSERT_EQ_INT("exact basename window selected", 11, (int)found);
 }
@@ -422,7 +422,7 @@ static void test_caja_folder_window_ignores_desktop_window(void) {
     Window found = 0;
 
     ASSERT_TRUE("desktop window ignored for caja folder",
-                sessions_find_caja_folder_window(windows, 2, NULL, 0,
+                projects_find_caja_folder_window(windows, 2, NULL, 0,
                                                  "/home/user", &found));
     ASSERT_EQ_INT("normal caja window selected", 21, (int)found);
 }
@@ -436,7 +436,7 @@ static void test_caja_folder_window_uses_topmost_duplicate(void) {
     Window found = 0;
 
     ASSERT_TRUE("duplicate caja folders choose topmost",
-                sessions_find_caja_folder_window(windows, 2, stack, 2,
+                projects_find_caja_folder_window(windows, 2, stack, 2,
                                                  "/home/user", &found));
     ASSERT_EQ_INT("topmost duplicate selected", 30, (int)found);
 }
@@ -448,17 +448,17 @@ static void test_caja_folder_window_rejects_substring_match(void) {
     Window found = 0;
 
     ASSERT_TRUE("no substring match for caja folder",
-                !sessions_find_caja_folder_window(windows, 1, NULL, 0,
+                !projects_find_caja_folder_window(windows, 1, NULL, 0,
                                                   "/home/user", &found));
     ASSERT_EQ_INT("no substring window", 0, (int)found);
 }
 
 int main(void) {
-    printf("sessions parser tests\n");
+    printf("projects parser tests\n");
     printf("=====================\n\n");
 
-    test_parse_formatted_sessions();
-    test_empty_output_reports_no_sessions();
+    test_parse_formatted_projects();
+    test_empty_output_reports_no_projects();
     test_malformed_lines_are_ignored();
     test_attach_command_uses_exact_shell_quoted_target();
     test_parse_zoxide_folders();
@@ -468,7 +468,7 @@ int main(void) {
     test_kill_command_uses_exact_target();
     test_rename_command_quotes_old_and_new_names();
     test_new_session_command_uses_home_directory();
-    test_parse_zellij_sessions();
+    test_parse_zellij_projects();
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();
     test_zellij_new_command_starts_in_directory();

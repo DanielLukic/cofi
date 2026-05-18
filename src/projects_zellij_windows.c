@@ -1,4 +1,4 @@
-#include "sessions_zellij_windows.h"
+#include "projects_zellij_windows.h"
 
 #include <string.h>
 
@@ -7,7 +7,7 @@
 #include "app_data.h"
 #include "display.h"
 #include "log.h"
-#include "sessions_window_env.h"
+#include "projects_window_env.h"
 
 static const char *next_arg(const char *data, size_t len, size_t *offset) {
     while (*offset < len && data[*offset] == '\0') (*offset)++;
@@ -68,7 +68,7 @@ static gboolean match_attach_args(const char *cmdline, size_t len,
     return FALSE;
 }
 
-gboolean sessions_zellij_cmdline_matches_session(const char *cmdline,
+gboolean projects_zellij_cmdline_matches_session(const char *cmdline,
                                                  size_t len,
                                                  const char *session_name) {
     if (!cmdline || len == 0 || !session_name || session_name[0] == '\0') return FALSE;
@@ -111,7 +111,7 @@ static gboolean window_is_valid(Display *display, Window window) {
     return XGetWindowAttributes(display, window, &attrs) != 0;
 }
 
-gboolean sessions_activate_zellij_window(AppData *app, const char *session_name) {
+gboolean projects_activate_zellij_window(AppData *app, const char *session_name) {
     if (!app || !app->display || !session_name || session_name[0] == '\0') return FALSE;
 
     GDir *dir = g_dir_open("/proc", 0, NULL);
@@ -132,7 +132,7 @@ gboolean sessions_activate_zellij_window(AppData *app, const char *session_name)
             continue;
         }
 
-        gboolean matches = sessions_zellij_cmdline_matches_session(cmdline,
+        gboolean matches = projects_zellij_cmdline_matches_session(cmdline,
                                                                    cmdline_len,
                                                                    session_name);
         g_free(cmdline);
@@ -149,7 +149,7 @@ gboolean sessions_activate_zellij_window(AppData *app, const char *session_name)
         }
 
         Window window = 0;
-        gboolean has_window = sessions_windowid_from_environ(environ_data,
+        gboolean has_window = projects_windowid_from_environ(environ_data,
                                                              environ_len,
                                                              &window);
         g_free(environ_data);

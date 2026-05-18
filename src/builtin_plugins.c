@@ -12,7 +12,7 @@
 #include "profiles_provider.h"
 #include "rules_provider.h"
 #include "run_provider.h"
-#include "sessions_provider.h"
+#include "projects_provider.h"
 #include "sinks_provider.h"
 #include "workspaces_provider.h"
 
@@ -30,6 +30,6 @@ void cofi_register_builtin_plugins(void) {
     sinks_provider_register();
     run_provider_register();
     proc_provider_register();
-    sessions_provider_register();
+    projects_provider_register();
     profiles_provider_register();
 }

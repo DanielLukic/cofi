@@ -10,8 +10,8 @@
 #include "../src/key_handler.h"
 #include "../src/names_provider.h"
 #include "../src/rules_provider.h"
-#include "../src/sessions_parse.h"
-#include "../src/sessions_provider.h"
+#include "../src/projects_parse.h"
+#include "../src/projects_provider.h"
 
 /*
  * Testability strategy:
@@ -49,20 +49,20 @@ static int g_save_named_windows_calls;
 static int g_cleanup_hotkeys_calls;
 static int g_replay_selected_rule_calls;
 static int g_replay_all_rules_calls;
-static int g_show_session_kill_calls;
-static int g_show_session_rename_calls;
-static int g_show_session_new_calls;
-static char g_last_session_name[MAX_SESSION_NAME_LEN];
-static SessionBackend g_last_session_backend;
+static int g_show_project_kill_calls;
+static int g_show_project_rename_calls;
+static int g_show_project_new_calls;
+static char g_last_session_name[MAX_PROJECT_SESSION_NAME_LEN];
+static ProjectBackend g_last_session_backend;
 static char g_last_session_start_dir[1024];
-static char g_last_session_initial_name[MAX_SESSION_NAME_LEN];
-static SessionEntry g_stub_selected_session;
+static char g_last_session_initial_name[MAX_PROJECT_SESSION_NAME_LEN];
+static ProjectSessionEntry g_stub_selected_session;
 static gboolean g_stub_has_selected_session;
-static SessionFolder g_stub_selected_folder;
+static ProjectFolder g_stub_selected_folder;
 static gboolean g_stub_has_selected_folder;
 
 #define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 1))
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_PROJECTS_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 3))
 #define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 4))
 #define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 5))
@@ -125,13 +125,13 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
-    static CofiTabProvider sessions_provider;
+    static CofiTabProvider projects_provider;
     static CofiTabProvider harpoon_provider;
     memset(&names_provider, 0, sizeof(names_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
-    memset(&sessions_provider, 0, sizeof(sessions_provider));
+    memset(&projects_provider, 0, sizeof(projects_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     g_last_provider_tab_lookup = tab_mode;
     names_provider.tab_mode = TEST_NAMES_TAB;
@@ -142,12 +142,12 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     rules_provider.tab_mode = TEST_RULES_TAB;
     rules_provider.handle_key = handle_rules_tab_keys;
-    sessions_provider.tab_mode = TEST_SESSIONS_TAB;
-    sessions_provider.handle_key = handle_sessions_tab_keys;
+    projects_provider.tab_mode = TEST_PROJECTS_TAB;
+    projects_provider.handle_key = handle_projects_tab_keys;
     harpoon_provider.tab_mode = TEST_HARPOON_TAB;
     harpoon_provider.handle_key = handle_harpoon_tab_keys;
 
-    if (tab_mode == TEST_SESSIONS_TAB) return &sessions_provider;
+    if (tab_mode == TEST_PROJECTS_TAB) return &projects_provider;
     if (tab_mode == TEST_NAMES_TAB) return &names_provider;
     if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
     if (tab_mode == TEST_HOTKEYS_TAB) return &hotkeys_provider;
@@ -404,39 +404,39 @@ void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
-SessionEntry *sessions_selected_session(AppData *app) {
+ProjectSessionEntry *projects_selected_session(AppData *app) {
     (void)app;
     return g_stub_has_selected_session ? &g_stub_selected_session : NULL;
 }
 
-SessionFolder *sessions_selected_folder(AppData *app) {
+ProjectFolder *projects_selected_folder(AppData *app) {
     (void)app;
     return g_stub_has_selected_folder ? &g_stub_selected_folder : NULL;
 }
 
-void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend) {
+void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend) {
     (void)app;
-    g_show_session_kill_calls++;
+    g_show_project_kill_calls++;
     g_last_session_backend = backend;
     strncpy(g_last_session_name, session_name ? session_name : "",
             sizeof(g_last_session_name) - 1);
     g_last_session_name[sizeof(g_last_session_name) - 1] = '\0';
 }
 
-void show_session_rename_overlay(AppData *app, const char *session_name) {
+void show_project_rename_overlay(AppData *app, const char *session_name) {
     (void)app;
-    g_show_session_rename_calls++;
+    g_show_project_rename_calls++;
     strncpy(g_last_session_name, session_name ? session_name : "",
             sizeof(g_last_session_name) - 1);
     g_last_session_name[sizeof(g_last_session_name) - 1] = '\0';
 }
 
-void show_session_new_overlay(AppData *app,
-                              SessionBackend backend,
+void show_project_new_overlay(AppData *app,
+                              ProjectBackend backend,
                               const char *start_dir,
                               const char *initial_name) {
     (void)app;
-    g_show_session_new_calls++;
+    g_show_project_new_calls++;
     g_last_session_backend = backend;
     strncpy(g_last_session_start_dir, start_dir ? start_dir : "",
             sizeof(g_last_session_start_dir) - 1);
@@ -446,45 +446,45 @@ void show_session_new_overlay(AppData *app,
     g_last_session_initial_name[sizeof(g_last_session_initial_name) - 1] = '\0';
 }
 
-gboolean handle_sessions_tab_keys(GdkEventKey *event, AppData *app) {
-    if (app->current_tab != TEST_SESSIONS_TAB) {
+gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
+    if (app->current_tab != TEST_PROJECTS_TAB) {
         return FALSE;
     }
 
     if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
-        SessionBackend backend =
-            (event->state & GDK_SHIFT_MASK) ? SESSION_BACKEND_ZELLIJ : SESSION_BACKEND_TMUX;
-        SessionEntry *session = sessions_selected_session(app);
+        ProjectBackend backend =
+            (event->state & GDK_SHIFT_MASK) ? PROJECT_BACKEND_ZELLIJ : PROJECT_BACKEND_TMUX;
+        ProjectSessionEntry *session = projects_selected_session(app);
         if (!(event->state & GDK_SHIFT_MASK) && session &&
-            session->backend == SESSION_BACKEND_ZELLIJ) {
-            backend = SESSION_BACKEND_ZELLIJ;
+            session->backend == PROJECT_BACKEND_ZELLIJ) {
+            backend = PROJECT_BACKEND_ZELLIJ;
         }
-        SessionFolder *folder = sessions_selected_folder(app);
+        ProjectFolder *folder = projects_selected_folder(app);
         if (!folder) {
-            show_session_new_overlay(app, backend, "", "");
+            show_project_new_overlay(app, backend, "", "");
             return TRUE;
         }
-        gchar *session_name = sessions_build_folder_session_name(folder->path);
-        show_session_new_overlay(app, backend, folder->path, session_name);
+        gchar *session_name = projects_build_folder_session_name(folder->path);
+        show_project_new_overlay(app, backend, folder->path, session_name);
         g_free(session_name);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
-        SessionEntry *session = sessions_selected_session(app);
+        ProjectSessionEntry *session = projects_selected_session(app);
         if (!session) {
             return FALSE;
         }
-        show_session_kill_overlay(app, session->name, session->backend);
+        show_project_kill_overlay(app, session->name, session->backend);
         return TRUE;
     }
 
     if (event->keyval == GDK_KEY_F2) {
-        SessionEntry *session = sessions_selected_session(app);
-        if (!session || session->backend != SESSION_BACKEND_TMUX) {
+        ProjectSessionEntry *session = projects_selected_session(app);
+        if (!session || session->backend != PROJECT_BACKEND_TMUX) {
             return FALSE;
         }
-        show_session_rename_overlay(app, session->name);
+        show_project_rename_overlay(app, session->name);
         return TRUE;
     }
 
@@ -515,13 +515,13 @@ static void reset_captures(void) {
     g_cleanup_hotkeys_calls = 0;
     g_replay_selected_rule_calls = 0;
     g_replay_all_rules_calls = 0;
-    g_show_session_kill_calls = 0;
-    g_show_session_rename_calls = 0;
-    g_show_session_new_calls = 0;
+    g_show_project_kill_calls = 0;
+    g_show_project_rename_calls = 0;
+    g_show_project_new_calls = 0;
     g_last_session_name[0] = '\0';
     g_last_session_start_dir[0] = '\0';
     g_last_session_initial_name[0] = '\0';
-    g_last_session_backend = SESSION_BACKEND_TMUX;
+    g_last_session_backend = PROJECT_BACKEND_TMUX;
     memset(&g_stub_selected_session, 0, sizeof(g_stub_selected_session));
     g_stub_has_selected_session = FALSE;
     memset(&g_stub_selected_folder, 0, sizeof(g_stub_selected_folder));
@@ -892,14 +892,14 @@ static void test_rules_tab_shortcuts_crud_and_replay(void) {
     ASSERT_TRUE("Ctrl+Shift+x on Rules replays all", g_replay_all_rules_calls == 1);
 }
 
-static void test_sessions_tab_shortcuts_open_session_overlays(void) {
+static void test_projects_tab_shortcuts_open_session_overlays(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_SESSIONS_TAB;
+    app.current_tab = TEST_PROJECTS_TAB;
     g_stub_has_selected_session = TRUE;
-    g_stub_selected_session.backend = SESSION_BACKEND_TMUX;
+    g_stub_selected_session.backend = PROJECT_BACKEND_TMUX;
     strncpy(g_stub_selected_session.name, "work:api session",
             sizeof(g_stub_selected_session.name) - 1);
 
@@ -907,41 +907,41 @@ static void test_sessions_tab_shortcuts_open_session_overlays(void) {
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     ASSERT_TRUE("Delete on tmux session handled", del_handled == TRUE);
     ASSERT_TRUE("Delete on tmux session opens kill overlay",
-                g_show_session_kill_calls == 1 &&
-                g_last_session_backend == SESSION_BACKEND_TMUX &&
+                g_show_project_kill_calls == 1 &&
+                g_last_session_backend == PROJECT_BACKEND_TMUX &&
                 strcmp(g_last_session_name, "work:api session") == 0);
 
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
     ASSERT_TRUE("F2 on tmux session handled", f2_handled == TRUE);
     ASSERT_TRUE("F2 on tmux session opens rename overlay",
-                g_show_session_rename_calls == 1 &&
+                g_show_project_rename_calls == 1 &&
                 strcmp(g_last_session_name, "work:api session") == 0);
 
     GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
-    ASSERT_TRUE("Insert on Sessions opens new-session overlay", ins_handled == TRUE);
-    ASSERT_TRUE("Insert on Sessions opens exactly one new-session overlay",
-                g_show_session_new_calls == 1 &&
-                g_last_session_backend == SESSION_BACKEND_TMUX &&
+    ASSERT_TRUE("Insert on Projects opens new-session overlay", ins_handled == TRUE);
+    ASSERT_TRUE("Insert on Projects opens exactly one new-session overlay",
+                g_show_project_new_calls == 1 &&
+                g_last_session_backend == PROJECT_BACKEND_TMUX &&
                 strcmp(g_last_session_start_dir, "") == 0);
 
     GdkEventKey shift_ins_ev = make_key(GDK_KEY_Insert, GDK_SHIFT_MASK);
     gboolean shift_ins_handled = on_key_press(NULL, &shift_ins_ev, &app);
-    ASSERT_TRUE("Shift+Insert on Sessions opens new-session overlay", shift_ins_handled == TRUE);
+    ASSERT_TRUE("Shift+Insert on Projects opens new-session overlay", shift_ins_handled == TRUE);
     ASSERT_TRUE("Shift+Insert preselects zellij",
-                g_show_session_new_calls == 2 &&
-                g_last_session_backend == SESSION_BACKEND_ZELLIJ);
+                g_show_project_new_calls == 2 &&
+                g_last_session_backend == PROJECT_BACKEND_ZELLIJ);
 }
 
-static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) {
+static void test_projects_tab_delete_on_zellij_session_opens_kill_overlay(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_SESSIONS_TAB;
+    app.current_tab = TEST_PROJECTS_TAB;
     g_stub_has_selected_session = TRUE;
-    g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
+    g_stub_selected_session.backend = PROJECT_BACKEND_ZELLIJ;
     strncpy(g_stub_selected_session.name, "zj work",
             sizeof(g_stub_selected_session.name) - 1);
 
@@ -949,26 +949,26 @@ static void test_sessions_tab_delete_on_zellij_session_opens_kill_overlay(void) 
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     ASSERT_TRUE("Delete on zellij session handled", del_handled == TRUE);
     ASSERT_TRUE("Delete on zellij session opens kill overlay",
-                g_show_session_kill_calls == 1 &&
-                g_last_session_backend == SESSION_BACKEND_ZELLIJ &&
+                g_show_project_kill_calls == 1 &&
+                g_last_session_backend == PROJECT_BACKEND_ZELLIJ &&
                 strcmp(g_last_session_name, "zj work") == 0);
 
     GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
     ASSERT_TRUE("Insert on zellij session handled", ins_handled == TRUE);
     ASSERT_TRUE("Insert on zellij session preselects zellij",
-                g_show_session_new_calls == 1 &&
-                g_last_session_backend == SESSION_BACKEND_ZELLIJ);
+                g_show_project_new_calls == 1 &&
+                g_last_session_backend == PROJECT_BACKEND_ZELLIJ);
 }
 
-static void test_sessions_tab_rename_ignores_zellij_session_row(void) {
+static void test_projects_tab_rename_ignores_zellij_session_row(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_SESSIONS_TAB;
+    app.current_tab = TEST_PROJECTS_TAB;
     g_stub_has_selected_session = TRUE;
-    g_stub_selected_session.backend = SESSION_BACKEND_ZELLIJ;
+    g_stub_selected_session.backend = PROJECT_BACKEND_ZELLIJ;
     strncpy(g_stub_selected_session.name, "zj work",
             sizeof(g_stub_selected_session.name) - 1);
 
@@ -976,33 +976,33 @@ static void test_sessions_tab_rename_ignores_zellij_session_row(void) {
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
     ASSERT_TRUE("F2 on zellij session not handled", f2_handled == FALSE);
     ASSERT_TRUE("F2 on zellij session does not open rename overlay",
-                g_show_session_rename_calls == 0);
+                g_show_project_rename_calls == 0);
 }
 
-static void test_sessions_tab_delete_and_rename_ignore_folder_rows(void) {
+static void test_projects_tab_delete_and_rename_ignore_folder_rows(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_SESSIONS_TAB;
+    app.current_tab = TEST_PROJECTS_TAB;
 
     GdkEventKey del_ev = make_key(GDK_KEY_Delete, 0);
     GdkEventKey f2_ev = make_key(GDK_KEY_F2, 0);
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     gboolean f2_handled = on_key_press(NULL, &f2_ev, &app);
 
-    ASSERT_TRUE("Delete on sessions folder/error row not handled", del_handled == FALSE);
-    ASSERT_TRUE("F2 on sessions folder/error row not handled", f2_handled == FALSE);
-    ASSERT_TRUE("Sessions folder/error row does not open kill/rename overlay",
-                g_show_session_kill_calls == 0 && g_show_session_rename_calls == 0);
+    ASSERT_TRUE("Delete on projects folder/error row not handled", del_handled == FALSE);
+    ASSERT_TRUE("F2 on projects folder/error row not handled", f2_handled == FALSE);
+    ASSERT_TRUE("Projects folder/error row does not open kill/rename overlay",
+                g_show_project_kill_calls == 0 && g_show_project_rename_calls == 0);
 }
 
-static void test_sessions_tab_insert_on_folder_uses_folder_dir(void) {
+static void test_projects_tab_insert_on_folder_uses_folder_dir(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_SESSIONS_TAB;
+    app.current_tab = TEST_PROJECTS_TAB;
     g_stub_has_selected_folder = TRUE;
     g_stub_selected_folder.path = "/home/user/Projects/cofi";
     g_stub_selected_folder.label = "cofi";
@@ -1011,8 +1011,8 @@ static void test_sessions_tab_insert_on_folder_uses_folder_dir(void) {
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
     ASSERT_TRUE("Insert on folder opens new-session overlay", ins_handled == TRUE);
     ASSERT_TRUE("Insert on folder uses tmux and folder path",
-                g_show_session_new_calls == 1 &&
-                g_last_session_backend == SESSION_BACKEND_TMUX &&
+                g_show_project_new_calls == 1 &&
+                g_last_session_backend == PROJECT_BACKEND_TMUX &&
                 strcmp(g_last_session_start_dir, "/home/user/Projects/cofi") == 0 &&
                 strcmp(g_last_session_initial_name, "cofi") == 0);
 
@@ -1020,8 +1020,8 @@ static void test_sessions_tab_insert_on_folder_uses_folder_dir(void) {
     gboolean shift_ins_handled = on_key_press(NULL, &shift_ins_ev, &app);
     ASSERT_TRUE("Shift+Insert on folder opens new-session overlay", shift_ins_handled == TRUE);
     ASSERT_TRUE("Shift+Insert on folder preselects zellij and folder path",
-                g_show_session_new_calls == 2 &&
-                g_last_session_backend == SESSION_BACKEND_ZELLIJ &&
+                g_show_project_new_calls == 2 &&
+                g_last_session_backend == PROJECT_BACKEND_ZELLIJ &&
                 strcmp(g_last_session_start_dir, "/home/user/Projects/cofi") == 0 &&
                 strcmp(g_last_session_initial_name, "cofi") == 0);
 }
@@ -1051,11 +1051,11 @@ int main(int argc, char **argv) {
     test_ctrl_d_hotkeys_tab_removes_binding_and_regrabs();
     test_ctrl_d_hotkeys_last_row_clamps_selection();
     test_rules_tab_shortcuts_crud_and_replay();
-    test_sessions_tab_shortcuts_open_session_overlays();
-    test_sessions_tab_delete_on_zellij_session_opens_kill_overlay();
-    test_sessions_tab_rename_ignores_zellij_session_row();
-    test_sessions_tab_delete_and_rename_ignore_folder_rows();
-    test_sessions_tab_insert_on_folder_uses_folder_dir();
+    test_projects_tab_shortcuts_open_session_overlays();
+    test_projects_tab_delete_on_zellij_session_opens_kill_overlay();
+    test_projects_tab_rename_ignores_zellij_session_row();
+    test_projects_tab_delete_and_rename_ignore_folder_rows();
+    test_projects_tab_insert_on_folder_uses_folder_dir();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

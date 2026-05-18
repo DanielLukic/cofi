@@ -50,21 +50,21 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->rules_delete.rule_index = -1;
     }
 
-    if (type == OVERLAY_SESSION_KILL) {
-        app->session_kill.pending_kill = FALSE;
-        app->session_kill.backend = SESSION_BACKEND_TMUX;
-        app->session_kill.session_name[0] = '\0';
+    if (type == OVERLAY_PROJECT_KILL) {
+        app->project_kill.pending_kill = FALSE;
+        app->project_kill.backend = PROJECT_BACKEND_TMUX;
+        app->project_kill.session_name[0] = '\0';
     }
 
-    if (type == OVERLAY_SESSION_RENAME) {
-        app->session_rename.pending_rename = FALSE;
-        app->session_rename.session_name[0] = '\0';
+    if (type == OVERLAY_PROJECT_RENAME) {
+        app->project_rename.pending_rename = FALSE;
+        app->project_rename.session_name[0] = '\0';
     }
 
-    if (type == OVERLAY_SESSION_NEW) {
-        app->session_new.backend = SESSION_BACKEND_TMUX;
-        app->session_new.session_name[0] = '\0';
-        app->session_new.start_dir[0] = '\0';
+    if (type == OVERLAY_PROJECT_NEW) {
+        app->project_new.backend = PROJECT_BACKEND_TMUX;
+        app->project_new.session_name[0] = '\0';
+        app->project_new.start_dir[0] = '\0';
     }
 
     if (type == OVERLAY_AGENT_SESSION_DELETE) {

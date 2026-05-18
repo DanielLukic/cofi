@@ -20,7 +20,7 @@
 #include "rules.h"
 #include "sinks.h"
 #include "proc.h"
-#include "sessions.h"
+#include "projects.h"
 
 void init_tab_visibility(AppData *app) {
     if (!app) {
@@ -114,7 +114,7 @@ void init_app_data(AppData *app) {
     memset(&app->calc_mode, 0, sizeof(app->calc_mode));
     init_sinks_mode(&app->sinks_mode);
     init_proc_mode(&app->proc_mode);
-    init_sessions_mode(&app->sessions_mode);
+    init_projects_mode(&app->projects_mode);
     
     // Initialize window visibility state
     app->window_visible = FALSE;

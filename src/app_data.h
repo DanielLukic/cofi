@@ -20,7 +20,7 @@
 #include "apps.h"
 #include "sinks.h"
 #include "proc.h"
-#include "sessions.h"
+#include "projects.h"
 #include "daemon_socket.h"
 #include "calc.h"
 #include "agent_sessions.h"
@@ -60,9 +60,9 @@ typedef enum {
     OVERLAY_RULE_ADD,
     OVERLAY_RULE_EDIT,
     OVERLAY_RULE_DELETE,
-    OVERLAY_SESSION_KILL,
-    OVERLAY_SESSION_RENAME,
-    OVERLAY_SESSION_NEW,
+    OVERLAY_PROJECT_KILL,
+    OVERLAY_PROJECT_RENAME,
+    OVERLAY_PROJECT_NEW,
     OVERLAY_AGENT_SESSION_DELETE,
     OVERLAY_AGENT_SESSION_RENAME,
     OVERLAY_PROVIDER_ENABLEMENT
@@ -180,7 +180,7 @@ typedef struct AppData {
     // Sinks tab data
     SinksMode sinks_mode;
     ProcMode proc_mode;
-    SessionsMode sessions_mode;
+    ProjectsMode projects_mode;
     AppsMode apps_mode;
 
     // Edit state for harpoon
@@ -209,23 +209,23 @@ typedef struct AppData {
         int rule_index;
     } rules_delete;
 
-    // Sessions tab overlay state
+    // Projects tab overlay state
     struct {
         gboolean pending_kill;
-        SessionBackend backend;
-        char session_name[MAX_SESSION_NAME_LEN];
-    } session_kill;
+        ProjectBackend backend;
+        char session_name[MAX_PROJECT_SESSION_NAME_LEN];
+    } project_kill;
 
     struct {
         gboolean pending_rename;
-        char session_name[MAX_SESSION_NAME_LEN];
-    } session_rename;
+        char session_name[MAX_PROJECT_SESSION_NAME_LEN];
+    } project_rename;
 
     struct {
-        SessionBackend backend;
-        char session_name[MAX_SESSION_NAME_LEN];
+        ProjectBackend backend;
+        char session_name[MAX_PROJECT_SESSION_NAME_LEN];
         char start_dir[1024];
-    } session_new;
+    } project_new;
 
     // Agent sessions tab overlay state
     struct {

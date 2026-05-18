@@ -44,7 +44,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .keeps_open_on_hotkey_auto = 1},
     {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = cmd_run, .description = "Switch to audio sinks tab", .help_format = "sinks, sink [@SLOT|SINK]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "proc", .aliases = {"ps", NULL}, .owner_provider_id = "proc", .handler = cmd_run, .description = "Switch to process manager tab", .help_format = "proc, ps", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "sessions", .aliases = {"tmux", "tx", "zj", "zellij", NULL}, .owner_provider_id = "sessions", .handler = cmd_run, .description = "Switch to sessions tab", .help_format = "sessions, tmux, tx, zj, zellij [@SLOT|SESSION]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "projects", .aliases = {"project", "tmux", "tx", "zj", "zellij"}, .owner_provider_id = "projects", .handler = cmd_run, .description = "Switch to projects tab", .help_format = "projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = cmd_run, .description = "Switch to Workspaces tab", .help_format = "workspaces, ws", .keeps_open_on_hotkey_auto = 1},
     {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = cmd_run, .description = "Switch to Harpoon tab", .help_format = "harpoon, hp", .keeps_open_on_hotkey_auto = 1},
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = cmd_run, .description = "Switch to Names tab", .help_format = "names, nm", .keeps_open_on_hotkey_auto = 1},
@@ -196,11 +196,11 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("proc")) { printf("PASS: proc provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: proc provider command should keep open\n"); tests_failed++; }
 
-    if (should_keep_open_on_hotkey_auto("tmux")) { printf("PASS: sessions provider alias keeps open\n"); tests_passed++; }
-    else { printf("FAIL: sessions provider alias should keep open\n"); tests_failed++; }
+    if (should_keep_open_on_hotkey_auto("tmux")) { printf("PASS: projects provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: projects provider alias should keep open\n"); tests_failed++; }
 
-    if (should_keep_open_on_hotkey_auto("sessions")) { printf("PASS: sessions provider command keeps open\n"); tests_passed++; }
-    else { printf("FAIL: sessions provider command should keep open\n"); tests_failed++; }
+    if (should_keep_open_on_hotkey_auto("projects")) { printf("PASS: projects provider command keeps open\n"); tests_passed++; }
+    else { printf("FAIL: projects provider command should keep open\n"); tests_failed++; }
 
     if (should_keep_open_on_hotkey_auto("workspaces")) { printf("PASS: workspaces provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: workspaces provider command should keep open\n"); tests_failed++; }
@@ -256,11 +256,11 @@ static void test_should_keep_open_runtime_policy(void) {
     else { printf("FAIL: disabled proc command should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(proc_id, 1);
 
-    int sessions_id = cofi_get_provider_id("sessions");
-    cofi_set_provider_enabled(sessions_id, 0);
-    if (!should_keep_open_on_hotkey_auto("tmux")) { printf("PASS: disabled sessions alias does not keep open\n"); tests_passed++; }
-    else { printf("FAIL: disabled sessions alias should not keep open\n"); tests_failed++; }
-    cofi_set_provider_enabled(sessions_id, 1);
+    int projects_id = cofi_get_provider_id("projects");
+    cofi_set_provider_enabled(projects_id, 0);
+    if (!should_keep_open_on_hotkey_auto("tmux")) { printf("PASS: disabled projects alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled projects alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(projects_id, 1);
 
     int workspaces_id = cofi_get_provider_id("workspaces");
     cofi_set_provider_enabled(workspaces_id, 0);
@@ -488,11 +488,11 @@ static void test_provider_command_alias_resolution(void) {
     }
 
     if (resolve_command_primary("zj", resolved, sizeof(resolved)) &&
-        strcmp(resolved, "sessions") == 0) {
-        printf("PASS: provider alias zj resolves to sessions\n");
+        strcmp(resolved, "projects") == 0) {
+        printf("PASS: provider alias zj resolves to projects\n");
         tests_passed++;
     } else {
-        printf("FAIL: provider alias zj did not resolve to sessions\n");
+        printf("FAIL: provider alias zj did not resolve to projects\n");
         tests_failed++;
     }
 

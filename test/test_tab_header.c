@@ -5,7 +5,7 @@
 #include "../src/cofi_tab_provider.h"
 
 #define TEST_DYNAMIC_TAB  ((TabMode)(TAB_COUNT + 1))
-#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_PROJECTS_TAB ((TabMode)(TAB_COUNT + 2))
 #define TEST_PROFILES_TAB ((TabMode)(TAB_COUNT + 3))
 #define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 4))
 #define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 5))
@@ -30,7 +30,7 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
         tabs[count++] = TEST_DYNAMIC_TAB;
     }
     if (max_tabs > count) {
-        tabs[count++] = TEST_SESSIONS_TAB;
+        tabs[count++] = TEST_PROJECTS_TAB;
     }
     if (max_tabs > count) {
         tabs[count++] = TEST_PROFILES_TAB;
@@ -47,11 +47,11 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         dynamic_provider.tab_mode = TEST_DYNAMIC_TAB;
         return &dynamic_provider;
     }
-    if (tab_mode == TEST_SESSIONS_TAB) {
+    if (tab_mode == TEST_PROJECTS_TAB) {
         memset(&dynamic_provider, 0, sizeof(dynamic_provider));
-        dynamic_provider.id = "sessions";
-        dynamic_provider.display_name = "Sessions";
-        dynamic_provider.tab_mode = TEST_SESSIONS_TAB;
+        dynamic_provider.id = "projects";
+        dynamic_provider.display_name = "Projects";
+        dynamic_provider.tab_mode = TEST_PROJECTS_TAB;
         return &dynamic_provider;
     }
     if (tab_mode == TEST_PROFILES_TAB) {
@@ -119,10 +119,10 @@ static void test_show_all_tabs_makes_hidden_tabs_visible(void) {
     app.config.show_all_tabs = 1;
 
     GString *out = g_string_new("");
-    tab_header_format(&app, TEST_SESSIONS_TAB, 200, out);
+    tab_header_format(&app, TEST_PROJECTS_TAB, 200, out);
 
-    ASSERT_TRUE("show all header includes hidden sessions",
-                strstr(out->str, "[ SESSIONS ]") != NULL);
+    ASSERT_TRUE("show all header includes hidden projects",
+                strstr(out->str, "[ PROJECTS ]") != NULL);
     ASSERT_TRUE("show all header includes hidden profiles",
                 strstr(out->str, "Profiles") != NULL);
     g_string_free(out, TRUE);

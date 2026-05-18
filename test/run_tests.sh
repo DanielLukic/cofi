@@ -390,11 +390,11 @@ if [ -f test_proc ]; then
     fi
 fi
 
-# Run sessions tab parser tests if they exist
-if [ -f test_sessions ]; then
+# Run projects tab parser tests if they exist
+if [ -f test_projects ]; then
     echo ""
-    echo "Running sessions tab parser tests..."
-    ./test_sessions
+    echo "Running projects tab parser tests..."
+    ./test_projects
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi

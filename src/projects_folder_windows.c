@@ -1,4 +1,4 @@
-#include "sessions_folder_windows.h"
+#include "projects_folder_windows.h"
 
 #include <string.h>
 #include <strings.h>
@@ -21,7 +21,7 @@ static int stack_position(Window id, const Window *stack, unsigned long stack_co
     return -1;
 }
 
-gboolean sessions_find_caja_folder_window(const WindowInfo *windows,
+gboolean projects_find_caja_folder_window(const WindowInfo *windows,
                                           int window_count,
                                           const Window *stack,
                                           unsigned long stack_count,

@@ -187,7 +187,7 @@ move toward plugins rather than table cleanup.
 Progress:
 
 - Dynamic handle allocation and tab enumeration landed in `f047647`.
-- Profiles, Calc, Run, Sinks, Proc, Sessions, Apps, Names, Rules, Config,
+- Profiles, Calc, Run, Sinks, Proc, Projects, Apps, Names, Rules, Config,
   Hotkeys, Harpoon, and Workspaces no longer have static `TAB_*` enum values
   and register with `COFI_PROVIDER_DYNAMIC_TAB`.
 - Existing provider tabs are fully off legacy `TAB_*` handles. Remaining work is
@@ -216,7 +216,7 @@ Suggested order:
 
 1. Config, Names, or Rules command surface: simple tab surfacing, low coupling.
 2. Profiles: real aliases plus slots, no prefix/delegate complexity.
-3. Sessions: aliases and slots across a larger provider.
+3. Projects: aliases and slots across a larger provider.
 4. Calc and Run after prefix behavior is settled.
 
 Acceptance for each migrated plugin:

@@ -29,10 +29,10 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);
-void show_session_kill_overlay(AppData *app, const char *session_name, SessionBackend backend);
-void show_session_rename_overlay(AppData *app, const char *session_name);
-void show_session_new_overlay(AppData *app,
-                              SessionBackend backend,
+void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend);
+void show_project_rename_overlay(AppData *app, const char *session_name);
+void show_project_new_overlay(AppData *app,
+                              ProjectBackend backend,
                               const char *start_dir,
                               const char *initial_name);
 void show_agent_session_delete_overlay(AppData *app,
@@ -51,8 +51,8 @@ static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
            type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
            type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
-           type == OVERLAY_RULE_EDIT || type == OVERLAY_SESSION_RENAME ||
-           type == OVERLAY_SESSION_NEW ||
+           type == OVERLAY_RULE_EDIT || type == OVERLAY_PROJECT_RENAME ||
+           type == OVERLAY_PROJECT_NEW ||
            type == OVERLAY_AGENT_SESSION_RENAME;
 }
 

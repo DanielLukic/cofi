@@ -1,4 +1,4 @@
-#include "sessions.h"
+#include "projects.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -8,11 +8,11 @@
 #include "fzf_algo.h"
 #include "log.h"
 #include "selection.h"
-#include "sessions_commands.h"
-#include "sessions_folder_windows.h"
-#include "sessions_parse.h"
-#include "sessions_tmux_windows.h"
-#include "sessions_zellij_windows.h"
+#include "projects_commands.h"
+#include "projects_folder_windows.h"
+#include "projects_parse.h"
+#include "projects_tmux_windows.h"
+#include "projects_zellij_windows.h"
 #include "window_list.h"
 
 #include <gtk/gtk.h>
@@ -61,30 +61,30 @@ static gboolean default_run_session_command(const char *command) {
 
 static gboolean (*s_run_session_command)(const char *command) = default_run_session_command;
 
-static SessionEntry *session_at_visible(AppData *app, int visible_idx) {
+static ProjectSessionEntry *session_at_visible(AppData *app, int visible_idx) {
     if (!app) return NULL;
-    SessionsMode *mode = &app->sessions_mode;
+    ProjectsMode *mode = &app->projects_mode;
     if (visible_idx < 0 || visible_idx >= mode->filtered_count) return NULL;
-    if (mode->filtered_rows[visible_idx].type != SESSION_ROW_SESSION) return NULL;
+    if (mode->filtered_rows[visible_idx].type != PROJECT_ROW_SESSION) return NULL;
     int raw = mode->filtered_rows[visible_idx].index;
     if (raw < 0 || raw >= mode->session_count) return NULL;
-    return &mode->sessions[raw];
+    return &mode->projects[raw];
 }
 
-static SessionFolder *folder_at_visible(AppData *app, int visible_idx) {
+static ProjectFolder *folder_at_visible(AppData *app, int visible_idx) {
     if (!app) return NULL;
-    SessionsMode *mode = &app->sessions_mode;
+    ProjectsMode *mode = &app->projects_mode;
     if (visible_idx < 0 || visible_idx >= mode->filtered_count) return NULL;
-    if (mode->filtered_rows[visible_idx].type != SESSION_ROW_FOLDER) return NULL;
+    if (mode->filtered_rows[visible_idx].type != PROJECT_ROW_FOLDER) return NULL;
     int raw = mode->filtered_rows[visible_idx].index;
     if (raw < 0 || raw >= mode->folder_count) return NULL;
     return &mode->folders[raw];
 }
 
 static CofiActionStatus attach_tmux_session(AppData *app, const char *session_name) {
-    if (sessions_activate_tmux_window(app, session_name)) return COFI_HANDLED_HIDE;
+    if (projects_activate_tmux_window(app, session_name)) return COFI_HANDLED_HIDE;
 
-    gchar *command = sessions_build_tmux_attach_command(session_name);
+    gchar *command = projects_build_tmux_attach_command(session_name);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
@@ -98,9 +98,9 @@ static CofiActionStatus attach_tmux_session(AppData *app, const char *session_na
 }
 
 static CofiActionStatus zellij_attach_session(AppData *app, const char *session_name) {
-    if (sessions_activate_zellij_window(app, session_name)) return COFI_HANDLED_HIDE;
+    if (projects_activate_zellij_window(app, session_name)) return COFI_HANDLED_HIDE;
 
-    gchar *command = sessions_build_zellij_attach_command(session_name);
+    gchar *command = projects_build_zellij_attach_command(session_name);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
@@ -165,7 +165,7 @@ static gboolean activate_existing_caja_folder(AppData *app, const char *path) {
     unsigned long stack_count = 0;
     Window *stack = get_stacking_order(app->display, &stack_count);
     Window window = 0;
-    gboolean found = sessions_find_caja_folder_window(app->windows,
+    gboolean found = projects_find_caja_folder_window(app->windows,
                                                       app->window_count,
                                                       stack,
                                                       stack_count,
@@ -179,7 +179,7 @@ static gboolean activate_existing_caja_folder(AppData *app, const char *path) {
     return TRUE;
 }
 
-CofiActionStatus sessions_open_folder(AppData *app, const char *path) {
+CofiActionStatus projects_open_folder(AppData *app, const char *path) {
     if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
 
     if (activate_existing_caja_folder(app, path)) {
@@ -196,8 +196,8 @@ CofiActionStatus sessions_open_folder(AppData *app, const char *path) {
     return COFI_ACTION_ERROR;
 }
 
-static void add_filtered_row(SessionsMode *mode, SessionRowType type, int index) {
-    int max_rows = MAX_SESSIONS + MAX_SESSION_FOLDERS;
+static void add_filtered_row(ProjectsMode *mode, ProjectRowType type, int index) {
+    int max_rows = MAX_PROJECTS + MAX_PROJECT_FOLDERS;
     if (!mode || mode->filtered_count >= max_rows) return;
     mode->filtered_rows[mode->filtered_count].type = type;
     mode->filtered_rows[mode->filtered_count].index = index;
@@ -205,7 +205,7 @@ static void add_filtered_row(SessionsMode *mode, SessionRowType type, int index)
 }
 
 typedef struct {
-    SessionRowType type;
+    ProjectRowType type;
     int index;
     int order;
     score_t score;
@@ -220,30 +220,30 @@ static int compare_session_filter_hits(const void *a, const void *b) {
     return ha->order - hb->order;
 }
 
-void sessions_filter(AppData *app, const char *query) {
+void projects_filter(AppData *app, const char *query) {
     if (!app) return;
-    SessionsMode *mode = &app->sessions_mode;
+    ProjectsMode *mode = &app->projects_mode;
     mode->filtered_count = 0;
 
     if (!query || query[0] == '\0') {
-        for (int i = 0; i < mode->session_count && i < MAX_SESSIONS; i++) {
-            add_filtered_row(mode, SESSION_ROW_SESSION, i);
+        for (int i = 0; i < mode->session_count && i < MAX_PROJECTS; i++) {
+            add_filtered_row(mode, PROJECT_ROW_SESSION, i);
         }
-        for (int i = 0; i < mode->folder_count && i < MAX_SESSION_FOLDERS; i++) {
-            add_filtered_row(mode, SESSION_ROW_FOLDER, i);
+        for (int i = 0; i < mode->folder_count && i < MAX_PROJECT_FOLDERS; i++) {
+            add_filtered_row(mode, PROJECT_ROW_FOLDER, i);
         }
         return;
     }
 
-    SessionFilterHit hits[MAX_SESSIONS + MAX_SESSION_FOLDERS];
+    SessionFilterHit hits[MAX_PROJECTS + MAX_PROJECT_FOLDERS];
     int hit_count = 0;
     int order = 0;
-    for (int i = 0; i < mode->session_count && i < MAX_SESSIONS; i++) {
+    for (int i = 0; i < mode->session_count && i < MAX_PROJECTS; i++) {
         char match_text[384];
-        sessions_format_session_match_text(&mode->sessions[i], match_text, sizeof(match_text));
+        projects_format_session_match_text(&mode->projects[i], match_text, sizeof(match_text));
         if (fzf_has_match(query, match_text)) {
             hits[hit_count++] = (SessionFilterHit){
-                .type = SESSION_ROW_SESSION,
+                .type = PROJECT_ROW_SESSION,
                 .index = i,
                 .order = order,
                 .score = fzf_fuzzy_match(query, match_text),
@@ -251,12 +251,12 @@ void sessions_filter(AppData *app, const char *query) {
         }
         order++;
     }
-    for (int i = 0; i < mode->folder_count && i < MAX_SESSION_FOLDERS; i++) {
+    for (int i = 0; i < mode->folder_count && i < MAX_PROJECT_FOLDERS; i++) {
         char match_text[512];
-        sessions_format_folder_match_text(&mode->folders[i], match_text, sizeof(match_text));
+        projects_format_folder_match_text(&mode->folders[i], match_text, sizeof(match_text));
         if (fzf_has_match(query, match_text)) {
             hits[hit_count++] = (SessionFilterHit){
-                .type = SESSION_ROW_FOLDER,
+                .type = PROJECT_ROW_FOLDER,
                 .index = i,
                 .order = order,
                 .score = fzf_fuzzy_match(query, match_text),
@@ -273,26 +273,26 @@ void sessions_filter(AppData *app, const char *query) {
     }
 }
 
-int sessions_row_count(AppData *app) {
+int projects_row_count(AppData *app) {
     if (!app) return 0;
-    SessionsMode *mode = &app->sessions_mode;
+    ProjectsMode *mode = &app->projects_mode;
     if (mode->filtered_count > 0) return mode->filtered_count;
     return 1;
 }
 
-void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
+void projects_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
     if (!out) return;
     memset(out, 0, sizeof(*out));
     if (!app) return;
 
-    SessionsMode *mode = &app->sessions_mode;
-    SessionFolder *folder = folder_at_visible(app, visible_idx);
+    ProjectsMode *mode = &app->projects_mode;
+    ProjectFolder *folder = folder_at_visible(app, visible_idx);
     static char windows_buf[16];
     static char attached_buf[16];
 
     if (folder) {
         out->cell_count = 3;
-        out->cells[0].text = sessions_folder_marker();
+        out->cells[0].text = projects_folder_marker();
         out->cells[0].width_hint = 3;
         out->cells[1].text = folder->label;
         out->cells[1].width_hint = 24;
@@ -300,11 +300,11 @@ void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
         out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
         return;
     }
-    SessionEntry *session = session_at_visible(app, visible_idx);
+    ProjectSessionEntry *session = session_at_visible(app, visible_idx);
     if (!session) {
         out->cell_count = 1;
         if (mode->session_count + mode->folder_count > 0) {
-            out->cells[0].text = "No matching sessions";
+            out->cells[0].text = "No matching projects";
         } else if (mode->last_error[0] != '\0') {
             out->cells[0].text = mode->last_error;
             out->row_flags = COFI_ROW_ERROR;
@@ -320,10 +320,10 @@ void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
                session->attached, session->attached == 1 ? "client" : "clients");
 
     out->cell_count = 4;
-    out->cells[0].text = sessions_session_marker(session->backend);
+    out->cells[0].text = projects_session_marker(session->backend);
     out->cells[0].width_hint = 3;
     out->cells[1].text = session->name;
-    if (session->backend == SESSION_BACKEND_ZELLIJ) {
+    if (session->backend == PROJECT_BACKEND_ZELLIJ) {
         out->cells[2].text = "";
         out->cells[2].width_hint = 7;
         out->cells[3].text = "";
@@ -339,68 +339,68 @@ void sessions_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
     out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
 }
 
-const char *sessions_match_string(AppData *app, int visible_idx) {
-    SessionEntry *session = session_at_visible(app, visible_idx);
-    SessionFolder *folder = folder_at_visible(app, visible_idx);
+const char *projects_match_string(AppData *app, int visible_idx) {
+    ProjectSessionEntry *session = session_at_visible(app, visible_idx);
+    ProjectFolder *folder = folder_at_visible(app, visible_idx);
     static char match_text[512];
     if (folder) {
-        sessions_format_folder_match_text(folder, match_text, sizeof(match_text));
+        projects_format_folder_match_text(folder, match_text, sizeof(match_text));
         return match_text;
     }
     if (session) {
-        sessions_format_session_match_text(session, match_text, sizeof(match_text));
+        projects_format_session_match_text(session, match_text, sizeof(match_text));
         return match_text;
     }
     return "";
 }
 
-const char *sessions_row_identity(AppData *app, int visible_idx) {
-    SessionEntry *session = session_at_visible(app, visible_idx);
-    SessionFolder *folder = folder_at_visible(app, visible_idx);
+const char *projects_row_identity(AppData *app, int visible_idx) {
+    ProjectSessionEntry *session = session_at_visible(app, visible_idx);
+    ProjectFolder *folder = folder_at_visible(app, visible_idx);
     if (folder) return folder->path;
     return session ? session->name : "";
 }
 
-void sessions_on_enter(AppData *app) {
+void projects_on_enter(AppData *app) {
     if (!app) return;
     if (app->entry) {
-        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "sessions...");
+        gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "projects...");
     }
-    sessions_refresh(app);
+    projects_refresh(app);
 }
 
-void sessions_on_query_changed(AppData *app, const char *query) {
-    sessions_filter(app, query);
+void projects_on_query_changed(AppData *app, const char *query) {
+    projects_filter(app, query);
     reset_selection(app);
 }
 
-void sessions_on_tick(AppData *app, int generation) {
+void projects_on_tick(AppData *app, int generation) {
     (void)generation;
     if (!app) return;
-    SessionRowType selected_type = SESSION_ROW_SESSION;
-    SessionBackend selected_backend = SESSION_BACKEND_TMUX;
+    ProjectRowType selected_type = PROJECT_ROW_SESSION;
+    ProjectBackend selected_backend = PROJECT_BACKEND_TMUX;
     gchar *selected_identity = NULL;
-    SessionEntry *selected_session = session_at_visible(app, app->selection.provider_index);
-    SessionFolder *selected_folder = folder_at_visible(app, app->selection.provider_index);
+    ProjectSessionEntry *selected_session = session_at_visible(app, app->selection.provider_index);
+    ProjectFolder *selected_folder = folder_at_visible(app, app->selection.provider_index);
     if (selected_session) {
-        selected_type = SESSION_ROW_SESSION;
+        selected_type = PROJECT_ROW_SESSION;
         selected_backend = selected_session->backend;
         selected_identity = g_strdup(selected_session->name);
     } else if (selected_folder) {
-        selected_type = SESSION_ROW_FOLDER;
+        selected_type = PROJECT_ROW_FOLDER;
         selected_identity = g_strdup(selected_folder->path);
     }
 
-    sessions_refresh(app);
+    projects_refresh(app);
     app->selection.provider_index = 0;
     if (selected_identity && selected_identity[0] != '\0') {
-        for (int i = 0; i < app->sessions_mode.filtered_count; i++) {
-            SessionRowRef row = app->sessions_mode.filtered_rows[i];
-            const char *identity = row.type == SESSION_ROW_SESSION
-                ? app->sessions_mode.sessions[row.index].name
-                : app->sessions_mode.folders[row.index].path;
-            gboolean same_backend = row.type != SESSION_ROW_SESSION ||
-                app->sessions_mode.sessions[row.index].backend == selected_backend;
+        for (int i = 0; i < app->projects_mode.filtered_count; i++) {
+            ProjectRowRef row = app->projects_mode.filtered_rows[i];
+            const char *identity = row.type == PROJECT_ROW_SESSION
+                ? app->projects_mode.projects[row.index].name
+                : app->projects_mode.folders[row.index].path;
+            gboolean same_backend = row.type != PROJECT_ROW_SESSION ||
+                app->projects_mode.projects[row.index].backend == selected_backend;
             if (row.type == selected_type && same_backend &&
                 strcmp(identity, selected_identity) == 0) {
                 app->selection.provider_index = i;
@@ -413,15 +413,15 @@ void sessions_on_tick(AppData *app, int generation) {
     update_display(app);
 }
 
-CofiActionStatus sessions_attach_visible(AppData *app, int visible_idx) {
-    SessionEntry *session = session_at_visible(app, visible_idx);
+CofiActionStatus projects_attach_visible(AppData *app, int visible_idx) {
+    ProjectSessionEntry *session = session_at_visible(app, visible_idx);
     if (session) {
-        return session->backend == SESSION_BACKEND_ZELLIJ
+        return session->backend == PROJECT_BACKEND_ZELLIJ
             ? zellij_attach_session(app, session->name)
             : attach_tmux_session(app, session->name);
     }
-    SessionFolder *folder = folder_at_visible(app, visible_idx);
-    return folder ? sessions_open_folder(app, folder->path) : COFI_ACTION_ERROR;
+    ProjectFolder *folder = folder_at_visible(app, visible_idx);
+    return folder ? projects_open_folder(app, folder->path) : COFI_ACTION_ERROR;
 }
 
 static CofiActionStatus run_session_admin_command(const char *command) {
@@ -430,28 +430,28 @@ static CofiActionStatus run_session_admin_command(const char *command) {
     return ok ? COFI_HANDLED_REFRESH : COFI_ACTION_ERROR;
 }
 
-CofiActionStatus sessions_kill_session(AppData *app,
+CofiActionStatus projects_kill_session(AppData *app,
                                    const char *session_name,
-                                   SessionBackend backend) {
+                                   ProjectBackend backend) {
     (void)app;
     if (!session_name || session_name[0] == '\0') return COFI_ACTION_ERROR;
 
-    gchar *command = backend == SESSION_BACKEND_ZELLIJ
-        ? sessions_build_zellij_kill_command(session_name)
-        : sessions_build_tmux_kill_command(session_name);
+    gchar *command = backend == PROJECT_BACKEND_ZELLIJ
+        ? projects_build_zellij_kill_command(session_name)
+        : projects_build_tmux_kill_command(session_name);
     CofiActionStatus status = run_session_admin_command(command);
     if (status == COFI_HANDLED_REFRESH) {
         log_info("USER: %s: killed session '%s'",
-                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
                  session_name);
     }
     g_free(command);
     return status;
 }
 
-CofiActionStatus sessions_rename_tmux_session(AppData *app, const char *old_name, const char *new_name) {
+CofiActionStatus projects_rename_tmux_session(AppData *app, const char *old_name, const char *new_name) {
     (void)app;
-    gchar *command = sessions_build_tmux_rename_command(old_name, new_name);
+    gchar *command = projects_build_tmux_rename_command(old_name, new_name);
     CofiActionStatus status = run_session_admin_command(command);
     if (status == COFI_HANDLED_REFRESH) {
         log_info("USER: tmux: renamed session '%s' to '%s'", old_name, new_name);
@@ -460,68 +460,68 @@ CofiActionStatus sessions_rename_tmux_session(AppData *app, const char *old_name
     return status;
 }
 
-CofiActionStatus sessions_new_session(AppData *app,
+CofiActionStatus projects_new_session(AppData *app,
                                        const char *session_name,
-                                       SessionBackend backend,
+                                       ProjectBackend backend,
                                        const char *start_dir) {
     (void)app;
     const char *home = g_get_home_dir();
     const char *dir = (start_dir && start_dir[0] != '\0') ? start_dir : (home ? home : "/");
-    gchar *command = backend == SESSION_BACKEND_ZELLIJ
-        ? sessions_build_zellij_new_command(session_name, dir)
-        : sessions_build_tmux_new_command(session_name, dir);
+    gchar *command = backend == PROJECT_BACKEND_ZELLIJ
+        ? projects_build_zellij_new_command(session_name, dir)
+        : projects_build_tmux_new_command(session_name, dir);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
     if (ok) {
         log_info("USER: %s: created/attached session '%s'",
-                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
                  session_name);
     } else {
         log_warn("%s: failed to create/attach session '%s'",
-                 backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                 backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
                  session_name);
     }
     g_free(command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-SessionEntry *sessions_selected_session(AppData *app) {
+ProjectSessionEntry *projects_selected_session(AppData *app) {
     if (!app) return NULL;
     return session_at_visible(app, app->selection.provider_index);
 }
 
-SessionFolder *sessions_selected_folder(AppData *app) {
+ProjectFolder *projects_selected_folder(AppData *app) {
     if (!app) return NULL;
     return folder_at_visible(app, app->selection.provider_index);
 }
 
-SessionFolder *sessions_folder_at_visible(AppData *app, int visible_idx) {
+ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
     return folder_at_visible(app, visible_idx);
 }
 
-const char *sessions_get_shortcut_hint(AppData *app) {
-    if (sessions_selected_folder(app)) {
+const char *projects_get_shortcut_hint(AppData *app) {
+    if (projects_selected_folder(app)) {
         return "Actions: Enter=Open folder  Insert=New session  Ctrl+key=Slot  Alt+key=Recall";
     }
-    SessionEntry *session = sessions_selected_session(app);
-    if (session && session->backend == SESSION_BACKEND_ZELLIJ) {
+    ProjectSessionEntry *session = projects_selected_session(app);
+    if (session && session->backend == PROJECT_BACKEND_ZELLIJ) {
         return "Actions: Enter=Open  Delete=Kill  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
     }
     return "Actions: Enter=Open  Delete=Kill  F2=Rename  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
 }
 
-const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
+const char *projects_slot_payload_for(AppData *app, int visible_idx) {
     static char payload_buf[1024];
     payload_buf[0] = '\0';
-    SessionEntry *session = session_at_visible(app, visible_idx);
-    SessionFolder *folder = folder_at_visible(app, visible_idx);
+    ProjectSessionEntry *session = session_at_visible(app, visible_idx);
+    ProjectFolder *folder = folder_at_visible(app, visible_idx);
     gchar *payload = NULL;
 
     if (session) {
-        payload = sessions_build_session_slot_payload(session->backend, session->name);
+        payload = projects_build_session_slot_payload(session->backend, session->name);
     } else if (folder) {
-        payload = sessions_build_folder_slot_payload(folder->path);
+        payload = projects_build_folder_slot_payload(folder->path);
     }
     if (!payload) return NULL;
 
@@ -530,29 +530,29 @@ const char *sessions_slot_payload_for(AppData *app, int visible_idx) {
     return payload_buf;
 }
 
-CofiActionStatus sessions_slot_recall(AppData *app, const char *payload) {
-    SessionSlotTarget target;
-    if (!sessions_parse_slot_payload(payload, &target)) {
-        log_warn("Sessions slot has invalid payload: %s", payload ? payload : "(null)");
+CofiActionStatus projects_slot_recall(AppData *app, const char *payload) {
+    ProjectSlotTarget target;
+    if (!projects_parse_slot_payload(payload, &target)) {
+        log_warn("Projects slot has invalid payload: %s", payload ? payload : "(null)");
         return COFI_ACTION_ERROR;
     }
 
-    if (target.kind == SESSION_SLOT_FOLDER) {
-        return sessions_open_folder(app, target.value);
+    if (target.kind == PROJECT_SLOT_FOLDER) {
+        return projects_open_folder(app, target.value);
     }
-    if (target.kind == SESSION_SLOT_SESSION) {
-        return target.backend == SESSION_BACKEND_ZELLIJ
+    if (target.kind == PROJECT_SLOT_SESSION) {
+        return target.backend == PROJECT_BACKEND_ZELLIJ
             ? zellij_attach_session(app, target.value)
             : attach_tmux_session(app, target.value);
     }
     return COFI_ACTION_ERROR;
 }
 
-CofiActionStatus sessions_attach_named(AppData *app, const char *name) {
+CofiActionStatus projects_attach_named(AppData *app, const char *name) {
     if (!app || !name || name[0] == '\0') return COFI_NO_OP;
-    for (int i = 0; i < app->sessions_mode.session_count; i++) {
-        if (strcmp(app->sessions_mode.sessions[i].name, name) == 0) {
-            return app->sessions_mode.sessions[i].backend == SESSION_BACKEND_ZELLIJ
+    for (int i = 0; i < app->projects_mode.session_count; i++) {
+        if (strcmp(app->projects_mode.projects[i].name, name) == 0) {
+            return app->projects_mode.projects[i].backend == PROJECT_BACKEND_ZELLIJ
                 ? zellij_attach_session(app, name)
                 : attach_tmux_session(app, name);
         }
@@ -560,10 +560,10 @@ CofiActionStatus sessions_attach_named(AppData *app, const char *name) {
     return COFI_ACTION_ERROR;
 }
 
-gboolean sessions_has_named(AppData *app, const char *name) {
+gboolean projects_has_named(AppData *app, const char *name) {
     if (!app || !name || name[0] == '\0') return FALSE;
-    for (int i = 0; i < app->sessions_mode.session_count; i++) {
-        if (strcmp(app->sessions_mode.sessions[i].name, name) == 0) {
+    for (int i = 0; i < app->projects_mode.session_count; i++) {
+        if (strcmp(app->projects_mode.projects[i].name, name) == 0) {
             return TRUE;
         }
     }
@@ -571,15 +571,15 @@ gboolean sessions_has_named(AppData *app, const char *name) {
 }
 
 #ifdef COFI_TESTING
-void sessions_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
+void projects_set_launch_impl_test_hook(gboolean (*impl)(const char *command)) {
     s_launch_in_terminal = impl ? impl : default_launch_in_terminal;
 }
 
-void sessions_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
+void projects_set_command_impl_test_hook(gboolean (*impl)(const char *command)) {
     s_run_session_command = impl ? impl : default_run_session_command;
 }
 
-void sessions_set_argv_launch_impl_test_hook(gboolean (*impl)(const char *const *argv)) {
+void projects_set_argv_launch_impl_test_hook(gboolean (*impl)(const char *const *argv)) {
     s_launch_argv = impl ? impl : default_launch_argv;
 }
 #endif

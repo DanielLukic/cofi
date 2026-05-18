@@ -18,7 +18,7 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 
 - **Harpoon slot** — one of 36 persistent assignments (digits `0–9` plus letters `a–z`) mapping a key to a specific window. Inspired by the Neovim plugin of the same name. Stored in `~/.config/cofi/harpoon.json` and survives restarts.
 - **Harpoon tab** — the UI surface for editing/jumping harpoon assignments. Shortcut: `Ctrl+H`.
-- **Provider slot** — a slot owned by a provider tab rather than the Windows tab. Sinks, Sessions, and Profiles use provider-specific payloads so the same key can mean different things per tab.
+- **Provider slot** — a slot owned by a provider tab rather than the Windows tab. Sinks, Projects, and Profiles use provider-specific payloads so the same key can mean different things per tab.
 
 ## Workspace slots
 
@@ -31,7 +31,7 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 
 ## Modes & tabs
 
-- **Tab** — a view in the cofi window. Windows is core-special; Agent Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Sessions, and Profiles are provider tabs.
+- **Tab** — a view in the cofi window. Windows is core-special; Agent Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles are provider tabs.
 - **Provider** — a compiled-in list/action surface registered through `CofiTabProvider`. Providers own row formatting, filtering hooks, Enter behavior, tab-specific keys, command aliases, optional prefixes, slots, and tick callbacks.
 - **Plugin** — broader architecture term for a compiled-in capability module. A plugin may expose a provider tab, commands, prefixes, slots, config rows, or later rule predicates/actions. Today most plugin work is represented by providers.
 - **Dynamic tab handle** — a runtime tab id assigned when a provider registers with `COFI_PROVIDER_DYNAMIC_TAB`. Provider tabs no longer have static `TAB_*` enum values; code should resolve them through provider helpers or registry lookups.

@@ -1,4 +1,4 @@
-#include "sessions_parse.h"
+#include "projects_parse.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,8 +19,8 @@ static void copy_field(char *dest, size_t dest_size, const char *start, size_t l
     dest[len] = '\0';
 }
 
-int sessions_parse_tmux_list(const char *output,
-                             SessionEntry *out,
+int projects_parse_tmux_list(const char *output,
+                             ProjectSessionEntry *out,
                              int max_out,
                              char *error_out,
                              size_t error_size) {
@@ -55,7 +55,7 @@ int sessions_parse_tmux_list(const char *output,
                     parse_int_field(attached_buf, &attached)) {
                     copy_field(out[count].name, sizeof(out[count].name), line,
                                (size_t)(tab1 - line));
-                    out[count].backend = SESSION_BACKEND_TMUX;
+                    out[count].backend = PROJECT_BACKEND_TMUX;
                     out[count].windows = windows;
                     out[count].attached = attached;
                     count++;
@@ -71,8 +71,8 @@ int sessions_parse_tmux_list(const char *output,
     return count;
 }
 
-int sessions_parse_zellij_list(const char *output,
-                               SessionEntry *out,
+int projects_parse_zellij_list(const char *output,
+                               ProjectSessionEntry *out,
                                int max_out,
                                char *error_out,
                                size_t error_size) {
@@ -93,7 +93,7 @@ int sessions_parse_zellij_list(const char *output,
             copy_field(out[count].name, sizeof(out[count].name), line,
                        (size_t)(line_end - line));
             if (out[count].name[0] != '\0') {
-                out[count].backend = SESSION_BACKEND_ZELLIJ;
+                out[count].backend = PROJECT_BACKEND_ZELLIJ;
                 out[count].windows = -1;
                 out[count].attached = -1;
                 count++;
@@ -126,7 +126,7 @@ static gchar *folder_label_from_path(const char *path) {
     return len > 0 ? g_strndup(base, len) : g_strdup("zoxide");
 }
 
-void sessions_clear_folders(SessionFolder *folders, int count) {
+void projects_clear_folders(ProjectFolder *folders, int count) {
     if (!folders || count <= 0) return;
     for (int i = 0; i < count; i++) {
         g_clear_pointer(&folders[i].path, g_free);
@@ -134,8 +134,8 @@ void sessions_clear_folders(SessionFolder *folders, int count) {
     }
 }
 
-int sessions_parse_zoxide_list(const char *output,
-                               SessionFolder *out,
+int projects_parse_zoxide_list(const char *output,
+                               ProjectFolder *out,
                                int max_out,
                                char *error_out,
                                size_t error_size) {
@@ -171,7 +171,7 @@ int sessions_parse_zoxide_list(const char *output,
     return count;
 }
 
-gchar *sessions_build_folder_session_name(const char *path) {
+gchar *projects_build_folder_session_name(const char *path) {
     gchar *label = folder_label_from_path(path);
 
     GString *name = g_string_new(NULL);
@@ -191,22 +191,22 @@ gchar *sessions_build_folder_session_name(const char *path) {
     return g_string_free(name, FALSE);
 }
 
-gchar *sessions_build_session_slot_payload(SessionBackend backend, const char *name) {
+gchar *projects_build_session_slot_payload(ProjectBackend backend, const char *name) {
     if (!name || name[0] == '\0') return NULL;
     return g_strdup_printf("session:%s:%s",
-                           backend == SESSION_BACKEND_ZELLIJ ? "zellij" : "tmux",
+                           backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
                            name);
 }
 
-gchar *sessions_build_folder_slot_payload(const char *path) {
+gchar *projects_build_folder_slot_payload(const char *path) {
     if (!path || path[0] == '\0') return NULL;
     return g_strdup_printf("folder:%s", path);
 }
 
-gboolean sessions_parse_slot_payload(const char *payload, SessionSlotTarget *out) {
+gboolean projects_parse_slot_payload(const char *payload, ProjectSlotTarget *out) {
     if (out) {
         memset(out, 0, sizeof(*out));
-        out->kind = SESSION_SLOT_INVALID;
+        out->kind = PROJECT_SLOT_INVALID;
     }
     if (!payload || payload[0] == '\0' || !out) return FALSE;
 
@@ -215,37 +215,37 @@ gboolean sessions_parse_slot_payload(const char *payload, SessionSlotTarget *out
     const char *folder_prefix = "folder:";
 
     if (g_str_has_prefix(payload, tmux_prefix)) {
-        out->kind = SESSION_SLOT_SESSION;
-        out->backend = SESSION_BACKEND_TMUX;
+        out->kind = PROJECT_SLOT_SESSION;
+        out->backend = PROJECT_BACKEND_TMUX;
         out->value = payload + strlen(tmux_prefix);
     } else if (g_str_has_prefix(payload, zellij_prefix)) {
-        out->kind = SESSION_SLOT_SESSION;
-        out->backend = SESSION_BACKEND_ZELLIJ;
+        out->kind = PROJECT_SLOT_SESSION;
+        out->backend = PROJECT_BACKEND_ZELLIJ;
         out->value = payload + strlen(zellij_prefix);
     } else if (g_str_has_prefix(payload, folder_prefix)) {
-        out->kind = SESSION_SLOT_FOLDER;
-        out->backend = SESSION_BACKEND_TMUX;
+        out->kind = PROJECT_SLOT_FOLDER;
+        out->backend = PROJECT_BACKEND_TMUX;
         out->value = payload + strlen(folder_prefix);
     } else {
         return FALSE;
     }
 
     if (!out->value || out->value[0] == '\0') {
-        out->kind = SESSION_SLOT_INVALID;
+        out->kind = PROJECT_SLOT_INVALID;
         return FALSE;
     }
     return TRUE;
 }
 
-const char *sessions_session_marker(SessionBackend backend) {
-    return backend == SESSION_BACKEND_ZELLIJ ? "[z]" : "[t]";
+const char *projects_session_marker(ProjectBackend backend) {
+    return backend == PROJECT_BACKEND_ZELLIJ ? "[z]" : "[t]";
 }
 
-const char *sessions_folder_marker(void) {
+const char *projects_folder_marker(void) {
     return "[d]";
 }
 
-void sessions_format_session_match_text(const SessionEntry *session,
+void projects_format_session_match_text(const ProjectSessionEntry *session,
                                         char *out,
                                         size_t out_size) {
     if (!out || out_size == 0) return;
@@ -253,13 +253,13 @@ void sessions_format_session_match_text(const SessionEntry *session,
         out[0] = '\0';
         return;
     }
-    if (session->backend == SESSION_BACKEND_ZELLIJ) {
-        g_snprintf(out, out_size, "%s %s", sessions_session_marker(session->backend),
+    if (session->backend == PROJECT_BACKEND_ZELLIJ) {
+        g_snprintf(out, out_size, "%s %s", projects_session_marker(session->backend),
                    session->name);
         return;
     }
     g_snprintf(out, out_size, "%s %s %d %s %d %s",
-               sessions_session_marker(session->backend),
+               projects_session_marker(session->backend),
                session->name,
                session->windows,
                session->windows == 1 ? "win" : "wins",
@@ -267,7 +267,7 @@ void sessions_format_session_match_text(const SessionEntry *session,
                session->attached == 1 ? "client" : "clients");
 }
 
-void sessions_format_folder_match_text(const SessionFolder *folder,
+void projects_format_folder_match_text(const ProjectFolder *folder,
                                        char *out,
                                        size_t out_size) {
     if (!out || out_size == 0) return;
@@ -275,7 +275,7 @@ void sessions_format_folder_match_text(const SessionFolder *folder,
         out[0] = '\0';
         return;
     }
-    g_snprintf(out, out_size, "%s %s %s", sessions_folder_marker(),
+    g_snprintf(out, out_size, "%s %s %s", projects_folder_marker(),
                folder->label ? folder->label : "",
                folder->path ? folder->path : "");
 }

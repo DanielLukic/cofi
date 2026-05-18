@@ -1,4 +1,4 @@
-#include "sessions_tmux_windows.h"
+#include "projects_tmux_windows.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -10,10 +10,10 @@
 #include "display.h"
 #include "log.h"
 #include "process_windows.h"
-#include "sessions_window_env.h"
+#include "projects_window_env.h"
 #include "window_list.h"
 
-int sessions_parse_tmux_client_pids(const char *output, pid_t *pids, int max_pids) {
+int projects_parse_tmux_client_pids(const char *output, pid_t *pids, int max_pids) {
     if (!output || !pids || max_pids <= 0) return 0;
 
     int count = 0;
@@ -61,7 +61,7 @@ static gboolean window_from_client_environ(AppData *app, pid_t pid, Window *wind
     }
 
     Window window = 0;
-    gboolean found = sessions_windowid_from_environ(environ_data, environ_len, &window);
+    gboolean found = projects_windowid_from_environ(environ_data, environ_len, &window);
     g_free(environ_data);
     if (!found || !tmux_window_is_valid(app->display, window)) return FALSE;
 
@@ -69,7 +69,7 @@ static gboolean window_from_client_environ(AppData *app, pid_t pid, Window *wind
     return TRUE;
 }
 
-gboolean sessions_activate_tmux_window(AppData *app, const char *session_name) {
+gboolean projects_activate_tmux_window(AppData *app, const char *session_name) {
     if (!app || !session_name || session_name[0] == '\0') return FALSE;
 
     gchar *tmux = g_find_program_in_path("tmux");
@@ -101,7 +101,7 @@ gboolean sessions_activate_tmux_window(AppData *app, const char *session_name) {
     }
 
     pid_t pids[16];
-    int count = sessions_parse_tmux_client_pids(stdout_str, pids, 16);
+    int count = projects_parse_tmux_client_pids(stdout_str, pids, 16);
     g_free(stdout_str);
     if (count == 0) return FALSE;
 

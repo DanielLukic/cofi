@@ -59,7 +59,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
                 │  - workspaces / harpoon / names    │
                 │  - config / hotkeys / rules / apps │
                 │  - calc / sinks / run / proc       │
-                │  - sessions / profiles             │
+                │  - projects / profiles             │
                 │  - history + filter + display      │
                 │  - config/state persistence        │
                 └────────────────────────────────────┘
@@ -104,7 +104,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Providers and plugin architecture
 
-- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Agent Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Sessions, and Profiles.
+- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Agent Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles.
 - **Dynamic tab handles** — provider tabs request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. `TabMode` is now core-only (`TAB_WINDOWS` plus the `TAB_COUNT` sentinel); provider tabs are enumerated through the registry.
 - **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
 - **Commands** — commands register `CommandSpec` entries with `command_registry`. Provider command specs live in their provider modules; core commands live in the built-in core registration list. Provider-owned commands are hidden when that provider is disabled.
