@@ -445,22 +445,28 @@ View and interact with workspaces via the Workspaces tab.
 
 ## Tabs
 
-Eight tabs exist; visibility is controlled per-tab (TFD-545):
+Fifteen tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Workspaces, Harpoon, Names, Config, Hotkeys, Rules
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
 1. **Windows** — main window list with search and MRU ordering *(PINNED)*
 2. **Apps** — installed desktop application launcher + system actions + `$PATH` binaries *(PINNED)*
-3. **Workspaces** — workspace list and management *(HIDDEN by default)*
-4. **Harpoon** — harpoon slot assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-5. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-6. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
-7. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-8. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
-9. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+3. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
+4. **Workspaces** — workspace list and management *(HIDDEN by default)*
+5. **Harpoon** — harpoon slot assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+6. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+7. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
+8. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+9. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
+10. **Calc** — calculator modal *(HIDDEN by default)*
+11. **Sinks** — audio sink selection *(HIDDEN by default)*
+12. **Run** — command runner modal *(HIDDEN by default)*
+13. **Proc** — process manager *(HIDDEN by default)*
+14. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+15. **Profiles** — browser profile launcher *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 

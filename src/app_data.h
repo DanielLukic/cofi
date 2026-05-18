@@ -23,7 +23,7 @@
 #include "projects.h"
 #include "daemon_socket.h"
 #include "calc.h"
-#include "agent_sessions.h"
+#include "sessions.h"
 
 #define MAX_PROVIDER_ENABLEMENT_ROWS 32
 
@@ -63,8 +63,8 @@ typedef enum {
     OVERLAY_PROJECT_KILL,
     OVERLAY_PROJECT_RENAME,
     OVERLAY_PROJECT_NEW,
-    OVERLAY_AGENT_SESSION_DELETE,
-    OVERLAY_AGENT_SESSION_RENAME,
+    OVERLAY_SESSION_DELETE,
+    OVERLAY_SESSION_RENAME,
     OVERLAY_PROVIDER_ENABLEMENT
 } OverlayType;
 
@@ -227,19 +227,19 @@ typedef struct AppData {
         char start_dir[1024];
     } project_new;
 
-    // Agent sessions tab overlay state
+    // Sessions tab overlay state
     struct {
         char source[16];
-        char session_id[AGENT_SESSION_ID_LEN];
-        char path[AGENT_SESSION_PATH_LEN];
-    } agent_session_delete;
+        char session_id[SESSION_ID_LEN];
+        char path[SESSION_PATH_LEN];
+    } session_delete;
 
     struct {
         char source[16];
-        char session_id[AGENT_SESSION_ID_LEN];
-        char path[AGENT_SESSION_PATH_LEN];
-        char current_name[AGENT_SESSION_NAME_LEN];
-    } agent_session_rename;
+        char session_id[SESSION_ID_LEN];
+        char path[SESSION_PATH_LEN];
+        char current_name[SESSION_NAME_LEN];
+    } session_rename;
 
     // Rebind state (Hotkeys tab Ctrl+B)
     struct {

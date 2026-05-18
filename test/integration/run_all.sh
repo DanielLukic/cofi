@@ -375,11 +375,11 @@ run_proc_basic() {
     run_command_tab_basic "proc" "Proc" "proc-basic.png" "zz-cofi-no-such-process"
 }
 
-setup_agent_sessions_fixture() {
-    local project_dir="$HOME_DIR/.claude/projects/-tmp-cofi-agent-project"
+setup_sessions_fixture() {
+    local project_dir="$HOME_DIR/.claude/projects/-tmp-cofi-session-project"
     mkdir -p "$project_dir"
-    cat > "$project_dir/abc-agent-session.jsonl" <<'JSON'
-{"type":"custom-title","customTitle":"Old Agent Name","sessionId":"abc-agent-session"}
+    cat > "$project_dir/abc-session.jsonl" <<'JSON'
+{"type":"custom-title","customTitle":"Old Session Name","sessionId":"abc-session"}
 {"type":"user","message":{"content":"alpha wide AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}
 JSON
 }
@@ -399,9 +399,9 @@ SH
     chmod +x "$PATH_BIN_DIR/mate-terminal"
 }
 
-run_agent_sessions_keys() {
+run_sessions_keys() {
     setup_common_config
-    setup_agent_sessions_fixture
+    setup_sessions_fixture
     setup_fake_terminal
     start_window_manager
     start_test_windows
@@ -411,21 +411,21 @@ run_agent_sessions_keys() {
     wait_for_log_line "USER: Entered command mode" "command mode"
     focus_cofi
 
-    xdotool type --clearmodifiers "agents"
+    xdotool type --clearmodifiers "sessions"
     xdotool key Return
-    wait_for_log_line "Switched to AGENTS tab" "agent sessions tab"
+    wait_for_log_line "Switched to SESSIONS tab" "sessions tab"
     xdotool type --clearmodifiers "alpha"
-    wait_for_log_line "Agent sessions search complete: 1 matching sessions" "agent session search"
+    wait_for_log_line "Sessions search complete: 1 matching sessions" "session search"
 
     WIDTH=0
     eval "$(xdotool getwindowgeometry --shell "$cofi_window" 2>/dev/null || true)"
     [[ "$WIDTH" -gt 0 && "$WIDTH" -le 1220 ]] \
-        || fail "$CASE_NAME: cofi window too wide after agent-session result: $WIDTH"
+        || fail "$CASE_NAME: cofi window too wide after session result: $WIDTH"
 
     xdotool key Return
     for _ in {1..100}; do
         if [[ -f "$COFI_FAKE_TERMINAL_LOG" ]] &&
-           grep -q "claude --resume 'abc-agent-session'" "$COFI_FAKE_TERMINAL_LOG"; then
+           grep -q "claude --resume 'abc-session'" "$COFI_FAKE_TERMINAL_LOG"; then
             return 0
         fi
         sleep 0.1
@@ -433,9 +433,9 @@ run_agent_sessions_keys() {
     fail "$CASE_NAME: Enter did not launch terminal resume command"
 }
 
-run_agent_sessions_rename_key() {
+run_sessions_rename_key() {
     setup_common_config
-    setup_agent_sessions_fixture
+    setup_sessions_fixture
     start_window_manager
     start_test_windows
     COFI_TEST_PATH="$PATH_BIN_DIR:/usr/bin:/bin" launch_cofi --command
@@ -443,21 +443,21 @@ run_agent_sessions_rename_key() {
     wait_for_log_line "USER: Entered command mode" "command mode"
     focus_cofi
 
-    xdotool type --clearmodifiers "agents"
+    xdotool type --clearmodifiers "sessions"
     xdotool key Return
-    wait_for_log_line "Switched to AGENTS tab" "agent sessions tab"
+    wait_for_log_line "Switched to SESSIONS tab" "sessions tab"
     xdotool type --clearmodifiers "alpha"
-    wait_for_log_line "Agent sessions search complete: 1 matching sessions" "agent session search"
+    wait_for_log_line "Sessions search complete: 1 matching sessions" "session search"
 
     xdotool key ctrl+r
     sleep 0.2
-    xdotool type --clearmodifiers "Renamed Agent Session"
+    xdotool type --clearmodifiers "Renamed Session"
     xdotool key Return
 
-    local session_file="$HOME_DIR/.claude/projects/-tmp-cofi-agent-project/abc-agent-session.jsonl"
+    local session_file="$HOME_DIR/.claude/projects/-tmp-cofi-session-project/abc-session.jsonl"
     for _ in {1..100}; do
-        if grep -q '"customTitle":"Renamed Agent Session"' "$session_file" &&
-           grep -q '"agentName":"Renamed Agent Session"' "$session_file"; then
+        if grep -q '"customTitle":"Renamed Session"' "$session_file" &&
+           grep -q '"agentName":"Renamed Session"' "$session_file"; then
             return 0
         fi
         sleep 0.1
@@ -521,5 +521,5 @@ run_selected_case rules_basic
 run_selected_case calc_basic
 run_selected_case sinks_basic
 run_selected_case proc_basic
-run_selected_case agent_sessions_keys
-run_selected_case agent_sessions_rename_key
+run_selected_case sessions_keys
+run_selected_case sessions_rename_key

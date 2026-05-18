@@ -1,4 +1,4 @@
-#include "agent_sessions.h"
+#include "sessions.h"
 
 #include "detach_launch.h"
 #include "fzf_algo.h"
@@ -12,21 +12,21 @@
 #include <string.h>
 #include <time.h>
 
-#define AGENT_SESSIONS_MAX_PROCESSED_LINES 50000
-#define AGENT_SESSIONS_MAX_MATCHES_PER_FILE 40
+#define SESSIONS_MAX_PROCESSED_LINES 50000
+#define SESSIONS_MAX_MATCHES_PER_FILE 40
 
 typedef struct {
-    AgentSessionsMode *mode;
+    SessionsMode *mode;
     int generation;
 } ReadContext;
 
 static gchar *home_path(const char *first, const char *second);
-static void update_result_search_text(AgentSessionResult *result);
-static unsigned int term_mask_for_text(const AgentSessionQuery *query,
+static void update_result_search_text(SessionResult *result);
+static unsigned int term_mask_for_text(const SessionQuery *query,
                                        const char *text,
                                        const char *fallback);
-static unsigned int metadata_mask_for_result(const AgentSessionQuery *query,
-                                             const AgentSessionResult *result);
+static unsigned int metadata_mask_for_result(const SessionQuery *query,
+                                             const SessionResult *result);
 static gboolean codex_thread_id_from_session(const char *session_id,
                                              char *out,
                                              size_t out_size);
@@ -35,15 +35,15 @@ static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
 }
 
-static AgentSessionsLaunchImpl s_launch_impl = default_launch_in_terminal;
+static SessionsLaunchImpl s_launch_impl = default_launch_in_terminal;
 
-static void notify_changed(AgentSessionsMode *mode) {
+static void notify_changed(SessionsMode *mode) {
     if (mode && mode->changed_cb) {
         mode->changed_cb(mode->changed_user_data);
     }
 }
 
-static unsigned int full_query_mask(const AgentSessionQuery *query) {
+static unsigned int full_query_mask(const SessionQuery *query) {
     if (!query) return 0;
     return query->term_count >= 31
         ? 0xffffffffu : ((1u << query->term_count) - 1u);
@@ -65,7 +65,7 @@ static void copy_trimmed(char *out, size_t out_size, const char *start, size_t l
     out[copy] = '\0';
 }
 
-int agent_sessions_parse_query(const char *input, AgentSessionQuery *out) {
+int sessions_parse_query(const char *input, SessionQuery *out) {
     if (!out) return 0;
     memset(out, 0, sizeof(*out));
     const char *text = input ? input : "";
@@ -81,7 +81,7 @@ int agent_sessions_parse_query(const char *input, AgentSessionQuery *out) {
     g_strlcpy(left_copy, out->left, sizeof(left_copy));
     char *save = NULL;
     for (char *tok = strtok_r(left_copy, " \t\r\n", &save);
-         tok && out->term_count < AGENT_SESSION_MAX_TERMS;
+         tok && out->term_count < SESSION_MAX_TERMS;
          tok = strtok_r(NULL, " \t\r\n", &save)) {
         g_strlcpy(out->terms[out->term_count++], tok,
                   sizeof(out->terms[0]));
@@ -170,7 +170,7 @@ static void extract_object_text(JsonObject *obj, char *out, size_t out_size) {
 
 static void normalize_snippet(char *text) {
     if (!text) return;
-    char out[AGENT_SESSION_TEXT_LEN];
+    char out[SESSION_TEXT_LEN];
     int j = 0;
     int was_space = 1;
     for (int i = 0; text[i] && j < (int)sizeof(out) - 1; i++) {
@@ -187,10 +187,10 @@ static void normalize_snippet(char *text) {
     }
     while (j > 0 && out[j - 1] == ' ') j--;
     out[j] = '\0';
-    g_strlcpy(text, out, AGENT_SESSION_TEXT_LEN);
+    g_strlcpy(text, out, SESSION_TEXT_LEN);
 }
 
-int agent_sessions_extract_json_text(const char *line, char *out, size_t out_size) {
+int sessions_extract_json_text(const char *line, char *out, size_t out_size) {
     if (!out || out_size == 0) return 0;
     out[0] = '\0';
     if (!line || line[0] == '\0') return 0;
@@ -212,7 +212,7 @@ int agent_sessions_extract_json_text(const char *line, char *out, size_t out_siz
     return out[0] != '\0';
 }
 
-int agent_sessions_extract_name_metadata(const char *line, char *out, size_t out_size) {
+int sessions_extract_name_metadata(const char *line, char *out, size_t out_size) {
     if (!out || out_size == 0) return 0;
     out[0] = '\0';
     if (!line || line[0] == '\0') return 0;
@@ -320,7 +320,7 @@ static void compact_project_label(const char *project, char *out, size_t out_siz
     g_free(base);
 }
 
-static void fill_modified_metadata(AgentSessionResult *result) {
+static void fill_modified_metadata(SessionResult *result) {
     if (!result || result->path[0] == '\0') return;
     GStatBuf st;
     if (g_stat(result->path, &st) != 0) return;
@@ -334,7 +334,7 @@ static void fill_modified_metadata(AgentSessionResult *result) {
     }
 }
 
-static void fill_result_metadata(AgentSessionResult *result, const char *path) {
+static void fill_result_metadata(SessionResult *result, const char *path) {
     if (!result || !path) return;
     g_strlcpy(result->path, path, sizeof(result->path));
 
@@ -345,13 +345,13 @@ static void fill_result_metadata(AgentSessionResult *result, const char *path) {
         const char *rest = claude + strlen("/.claude/projects/");
         const char *slash = strchr(rest, '/');
         if (slash) {
-            char slug[AGENT_SESSION_PROJECT_LEN];
+            char slug[SESSION_PROJECT_LEN];
             copy_trimmed(slug, sizeof(slug), rest, (size_t)(slash - rest));
             claude_project_from_slug(slug, result->project, sizeof(result->project));
             g_strlcpy(result->cwd, result->project, sizeof(result->cwd));
             const char *subagents = strstr(slash + 1, "/subagents/");
             if (subagents) {
-                char parent[AGENT_SESSION_ID_LEN];
+                char parent[SESSION_ID_LEN];
                 copy_trimmed(parent, sizeof(parent), slash + 1,
                              (size_t)(subagents - (slash + 1)));
                 char *dot = g_strrstr(parent, ".jsonl");
@@ -435,7 +435,7 @@ static void fill_cwd_from_session_file(const char *path, char *out, size_t out_s
     fclose(file);
 }
 
-gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
+gboolean sessions_build_resume_command(const SessionResult *result,
                                              char *out,
                                              size_t out_size) {
     if (!out || out_size == 0) return FALSE;
@@ -457,14 +457,14 @@ gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
         return FALSE;
     }
 
-    char cwd[AGENT_SESSION_PATH_LEN];
+    char cwd[SESSION_PATH_LEN];
     g_strlcpy(cwd, result->cwd, sizeof(cwd));
     fill_cwd_from_session_file(result->path, cwd, sizeof(cwd));
 
-    char resume_id[AGENT_SESSION_ID_LEN];
+    char resume_id[SESSION_ID_LEN];
     g_strlcpy(resume_id, result->session_id, sizeof(resume_id));
     if (strcmp(result->source, "codex") == 0) {
-        char thread_id[AGENT_SESSION_ID_LEN];
+        char thread_id[SESSION_ID_LEN];
         if (codex_thread_id_from_session(result->session_id,
                                          thread_id, sizeof(thread_id))) {
             g_strlcpy(resume_id, thread_id, sizeof(resume_id));
@@ -487,9 +487,9 @@ gboolean agent_sessions_build_resume_command(const AgentSessionResult *result,
     return out[0] != '\0';
 }
 
-gboolean agent_sessions_launch_result(const AgentSessionResult *result) {
-    char command[AGENT_SESSION_COMMAND_LEN];
-    if (!agent_sessions_build_resume_command(result, command, sizeof(command))) {
+gboolean sessions_launch_result(const SessionResult *result) {
+    char command[SESSION_COMMAND_LEN];
+    if (!sessions_build_resume_command(result, command, sizeof(command))) {
         return FALSE;
     }
     return s_launch_impl(command);
@@ -636,7 +636,7 @@ static gboolean write_claude_name_records(const char *path,
                                      name, session_id);
     FILE *file = fopen(path, "a");
     if (!file) {
-        log_warn("Failed to open agent session for rename '%s': %s",
+        log_warn("Failed to open session for rename '%s': %s",
                  path, g_strerror(errno));
         g_free(title);
         g_free(agent);
@@ -650,7 +650,7 @@ static gboolean write_claude_name_records(const char *path,
     g_free(title);
     g_free(agent);
     if (!ok) {
-        log_warn("Failed to append agent session name records to '%s'", path);
+        log_warn("Failed to append session name records to '%s'", path);
     }
     return ok;
 }
@@ -658,7 +658,7 @@ static gboolean write_claude_name_records(const char *path,
 static gboolean write_codex_name_record(const char *path,
                                         const char *session_id,
                                         const char *name) {
-    char thread_id[AGENT_SESSION_ID_LEN];
+    char thread_id[SESSION_ID_LEN];
     if (!path || !session_id || !name || name[0] == '\0' ||
         !codex_thread_id_from_session(session_id, thread_id, sizeof(thread_id))) {
         return FALSE;
@@ -684,26 +684,26 @@ static gboolean write_codex_name_record(const char *path,
     return ok;
 }
 
-gboolean agent_sessions_delete_path(const char *path) {
+gboolean sessions_delete_path(const char *path) {
     if (!path_allowed_for_delete(path)) {
-        log_warn("Refusing to delete non-agent-session path: %s", path ? path : "(null)");
+        log_warn("Refusing to delete non-session path: %s", path ? path : "(null)");
         return FALSE;
     }
     if (g_remove(path) != 0) {
-        log_warn("Failed to delete agent session '%s': %s", path, g_strerror(errno));
+        log_warn("Failed to delete session '%s': %s", path, g_strerror(errno));
         return FALSE;
     }
-    log_info("Deleted agent session file: %s", path);
+    log_info("Deleted session file: %s", path);
     return TRUE;
 }
 
-gboolean agent_sessions_delete_result(const AgentSessionResult *result) {
-    return result ? agent_sessions_delete_path(result->path) : FALSE;
+gboolean sessions_delete_result(const SessionResult *result) {
+    return result ? sessions_delete_path(result->path) : FALSE;
 }
 
-gboolean agent_sessions_rename_result(const AgentSessionResult *result,
+gboolean sessions_rename_result(const SessionResult *result,
                                       const char *name) {
-    char trimmed[AGENT_SESSION_NAME_LEN];
+    char trimmed[SESSION_NAME_LEN];
     copy_trimmed(trimmed, sizeof(trimmed), name ? name : "", strlen(name ? name : ""));
     if (!result || strcmp(result->session_id, "history") == 0 ||
         trimmed[0] == '\0') {
@@ -722,12 +722,12 @@ gboolean agent_sessions_rename_result(const AgentSessionResult *result,
     } else {
         return FALSE;
     }
-    log_info("Renamed %s agent session '%s' to '%s'",
+    log_info("Renamed %s session '%s' to '%s'",
              result->source, result->session_id, trimmed);
     return TRUE;
 }
 
-void agent_sessions_remove_path(AgentSessionsMode *mode, const char *path) {
+void sessions_remove_path(SessionsMode *mode, const char *path) {
     if (!mode || !path || !path[0]) return;
     for (int i = 0; i < mode->result_count; i++) {
         if (strcmp(mode->results[i].path, path) != 0) continue;
@@ -736,12 +736,12 @@ void agent_sessions_remove_path(AgentSessionsMode *mode, const char *path) {
         }
         mode->result_count--;
         memset(&mode->results[mode->result_count], 0, sizeof(mode->results[0]));
-        agent_sessions_apply_refine(mode, NULL);
+        sessions_apply_refine(mode, NULL);
         return;
     }
 }
 
-void agent_sessions_rename_path(AgentSessionsMode *mode,
+void sessions_rename_path(SessionsMode *mode,
                                 const char *path,
                                 const char *name) {
     if (!mode || !path || !path[0] || !name) return;
@@ -753,30 +753,30 @@ void agent_sessions_rename_path(AgentSessionsMode *mode,
         mode->results[i].metadata_mask =
             metadata_mask_for_result(&mode->query, &mode->results[i]);
         mode->results[i].matched_mask |= mode->results[i].metadata_mask;
-        agent_sessions_apply_refine(mode, NULL);
+        sessions_apply_refine(mode, NULL);
         return;
     }
 }
 
 #ifdef COFI_TESTING
-void agent_sessions_set_launch_impl_for_test(AgentSessionsLaunchImpl launch_impl) {
+void sessions_set_launch_impl_for_test(SessionsLaunchImpl launch_impl) {
     s_launch_impl = launch_impl ? launch_impl : default_launch_in_terminal;
 }
 
-gboolean agent_sessions_write_claude_name_records_for_test(const char *path,
+gboolean sessions_write_claude_name_records_for_test(const char *path,
                                                            const char *session_id,
                                                            const char *name) {
     return write_claude_name_records(path, session_id, name);
 }
 
-gboolean agent_sessions_write_codex_name_record_for_test(const char *path,
+gboolean sessions_write_codex_name_record_for_test(const char *path,
                                                          const char *session_id,
                                                          const char *name) {
     return write_codex_name_record(path, session_id, name);
 }
 #endif
 
-static void update_result_hit_text(AgentSessionResult *result) {
+static void update_result_hit_text(SessionResult *result) {
     if (!result) return;
     g_snprintf(result->hit_text, sizeof(result->hit_text), "%d", result->hit_count);
 }
@@ -785,8 +785,8 @@ static gboolean claude_subagent_path(const char *path) {
     return path && strstr(path, "/subagents/");
 }
 
-static void merge_result_metadata(AgentSessionResult *result,
-                                  const AgentSessionResult *candidate) {
+static void merge_result_metadata(SessionResult *result,
+                                  const SessionResult *candidate) {
     if (!result || !candidate) return;
     gboolean prefer_candidate_path =
         result->path[0] == '\0' ||
@@ -804,9 +804,9 @@ static void merge_result_metadata(AgentSessionResult *result,
     }
 }
 
-static AgentSessionResult *find_or_add_result(AgentSessionsMode *mode, const char *path) {
+static SessionResult *find_or_add_result(SessionsMode *mode, const char *path) {
     if (!mode || !path) return NULL;
-    AgentSessionResult candidate;
+    SessionResult candidate;
     memset(&candidate, 0, sizeof(candidate));
     fill_result_metadata(&candidate, path);
     if (candidate.source[0] == '\0' || candidate.session_id[0] == '\0') {
@@ -821,10 +821,10 @@ static AgentSessionResult *find_or_add_result(AgentSessionsMode *mode, const cha
             return &mode->results[i];
         }
     }
-    if (mode->result_count >= MAX_AGENT_SESSION_RESULTS) {
+    if (mode->result_count >= MAX_SESSION_RESULTS) {
         return NULL;
     }
-    AgentSessionResult *result = &mode->results[mode->result_count++];
+    SessionResult *result = &mode->results[mode->result_count++];
     *result = candidate;
     update_result_search_text(result);
     result->metadata_mask = metadata_mask_for_result(&mode->query, result);
@@ -832,7 +832,7 @@ static AgentSessionResult *find_or_add_result(AgentSessionsMode *mode, const cha
     return result;
 }
 
-static unsigned int term_mask_for_text(const AgentSessionQuery *query,
+static unsigned int term_mask_for_text(const SessionQuery *query,
                                        const char *text,
                                        const char *fallback) {
     unsigned int mask = 0;
@@ -851,7 +851,7 @@ static unsigned int term_mask_for_text(const AgentSessionQuery *query,
     return mask;
 }
 
-void agent_sessions_format_match_text(const AgentSessionResult *result,
+void sessions_format_match_text(const SessionResult *result,
                                       char *out,
                                       size_t out_size) {
     if (!out || out_size == 0) return;
@@ -870,16 +870,16 @@ void agent_sessions_format_match_text(const AgentSessionResult *result,
                result->match_text[0] ? result->match_text : result->snippet);
 }
 
-static void update_result_search_text(AgentSessionResult *result) {
+static void update_result_search_text(SessionResult *result) {
     if (!result) return;
-    agent_sessions_format_match_text(result, result->search_text,
+    sessions_format_match_text(result, result->search_text,
                                      sizeof(result->search_text));
 }
 
-static unsigned int metadata_mask_for_result(const AgentSessionQuery *query,
-                                             const AgentSessionResult *result) {
+static unsigned int metadata_mask_for_result(const SessionQuery *query,
+                                             const SessionResult *result) {
     if (!query || !result) return 0;
-    char text[AGENT_SESSION_MATCH_LEN];
+    char text[SESSION_MATCH_LEN];
     g_snprintf(text, sizeof(text), "%s %s %s",
                result->project_label,
                result->display_name,
@@ -887,8 +887,8 @@ static unsigned int metadata_mask_for_result(const AgentSessionQuery *query,
     return term_mask_for_text(query, text, NULL);
 }
 
-static int result_matches_refine(const AgentSessionsMode *mode,
-                                 const AgentSessionResult *result) {
+static int result_matches_refine(const SessionsMode *mode,
+                                 const SessionResult *result) {
     if (!mode || !result) return 0;
     unsigned int full_mask = full_query_mask(&mode->query);
     if ((result->matched_mask & full_mask) != full_mask) {
@@ -897,7 +897,7 @@ static int result_matches_refine(const AgentSessionsMode *mode,
     if (mode->query.refine[0] == '\0') {
         return 1;
     }
-    char text[AGENT_SESSION_MATCH_LEN];
+    char text[SESSION_MATCH_LEN];
     g_snprintf(text, sizeof(text), "%s %s %s %s",
                result->project_label,
                result->display_name,
@@ -907,11 +907,11 @@ static int result_matches_refine(const AgentSessionsMode *mode,
 }
 
 static int filtered_result_cmp(const void *lhs, const void *rhs, gpointer data) {
-    const AgentSessionsMode *mode = (const AgentSessionsMode *)data;
+    const SessionsMode *mode = (const SessionsMode *)data;
     int li = *(const int *)lhs;
     int ri = *(const int *)rhs;
-    const AgentSessionResult *left = &mode->results[li];
-    const AgentSessionResult *right = &mode->results[ri];
+    const SessionResult *left = &mode->results[li];
+    const SessionResult *right = &mode->results[ri];
     unsigned int full_mask = full_query_mask(&mode->query);
     int left_metadata = (left->metadata_mask & full_mask) == full_mask;
     int right_metadata = (right->metadata_mask & full_mask) == full_mask;
@@ -927,7 +927,7 @@ static int filtered_result_cmp(const void *lhs, const void *rhs, gpointer data) 
     return strcmp(left->project_label, right->project_label);
 }
 
-void agent_sessions_apply_refine(AgentSessionsMode *mode, const char *refine) {
+void sessions_apply_refine(SessionsMode *mode, const char *refine) {
     if (!mode) return;
     if (refine) {
         g_strlcpy(mode->query.refine, refine, sizeof(mode->query.refine));
@@ -944,14 +944,14 @@ void agent_sessions_apply_refine(AgentSessionsMode *mode, const char *refine) {
                       filtered_result_cmp, mode);
 }
 
-static void ingest_match(AgentSessionsMode *mode, const char *path, const char *line) {
+static void ingest_match(SessionsMode *mode, const char *path, const char *line) {
     if (!mode || !path || !line) return;
-    AgentSessionResult *result = find_or_add_result(mode, path);
+    SessionResult *result = find_or_add_result(mode, path);
     if (!result) return;
 
-    char name[AGENT_SESSION_NAME_LEN];
+    char name[SESSION_NAME_LEN];
     gboolean name_metadata =
-        agent_sessions_extract_name_metadata(line, name, sizeof(name));
+        sessions_extract_name_metadata(line, name, sizeof(name));
     if (name_metadata) {
         g_strlcpy(result->display_name, name, sizeof(result->display_name));
         update_result_search_text(result);
@@ -959,11 +959,11 @@ static void ingest_match(AgentSessionsMode *mode, const char *path, const char *
         result->matched_mask |= result->metadata_mask;
     }
 
-    char text[AGENT_SESSION_TEXT_LEN];
-    if (!agent_sessions_extract_json_text(line, text, sizeof(text))) {
+    char text[SESSION_TEXT_LEN];
+    if (!sessions_extract_json_text(line, text, sizeof(text))) {
         text[0] = '\0';
     }
-    if (result->hit_count < AGENT_SESSIONS_MAX_MATCHES_PER_FILE) {
+    if (result->hit_count < SESSIONS_MAX_MATCHES_PER_FILE) {
         result->hit_count++;
         update_result_hit_text(result);
     }
@@ -975,10 +975,10 @@ static void ingest_match(AgentSessionsMode *mode, const char *path, const char *
         append_text(result->match_text, sizeof(result->match_text), text);
     }
     update_result_search_text(result);
-    agent_sessions_apply_refine(mode, NULL);
+    sessions_apply_refine(mode, NULL);
 }
 
-const AgentSessionResult *agent_sessions_result_at(const AgentSessionsMode *mode,
+const SessionResult *sessions_result_at(const SessionsMode *mode,
                                                    int visible_idx) {
     if (!mode || visible_idx < 0 || visible_idx >= mode->filtered_count) return NULL;
     int raw = mode->filtered_indices[visible_idx];
@@ -986,7 +986,7 @@ const AgentSessionResult *agent_sessions_result_at(const AgentSessionsMode *mode
     return &mode->results[raw];
 }
 
-void agent_sessions_cancel(AgentSessionsMode *mode) {
+void sessions_cancel(SessionsMode *mode) {
     if (!mode) return;
     mode->generation++;
     mode->searching = 0;
@@ -997,10 +997,10 @@ void agent_sessions_cancel(AgentSessionsMode *mode) {
     g_clear_object(&mode->stdout_stream);
 }
 
-void agent_sessions_init(AgentSessionsMode *mode) {
+void sessions_init(SessionsMode *mode) {
     if (!mode) return;
     memset(mode, 0, sizeof(*mode));
-    g_strlcpy(mode->status, "Type terms to search agent sessions", sizeof(mode->status));
+    g_strlcpy(mode->status, "Type terms to search sessions", sizeof(mode->status));
 }
 
 static void read_next_line(ReadContext *ctx);
@@ -1013,7 +1013,7 @@ static gboolean ascii_digits_between(const char *start, const char *end) {
     return TRUE;
 }
 
-static gboolean ingest_vimgrep_line(AgentSessionsMode *mode, char *line) {
+static gboolean ingest_vimgrep_line(SessionsMode *mode, char *line) {
     if (!mode || !line) return FALSE;
     for (char *first = strchr(line, ':'); first; first = strchr(first + 1, ':')) {
         char *second = strchr(first + 1, ':');
@@ -1032,29 +1032,29 @@ static gboolean ingest_vimgrep_line(AgentSessionsMode *mode, char *line) {
 }
 
 #ifdef COFI_TESTING
-void agent_sessions_ingest_match_for_test(AgentSessionsMode *mode,
+void sessions_ingest_match_for_test(SessionsMode *mode,
                                           const char *path,
                                           const char *line) {
     ingest_match(mode, path, line);
 }
 
-gboolean agent_sessions_ingest_vimgrep_line_for_test(AgentSessionsMode *mode,
+gboolean sessions_ingest_vimgrep_line_for_test(SessionsMode *mode,
                                                      char *line) {
     return ingest_vimgrep_line(mode, line);
 }
 
-void agent_sessions_seed_file_for_test(AgentSessionsMode *mode,
+void sessions_seed_file_for_test(SessionsMode *mode,
                                        const char *path) {
     if (!mode || !path) return;
-    AgentSessionResult *result = find_or_add_result(mode, path);
+    SessionResult *result = find_or_add_result(mode, path);
     if (!result) return;
-    agent_sessions_apply_refine(mode, NULL);
+    sessions_apply_refine(mode, NULL);
 }
 #endif
 
 static void on_rg_stdout_line(GObject *source, GAsyncResult *res, gpointer user_data) {
     ReadContext *ctx = (ReadContext *)user_data;
-    AgentSessionsMode *mode = ctx->mode;
+    SessionsMode *mode = ctx->mode;
     if (!mode || ctx->generation != mode->generation) {
         g_free(ctx);
         return;
@@ -1069,7 +1069,7 @@ static void on_rg_stdout_line(GObject *source, GAsyncResult *res, gpointer user_
         g_clear_error(&error);
         mode->searching = 0;
         if (mode->filtered_count == 0) {
-            g_strlcpy(mode->status, "Agent session search failed", sizeof(mode->status));
+            g_strlcpy(mode->status, "Session search failed", sizeof(mode->status));
         }
         notify_changed(mode);
         g_free(ctx);
@@ -1079,12 +1079,12 @@ static void on_rg_stdout_line(GObject *source, GAsyncResult *res, gpointer user_
     if (!line) {
         mode->searching = 0;
         if (mode->filtered_count == 0) {
-            g_strlcpy(mode->status, "No matching agent sessions found", sizeof(mode->status));
+            g_strlcpy(mode->status, "No matching sessions found", sizeof(mode->status));
         } else {
             g_snprintf(mode->status, sizeof(mode->status), "%d matching sessions",
                        mode->filtered_count);
         }
-        log_debug("Agent sessions search complete: %s", mode->status);
+        log_debug("Sessions search complete: %s", mode->status);
         notify_changed(mode);
         g_free(ctx);
         return;
@@ -1096,7 +1096,7 @@ static void on_rg_stdout_line(GObject *source, GAsyncResult *res, gpointer user_
     }
     g_free(line);
 
-    if (mode->processed_lines >= AGENT_SESSIONS_MAX_PROCESSED_LINES) {
+    if (mode->processed_lines >= SESSIONS_MAX_PROCESSED_LINES) {
         mode->searching = 0;
         g_snprintf(mode->status, sizeof(mode->status),
                    "Result limit reached (%d lines)", mode->processed_lines);
@@ -1107,7 +1107,7 @@ static void on_rg_stdout_line(GObject *source, GAsyncResult *res, gpointer user_
         g_free(ctx);
         return;
     }
-    if (mode->result_count >= MAX_AGENT_SESSION_RESULTS) {
+    if (mode->result_count >= MAX_SESSION_RESULTS) {
         mode->searching = 0;
         g_snprintf(mode->status, sizeof(mode->status),
                    "Result limit reached (%d sessions)", mode->result_count);
@@ -1134,7 +1134,7 @@ static gchar *home_path(const char *first, const char *second) {
     return g_build_filename(g_get_home_dir(), first, second, NULL);
 }
 
-static gchar **build_rg_argv(const AgentSessionQuery *query) {
+static gchar **build_rg_argv(const SessionQuery *query) {
     GPtrArray *argv = g_ptr_array_new_with_free_func(g_free);
     g_ptr_array_add(argv, g_strdup("rg"));
     g_ptr_array_add(argv, g_strdup("--vimgrep"));
@@ -1164,30 +1164,30 @@ static gchar **build_rg_argv(const AgentSessionQuery *query) {
 }
 
 #ifdef COFI_TESTING
-gchar **agent_sessions_build_rg_argv_for_test(const AgentSessionQuery *query) {
+gchar **sessions_build_rg_argv_for_test(const SessionQuery *query) {
     return build_rg_argv(query);
 }
 #endif
 
-void agent_sessions_search(AgentSessionsMode *mode,
+void sessions_search(SessionsMode *mode,
                            const char *query_text,
-                           AgentSessionsChanged changed_cb,
+                           SessionsChanged changed_cb,
                            gpointer user_data) {
     if (!mode) return;
-    AgentSessionQuery parsed;
-    agent_sessions_parse_query(query_text, &parsed);
+    SessionQuery parsed;
+    sessions_parse_query(query_text, &parsed);
 
     mode->changed_cb = changed_cb;
     mode->changed_user_data = user_data;
 
     if (strcmp(parsed.left, mode->current_left) == 0) {
         g_strlcpy(mode->query.refine, parsed.refine, sizeof(mode->query.refine));
-        agent_sessions_apply_refine(mode, parsed.refine);
+        sessions_apply_refine(mode, parsed.refine);
         notify_changed(mode);
         return;
     }
 
-    agent_sessions_cancel(mode);
+    sessions_cancel(mode);
     memset(mode->results, 0, sizeof(mode->results));
     mode->result_count = 0;
     mode->filtered_count = 0;
@@ -1197,12 +1197,12 @@ void agent_sessions_search(AgentSessionsMode *mode,
     g_strlcpy(mode->current_refine, parsed.refine, sizeof(mode->current_refine));
 
     if (parsed.term_count == 0) {
-        g_strlcpy(mode->status, "Type terms to search agent sessions", sizeof(mode->status));
+        g_strlcpy(mode->status, "Type terms to search sessions", sizeof(mode->status));
         notify_changed(mode);
         return;
     }
 
-    g_snprintf(mode->status, sizeof(mode->status), "Searching agent sessions for '%s'...",
+    g_snprintf(mode->status, sizeof(mode->status), "Searching sessions for '%s'...",
                parsed.left);
     mode->searching = 1;
     int generation = ++mode->generation;

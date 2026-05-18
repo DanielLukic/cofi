@@ -1,7 +1,7 @@
 #include "overlay_dispatch.h"
 
 #include "log.h"
-#include "overlay_agent_sessions.h"
+#include "overlay_sessions.h"
 #include "overlay_config.h"
 #include "overlay_harpoon.h"
 #include "overlay_hotkey_add.h"
@@ -82,11 +82,11 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_PROJECT_NEW:
             create_project_new_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_AGENT_SESSION_DELETE:
-            create_agent_session_delete_overlay_content(app->dialog_container, app);
+        case OVERLAY_SESSION_DELETE:
+            create_session_delete_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_AGENT_SESSION_RENAME:
-            create_agent_session_rename_overlay_content(app->dialog_container, app);
+        case OVERLAY_SESSION_RENAME:
+            create_session_rename_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_NONE:
         default:
@@ -139,10 +139,10 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_project_rename_key_press(app, event);
         case OVERLAY_PROJECT_NEW:
             return handle_project_new_key_press(app, event);
-        case OVERLAY_AGENT_SESSION_DELETE:
-            return handle_agent_session_delete_key_press(app, event);
-        case OVERLAY_AGENT_SESSION_RENAME:
-            return handle_agent_session_rename_key_press(app, event);
+        case OVERLAY_SESSION_DELETE:
+            return handle_session_delete_key_press(app, event);
+        case OVERLAY_SESSION_RENAME:
+            return handle_session_rename_key_press(app, event);
         case OVERLAY_NONE:
         default:
             return FALSE;
@@ -241,31 +241,31 @@ void show_project_new_overlay(AppData *app,
     show_overlay(app, OVERLAY_PROJECT_NEW, NULL);
 }
 
-void show_agent_session_delete_overlay(AppData *app,
+void show_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path) {
-    g_strlcpy(app->agent_session_delete.source, source ? source : "",
-              sizeof(app->agent_session_delete.source));
-    g_strlcpy(app->agent_session_delete.session_id, session_id ? session_id : "",
-              sizeof(app->agent_session_delete.session_id));
-    g_strlcpy(app->agent_session_delete.path, path ? path : "",
-              sizeof(app->agent_session_delete.path));
-    show_overlay(app, OVERLAY_AGENT_SESSION_DELETE, NULL);
+    g_strlcpy(app->session_delete.source, source ? source : "",
+              sizeof(app->session_delete.source));
+    g_strlcpy(app->session_delete.session_id, session_id ? session_id : "",
+              sizeof(app->session_delete.session_id));
+    g_strlcpy(app->session_delete.path, path ? path : "",
+              sizeof(app->session_delete.path));
+    show_overlay(app, OVERLAY_SESSION_DELETE, NULL);
 }
 
-void show_agent_session_rename_overlay(AppData *app,
+void show_session_rename_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path,
                                        const char *current_name) {
-    g_strlcpy(app->agent_session_rename.source, source ? source : "",
-              sizeof(app->agent_session_rename.source));
-    g_strlcpy(app->agent_session_rename.session_id, session_id ? session_id : "",
-              sizeof(app->agent_session_rename.session_id));
-    g_strlcpy(app->agent_session_rename.path, path ? path : "",
-              sizeof(app->agent_session_rename.path));
-    g_strlcpy(app->agent_session_rename.current_name, current_name ? current_name : "",
-              sizeof(app->agent_session_rename.current_name));
-    show_overlay(app, OVERLAY_AGENT_SESSION_RENAME, NULL);
+    g_strlcpy(app->session_rename.source, source ? source : "",
+              sizeof(app->session_rename.source));
+    g_strlcpy(app->session_rename.session_id, session_id ? session_id : "",
+              sizeof(app->session_rename.session_id));
+    g_strlcpy(app->session_rename.path, path ? path : "",
+              sizeof(app->session_rename.path));
+    g_strlcpy(app->session_rename.current_name, current_name ? current_name : "",
+              sizeof(app->session_rename.current_name));
+    show_overlay(app, OVERLAY_SESSION_RENAME, NULL);
 }

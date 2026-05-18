@@ -57,7 +57,7 @@ This behavior is intentionally different from other prefixes.
 ## Entry-Change Routing
 
 - Normal mode entry changes filter the active tab.
-- Agent Sessions is a provider tab with heavier query handling: the left side of
+- Sessions is a provider tab with heavier query handling: the left side of
   `terms | refine` starts a live cancellable corpus search, while the right side
   refines already-grouped session rows.
 - Leading `:` pasted into the entry enters Command mode and strips the leading

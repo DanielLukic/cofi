@@ -1,7 +1,7 @@
 #include "builtin_plugins.h"
 
 #include "apps_provider.h"
-#include "agent_sessions_provider.h"
+#include "sessions_provider.h"
 #include "calc_provider.h"
 #include "config_provider.h"
 #include "core_commands.h"
@@ -18,7 +18,7 @@
 
 void cofi_register_builtin_plugins(void) {
     cofi_register_core_commands();
-    agent_sessions_provider_register();
+    sessions_provider_register();
     apps_provider_register();
     calc_provider_register();
     config_provider_register();

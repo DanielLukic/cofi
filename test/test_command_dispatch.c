@@ -38,7 +38,7 @@ static void register_provider_with_command(const CommandSpec *spec) {
 }
 
 static const CommandSpec s_provider_commands[] = {
-    {.primary = "agent-sessions", .aliases = {"agents", "agent", NULL}, .owner_provider_id = "agent-sessions", .handler = cmd_run, .description = "Search Claude and Codex agent sessions", .help_format = "agent-sessions, agents [TERMS | REFINE]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "sessions", .aliases = {"session", NULL}, .owner_provider_id = "sessions", .handler = cmd_run, .description = "Search Claude and Codex sessions", .help_format = "sessions, session [TERMS | REFINE]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = cmd_run, .description = "Switch to browser profiles tab", .help_format = "profiles, chrome [@SLOT|PROFILE]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = cmd_run, .description = "Switch to calculator", .help_format = "calc, ca", .keeps_open_on_hotkey_auto = 1},
     {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .keeps_open_on_hotkey_auto = 1},
@@ -178,8 +178,8 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("mw,cw2")) { printf("PASS: non-UI chain does not keep open\n"); tests_passed++; }
     else { printf("FAIL: mw,cw2 should not keep open\n"); tests_failed++; }
 
-    if (should_keep_open_on_hotkey_auto("agents")) { printf("PASS: agent sessions provider alias keeps open\n"); tests_passed++; }
-    else { printf("FAIL: agent sessions provider alias should keep open\n"); tests_failed++; }
+    if (should_keep_open_on_hotkey_auto("session")) { printf("PASS: sessions provider alias keeps open\n"); tests_passed++; }
+    else { printf("FAIL: sessions provider alias should keep open\n"); tests_failed++; }
 
     if (should_keep_open_on_hotkey_auto("profiles")) { printf("PASS: profiles provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: profiles provider command should keep open\n"); tests_failed++; }
@@ -304,11 +304,11 @@ static void test_should_keep_open_runtime_policy(void) {
     else { printf("FAIL: disabled apps alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(apps_id, 1);
 
-    int agent_sessions_id = cofi_get_provider_id("agent-sessions");
-    cofi_set_provider_enabled(agent_sessions_id, 0);
-    if (!should_keep_open_on_hotkey_auto("agents")) { printf("PASS: disabled agent sessions alias does not keep open\n"); tests_passed++; }
-    else { printf("FAIL: disabled agent sessions alias should not keep open\n"); tests_failed++; }
-    cofi_set_provider_enabled(agent_sessions_id, 1);
+    int sessions_id = cofi_get_provider_id("sessions");
+    cofi_set_provider_enabled(sessions_id, 0);
+    if (!should_keep_open_on_hotkey_auto("session")) { printf("PASS: disabled sessions alias does not keep open\n"); tests_passed++; }
+    else { printf("FAIL: disabled sessions alias should not keep open\n"); tests_failed++; }
+    cofi_set_provider_enabled(sessions_id, 1);
 }
 
 static void test_command_chain_semantics(void) {
@@ -577,12 +577,12 @@ static void test_provider_command_alias_resolution(void) {
         tests_failed++;
     }
 
-    if (resolve_command_primary("agents", resolved, sizeof(resolved)) &&
-        strcmp(resolved, "agent-sessions") == 0) {
-        printf("PASS: provider alias agents resolves to agent-sessions\n");
+    if (resolve_command_primary("session", resolved, sizeof(resolved)) &&
+        strcmp(resolved, "sessions") == 0) {
+        printf("PASS: provider alias session resolves to sessions\n");
         tests_passed++;
     } else {
-        printf("FAIL: provider alias agents did not resolve to agent-sessions\n");
+        printf("FAIL: provider alias session did not resolve to sessions\n");
         tests_failed++;
     }
 }

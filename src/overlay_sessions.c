@@ -1,6 +1,6 @@
-#include "overlay_agent_sessions.h"
+#include "overlay_sessions.h"
 
-#include "agent_sessions_provider.h"
+#include "sessions_provider.h"
 #include "display.h"
 #include "gtk_utils.h"
 #include "log.h"
@@ -13,7 +13,7 @@ static GtkWidget *create_left_label(const char *text) {
     return label;
 }
 
-void create_agent_session_delete_overlay_content(GtkWidget *parent_container,
+void create_session_delete_overlay_content(GtkWidget *parent_container,
                                                  AppData *app) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
@@ -21,16 +21,16 @@ void create_agent_session_delete_overlay_content(GtkWidget *parent_container,
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title = gtk_label_new("Delete Agent Session?");
+    GtkWidget *title = gtk_label_new("Delete Session?");
     gtk_widget_set_name(title, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
 
     char info[1024];
     g_snprintf(info, sizeof(info),
                "Source: %s\nSession: %s\nFile: %s",
-               app->agent_session_delete.source,
-               app->agent_session_delete.session_id,
-               app->agent_session_delete.path);
+               app->session_delete.source,
+               app->session_delete.session_id,
+               app->session_delete.path);
     GtkWidget *info_label = create_left_label(info);
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
 
@@ -41,7 +41,7 @@ void create_agent_session_delete_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
 }
 
-void create_agent_session_rename_overlay_content(GtkWidget *parent_container,
+void create_session_rename_overlay_content(GtkWidget *parent_container,
                                                  AppData *app) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_left(vbox, 20);
@@ -49,18 +49,18 @@ void create_agent_session_rename_overlay_content(GtkWidget *parent_container,
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title = gtk_label_new("Rename Agent Session");
+    GtkWidget *title = gtk_label_new("Rename Session");
     gtk_widget_set_name(title, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
 
     char info[512];
     g_snprintf(info, sizeof(info), "Session: %s",
-               app->agent_session_rename.session_id);
+               app->session_rename.session_id);
     GtkWidget *info_label = create_left_label(info);
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
 
     GtkWidget *entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(entry), app->agent_session_rename.current_name);
+    gtk_entry_set_text(GTK_ENTRY(entry), app->session_rename.current_name);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Session name...");
     gtk_editable_select_region(GTK_EDITABLE(entry), 0, -1);
     gtk_widget_set_size_request(entry, 360, -1);
@@ -74,22 +74,22 @@ void create_agent_session_rename_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
 }
 
-gboolean handle_agent_session_delete_key_press(AppData *app, GdkEventKey *event) {
+gboolean handle_session_delete_key_press(AppData *app, GdkEventKey *event) {
     gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
                        event->keyval == GDK_KEY_Delete ||
                        event->keyval == GDK_KEY_KP_Delete ||
                        ((event->state & GDK_CONTROL_MASK) &&
                         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
     if (confirm) {
-        char path[AGENT_SESSION_PATH_LEN];
-        g_strlcpy(path, app->agent_session_delete.path, sizeof(path));
+        char path[SESSION_PATH_LEN];
+        g_strlcpy(path, app->session_delete.path, sizeof(path));
 
-        gboolean deleted = agent_sessions_delete_path(path);
+        gboolean deleted = sessions_delete_path(path);
         hide_overlay(app);
         if (deleted) {
-            agent_sessions_provider_remove_path(app, path);
+            sessions_provider_remove_path(app, path);
         } else {
-            log_warn("Agent session delete failed for '%s'", path);
+            log_warn("Session delete failed for '%s'", path);
             update_display(app);
         }
         return TRUE;
@@ -104,7 +104,7 @@ gboolean handle_agent_session_delete_key_press(AppData *app, GdkEventKey *event)
     return FALSE;
 }
 
-gboolean handle_agent_session_rename_key_press(AppData *app, GdkEventKey *event) {
+gboolean handle_session_rename_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
         return FALSE;
     }
@@ -116,7 +116,7 @@ gboolean handle_agent_session_rename_key_press(AppData *app, GdkEventKey *event)
     }
 
     const char *name = gtk_entry_get_text(GTK_ENTRY(entry));
-    char updated_name[AGENT_SESSION_NAME_LEN];
+    char updated_name[SESSION_NAME_LEN];
     g_strlcpy(updated_name, name ? name : "", sizeof(updated_name));
     g_strstrip(updated_name);
     if (updated_name[0] == '\0') {
@@ -125,21 +125,21 @@ gboolean handle_agent_session_rename_key_press(AppData *app, GdkEventKey *event)
         return TRUE;
     }
 
-    AgentSessionResult result = {0};
-    g_strlcpy(result.source, app->agent_session_rename.source, sizeof(result.source));
-    g_strlcpy(result.session_id, app->agent_session_rename.session_id,
+    SessionResult result = {0};
+    g_strlcpy(result.source, app->session_rename.source, sizeof(result.source));
+    g_strlcpy(result.session_id, app->session_rename.session_id,
               sizeof(result.session_id));
-    g_strlcpy(result.path, app->agent_session_rename.path, sizeof(result.path));
+    g_strlcpy(result.path, app->session_rename.path, sizeof(result.path));
 
-    char path[AGENT_SESSION_PATH_LEN];
+    char path[SESSION_PATH_LEN];
     g_strlcpy(path, result.path, sizeof(path));
 
-    gboolean renamed = agent_sessions_rename_result(&result, updated_name);
+    gboolean renamed = sessions_rename_result(&result, updated_name);
     hide_overlay(app);
     if (renamed) {
-        agent_sessions_provider_rename_path(app, path, updated_name);
+        sessions_provider_rename_path(app, path, updated_name);
     } else {
-        log_warn("Agent session rename failed for '%s'", path);
+        log_warn("Session rename failed for '%s'", path);
         update_display(app);
     }
     return TRUE;

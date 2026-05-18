@@ -20,7 +20,7 @@ static int tests_passed = 0;
         } \
     } while (0)
 
-#define TEST_AGENT_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
+#define TEST_SESSIONS_TAB ((TabMode)(TAB_COUNT + 1))
 
 static int g_reset_selection_calls;
 static int g_update_display_calls;
@@ -31,10 +31,10 @@ static int g_surface_tab_calls;
 static int g_delete_overlay_calls;
 static int g_rename_overlay_calls;
 static int g_registered_provider_id = -1;
-static char g_last_delete_path[AGENT_SESSION_PATH_LEN];
-static char g_last_rename_path[AGENT_SESSION_PATH_LEN];
-static char g_last_rename_name[AGENT_SESSION_NAME_LEN];
-static char g_last_launch_command[AGENT_SESSION_COMMAND_LEN];
+static char g_last_delete_path[SESSION_PATH_LEN];
+static char g_last_rename_path[SESSION_PATH_LEN];
+static char g_last_rename_name[SESSION_NAME_LEN];
+static char g_last_launch_command[SESSION_COMMAND_LEN];
 static CofiTabProvider g_registered_provider;
 static CommandSpec g_registered_command;
 
@@ -72,7 +72,7 @@ void surface_tab(AppData *app, TabMode tab) {
     if (app) app->current_tab = tab;
 }
 
-void show_agent_session_delete_overlay(AppData *app,
+void show_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path) {
@@ -83,7 +83,7 @@ void show_agent_session_delete_overlay(AppData *app,
     g_strlcpy(g_last_delete_path, path ? path : "", sizeof(g_last_delete_path));
 }
 
-void show_agent_session_rename_overlay(AppData *app,
+void show_session_rename_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path,
@@ -111,7 +111,7 @@ int cofi_register_tab_provider(const CofiTabProvider *p) {
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     if (p) g_registered_provider = *p;
     if (g_registered_provider.tab_mode == COFI_PROVIDER_DYNAMIC_TAB) {
-        g_registered_provider.tab_mode = TEST_AGENT_SESSIONS_TAB;
+        g_registered_provider.tab_mode = TEST_SESSIONS_TAB;
     }
     g_registered_provider_id = 0;
     return g_registered_provider_id;
@@ -127,13 +127,13 @@ int cofi_register_command(const CommandSpec *spec) {
     return 0;
 }
 
-#include "../src/agent_sessions.c"
-#include "../src/agent_sessions_provider.c"
+#include "../src/sessions.c"
+#include "../src/sessions_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
-    agent_sessions_init(&s_agent_sessions_mode);
-    s_agent_sessions_provider_id = -1;
+    sessions_init(&s_sessions_mode);
+    s_sessions_provider_id = -1;
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
     g_update_scroll_calls = 0;
@@ -151,39 +151,39 @@ static void reset_state(AppData *app) {
     memset(&g_registered_command, 0, sizeof(g_registered_command));
 }
 
-static void seed_agent_result(void) {
-    agent_sessions_parse_query("marco", &s_agent_sessions_mode.query);
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+static void seed_session_result(void) {
+    sessions_parse_query("marco", &s_sessions_mode.query);
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl",
         "{\"type\":\"user\",\"message\":{\"content\":\"marco alpha\"}}");
 }
 
 static void seed_named_claude_result(void) {
-    agent_sessions_parse_query("marco", &s_agent_sessions_mode.query);
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_parse_query("marco", &s_sessions_mode.query);
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl",
         "{\"type\":\"custom-title\",\"customTitle\":\"Marco Thread\","
         "\"sessionId\":\"abc\"}");
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl",
         "{\"type\":\"user\",\"message\":{\"content\":\"marco alpha\"}}");
 }
 
 static void seed_codex_result(void) {
-    agent_sessions_parse_query("marco", &s_agent_sessions_mode.query);
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_parse_query("marco", &s_sessions_mode.query);
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.codex/sessions/2026/05/18/abc.jsonl",
         "{\"timestamp\":\"2026-05-18T09:00:00Z\","
         "\"type\":\"event_msg\","
         "\"payload\":{\"type\":\"thread_name_updated\","
         "\"thread_id\":\"019d86e4-179d-7360-9bac-b66fafe6361c\","
         "\"thread_name\":\"Codex Marco\"}}");
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.codex/sessions/2026/05/18/abc.jsonl",
         "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\","
         "\"content\":[{\"type\":\"input_text\",\"text\":\"marco alpha\"}]}}");
@@ -193,39 +193,39 @@ static void test_registers_metadata(void) {
     AppData app;
     reset_state(&app);
 
-    agent_sessions_provider_register();
+    sessions_provider_register();
 
     ASSERT_TRUE("provider registered", g_registered_provider_id == 0);
     ASSERT_TRUE("provider gets dynamic tab",
-                g_registered_provider.tab_mode == TEST_AGENT_SESSIONS_TAB);
+                g_registered_provider.tab_mode == TEST_SESSIONS_TAB);
     ASSERT_TRUE("provider hidden by default", g_registered_provider.hidden_by_default == 1);
     ASSERT_TRUE("provider primary command",
-                strcmp(g_registered_command.primary, "agent-sessions") == 0);
+                strcmp(g_registered_command.primary, "sessions") == 0);
     ASSERT_TRUE("provider command alias",
-                strcmp(g_registered_command.aliases[0], "agents") == 0);
+                strcmp(g_registered_command.aliases[0], "session") == 0);
 }
 
 static void test_command_surfaces_tab(void) {
     AppData app;
     reset_state(&app);
     app.current_tab = TAB_WINDOWS;
-    agent_sessions_provider_register();
+    sessions_provider_register();
 
     g_registered_command.handler(&app, NULL, NULL);
 
     ASSERT_TRUE("command exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
-    ASSERT_TRUE("command surfaces dynamic tab", app.current_tab == TEST_AGENT_SESSIONS_TAB);
+    ASSERT_TRUE("command surfaces dynamic tab", app.current_tab == TEST_SESSIONS_TAB);
     ASSERT_TRUE("surface called once", g_surface_tab_calls == 1);
 }
 
 static void test_delete_key_opens_overlay(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    app.current_tab = TEST_AGENT_SESSIONS_TAB;
+    sessions_provider_register();
+    app.current_tab = TEST_SESSIONS_TAB;
     app.selection.provider_index = 0;
-    seed_agent_result();
+    seed_session_result();
 
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
@@ -243,13 +243,13 @@ static void test_row_uses_session_metadata_columns(void) {
     AppData app;
     CofiRowCells row;
     reset_state(&app);
-    agent_sessions_provider_register();
-    seed_agent_result();
+    sessions_provider_register();
+    seed_session_result();
 
     memset(&row, 0, sizeof(row));
     g_registered_provider.format_row(&app, 0, &row);
 
-    ASSERT_TRUE("agent row has six cells", row.cell_count == 6);
+    ASSERT_TRUE("session row has six cells", row.cell_count == 6);
     ASSERT_TRUE("mtime cell has fixed width", row.cells[2].width_hint == 11);
     ASSERT_TRUE("project cell shows useful suffix",
                 strcmp(row.cells[3].text, "marco") == 0);
@@ -263,22 +263,22 @@ static void test_row_uses_session_metadata_columns(void) {
         if (i > 0) display_width++;
         display_width += row.cells[i].width_hint;
     }
-    ASSERT_TRUE("agent row fits fixed display columns", display_width <= 115);
+    ASSERT_TRUE("session row fits fixed display columns", display_width <= 115);
 }
 
 static void test_row_hides_duplicate_title_snippet(void) {
     AppData app;
     CofiRowCells row;
     reset_state(&app);
-    agent_sessions_provider_register();
+    sessions_provider_register();
     seed_named_claude_result();
-    g_strlcpy(s_agent_sessions_mode.results[0].snippet, "Marco Thread",
-              sizeof(s_agent_sessions_mode.results[0].snippet));
+    g_strlcpy(s_sessions_mode.results[0].snippet, "Marco Thread",
+              sizeof(s_sessions_mode.results[0].snippet));
 
     memset(&row, 0, sizeof(row));
     g_registered_provider.format_row(&app, 0, &row);
 
-    ASSERT_TRUE("agent row has snippet cell", row.cell_count == 6);
+    ASSERT_TRUE("session row has snippet cell", row.cell_count == 6);
     ASSERT_TRUE("duplicate title is not repeated as snippet",
                 row.cells[5].text && strcmp(row.cells[5].text, "Marco Thread") != 0);
 }
@@ -286,8 +286,8 @@ static void test_row_hides_duplicate_title_snippet(void) {
 static void test_enter_launches_selected_session(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    seed_agent_result();
+    sessions_provider_register();
+    seed_session_result();
 
     CofiActionStatus status =
         g_registered_provider.on_enter_pressed(&app, 0, 0, "", 0);
@@ -300,8 +300,8 @@ static void test_enter_launches_selected_session(void) {
 static void test_ctrl_r_opens_rename_overlay_for_claude(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    app.current_tab = TEST_AGENT_SESSIONS_TAB;
+    sessions_provider_register();
+    app.current_tab = TEST_SESSIONS_TAB;
     app.selection.provider_index = 0;
     seed_named_claude_result();
 
@@ -323,8 +323,8 @@ static void test_ctrl_r_opens_rename_overlay_for_claude(void) {
 static void test_ctrl_r_opens_rename_overlay_for_codex(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    app.current_tab = TEST_AGENT_SESSIONS_TAB;
+    sessions_provider_register();
+    app.current_tab = TEST_SESSIONS_TAB;
     app.selection.provider_index = 0;
     seed_codex_result();
 
@@ -346,8 +346,8 @@ static void test_ctrl_r_opens_rename_overlay_for_codex(void) {
 static void test_status_row_does_not_open_overlay(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    app.current_tab = TEST_AGENT_SESSIONS_TAB;
+    sessions_provider_register();
+    app.current_tab = TEST_SESSIONS_TAB;
 
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
@@ -361,13 +361,13 @@ static void test_status_row_does_not_open_overlay(void) {
 static void test_remove_path_refreshes_provider_surface(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
-    seed_agent_result();
+    sessions_provider_register();
+    seed_session_result();
 
-    agent_sessions_provider_remove_path(
+    sessions_provider_remove_path(
         &app, "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl");
 
-    ASSERT_TRUE("path removed from results", s_agent_sessions_mode.filtered_count == 0);
+    ASSERT_TRUE("path removed from results", s_sessions_mode.filtered_count == 0);
     ASSERT_TRUE("selection validated", g_validate_selection_calls == 1);
     ASSERT_TRUE("scroll updated", g_update_scroll_calls == 1);
     ASSERT_TRUE("display updated", g_update_display_calls == 1);
@@ -376,30 +376,30 @@ static void test_remove_path_refreshes_provider_surface(void) {
 static void test_rename_preserves_selected_session_after_reorder(void) {
     AppData app;
     reset_state(&app);
-    agent_sessions_provider_register();
+    sessions_provider_register();
     app.selection.provider_index = 1;
-    agent_sessions_parse_query("selectedname", &s_agent_sessions_mode.query);
+    sessions_parse_query("selectedname", &s_sessions_mode.query);
     const char *selected_path =
         "/home/user/.claude/projects/-home-user-Projects-zzz/selected.jsonl";
 
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         "/home/user/.claude/projects/-home-user-Projects-aaa/other.jsonl",
         "{\"type\":\"user\",\"message\":{\"content\":\"selectedname other\"}}");
-    agent_sessions_ingest_match_for_test(
-        &s_agent_sessions_mode,
+    sessions_ingest_match_for_test(
+        &s_sessions_mode,
         selected_path,
         "{\"type\":\"user\",\"message\":{\"content\":\"selectedname chosen\"}}");
 
-    const AgentSessionResult *before =
-        agent_sessions_result_at(&s_agent_sessions_mode, app.selection.provider_index);
+    const SessionResult *before =
+        sessions_result_at(&s_sessions_mode, app.selection.provider_index);
     ASSERT_TRUE("selected row starts on chosen session",
                 before && strcmp(before->path, selected_path) == 0);
 
-    agent_sessions_provider_rename_path(&app, selected_path, "selectedname renamed");
+    sessions_provider_rename_path(&app, selected_path, "selectedname renamed");
 
-    const AgentSessionResult *after =
-        agent_sessions_result_at(&s_agent_sessions_mode, app.selection.provider_index);
+    const SessionResult *after =
+        sessions_result_at(&s_sessions_mode, app.selection.provider_index);
     ASSERT_TRUE("rename preserves selected session after reorder",
                 after && strcmp(after->path, selected_path) == 0);
     ASSERT_TRUE("renamed session moved to top", app.selection.provider_index == 0);
@@ -408,7 +408,7 @@ static void test_rename_preserves_selected_session_after_reorder(void) {
 }
 
 int main(void) {
-    printf("Agent sessions provider tests\n");
+    printf("Sessions provider tests\n");
     printf("=============================\n\n");
 
     test_registers_metadata();

@@ -574,19 +574,19 @@ if [ -f test_calc_provider ]; then
     fi
 fi
 
-if [ -f test_agent_sessions ]; then
+if [ -f test_sessions ]; then
     echo ""
-    echo "Running agent sessions behavioral tests..."
-    ./test_agent_sessions
+    echo "Running sessions behavioral tests..."
+    ./test_sessions
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi
 fi
 
-if [ -f test_agent_sessions_provider ]; then
+if [ -f test_sessions_provider ]; then
     echo ""
-    echo "Running agent sessions provider tests..."
-    ./test_agent_sessions_provider
+    echo "Running sessions provider tests..."
+    ./test_sessions_provider
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi

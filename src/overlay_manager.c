@@ -67,17 +67,17 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->project_new.start_dir[0] = '\0';
     }
 
-    if (type == OVERLAY_AGENT_SESSION_DELETE) {
-        app->agent_session_delete.source[0] = '\0';
-        app->agent_session_delete.session_id[0] = '\0';
-        app->agent_session_delete.path[0] = '\0';
+    if (type == OVERLAY_SESSION_DELETE) {
+        app->session_delete.source[0] = '\0';
+        app->session_delete.session_id[0] = '\0';
+        app->session_delete.path[0] = '\0';
     }
 
-    if (type == OVERLAY_AGENT_SESSION_RENAME) {
-        app->agent_session_rename.source[0] = '\0';
-        app->agent_session_rename.session_id[0] = '\0';
-        app->agent_session_rename.path[0] = '\0';
-        app->agent_session_rename.current_name[0] = '\0';
+    if (type == OVERLAY_SESSION_RENAME) {
+        app->session_rename.source[0] = '\0';
+        app->session_rename.session_id[0] = '\0';
+        app->session_rename.path[0] = '\0';
+        app->session_rename.current_name[0] = '\0';
     }
 
     if (type == OVERLAY_HOTKEY_REBIND) {
