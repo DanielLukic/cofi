@@ -48,6 +48,13 @@ static void agent_sessions_format_row(AppData *app, int raw_idx, CofiRowCells *o
         return;
     }
 
+    const char *title = result->display_name[0]
+        ? result->display_name : result->session_id;
+    const char *snippet = result->snippet;
+    if (snippet && title && strcmp(snippet, title) == 0) {
+        snippet = "";
+    }
+
     out->cell_count = 6;
     out->cells[0].text = result->source;
     out->cells[0].width_hint = 6;
@@ -58,10 +65,9 @@ static void agent_sessions_format_row(AppData *app, int raw_idx, CofiRowCells *o
     out->cells[2].width_hint = 11;
     out->cells[3].text = result->project_label;
     out->cells[3].width_hint = 16;
-    out->cells[4].text = result->display_name[0]
-        ? result->display_name : result->session_id;
+    out->cells[4].text = title;
     out->cells[4].width_hint = 22;
-    out->cells[5].text = result->snippet;
+    out->cells[5].text = snippet;
     out->cells[5].width_hint = 0;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }

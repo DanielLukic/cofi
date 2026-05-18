@@ -258,6 +258,23 @@ static void test_row_uses_session_metadata_columns(void) {
     ASSERT_TRUE("agent row fits fixed display columns", display_width <= 115);
 }
 
+static void test_row_hides_duplicate_title_snippet(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    agent_sessions_provider_register();
+    seed_named_claude_result();
+    g_strlcpy(s_agent_sessions_mode.results[0].snippet, "Marco Thread",
+              sizeof(s_agent_sessions_mode.results[0].snippet));
+
+    memset(&row, 0, sizeof(row));
+    g_registered_provider.format_row(&app, 0, &row);
+
+    ASSERT_TRUE("agent row has snippet cell", row.cell_count == 6);
+    ASSERT_TRUE("duplicate title is not repeated as snippet",
+                row.cells[5].text && strcmp(row.cells[5].text, "Marco Thread") != 0);
+}
+
 static void test_enter_launches_selected_session(void) {
     AppData app;
     reset_state(&app);
@@ -351,6 +368,7 @@ int main(void) {
     test_command_surfaces_tab();
     test_delete_key_opens_overlay();
     test_row_uses_session_metadata_columns();
+    test_row_hides_duplicate_title_snippet();
     test_enter_launches_selected_session();
     test_ctrl_e_opens_rename_overlay_for_claude();
     test_ctrl_e_ignores_codex_until_supported();

@@ -797,7 +797,9 @@ static void ingest_match(AgentSessionsMode *mode, const char *path, const char *
     if (!result) return;
 
     char name[AGENT_SESSION_NAME_LEN];
-    if (agent_sessions_extract_name_metadata(line, name, sizeof(name))) {
+    gboolean name_metadata =
+        agent_sessions_extract_name_metadata(line, name, sizeof(name));
+    if (name_metadata) {
         g_strlcpy(result->display_name, name, sizeof(result->display_name));
         update_result_search_text(result);
         result->metadata_mask = metadata_mask_for_result(&mode->query, result);
@@ -813,10 +815,12 @@ static void ingest_match(AgentSessionsMode *mode, const char *path, const char *
         update_result_hit_text(result);
     }
     result->matched_mask |= term_mask_for_text(&mode->query, text, line);
-    if (result->snippet[0] == '\0' && text[0] != '\0') {
+    if (!name_metadata && result->snippet[0] == '\0' && text[0] != '\0') {
         g_strlcpy(result->snippet, text, sizeof(result->snippet));
     }
-    append_text(result->match_text, sizeof(result->match_text), text);
+    if (!name_metadata) {
+        append_text(result->match_text, sizeof(result->match_text), text);
+    }
     update_result_search_text(result);
     agent_sessions_apply_refine(mode, NULL);
 }

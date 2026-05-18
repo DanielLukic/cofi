@@ -189,6 +189,8 @@ static void test_group_records_latest_claude_session_name(void) {
     const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
     ASSERT_TRUE("named result exists", result != NULL);
     ASSERT_STR("latest name wins", result->display_name, "New Name");
+    ASSERT_STR("name metadata is not used as snippet",
+               result->snippet, "marco alpha");
 }
 
 static void test_vimgrep_path_allows_colons(void) {
