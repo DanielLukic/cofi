@@ -2,6 +2,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <glib/gstdio.h>
+
 #include "../src/agent_sessions.h"
 
 static int pass = 0;
@@ -23,6 +25,22 @@ gboolean detach_launch_in_terminal_cmd(const char *command) {
 
 #define ASSERT_STR(name, actual, expected) \
     ASSERT_TRUE(name, strcmp((actual), (expected)) == 0)
+
+static int argv_contains(char **argv, const char *value) {
+    if (!argv || !value) return 0;
+    for (int i = 0; argv[i]; i++) {
+        if (strcmp(argv[i], value) == 0) return 1;
+    }
+    return 0;
+}
+
+static int argv_contains_substr(char **argv, const char *value) {
+    if (!argv || !value) return 0;
+    for (int i = 0; argv[i]; i++) {
+        if (strstr(argv[i], value)) return 1;
+    }
+    return 0;
+}
 
 static void test_query_split(void) {
     AgentSessionQuery query;
@@ -59,6 +77,36 @@ static void test_extract_codex_payload_text(void) {
     ASSERT_STR("codex text", text, "give me session hits for marco");
 }
 
+static void test_extract_claude_string_array_text(void) {
+    const char *line =
+        "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\","
+        "\"content\":[\"first marco sentence\",\"second sentence\"]}}";
+    char text[AGENT_SESSION_TEXT_LEN];
+
+    ASSERT_TRUE("extract claude string array",
+                agent_sessions_extract_json_text(line, text, sizeof(text)));
+    ASSERT_STR("claude string array text", text,
+               "first marco sentence second sentence");
+}
+
+static void test_extract_claude_session_name_metadata(void) {
+    char name[AGENT_SESSION_NAME_LEN];
+
+    ASSERT_TRUE("extract custom title",
+                agent_sessions_extract_name_metadata(
+                    "{\"type\":\"custom-title\",\"customTitle\":\"Architecture Sweep\","
+                    "\"sessionId\":\"abc\"}",
+                    name, sizeof(name)));
+    ASSERT_STR("custom title", name, "Architecture Sweep");
+
+    ASSERT_TRUE("extract agent name",
+                agent_sessions_extract_name_metadata(
+                    "{\"type\":\"agent-name\",\"agentName\":\"Pascal\","
+                    "\"sessionId\":\"abc\"}",
+                    name, sizeof(name)));
+    ASSERT_STR("agent name", name, "Pascal");
+}
+
 static void test_group_requires_all_terms_across_lines(void) {
     AgentSessionsMode mode;
     agent_sessions_init(&mode);
@@ -77,9 +125,86 @@ static void test_group_requires_all_terms_across_lines(void) {
     ASSERT_TRUE("result exists", result != NULL);
     ASSERT_STR("source parsed", result->source, "claude");
     ASSERT_STR("project parsed", result->project, "/home/user/Projects/marco");
+    ASSERT_STR("project label shows path basename",
+               result->project_label, "marco");
     ASSERT_STR("cwd falls back to project path", result->cwd, "/home/user/Projects/marco");
     ASSERT_STR("session id parsed", result->session_id, "abc");
     ASSERT_TRUE("hit count grouped", result && result->hit_count == 2);
+}
+
+static void test_project_label_uses_basename_outside_projects(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("alpha", &mode.query);
+
+    const char *path = "/home/user/.claude/projects/-home-user-work-backend/abc.jsonl";
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"type\":\"user\",\"message\":{\"content\":\"alpha\"}}");
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("non-projects result exists", result != NULL);
+    ASSERT_STR("non-projects project parsed", result->project, "/home/user/work/backend");
+    ASSERT_STR("non-projects project label uses basename",
+               result->project_label, "backend");
+}
+
+static void test_claude_subagent_hits_collapse_to_parent_session(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    const char *parent =
+        "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl";
+    const char *subagent =
+        "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl/"
+        "subagents/agent-check-123.jsonl";
+    agent_sessions_ingest_match_for_test(&mode, subagent,
+        "{\"type\":\"assistant\",\"message\":{\"content\":\"marco from subagent\"}}");
+    agent_sessions_ingest_match_for_test(&mode, parent,
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco from parent\"}}");
+
+    ASSERT_TRUE("subagent and parent collapse to one row", mode.filtered_count == 1);
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("collapsed result exists", result != NULL);
+    ASSERT_STR("collapsed session id is parent", result->session_id, "abc");
+    ASSERT_STR("collapsed result prefers parent path", result->path, parent);
+    ASSERT_TRUE("collapsed hit count accumulates", result->hit_count == 2);
+}
+
+static void test_group_records_latest_claude_session_name(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    const char *path = "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl";
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"type\":\"custom-title\",\"customTitle\":\"Old Name\","
+        "\"sessionId\":\"abc\"}");
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"type\":\"agent-name\",\"agentName\":\"New Name\","
+        "\"sessionId\":\"abc\"}");
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco alpha\"}}");
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("named result exists", result != NULL);
+    ASSERT_STR("latest name wins", result->display_name, "New Name");
+}
+
+static void test_vimgrep_path_allows_colons(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    char line[] =
+        "/home/user/.claude/projects/-home-user-Projects-marco:branch/abc.jsonl:"
+        "12:3:{\"type\":\"user\",\"message\":{\"content\":\"marco alpha\"}}";
+    ASSERT_TRUE("ingest vimgrep line with colon path",
+                agent_sessions_ingest_vimgrep_line_for_test(&mode, line));
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("colon path result exists", result != NULL);
+    ASSERT_STR("colon path preserved", result->path,
+               "/home/user/.claude/projects/-home-user-Projects-marco:branch/abc.jsonl");
 }
 
 static void test_refine_filters_grouped_sessions(void) {
@@ -101,17 +226,176 @@ static void test_refine_filters_grouped_sessions(void) {
     ASSERT_STR("restart result", result->session_id, "abc");
 }
 
+static void test_raw_json_metadata_is_not_display_snippet(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    agent_sessions_ingest_match_for_test(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl",
+        "{\"parentUuid\":\"abc\",\"promptId\":\"marco\",\"isSidechain\":true}");
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("raw-json-only match still surfaces", result != NULL);
+    ASSERT_STR("raw json is not row snippet", result->snippet, "");
+    ASSERT_TRUE("raw json is not accumulated match text",
+                strstr(result->match_text, "parentUuid") == NULL);
+}
+
+static void test_metadata_match_sorts_before_content_only_match(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    agent_sessions_ingest_match_for_test(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-other/newer.jsonl",
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco content\"}}");
+    agent_sessions_ingest_match_for_test(&mode,
+        "/home/user/.claude/projects/-home-user-Projects-marco/older.jsonl",
+        "{\"type\":\"user\",\"message\":{\"content\":\"marco content\"}}");
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("metadata path match is first", result != NULL);
+    ASSERT_STR("metadata path match project label", result->project_label, "marco");
+}
+
+static void test_seed_file_surfaces_path_match_without_content_hit(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    agent_sessions_seed_file_for_test(
+        &mode, "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl");
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("metadata-only path match surfaces", result != NULL);
+    ASSERT_STR("metadata-only project label", result->project_label, "marco");
+    ASSERT_STR("metadata-only snippet stays empty", result->snippet, "");
+}
+
+static void test_metadata_match_gets_later_extracted_snippet(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("marco", &mode.query);
+
+    const char *path = "/home/user/.claude/projects/-home-user-Projects-marco/abc.jsonl";
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"cwd\":\"/tmp/marco\"}");
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("metadata-only result exists", result != NULL);
+    ASSERT_STR("metadata-only line does not create snippet", result->snippet, "");
+
+    agent_sessions_ingest_match_for_test(&mode, path,
+        "{\"type\":\"user\",\"message\":{\"content\":\"human readable marco text\"}}");
+    result = agent_sessions_result_at(&mode, 0);
+    ASSERT_STR("later extracted text becomes snippet",
+               result->snippet, "human readable marco text");
+}
+
+static void test_broad_query_can_hold_hundreds_of_sessions(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("alpha", &mode.query);
+
+    char path[256];
+    for (int i = 0; i < 220; i++) {
+        snprintf(path, sizeof(path),
+                 "/home/user/.claude/projects/-home-user-Projects-bulk/%03d.jsonl",
+                 i);
+        agent_sessions_ingest_match_for_test(&mode, path,
+            "{\"type\":\"user\",\"message\":{\"content\":\"alpha\"}}");
+    }
+
+    ASSERT_TRUE("broad query keeps hundreds of sessions",
+                mode.filtered_count == 220);
+}
+
+static void test_rg_argv_excludes_history_files(void) {
+    AgentSessionQuery query;
+    agent_sessions_parse_query("alpha", &query);
+    char **single = agent_sessions_build_rg_argv_for_test(&query);
+    ASSERT_TRUE("single-term rg excludes claude history",
+                !argv_contains_substr(single, ".claude/history.jsonl"));
+    ASSERT_TRUE("single-term rg excludes codex history",
+                !argv_contains_substr(single, ".codex/history.jsonl"));
+    g_strfreev(single);
+
+    agent_sessions_parse_query("alpha beta", &query);
+    char **multi = agent_sessions_build_rg_argv_for_test(&query);
+    ASSERT_TRUE("multi-term rg does not rely on rg max-count",
+                !argv_contains(multi, "--max-count"));
+    g_strfreev(multi);
+}
+
+static void test_ingest_caps_hit_count_per_session(void) {
+    AgentSessionsMode mode;
+    agent_sessions_init(&mode);
+    agent_sessions_parse_query("alpha", &mode.query);
+
+    const char *path = "/home/user/.claude/projects/-home-user-Projects-alpha/abc.jsonl";
+    for (int i = 0; i < 55; i++) {
+        agent_sessions_ingest_match_for_test(&mode, path,
+            "{\"type\":\"user\",\"message\":{\"content\":\"alpha repeated\"}}");
+    }
+
+    const AgentSessionResult *result = agent_sessions_result_at(&mode, 0);
+    ASSERT_TRUE("capped hit result exists", result != NULL);
+    ASSERT_TRUE("hit count is capped", result->hit_count == 40);
+    ASSERT_STR("hit text is capped", result->hit_text, "40");
+}
+
+static void test_write_claude_name_records_escapes_json(void) {
+    char path[] = "/tmp/cofi-agent-session-name-XXXXXX";
+    int fd = mkstemp(path);
+    ASSERT_TRUE("create temp name session", fd >= 0);
+    if (fd < 0) return;
+    close(fd);
+
+    ASSERT_TRUE("write claude name records",
+                agent_sessions_write_claude_name_records_for_test(
+                    path, "abc-123", "Plan \"A\""));
+
+    gchar *content = NULL;
+    gsize len = 0;
+    ASSERT_TRUE("read temp name session",
+                g_file_get_contents(path, &content, &len, NULL));
+    ASSERT_TRUE("writes custom title record",
+                strstr(content, "\"type\":\"custom-title\"") != NULL);
+    ASSERT_TRUE("writes agent name record",
+                strstr(content, "\"type\":\"agent-name\"") != NULL);
+    ASSERT_TRUE("escapes quotes",
+                strstr(content, "Plan \\\"A\\\"") != NULL);
+    ASSERT_TRUE("writes session id",
+                strstr(content, "\"sessionId\":\"abc-123\"") != NULL);
+
+    g_free(content);
+    unlink(path);
+}
+
 static void test_build_claude_resume_command(void) {
     AgentSessionResult result = {0};
     g_strlcpy(result.source, "claude", sizeof(result.source));
-    g_strlcpy(result.cwd, "/home/user/Projects/marco", sizeof(result.cwd));
+    g_strlcpy(result.cwd, "/home/user/Projects/cofi", sizeof(result.cwd));
     g_strlcpy(result.session_id, "abc-123", sizeof(result.session_id));
     char command[AGENT_SESSION_COMMAND_LEN];
 
     ASSERT_TRUE("build claude resume command",
                 agent_sessions_build_resume_command(&result, command, sizeof(command)));
     ASSERT_STR("claude resume command", command,
-               "cd '/home/user/Projects/marco' && claude --resume 'abc-123'");
+               "cd '/home/user/Projects/cofi' && claude --resume 'abc-123'");
+}
+
+static void test_resume_command_skips_stale_cwd(void) {
+    AgentSessionResult result = {0};
+    g_strlcpy(result.source, "claude", sizeof(result.source));
+    g_strlcpy(result.cwd, "/tmp/cofi-no-such-cwd-for-agent-session",
+              sizeof(result.cwd));
+    g_strlcpy(result.session_id, "abc-123", sizeof(result.session_id));
+    char command[AGENT_SESSION_COMMAND_LEN];
+
+    ASSERT_TRUE("build resume with stale cwd",
+                agent_sessions_build_resume_command(&result, command, sizeof(command)));
+    ASSERT_STR("stale cwd is skipped", command, "claude --resume 'abc-123'");
 }
 
 static void test_build_codex_resume_command(void) {
@@ -137,7 +421,7 @@ static void test_build_codex_resume_command_reads_cwd_from_file(void) {
     const char *content =
         "{\"timestamp\":\"2026-03-28T17:17:33.130Z\","
         "\"type\":\"session_meta\","
-        "\"payload\":{\"id\":\"019d\",\"cwd\":\"/home/user/Projects/cbtrdr.gsd\"}}\n";
+        "\"payload\":{\"id\":\"019d\",\"cwd\":\"/home/user/Projects/cofi\"}}\n";
     ASSERT_TRUE("write temp codex session",
                 g_file_set_contents(path, content, -1, NULL));
 
@@ -150,7 +434,7 @@ static void test_build_codex_resume_command_reads_cwd_from_file(void) {
     ASSERT_TRUE("build codex resume command with file cwd",
                 agent_sessions_build_resume_command(&result, command, sizeof(command)));
     ASSERT_STR("codex resume command uses file cwd", command,
-               "cd '/home/user/Projects/cbtrdr.gsd' && codex resume '019d'");
+               "cd '/home/user/Projects/cofi' && codex resume '019d'");
     unlink(path);
 }
 
@@ -215,9 +499,24 @@ int main(void) {
     test_query_split();
     test_extract_claude_message_text();
     test_extract_codex_payload_text();
+    test_extract_claude_string_array_text();
+    test_extract_claude_session_name_metadata();
     test_group_requires_all_terms_across_lines();
+    test_project_label_uses_basename_outside_projects();
+    test_claude_subagent_hits_collapse_to_parent_session();
+    test_group_records_latest_claude_session_name();
+    test_vimgrep_path_allows_colons();
     test_refine_filters_grouped_sessions();
+    test_raw_json_metadata_is_not_display_snippet();
+    test_metadata_match_sorts_before_content_only_match();
+    test_seed_file_surfaces_path_match_without_content_hit();
+    test_metadata_match_gets_later_extracted_snippet();
+    test_broad_query_can_hold_hundreds_of_sessions();
+    test_rg_argv_excludes_history_files();
+    test_ingest_caps_hit_count_per_session();
+    test_write_claude_name_records_escapes_json();
     test_build_claude_resume_command();
+    test_resume_command_skips_stale_cwd();
     test_build_codex_resume_command();
     test_build_codex_resume_command_reads_cwd_from_file();
     test_launch_result_uses_terminal_launcher();

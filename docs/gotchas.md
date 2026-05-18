@@ -63,6 +63,11 @@ See also:
 
 ## Provider Tabs And Plugin Architecture
 
+- Provider key hooks must be verified through the focused entry path.
+  Unit tests that call `CofiTabProvider.handle_key` or `on_enter_pressed` directly prove the hook logic, but not GTK delivery.
+  Keys such as `Return` and `Ctrl+E` can be consumed by `GtkEntry` defaults unless the live `key-press-event` wiring is covered by an Xvfb test.
+  Handlers must not mutate state on the path to `return FALSE`, because the same event can be seen by both the focused entry and the window.
+
 - Provider rendering is inverted like the rest of cofi's list UI.
   `format_provider_display` renders from `end - 1` down to `scroll`.
   Do not "fix" provider display to render raw index 0 at the top unless the entire display pipeline changes with it.
@@ -113,6 +118,10 @@ See also:
   Verify against code and recent commits before relying on it.
 
 ## Fixed Window Sizing (TFD-100)
+
+- Fixed width is enforced at the final text-buffer boundary.
+  Provider column hints are still required for well-formed rows, but they are not the only guard.
+  Any content passed to `gtk_text_buffer_set_text()` must already be clipped to `get_display_columns(app)` line by line; otherwise GTK can expand the toplevel horizontally for a long unwrapped line.
 
 - `fixed_window_size_initializing` flag is cleared via `g_idle_add` after `gtk_window_resize()` in `init_fixed_window_size()`.
   `gtk_window_resize()` is async — the resize-triggered `size-allocate` on the window (which fires `on_window_size_allocate`) may arrive after the idle clears the flag, letting the reposition callback run during init.
@@ -211,7 +220,9 @@ See also:
 
 - **The errno-pipe is the correct exec-failure propagation mechanism.** The double-fork makes the grandchild's exit status invisible to the original parent. The errno-pipe (`pipe()` + `FD_CLOEXEC` on the write end) solves this: a successful `execvp` closes the write end automatically; failure writes errno bytes that the parent reads. An empty read is success.
 
-- **Terminal launches are always `{term, -e, sh, -c, cmd}`.** The explicit `sh -c` wrapper is intentional: argv-split terminals (xterm, kitty, alacritty, foot) and string-accept terminals (mate-terminal, gnome-terminal) behave consistently. Without the shell wrapper, multi-word commands are mishandled on argv-split terminals.
+- **Terminal launches are not generic detached app launches.** Commands that run inside a terminal must not go through `systemd-run`, and the terminal emulator process must not have stdin/stdout/stderr redirected to `/dev/null`. Interactive tools such as Claude, Codex, tmux, and zellij need the terminal emulator to keep normal stdio while it creates the PTY.
+
+- **Terminal launches always keep the explicit `sh -c` wrapper.** Argv-split terminals use `{term, -e, sh, -c, cmd}`. Mate/GNOME terminals use the modern `{term, --, sh, -c, cmd}` form instead of deprecated `-e`. Without the shell wrapper, multi-word commands are mishandled on argv-split terminals.
 
 - **GUI desktop entries must not go through a shell.** `Exec=` is argv-like, not shell syntax. The correct path is `g_shell_parse_argv` (handles quoting/escaping only) followed by `detach_launch_argv_array` (direct execvp). Shell metacharacters in `Exec=` must not execute.
 

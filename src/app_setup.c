@@ -210,6 +210,7 @@ void setup_application(AppData *app, WindowAlignment alignment) {
 
     g_signal_connect(app->window, "delete-event", G_CALLBACK(on_delete_event), app);
     g_signal_connect(app->window, "key-press-event", G_CALLBACK(on_key_press), app);
+    g_signal_connect(app->entry, "key-press-event", G_CALLBACK(on_key_press), app);
     g_signal_connect(app->entry, "changed", G_CALLBACK(on_entry_changed), app);
     g_signal_connect(app->window, "focus-out-event", G_CALLBACK(on_focus_out_event), app);
 

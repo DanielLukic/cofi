@@ -64,6 +64,7 @@ typedef enum {
     OVERLAY_SESSION_RENAME,
     OVERLAY_SESSION_NEW,
     OVERLAY_AGENT_SESSION_DELETE,
+    OVERLAY_AGENT_SESSION_RENAME,
     OVERLAY_PROVIDER_ENABLEMENT
 } OverlayType;
 
@@ -232,6 +233,13 @@ typedef struct AppData {
         char session_id[AGENT_SESSION_ID_LEN];
         char path[AGENT_SESSION_PATH_LEN];
     } agent_session_delete;
+
+    struct {
+        char source[16];
+        char session_id[AGENT_SESSION_ID_LEN];
+        char path[AGENT_SESSION_PATH_LEN];
+        char current_name[AGENT_SESSION_NAME_LEN];
+    } agent_session_rename;
 
     // Rebind state (Hotkeys tab Ctrl+B)
     struct {

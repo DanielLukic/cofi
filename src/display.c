@@ -52,6 +52,47 @@ static void format_candidate_strip(AppData *app, GString *output) {
     }
 }
 
+static void clip_display_lines_to_columns(GString *text, int target_columns) {
+    // `get_display_columns()` falls back to a positive value before the fixed
+    // window cache is initialized; a non-positive value means the caller passed
+    // an invalid target and clipping would be ambiguous.
+    if (!text || target_columns <= 0) {
+        return;
+    }
+
+    GString *clipped = g_string_sized_new(text->len);
+    const char *p = text->str;
+    while (*p) {
+        const char *nl = strchr(p, '\n');
+        const char *line_end = nl ? nl : p + strlen(p);
+        int cols = 0;
+        while (p < line_end && cols < target_columns) {
+            gunichar ch = g_utf8_get_char_validated(p, line_end - p);
+            if (ch == (gunichar)-1 || ch == (gunichar)-2) {
+                g_string_append_c(clipped, ' ');
+                p++;
+                cols++;
+                continue;
+            }
+            int char_cols = g_unichar_iswide(ch) ? 2 : 1;
+            if (cols + char_cols > target_columns) {
+                break;
+            }
+            const char *next = g_utf8_next_char(p);
+            g_string_append_len(clipped, p, next - p);
+            p = next;
+            cols += char_cols;
+        }
+        p = line_end;
+        if (nl) {
+            g_string_append_c(clipped, '\n');
+            p = nl + 1;
+        }
+    }
+    g_string_assign(text, clipped->str);
+    g_string_free(clipped, TRUE);
+}
+
 // Format desktop string like Go code
 static void format_desktop_str(int desktop, char *output) {
     if (desktop < 0 || desktop > 99) {
@@ -391,6 +432,8 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         memset(&row, 0, sizeof(row));
         p->format_row(app, i, &row);
 
+        int line_cols = 2;
+        int target_cols = get_display_columns(app);
         g_string_append(text, (i == selected_idx) ? "> " : "  ");
         if (p->slot_store_enabled && p->slot_payload_for &&
             (row.row_flags & COFI_ROW_SLOTTABLE)) {
@@ -401,25 +444,39 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
             } else {
                 g_string_append(text, "    ");
             }
+            line_cols += 4;
         }
         for (int c = 0; c < row.cell_count; c++) {
             const char *t = row.cells[c].text ? row.cells[c].text : "";
             int w = row.cells[c].width_hint;
             if (c > 0) {
                 g_string_append_c(text, ' ');
+                line_cols++;
             }
+            int remaining = target_cols - line_cols;
+            if (target_cols > 0 && remaining <= 0) {
+                break;
+            }
+            int col_width = w > 0 ? w : remaining;
+            if (target_cols > 0 && col_width > remaining) {
+                col_width = remaining;
+            }
+            if (col_width <= 0) {
+                continue;
+            }
+            char col[256];
+            int fit = col_width < 255 ? col_width : 255;
+            fit_column(t, fit, col);
             if (w > 0) {
-                char col[256];
-                int fit = w < 255 ? w : 255;
-                fit_column(t, fit, col);
                 if (row.cells[c].align == 1) {
-                    g_string_append_printf(text, "%*s", w, col);
+                    g_string_append_printf(text, "%*s", col_width, col);
                 } else {
-                    g_string_append_printf(text, "%-*s", w, col);
+                    g_string_append_printf(text, "%-*s", col_width, col);
                 }
             } else {
-                g_string_append(text, t);
+                g_string_append(text, col);
             }
+            line_cols += col_width;
         }
         g_string_append_c(text, '\n');
     }
@@ -477,6 +534,7 @@ void update_display(AppData *app) {
     tab_header_format(app, app->current_tab, get_display_columns(app), text);
 
     format_candidate_strip(app, text);
+    clip_display_lines_to_columns(text, get_display_columns(app));
     
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);

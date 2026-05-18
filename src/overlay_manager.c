@@ -73,6 +73,13 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->agent_session_delete.path[0] = '\0';
     }
 
+    if (type == OVERLAY_AGENT_SESSION_RENAME) {
+        app->agent_session_rename.source[0] = '\0';
+        app->agent_session_rename.session_id[0] = '\0';
+        app->agent_session_rename.path[0] = '\0';
+        app->agent_session_rename.current_name[0] = '\0';
+    }
+
     if (type == OVERLAY_HOTKEY_REBIND) {
         memset(&app->hotkey_rebind, 0, sizeof(app->hotkey_rebind));
         app->hotkey_rebind.conflict_index = -1;

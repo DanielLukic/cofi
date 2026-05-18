@@ -337,9 +337,9 @@ static void test_terminal_cmd_bare_path_still_works(void) {
     g_strfreev(argv);
 }
 
-static void test_mate_terminal_cmd_uses_single_command_string(void) {
-    // mate-terminal -e consumes a single command string; split argv makes
-    // mate-terminal parse "-c" as its own option and fail before launch.
+static void test_mate_terminal_cmd_uses_modern_double_dash(void) {
+    // mate-terminal/gnome-terminal deprecated -e. Use the modern
+    // "terminal -- shell -c command" form.
     g_unsetenv("TERMINAL");
     char **argv = build_terminal_cmd_argv_for_test("tmux attach-session -t '=scrcpy'",
                                                    resolve_only_mate_terminal);
@@ -351,16 +351,16 @@ static void test_mate_terminal_cmd_uses_single_command_string(void) {
     }
 
     gboolean shape_ok = (strcmp(argv[0], "mate-terminal") == 0 &&
-                         strcmp(argv[1], "-e") == 0 &&
-                         strstr(argv[2], " -c ") != NULL &&
-                         strstr(argv[2], "tmux attach-session") != NULL &&
-                         argv[3] == NULL);
+                         strcmp(argv[1], "--") == 0 &&
+                         strcmp(argv[3], "-c") == 0 &&
+                         strcmp(argv[4], "tmux attach-session -t '=scrcpy'") == 0 &&
+                         argv[5] == NULL);
     if (shape_ok) {
         tests_passed++;
-        printf("PASS: mate-terminal cmd uses single command string\n");
+        printf("PASS: mate-terminal cmd uses modern double dash\n");
     } else {
-        printf("FAIL: mate-terminal argv shape wrong: [%s][%s][%s] (line %d)\n",
-               argv[0], argv[1], argv[2], __LINE__);
+        printf("FAIL: mate-terminal argv shape wrong: [%s][%s][%s][%s][%s] (line %d)\n",
+               argv[0], argv[1], argv[2], argv[3], argv[4], __LINE__);
     }
     g_strfreev(argv);
 }
@@ -425,7 +425,7 @@ int main(void) {
     test_fork_setsid_exec_real_binary_returns_true();
     test_terminal_cmd_argv_has_sh_wrapper();
     test_terminal_cmd_bare_path_still_works();
-    test_mate_terminal_cmd_uses_single_command_string();
+    test_mate_terminal_cmd_uses_modern_double_dash();
     test_shell_parse_no_variable_expansion();
     test_shell_parse_malformed_returns_false();
 

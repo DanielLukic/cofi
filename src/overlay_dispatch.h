@@ -24,5 +24,10 @@ void show_agent_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path);
+void show_agent_session_rename_overlay(AppData *app,
+                                       const char *source,
+                                       const char *session_id,
+                                       const char *path,
+                                       const char *current_name);
 
 #endif

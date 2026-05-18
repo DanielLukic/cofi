@@ -39,7 +39,7 @@ gchar *detach_strip_field_codes(const char *cmd) {
 // Double-fork + setsid launch (no systemd dependency)
 // ---------------------------------------------------------------------------
 
-static gboolean fork_setsid_exec(const char *const *argv) {
+static gboolean fork_setsid_exec(const char *const *argv, gboolean redirect_stdio) {
     // Errno pipe: grandchild writes errno if execvp fails; FD_CLOEXEC means
     // successful exec auto-closes the write end → parent reads EOF = success.
     int err_pipe[2];
@@ -83,12 +83,14 @@ static gboolean fork_setsid_exec(const char *const *argv) {
         log_warn("setsid() failed: %s", strerror(errno));
     }
 
-    int devnull = open("/dev/null", O_RDWR);
-    if (devnull >= 0) {
-        dup2(devnull, STDIN_FILENO);
-        dup2(devnull, STDOUT_FILENO);
-        dup2(devnull, STDERR_FILENO);
-        if (devnull > STDERR_FILENO) close(devnull);
+    if (redirect_stdio) {
+        int devnull = open("/dev/null", O_RDWR);
+        if (devnull >= 0) {
+            dup2(devnull, STDIN_FILENO);
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            if (devnull > STDERR_FILENO) close(devnull);
+        }
     }
 
     // double-fork so grandchild is not a session leader
@@ -129,10 +131,14 @@ static char **build_systemd_run_argv(const char *const *inner_argv) {
 // Primary launch function: try systemd-run, fall back to fork+setsid
 // ---------------------------------------------------------------------------
 
-static gboolean detach_launch_properly(const char *const *argv, const char *label) {
+static gboolean detach_launch_properly(const char *const *argv,
+                                       const char *label,
+                                       gboolean redirect_stdio,
+                                       gboolean try_systemd) {
     gchar *srun = g_find_program_in_path("systemd-run");
-    if (srun) {
+    if (try_systemd && srun) {
         g_free(srun);
+        srun = NULL;
         char **srun_argv = build_systemd_run_argv(argv);
         GError *error = NULL;
         GSubprocessLauncher *launcher = g_subprocess_launcher_new(
@@ -153,7 +159,8 @@ static gboolean detach_launch_properly(const char *const *argv, const char *labe
             return TRUE;
         }
     }
-    gboolean ok = fork_setsid_exec(argv);
+    g_free(srun);
+    gboolean ok = fork_setsid_exec(argv, redirect_stdio);
     if (ok) {
         log_info("Launched via fork+setsid: %s", label);
     } else {
@@ -177,7 +184,7 @@ gboolean detach_launch_shell(const char *command) {
     }
 
     const char *argv[] = {shell, "-c", command, NULL};
-    gboolean ok = detach_launch_properly(argv, command);
+    gboolean ok = detach_launch_properly(argv, command, TRUE, TRUE);
 
     if (ok) {
         log_info("USER: Launched run command '%s'", command);
@@ -192,7 +199,7 @@ gboolean detach_launch_argv(const char *exec_path) {
     }
 
     const char *argv[] = {exec_path, NULL};
-    gboolean ok = detach_launch_properly(argv, exec_path);
+    gboolean ok = detach_launch_properly(argv, exec_path, TRUE, TRUE);
 
     if (ok) {
         log_info("Launched PATH binary: %s", exec_path);
@@ -371,24 +378,23 @@ gboolean detach_launch_argv_array(const char *const *argv) {
     if (!argv || !argv[0] || argv[0][0] == '\0') {
         return FALSE;
     }
-    return detach_launch_properly(argv, argv[0]);
+    return detach_launch_properly(argv, argv[0], TRUE, TRUE);
 }
 
-static gboolean terminal_uses_command_string(const char *term) {
+static gboolean terminal_accepts_shell_argv(const char *term) {
     return term && (strcmp(term, "mate-terminal") == 0 ||
                     strcmp(term, "gnome-terminal") == 0);
 }
 
 static char **build_terminal_cmd_argv(const char *term, const char *shell, const char *cmd) {
-    if (terminal_uses_command_string(term)) {
-        gchar *quoted_cmd = g_shell_quote(cmd);
-        gchar *command = g_strdup_printf("%s -c %s", shell, quoted_cmd);
-        char **argv = g_new0(char *, 4);
+    if (terminal_accepts_shell_argv(term)) {
+        char **argv = g_new0(char *, 6);
         argv[0] = g_strdup(term);
-        argv[1] = g_strdup("-e");
-        argv[2] = command;
-        argv[3] = NULL;
-        g_free(quoted_cmd);
+        argv[1] = g_strdup("--");
+        argv[2] = g_strdup(shell);
+        argv[3] = g_strdup("-c");
+        argv[4] = g_strdup(cmd);
+        argv[5] = NULL;
         return argv;
     }
 
@@ -419,7 +425,7 @@ gboolean detach_launch_in_terminal_cmd(const char *cmd) {
     }
 
     char **argv = build_terminal_cmd_argv(term, shell, cmd);
-    gboolean ok = detach_launch_properly((const char *const *)argv, cmd);
+    gboolean ok = detach_launch_properly((const char *const *)argv, cmd, FALSE, FALSE);
     g_strfreev(argv);
 
     if (ok) {
@@ -452,7 +458,7 @@ char **build_systemd_run_argv_for_test(const char *const *inner_argv) {
 // Directly exercises fork_setsid_exec so the errno-pipe path can be tested
 // without going through the systemd-run probe.
 gboolean fork_setsid_exec_for_test(const char *const *argv) {
-    return fork_setsid_exec(argv);
+    return fork_setsid_exec(argv, TRUE);
 }
 
 // Returns heap-allocated argv that detach_launch_in_terminal_cmd would pass to

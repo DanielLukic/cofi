@@ -39,6 +39,11 @@ void show_agent_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path);
+void show_agent_session_rename_overlay(AppData *app,
+                                       const char *source,
+                                       const char *session_id,
+                                       const char *path,
+                                       const char *current_name);
 
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
@@ -47,7 +52,8 @@ static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
            type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
            type == OVERLAY_RULE_EDIT || type == OVERLAY_SESSION_RENAME ||
-           type == OVERLAY_SESSION_NEW;
+           type == OVERLAY_SESSION_NEW ||
+           type == OVERLAY_AGENT_SESSION_RENAME;
 }
 
 #endif // OVERLAY_MANAGER_H

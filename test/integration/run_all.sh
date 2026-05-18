@@ -293,7 +293,8 @@ run_cli_tab_basic() {
     start_test_windows
     launch_cofi "$cli_flag"
     wait_for_window_enumeration
-    wait_for_log_line "Switched to $tab_name tab|Delegated opcode handled: .*" "$tab_name tab"
+    local tab_upper="${tab_name^^}"
+    wait_for_log_line "Switched to $tab_name tab|Switched to $tab_upper tab|Delegated opcode handled: .*" "$tab_name tab"
     focus_cofi
 
     capture_and_compare "$fixture_name"
@@ -315,7 +316,8 @@ run_command_tab_basic() {
 
     xdotool type --clearmodifiers "$command"
     xdotool key Return
-    wait_for_log_line "Switched to $tab_name tab" "$tab_name tab"
+    local tab_upper="${tab_name^^}"
+    wait_for_log_line "Switched to $tab_name tab|Switched to $tab_upper tab" "$tab_name tab"
 
     if [[ -n "$query" ]]; then
         xdotool type --clearmodifiers "$query"
@@ -342,7 +344,7 @@ run_run_basic() {
     start_test_windows
     launch_cofi --run
     wait_for_window_enumeration
-    wait_for_log_line "Switched to Run tab" "Run tab"
+    wait_for_log_line "Switched to Run tab|Switched to RUN tab|Delegated opcode handled: .*" "Run tab"
     focus_cofi
 
     capture_and_compare "run-basic.png"
@@ -371,6 +373,96 @@ run_sinks_basic() {
 
 run_proc_basic() {
     run_command_tab_basic "proc" "Proc" "proc-basic.png" "zz-cofi-no-such-process"
+}
+
+setup_agent_sessions_fixture() {
+    local project_dir="$HOME_DIR/.claude/projects/-tmp-cofi-agent-project"
+    mkdir -p "$project_dir"
+    cat > "$project_dir/abc-agent-session.jsonl" <<'JSON'
+{"type":"custom-title","customTitle":"Old Agent Name","sessionId":"abc-agent-session"}
+{"type":"user","message":{"content":"alpha wide AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}
+JSON
+}
+
+setup_fake_terminal() {
+    cat > "$PATH_BIN_DIR/mate-terminal" <<'SH'
+#!/usr/bin/env sh
+{
+    printf 'mate-terminal'
+    for arg in "$@"; do
+        printf ' [%s]' "$arg"
+    done
+    printf '\n'
+} >> "$COFI_FAKE_TERMINAL_LOG"
+exit 0
+SH
+    chmod +x "$PATH_BIN_DIR/mate-terminal"
+}
+
+run_agent_sessions_keys() {
+    setup_common_config
+    setup_agent_sessions_fixture
+    setup_fake_terminal
+    start_window_manager
+    start_test_windows
+    export COFI_FAKE_TERMINAL_LOG="$TEST_ROOT/fake-terminal.log"
+    COFI_TEST_PATH="$PATH_BIN_DIR:/usr/bin:/bin" launch_cofi --command
+    wait_for_window_enumeration
+    wait_for_log_line "USER: Entered command mode" "command mode"
+    focus_cofi
+
+    xdotool type --clearmodifiers "agents"
+    xdotool key Return
+    wait_for_log_line "Switched to AGENTS tab" "agent sessions tab"
+    xdotool type --clearmodifiers "alpha"
+    wait_for_log_line "Agent sessions search complete: 1 matching sessions" "agent session search"
+
+    WIDTH=0
+    eval "$(xdotool getwindowgeometry --shell "$cofi_window" 2>/dev/null || true)"
+    [[ "$WIDTH" -gt 0 && "$WIDTH" -le 1220 ]] \
+        || fail "$CASE_NAME: cofi window too wide after agent-session result: $WIDTH"
+
+    xdotool key Return
+    for _ in {1..100}; do
+        if [[ -f "$COFI_FAKE_TERMINAL_LOG" ]] &&
+           grep -q "claude --resume 'abc-agent-session'" "$COFI_FAKE_TERMINAL_LOG"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+    fail "$CASE_NAME: Enter did not launch terminal resume command"
+}
+
+run_agent_sessions_rename_key() {
+    setup_common_config
+    setup_agent_sessions_fixture
+    start_window_manager
+    start_test_windows
+    COFI_TEST_PATH="$PATH_BIN_DIR:/usr/bin:/bin" launch_cofi --command
+    wait_for_window_enumeration
+    wait_for_log_line "USER: Entered command mode" "command mode"
+    focus_cofi
+
+    xdotool type --clearmodifiers "agents"
+    xdotool key Return
+    wait_for_log_line "Switched to AGENTS tab" "agent sessions tab"
+    xdotool type --clearmodifiers "alpha"
+    wait_for_log_line "Agent sessions search complete: 1 matching sessions" "agent session search"
+
+    xdotool key ctrl+e
+    sleep 0.2
+    xdotool type --clearmodifiers "Renamed Agent Session"
+    xdotool key Return
+
+    local session_file="$HOME_DIR/.claude/projects/-tmp-cofi-agent-project/abc-agent-session.jsonl"
+    for _ in {1..100}; do
+        if grep -q '"customTitle":"Renamed Agent Session"' "$session_file" &&
+           grep -q '"agentName":"Renamed Agent Session"' "$session_file"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+    fail "$CASE_NAME: Ctrl+E rename did not append Claude name records"
 }
 
 run_case() (
@@ -406,15 +498,28 @@ run_case() (
     echo "integration: PASS: $CASE_NAME"
 )
 
-run_case apps_path_bin
-run_case windows_basic
-run_case workspaces_basic
-run_case harpoon_basic
-run_case names_basic
-run_case run_basic
-run_case config_basic
-run_case hotkeys_basic
-run_case rules_basic
-run_case calc_basic
-run_case sinks_basic
-run_case proc_basic
+run_selected_case() {
+    local case_name="$1"
+    if [[ -n "${COFI_INTEGRATION_CASES:-}" ]]; then
+        case " $COFI_INTEGRATION_CASES " in
+            *" $case_name "*) ;;
+            *) return 0 ;;
+        esac
+    fi
+    run_case "$case_name"
+}
+
+run_selected_case apps_path_bin
+run_selected_case windows_basic
+run_selected_case workspaces_basic
+run_selected_case harpoon_basic
+run_selected_case names_basic
+run_selected_case run_basic
+run_selected_case config_basic
+run_selected_case hotkeys_basic
+run_selected_case rules_basic
+run_selected_case calc_basic
+run_selected_case sinks_basic
+run_selected_case proc_basic
+run_selected_case agent_sessions_keys
+run_selected_case agent_sessions_rename_key

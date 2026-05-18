@@ -6,5 +6,8 @@
 void agent_sessions_provider_register(void);
 TabMode agent_sessions_tab_mode(void);
 void agent_sessions_provider_remove_path(AppData *app, const char *path);
+void agent_sessions_provider_rename_path(AppData *app,
+                                         const char *path,
+                                         const char *name);
 
 #endif /* AGENT_SESSIONS_PROVIDER_H */

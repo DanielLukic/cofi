@@ -35,6 +35,7 @@ static void test_overlay_should_focus_name_entry(void) {
     ASSERT_TRUE("rule edit focuses entry", overlay_should_focus_name_entry(OVERLAY_RULE_EDIT));
     ASSERT_TRUE("session rename focuses entry", overlay_should_focus_name_entry(OVERLAY_SESSION_RENAME));
     ASSERT_TRUE("session new focuses entry", overlay_should_focus_name_entry(OVERLAY_SESSION_NEW));
+    ASSERT_TRUE("agent session rename focuses entry", overlay_should_focus_name_entry(OVERLAY_AGENT_SESSION_RENAME));
 
     ASSERT_TRUE("tiling does not focus entry", !overlay_should_focus_name_entry(OVERLAY_TILING));
     ASSERT_TRUE("harpoon edit does not focus entry", !overlay_should_focus_name_entry(OVERLAY_HARPOON_EDIT));

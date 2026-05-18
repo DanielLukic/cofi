@@ -48,27 +48,28 @@ static void agent_sessions_format_row(AppData *app, int raw_idx, CofiRowCells *o
         return;
     }
 
-    static char hits[16];
-    g_snprintf(hits, sizeof(hits), "%d", result->hit_count);
-    out->cell_count = 5;
+    out->cell_count = 6;
     out->cells[0].text = result->source;
-    out->cells[0].width_hint = 7;
-    out->cells[1].text = hits;
+    out->cells[0].width_hint = 6;
+    out->cells[1].text = result->hit_text;
     out->cells[1].width_hint = 4;
     out->cells[1].align = 1;
-    out->cells[2].text = result->project;
-    out->cells[2].width_hint = 28;
-    out->cells[3].text = result->session_id;
-    out->cells[3].width_hint = 12;
-    out->cells[4].text = result->snippet;
+    out->cells[2].text = result->modified_text;
+    out->cells[2].width_hint = 11;
+    out->cells[3].text = result->project_label;
+    out->cells[3].width_hint = 16;
+    out->cells[4].text = result->display_name[0]
+        ? result->display_name : result->session_id;
+    out->cells[4].width_hint = 22;
+    out->cells[5].text = result->snippet;
+    out->cells[5].width_hint = 0;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
 static const char *agent_sessions_match_string(AppData *app, int raw_idx) {
     (void)app;
-    static char text[1400];
-    agent_sessions_format_match_text(agent_session_at_row(raw_idx), text, sizeof(text));
-    return text;
+    const AgentSessionResult *result = agent_session_at_row(raw_idx);
+    return result ? result->search_text : "";
 }
 
 static const char *agent_sessions_row_identity(AppData *app, int raw_idx) {
@@ -123,17 +124,32 @@ void agent_sessions_provider_remove_path(AppData *app, const char *path) {
     }
 }
 
+void agent_sessions_provider_rename_path(AppData *app,
+                                         const char *path,
+                                         const char *name) {
+    if (!path || path[0] == '\0' || !name) return;
+    agent_sessions_rename_path(&s_agent_sessions_mode, path, name);
+    if (app) {
+        validate_selection(app);
+        update_scroll_position(app);
+        update_display(app);
+    }
+}
+
 static gboolean agent_sessions_handle_key(GdkEventKey *event, AppData *app) {
     if (!app || app->current_tab != agent_sessions_tab_mode()) {
         return FALSE;
     }
 
+    gboolean rename_key =
+        (event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E);
     gboolean delete_key =
         event->keyval == GDK_KEY_Delete ||
         event->keyval == GDK_KEY_KP_Delete ||
         ((event->state & GDK_CONTROL_MASK) &&
          (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
-    if (!delete_key) {
+    if (!delete_key && !rename_key) {
         return FALSE;
     }
 
@@ -141,6 +157,16 @@ static gboolean agent_sessions_handle_key(GdkEventKey *event, AppData *app) {
         agent_session_at_row(app->selection.provider_index);
     if (!result) {
         return FALSE;
+    }
+    if (rename_key) {
+        if (strcmp(result->source, "claude") != 0 ||
+            strcmp(result->session_id, "history") == 0) {
+            return FALSE;
+        }
+        show_agent_session_rename_overlay(app, result->source,
+                                          result->session_id, result->path,
+                                          result->display_name);
+        return TRUE;
     }
     show_agent_session_delete_overlay(app, result->source,
                                       result->session_id, result->path);
@@ -176,7 +202,7 @@ void agent_sessions_provider_register(void) {
     s_agent_sessions_provider.id = "agent-sessions";
     s_agent_sessions_provider.display_name = "AGENTS";
     s_agent_sessions_provider.shortcut_hint =
-        "Search: terms | refine   Enter=Resume  Ctrl+D/Delete=Delete";
+        "Search: terms | refine   Enter=Resume  Ctrl+E=Rename Claude  Ctrl+D/Delete=Delete";
     s_agent_sessions_provider.required = 0;
     s_agent_sessions_provider.hidden_by_default = 1;
     s_agent_sessions_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
