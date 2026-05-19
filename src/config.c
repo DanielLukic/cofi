@@ -7,6 +7,65 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+#define MAX_REGISTERED_CONFIG_ENTRIES 64
+
+static CofiConfigSpec s_config_specs[MAX_REGISTERED_CONFIG_ENTRIES];
+static int s_config_spec_count = 0;
+
+static void write_json_string(FILE *file, const char *value) {
+    fputc('"', file);
+    if (value) {
+        for (const char *p = value; *p; p++) {
+            if (*p == '"' || *p == '\\') {
+                fputc('\\', file);
+            }
+            fputc(*p, file);
+        }
+    }
+    fputc('"', file);
+}
+
+int cofi_register_config_entry(const CofiConfigSpec *spec) {
+    if (!spec || !spec->key || spec->key[0] == '\0' ||
+        !spec->get_value || !spec->set_value) {
+        return -1;
+    }
+    if (strlen(spec->key) >= CONFIG_KEY_LEN) return -1;
+
+    for (int i = 0; i < s_config_spec_count; i++) {
+        if (strcmp(s_config_specs[i].key, spec->key) == 0) {
+            return -1;
+        }
+    }
+    if (s_config_spec_count >= MAX_REGISTERED_CONFIG_ENTRIES) return -1;
+
+    s_config_specs[s_config_spec_count++] = *spec;
+    return 0;
+}
+
+int cofi_config_entry_count(void) {
+    return s_config_spec_count;
+}
+
+const CofiConfigSpec *cofi_config_entry_at(int index) {
+    if (index < 0 || index >= s_config_spec_count) return NULL;
+    return &s_config_specs[index];
+}
+
+const CofiConfigSpec *cofi_config_entry_for_key(const char *key) {
+    if (!key) return NULL;
+    for (int i = 0; i < s_config_spec_count; i++) {
+        if (strcmp(s_config_specs[i].key, key) == 0) {
+            return &s_config_specs[i];
+        }
+    }
+    return NULL;
+}
+
+void cofi_config_registry_reset(void) {
+    s_config_spec_count = 0;
+}
+
 static const char* get_config_path(void) {
     static char path[512];
     const char *home = getenv("HOME");
@@ -91,6 +150,7 @@ WindowOrderMode string_to_window_order_mode(const char *str) {
 }
 
 static void save_options_section(FILE *file, const CofiConfig *config) {
+    int registered_count = cofi_config_entry_count();
     fprintf(file, "  \"options\": {\n");
     fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
     fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string(config->alignment));
@@ -104,7 +164,17 @@ static void save_options_section(FILE *file, const CofiConfig *config) {
     fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
     fprintf(file, "    \"show_all_tabs\": %s,\n", config->show_all_tabs ? "true" : "false");
     fprintf(file, "    \"disabled_providers\": \"%s\",\n", config->disabled_providers);
-    fprintf(file, "    \"slot_occlusion_threshold\": %d\n", config->slot_occlusion_threshold_pct);
+    fprintf(file, "    \"slot_occlusion_threshold\": %d%s\n",
+            config->slot_occlusion_threshold_pct,
+            registered_count > 0 ? "," : "");
+    for (int i = 0; i < registered_count; i++) {
+        const CofiConfigSpec *spec = cofi_config_entry_at(i);
+        char value[CONFIG_VALUE_LEN] = {0};
+        if (!spec || !spec->get_value(config, value, sizeof(value))) continue;
+        fprintf(file, "    \"%s\": ", spec->key);
+        write_json_string(file, value);
+        fprintf(file, "%s\n", i == registered_count - 1 ? "" : ",");
+    }
     fprintf(file, "  }");
 }
 
@@ -124,6 +194,10 @@ void init_config_defaults(CofiConfig *config) {
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     config->window_order_mode = WINDOW_ORDER_COFI;
     config->disabled_providers[0] = '\0';
+    config->projects_tmux_path[0] = '\0';
+    config->projects_zellij_path[0] = '\0';
+    config->projects_zoxide_path[0] = '\0';
+    config->projects_file_explorer_path[0] = '\0';
 }
 
 void save_config(const CofiConfig *config) {
@@ -229,6 +303,23 @@ static void parse_options_line(const char *line, CofiConfig *config) {
     } else if (strstr(line, "\"quick_workspace_slots\":")) {
         if (strstr(line, "true"))
             config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
+    } else {
+        for (int i = 0; i < cofi_config_entry_count(); i++) {
+            const CofiConfigSpec *spec = cofi_config_entry_at(i);
+            if (!spec || !spec->key) continue;
+            char needle[CONFIG_KEY_LEN + 4];
+            snprintf(needle, sizeof(needle), "\"%s\":", spec->key);
+            if (strstr(line, needle)) {
+                char val[CONFIG_VALUE_LEN] = {0};
+                char err[128] = {0};
+                if (extract_json_string(line, val, sizeof(val)) &&
+                    !spec->set_value(config, val, err, sizeof(err))) {
+                    log_warn("Ignoring invalid config value for %s: %s",
+                             spec->key, err[0] ? err : "invalid value");
+                }
+                return;
+            }
+        }
     }
 }
 
@@ -406,6 +497,11 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         return 1;
     }
 
+    const CofiConfigSpec *spec = cofi_config_entry_for_key(key);
+    if (spec) {
+        return spec->set_value(config, value, err_buf, err_size);
+    }
+
     snprintf(err_buf, err_size, "Unknown config key: %s", key);
     return 0;
 }
@@ -457,6 +553,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     #define ADD_BOOL(k, val) do { \
         strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
         strncpy(entries[*count].value, (val) ? "true" : "false", CONFIG_VALUE_LEN - 1); \
+        strncpy(entries[*count].display_value, entries[*count].value, CONFIG_VALUE_LEN - 1); \
         entries[*count].type = CONFIG_TYPE_BOOL; \
         (*count)++; \
     } while(0)
@@ -464,6 +561,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     #define ADD_INT(k, val) do { \
         strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
         snprintf(entries[*count].value, CONFIG_VALUE_LEN, "%d", val); \
+        strncpy(entries[*count].display_value, entries[*count].value, CONFIG_VALUE_LEN - 1); \
         entries[*count].type = CONFIG_TYPE_INT; \
         (*count)++; \
     } while(0)
@@ -471,6 +569,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     #define ADD_ENUM(k, val) do { \
         strncpy(entries[*count].key, k, CONFIG_KEY_LEN - 1); \
         strncpy(entries[*count].value, val, CONFIG_VALUE_LEN - 1); \
+        strncpy(entries[*count].display_value, entries[*count].value, CONFIG_VALUE_LEN - 1); \
         entries[*count].type = CONFIG_TYPE_ENUM; \
         (*count)++; \
     } while(0)
@@ -488,11 +587,32 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
         config->disabled_providers : "(none)";
     strncpy(entries[*count].value, disabled_value, CONFIG_VALUE_LEN - 1);
     entries[*count].value[CONFIG_VALUE_LEN - 1] = '\0';
+    strncpy(entries[*count].display_value, entries[*count].value, CONFIG_VALUE_LEN - 1);
+    entries[*count].display_value[CONFIG_VALUE_LEN - 1] = '\0';
     entries[*count].type = CONFIG_TYPE_PROVIDER_LIST;
     (*count)++;
     ADD_INT("slot_overlay_duration_ms", config->slot_overlay_duration_ms);
     ADD_BOOL("ripple_enabled", config->ripple_enabled);
     ADD_INT("slot_occlusion_threshold", config->slot_occlusion_threshold_pct);
+    for (int i = 0; i < cofi_config_entry_count() && *count < MAX_CONFIG_ENTRIES; i++) {
+        const CofiConfigSpec *spec = cofi_config_entry_at(i);
+        if (!spec || !spec->get_value) continue;
+        strncpy(entries[*count].key, spec->key, CONFIG_KEY_LEN - 1);
+        entries[*count].key[CONFIG_KEY_LEN - 1] = '\0';
+        if (!spec->get_value(config, entries[*count].value, CONFIG_VALUE_LEN)) {
+            entries[*count].value[0] = '\0';
+        }
+        entries[*count].value[CONFIG_VALUE_LEN - 1] = '\0';
+        if (spec->get_display_value &&
+            spec->get_display_value(config, entries[*count].display_value, CONFIG_VALUE_LEN)) {
+            entries[*count].display_value[CONFIG_VALUE_LEN - 1] = '\0';
+        } else {
+            strncpy(entries[*count].display_value, entries[*count].value, CONFIG_VALUE_LEN - 1);
+            entries[*count].display_value[CONFIG_VALUE_LEN - 1] = '\0';
+        }
+        entries[*count].type = spec->type;
+        (*count)++;
+    }
     #undef ADD_BOOL
     #undef ADD_INT
     #undef ADD_ENUM

@@ -482,6 +482,12 @@ Stored in `~/.config/cofi/`:
   - Digit slot mode (`default` / `per-workspace` / `workspaces`)
   - Slot overlay duration in ms (default 750, 0 = disabled)
   - Ripple effect (on/off, default on)
+  - Projects executable overrides:
+    - `projects.tmux_path`
+    - `projects.zellij_path`
+    - `projects.zoxide_path`
+    - `projects.file_explorer_path`
+    - Empty means resolve the executable from cofi's process `PATH`; non-empty values must be absolute executable file paths.
 - `hotkeys.json` — system hotkey bindings as `{key, command}` pairs (up to 64)
   - Managed via `:hotkeys` command or by editing the file directly
   - Auto-generated with default show-mode bindings on first run

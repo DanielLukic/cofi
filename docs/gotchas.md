@@ -220,9 +220,11 @@ See also:
 
 - **The errno-pipe is the correct exec-failure propagation mechanism.** The double-fork makes the grandchild's exit status invisible to the original parent. The errno-pipe (`pipe()` + `FD_CLOEXEC` on the write end) solves this: a successful `execvp` closes the write end automatically; failure writes errno bytes that the parent reads. An empty read is success.
 
-- **Terminal launches are not generic detached app launches.** Commands that run inside a terminal must not go through `systemd-run`, and the terminal emulator process must not have stdin/stdout/stderr redirected to `/dev/null`. Interactive tools such as Claude, Codex, tmux, and zellij need the terminal emulator to keep normal stdio while it creates the PTY.
+- **Terminal launches are not generic detached app launches.** Commands that run inside a terminal must use a user-scope `systemd-run` when available, but the terminal emulator process must not have stdin/stdout/stderr redirected to `/dev/null`. The user scope keeps terminal clients outside `cofi.service`'s cgroup so they survive cofi restarts; normal stdio keeps interactive tools such as Claude, Codex, tmux, and zellij able to create and use their PTY. The fork+setsid fallback is best-effort only and may still die with service cgroup cleanup.
 
 - **Terminal launches always keep the explicit `sh -c` wrapper.** Argv-split terminals use `{term, -e, sh, -c, cmd}`. Mate/GNOME terminals use the modern `{term, --, sh, -c, cmd}` form instead of deprecated `-e`. Without the shell wrapper, multi-word commands are mishandled on argv-split terminals.
+
+- **Projects tool resolution must be shared across list and action paths.** `tmux`, `zellij`, `zoxide`, and the configured file explorer are resolved from Projects config first, then the cofi service `PATH`. Do not hardcode user/mise paths or update only `projects_refresh.c`; attach/new/kill/rename and existing-window activation must use the same resolved executable.
 
 - **GUI desktop entries must not go through a shell.** `Exec=` is argv-like, not shell syntax. The correct path is `g_shell_parse_argv` (handles quoting/escaping only) followed by `detach_launch_argv_array` (direct execvp). Shell metacharacters in `Exec=` must not execute.
 

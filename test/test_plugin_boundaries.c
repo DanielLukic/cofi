@@ -6,6 +6,7 @@
 #include "../src/cofi_tab_provider.h"
 #include "../src/command_availability.h"
 #include "../src/command_registry.h"
+#include "../src/config.h"
 #include "../src/daemon_socket.h"
 #include "../src/tab_header.h"
 
@@ -24,6 +25,7 @@ static int fail = 0;
 static void reset_and_register_builtins(void) {
     cofi_registry_reset();
     cofi_command_registry_reset();
+    cofi_config_registry_reset();
     cofi_register_builtin_plugins();
 }
 

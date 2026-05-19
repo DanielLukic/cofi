@@ -507,16 +507,21 @@ static void reset_counters(void) {
     disabled_provider_tab = -1;
 }
 
+static void init_app(AppData *app) {
+    memset(app, 0, sizeof(*app));
+    app->entry = (GtkWidget *)0x1;
+    app->current_tab = TAB_WINDOWS;
+}
+
 static AppData make_app(void) {
     AppData app;
-    memset(&app, 0, sizeof(app));
-    app.entry = (GtkWidget *)0x1;
-    app.current_tab = TAB_WINDOWS;
+    init_app(&app);
     return app;
 }
 
 static AppData make_default_visibility_app(void) {
-    AppData app = make_app();
+    AppData app;
+    init_app(&app);
 
     for (int i = TAB_WINDOWS; i < COFI_MAX_TAB_HANDLES; i++) {
         app.tab_visibility[i] = TAB_VIS_HIDDEN;

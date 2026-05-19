@@ -105,8 +105,12 @@ gboolean cmd_set_config(AppData *app, WindowInfo *window __attribute__((unused))
         show_error_in_display(app, "Usage: set <key> <value>\n\nType :config to see available keys.");
         return FALSE;
     }
+    int quoted_empty = (strcmp(value, "\"\"") == 0 || strcmp(value, "''") == 0);
+    if (quoted_empty) {
+        value = "";
+    }
 
-    if (value[0] == '\0') {
+    if (value[0] == '\0' && !quoted_empty) {
         char msg[256];
         snprintf(msg, sizeof(msg), "Missing value for '%s'.\n\nType :config to see current values.", key);
         show_error_in_display(app, msg);

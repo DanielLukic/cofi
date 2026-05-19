@@ -24,11 +24,15 @@ static const char *next_arg(const char *data, size_t len, size_t *offset) {
     return arg;
 }
 
-static gboolean basename_is_zellij(const char *arg) {
+static gboolean basename_matches_zellij(const char *arg, const char *zellij_path) {
     if (!arg || arg[0] == '\0') return FALSE;
     const char *slash = strrchr(arg, '/');
     const char *base = slash ? slash + 1 : arg;
-    return strcmp(base, "zellij") == 0;
+    if (strcmp(base, "zellij") == 0) return TRUE;
+    if (!zellij_path || zellij_path[0] == '\0') return FALSE;
+    slash = strrchr(zellij_path, '/');
+    const char *configured_base = slash ? slash + 1 : zellij_path;
+    return strcmp(base, configured_base) == 0;
 }
 
 static gboolean is_server_process(const char *cmdline, size_t len) {
@@ -70,13 +74,14 @@ static gboolean match_attach_args(const char *cmdline, size_t len,
 
 gboolean projects_zellij_cmdline_matches_session(const char *cmdline,
                                                  size_t len,
+                                                 const char *zellij_path,
                                                  const char *session_name) {
     if (!cmdline || len == 0 || !session_name || session_name[0] == '\0') return FALSE;
     if (is_server_process(cmdline, len)) return FALSE;
 
     size_t offset = 0;
     const char *arg0 = next_arg(cmdline, len, &offset);
-    if (!basename_is_zellij(arg0)) return FALSE;
+    if (!basename_matches_zellij(arg0, zellij_path)) return FALSE;
 
     gboolean session_option_matches = FALSE;
     const char *arg;
@@ -111,8 +116,11 @@ static gboolean window_is_valid(Display *display, Window window) {
     return XGetWindowAttributes(display, window, &attrs) != 0;
 }
 
-gboolean projects_activate_zellij_window(AppData *app, const char *session_name) {
-    if (!app || !app->display || !session_name || session_name[0] == '\0') return FALSE;
+gboolean projects_activate_zellij_window(AppData *app,
+                                         const char *zellij_path,
+                                         const char *session_name) {
+    if (!app || !app->display || !zellij_path || zellij_path[0] == '\0' ||
+        !session_name || session_name[0] == '\0') return FALSE;
 
     GDir *dir = g_dir_open("/proc", 0, NULL);
     if (!dir) return FALSE;
@@ -134,6 +142,7 @@ gboolean projects_activate_zellij_window(AppData *app, const char *session_name)
 
         gboolean matches = projects_zellij_cmdline_matches_session(cmdline,
                                                                    cmdline_len,
+                                                                   zellij_path,
                                                                    session_name);
         g_free(cmdline);
         if (!matches) continue;

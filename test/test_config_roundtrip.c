@@ -6,6 +6,35 @@
 static int tests_passed = 0;
 static int tests_failed = 0;
 
+static int get_test_path(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    strncpy(out, config->projects_tmux_path, out_size - 1);
+    out[out_size - 1] = '\0';
+    return 1;
+}
+
+static int set_test_path(CofiConfig *config, const char *value,
+                         char *err_buf, size_t err_size) {
+    (void)err_buf;
+    (void)err_size;
+    if (!config || !value) return 0;
+    strncpy(config->projects_tmux_path, value, sizeof(config->projects_tmux_path) - 1);
+    config->projects_tmux_path[sizeof(config->projects_tmux_path) - 1] = '\0';
+    return 1;
+}
+
+static void register_test_config_entry(void) {
+    static const CofiConfigSpec spec = {
+        .key = "projects.tmux_path",
+        .owner_provider_id = "projects",
+        .type = CONFIG_TYPE_STRING,
+        .get_value = get_test_path,
+        .set_value = set_test_path,
+    };
+    cofi_config_registry_reset();
+    cofi_register_config_entry(&spec);
+}
+
 #define ASSERT_INT(name, expected, actual) do { \
     if ((expected) != (actual)) { \
         printf("FAIL: %s — expected %d, got %d\n", name, expected, actual); \
@@ -59,6 +88,7 @@ static void test_nondefault_roundtrip(void) {
     original.ripple_enabled = 0;
     original.show_all_tabs = 1;
     strcpy(original.disabled_providers, "profiles,sinks");
+    strcpy(original.projects_tmux_path, "/bin/sh");
 
     save_config(&original);
     load_config(&loaded);
@@ -72,6 +102,7 @@ static void test_nondefault_roundtrip(void) {
     ASSERT_INT("nondefault: ripple_enabled", 0, loaded.ripple_enabled);
     ASSERT_INT("nondefault: show_all_tabs", 1, loaded.show_all_tabs);
     ASSERT_STR("nondefault: disabled_providers", "profiles,sinks", loaded.disabled_providers);
+    ASSERT_STR("nondefault: projects.tmux_path", "/bin/sh", loaded.projects_tmux_path);
 }
 
 // Test 3: all alignment values round-trip
@@ -126,6 +157,7 @@ int main(void) {
         return 1;
     }
     setenv("HOME", tmpdir, 1);
+    register_test_config_entry();
 
     printf("Config round-trip tests\n");
     printf("=======================\n\n");

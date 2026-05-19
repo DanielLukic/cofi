@@ -9,6 +9,7 @@
 #include "log.h"
 #include "selection.h"
 #include "projects_commands.h"
+#include "projects_exec.h"
 #include "projects_folder_windows.h"
 #include "projects_parse.h"
 #include "projects_tmux_windows.h"
@@ -82,9 +83,18 @@ static ProjectFolder *folder_at_visible(AppData *app, int visible_idx) {
 }
 
 static CofiActionStatus attach_tmux_session(AppData *app, const char *session_name) {
-    if (projects_activate_tmux_window(app, session_name)) return COFI_HANDLED_HIDE;
+    char err[128] = {0};
+    gchar *tmux = projects_resolve_tool(&app->config, PROJECT_TOOL_TMUX,
+                                        err, sizeof(err));
+    if (!tmux) return COFI_ACTION_ERROR;
 
-    gchar *command = projects_build_tmux_attach_command(session_name);
+    if (projects_activate_tmux_window(app, tmux, session_name)) {
+        g_free(tmux);
+        return COFI_HANDLED_HIDE;
+    }
+
+    gchar *command = projects_build_tmux_attach_command(tmux, session_name);
+    g_free(tmux);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
@@ -98,9 +108,18 @@ static CofiActionStatus attach_tmux_session(AppData *app, const char *session_na
 }
 
 static CofiActionStatus zellij_attach_session(AppData *app, const char *session_name) {
-    if (projects_activate_zellij_window(app, session_name)) return COFI_HANDLED_HIDE;
+    char err[128] = {0};
+    gchar *zellij = projects_resolve_tool(&app->config, PROJECT_TOOL_ZELLIJ,
+                                          err, sizeof(err));
+    if (!zellij) return COFI_ACTION_ERROR;
 
-    gchar *command = projects_build_zellij_attach_command(session_name);
+    if (projects_activate_zellij_window(app, zellij, session_name)) {
+        g_free(zellij);
+        return COFI_HANDLED_HIDE;
+    }
+
+    gchar *command = projects_build_zellij_attach_command(zellij, session_name);
+    g_free(zellij);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);
@@ -113,25 +132,35 @@ static CofiActionStatus zellij_attach_session(AppData *app, const char *session_
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
-static gboolean program_available(const char *program) {
-    gchar *path = g_find_program_in_path(program);
-    if (!path) return FALSE;
-    g_free(path);
-    return TRUE;
-}
-
 static gboolean launch_folder_opener(const char *program, const char *arg, const char *path) {
-    if (!program_available(program)) return FALSE;
+    gchar *resolved = g_find_program_in_path(program);
+    if (!resolved) return FALSE;
     gboolean ok = FALSE;
     if (arg) {
-        const char *argv[] = {program, arg, path, NULL};
+        const char *argv[] = {resolved, arg, path, NULL};
         ok = s_launch_argv(argv);
     } else {
-        const char *argv[] = {program, path, NULL};
+        const char *argv[] = {resolved, path, NULL};
         ok = s_launch_argv(argv);
     }
     if (ok) log_info("USER: opened folder via %s: %s", program, path);
     else log_warn("Failed to open folder via %s: %s", program, path);
+    g_free(resolved);
+    return ok;
+}
+
+static gboolean launch_configured_folder_opener(AppData *app, const char *path) {
+    const char *configured = app->config.projects_file_explorer_path;
+    if (!configured || configured[0] == '\0') return FALSE;
+    if (!g_file_test(configured, G_FILE_TEST_IS_REGULAR) ||
+        !g_file_test(configured, G_FILE_TEST_IS_EXECUTABLE)) {
+        log_warn("projects: configured file explorer is not executable: %s", configured);
+        return FALSE;
+    }
+    const char *argv[] = {configured, path, NULL};
+    gboolean ok = s_launch_argv(argv);
+    if (ok) log_info("USER: opened folder via configured explorer: %s", path);
+    else log_warn("Failed to open folder via configured explorer: %s", path);
     return ok;
 }
 
@@ -186,9 +215,14 @@ CofiActionStatus projects_open_folder(AppData *app, const char *path) {
         return COFI_HANDLED_HIDE;
     }
 
-    if (launch_folder_opener("caja", NULL, path) ||
+    if (launch_configured_folder_opener(app, path)) {
+        return COFI_HANDLED_HIDE;
+    }
+
+    if (app->config.projects_file_explorer_path[0] == '\0' &&
+        (launch_folder_opener("caja", NULL, path) ||
         launch_folder_opener("xdg-open", NULL, path) ||
-        launch_folder_opener("gio", "open", path)) {
+        launch_folder_opener("gio", "open", path))) {
         return COFI_HANDLED_HIDE;
     }
 
@@ -433,12 +467,15 @@ static CofiActionStatus run_session_admin_command(const char *command) {
 CofiActionStatus projects_kill_session(AppData *app,
                                    const char *session_name,
                                    ProjectBackend backend) {
-    (void)app;
     if (!session_name || session_name[0] == '\0') return COFI_ACTION_ERROR;
 
+    ProjectTool tool = backend == PROJECT_BACKEND_ZELLIJ ? PROJECT_TOOL_ZELLIJ : PROJECT_TOOL_TMUX;
+    gchar *program = projects_resolve_tool(&app->config, tool, NULL, 0);
+    if (!program) return COFI_ACTION_ERROR;
     gchar *command = backend == PROJECT_BACKEND_ZELLIJ
-        ? projects_build_zellij_kill_command(session_name)
-        : projects_build_tmux_kill_command(session_name);
+        ? projects_build_zellij_kill_command(program, session_name)
+        : projects_build_tmux_kill_command(program, session_name);
+    g_free(program);
     CofiActionStatus status = run_session_admin_command(command);
     if (status == COFI_HANDLED_REFRESH) {
         log_info("USER: %s: killed session '%s'",
@@ -450,8 +487,10 @@ CofiActionStatus projects_kill_session(AppData *app,
 }
 
 CofiActionStatus projects_rename_tmux_session(AppData *app, const char *old_name, const char *new_name) {
-    (void)app;
-    gchar *command = projects_build_tmux_rename_command(old_name, new_name);
+    gchar *tmux = projects_resolve_tool(&app->config, PROJECT_TOOL_TMUX, NULL, 0);
+    if (!tmux) return COFI_ACTION_ERROR;
+    gchar *command = projects_build_tmux_rename_command(tmux, old_name, new_name);
+    g_free(tmux);
     CofiActionStatus status = run_session_admin_command(command);
     if (status == COFI_HANDLED_REFRESH) {
         log_info("USER: tmux: renamed session '%s' to '%s'", old_name, new_name);
@@ -464,12 +503,15 @@ CofiActionStatus projects_new_session(AppData *app,
                                        const char *session_name,
                                        ProjectBackend backend,
                                        const char *start_dir) {
-    (void)app;
     const char *home = g_get_home_dir();
     const char *dir = (start_dir && start_dir[0] != '\0') ? start_dir : (home ? home : "/");
+    ProjectTool tool = backend == PROJECT_BACKEND_ZELLIJ ? PROJECT_TOOL_ZELLIJ : PROJECT_TOOL_TMUX;
+    gchar *program = projects_resolve_tool(&app->config, tool, NULL, 0);
+    if (!program) return COFI_ACTION_ERROR;
     gchar *command = backend == PROJECT_BACKEND_ZELLIJ
-        ? projects_build_zellij_new_command(session_name, dir)
-        : projects_build_tmux_new_command(session_name, dir);
+        ? projects_build_zellij_new_command(program, session_name, dir)
+        : projects_build_tmux_new_command(program, session_name, dir);
+    g_free(program);
     if (!command) return COFI_ACTION_ERROR;
 
     gboolean ok = s_launch_in_terminal(command);

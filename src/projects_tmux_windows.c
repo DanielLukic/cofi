@@ -69,15 +69,15 @@ static gboolean window_from_client_environ(AppData *app, pid_t pid, Window *wind
     return TRUE;
 }
 
-gboolean projects_activate_tmux_window(AppData *app, const char *session_name) {
-    if (!app || !session_name || session_name[0] == '\0') return FALSE;
-
-    gchar *tmux = g_find_program_in_path("tmux");
-    if (!tmux) return FALSE;
+gboolean projects_activate_tmux_window(AppData *app,
+                                       const char *tmux_path,
+                                       const char *session_name) {
+    if (!app || !tmux_path || tmux_path[0] == '\0' ||
+        !session_name || session_name[0] == '\0') return FALSE;
 
     gchar *target = g_strdup_printf("=%s", session_name);
     gchar *argv[] = {
-        tmux,
+        (gchar *)tmux_path,
         "list-clients",
         "-t",
         target,
@@ -94,7 +94,6 @@ gboolean projects_activate_tmux_window(AppData *app, const char *session_name) {
     gboolean ok = spawned && g_spawn_check_wait_status(wait_status, &error);
     g_clear_error(&error);
     g_free(target);
-    g_free(tmux);
     if (!ok) {
         g_free(stdout_str);
         return FALSE;

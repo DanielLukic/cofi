@@ -26,6 +26,12 @@ static ConfigEntry *config_at_row(AppData *app, int raw_idx) {
     return &app->filtered_config[raw_idx];
 }
 
+static const char *config_display_value(const ConfigEntry *entry) {
+    if (!entry) return "";
+    if (entry->display_value[0] != '\0') return entry->display_value;
+    return entry->value;
+}
+
 static void config_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     ConfigEntry *entry = config_at_row(app, raw_idx);
     if (!entry) {
@@ -38,17 +44,17 @@ static void config_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     out->cell_count = 2;
     out->cells[0].text = entry->key;
     out->cells[0].width_hint = 32;
-    out->cells[1].text = entry->value;
+    out->cells[1].text = config_display_value(entry);
     out->cells[1].width_hint = 60;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
 static const char *config_match_string(AppData *app, int raw_idx) {
     ConfigEntry *entry = config_at_row(app, raw_idx);
-    static char searchable[256];
+    static char searchable[640];
     if (!entry) return "";
     g_snprintf(searchable, sizeof(searchable), "%s %s",
-               entry->key, entry->value);
+               entry->key, config_display_value(entry));
     return searchable;
 }
 
@@ -98,6 +104,7 @@ void filter_config(AppData *app, const char *filter) {
     if (!app) return;
 
     ConfigEntry all_entries[MAX_CONFIG_ENTRIES];
+    memset(all_entries, 0, sizeof(all_entries));
     int all_count = 0;
     build_config_entries(&app->config, all_entries, &all_count);
 
@@ -111,9 +118,9 @@ void filter_config(AppData *app, const char *filter) {
     }
 
     for (int i = 0; i < all_count; i++) {
-        char searchable[256];
+        char searchable[640];
         snprintf(searchable, sizeof(searchable), "%s %s",
-                 all_entries[i].key, all_entries[i].value);
+                 all_entries[i].key, config_display_value(&all_entries[i]));
         if (has_match(filter, searchable)) {
             app->filtered_config[app->filtered_config_count++] = all_entries[i];
         }

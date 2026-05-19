@@ -173,6 +173,9 @@ static gboolean detach_launch_properly(const char *const *argv,
 // Public API
 // ---------------------------------------------------------------------------
 
+#define TERMINAL_REDIRECT_STDIO FALSE
+#define TERMINAL_TRY_SYSTEMD TRUE
+
 gboolean detach_launch_shell(const char *command) {
     if (!command || command[0] == '\0') {
         return FALSE;
@@ -425,7 +428,9 @@ gboolean detach_launch_in_terminal_cmd(const char *cmd) {
     }
 
     char **argv = build_terminal_cmd_argv(term, shell, cmd);
-    gboolean ok = detach_launch_properly((const char *const *)argv, cmd, FALSE, FALSE);
+    gboolean ok = detach_launch_properly((const char *const *)argv, cmd,
+                                         TERMINAL_REDIRECT_STDIO,
+                                         TERMINAL_TRY_SYSTEMD);
     g_strfreev(argv);
 
     if (ok) {
@@ -468,5 +473,14 @@ char **build_terminal_cmd_argv_for_test(const char *cmd, ProgramResolver resolve
     const char *shell = "/bin/sh";
     const char *term = detect_terminal_with_resolver(resolver, NULL);
     return build_terminal_cmd_argv(term, shell, cmd);
+}
+
+void terminal_launch_policy_for_test(gboolean *redirect_stdio, gboolean *try_systemd) {
+    if (redirect_stdio) {
+        *redirect_stdio = TERMINAL_REDIRECT_STDIO;
+    }
+    if (try_systemd) {
+        *try_systemd = TERMINAL_TRY_SYSTEMD;
+    }
 }
 #endif

@@ -20,6 +20,7 @@ const char *detect_terminal_with_desktop_for_test(ProgramResolver resolver, Desk
 char **build_systemd_run_argv_for_test(const char *const *inner_argv);
 gboolean fork_setsid_exec_for_test(const char *const *argv);
 char **build_terminal_cmd_argv_for_test(const char *cmd, ProgramResolver resolver);
+void terminal_launch_policy_for_test(gboolean *redirect_stdio, gboolean *try_systemd);
 #endif
 
 #endif // DETACH_LAUNCH_H

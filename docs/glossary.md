@@ -62,6 +62,6 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 
 ## Config
 
-- **Config tab** — `Ctrl+E` opens the runtime-editable config UI; written changes persist to `~/.config/cofi/config.json`.
+- **Config tab** — `Ctrl+E` opens the runtime-editable config UI; written changes persist to `~/.config/cofi/options.json`.
 - **`:set` command** — change a single config key from command mode (e.g. `:set digit-slot-mode per-workspace`).
-- **build_config_entries** — single source of truth (`src/config.c`) for the list of editable config keys; both the `:set` parser and the Config tab read from it.
+- **CofiConfigSpec** — provider-owned config descriptor registered during provider bootstrap; config descriptors drive `:set`, save/load, and Config tab rows.

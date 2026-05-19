@@ -1,6 +1,9 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <gtk/gtk.h>
 
@@ -41,6 +44,10 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)file;
     (void)line;
     (void)fmt;
+}
+
+void log_set_level(int level) {
+    (void)level;
 }
 
 void exit_command_mode(AppData *app) {
@@ -195,6 +202,7 @@ const char *projects_slot_payload_for(AppData *app, int visible_idx) {
 
 static const CofiTabProvider *registered_projects_provider(void) {
     cofi_registry_reset();
+    cofi_config_registry_reset();
     projects_provider_register();
     return cofi_get_provider(s_projects_provider_id);
 }
@@ -256,6 +264,116 @@ static void test_registered_command_metadata(void) {
                 strcmp(s_projects_command.description, "Switch to projects tab") == 0);
     ASSERT_TRUE("projects command handler registered", s_projects_command.handler != NULL);
     ASSERT_TRUE("projects command keeps open", s_projects_command.keeps_open_on_hotkey_auto == 1);
+}
+
+static void test_registered_config_entries(void) {
+    registered_projects_provider();
+
+    ASSERT_TRUE("projects tmux path config registered",
+                cofi_config_entry_for_key("projects.tmux_path") != NULL);
+    ASSERT_TRUE("projects zellij path config registered",
+                cofi_config_entry_for_key("projects.zellij_path") != NULL);
+    ASSERT_TRUE("projects zoxide path config registered",
+                cofi_config_entry_for_key("projects.zoxide_path") != NULL);
+    ASSERT_TRUE("projects file explorer path config registered",
+                cofi_config_entry_for_key("projects.file_explorer_path") != NULL);
+
+    CofiConfig config;
+    init_config_defaults(&config);
+    ConfigEntry entries[MAX_CONFIG_ENTRIES];
+    int count = 0;
+    build_config_entries(&config, entries, &count);
+    int found_zellij = 0;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(entries[i].key, "projects.zellij_path") == 0 &&
+            entries[i].type == CONFIG_TYPE_STRING) {
+            found_zellij = 1;
+        }
+    }
+    ASSERT_TRUE("projects config entry appears in config list", found_zellij);
+}
+
+static void test_path_config_display_resolves_path_state(void) {
+    registered_projects_provider();
+
+    char dir_template[] = "/tmp/cofi-projects-provider-XXXXXX";
+    char *dir = mkdtemp(dir_template);
+    ASSERT_TRUE("create path display temp dir", dir != NULL);
+    if (!dir) return;
+
+    char zellij_path[512];
+    snprintf(zellij_path, sizeof(zellij_path), "%s/zellij", dir);
+    FILE *file = fopen(zellij_path, "w");
+    ASSERT_TRUE("create fake zellij", file != NULL);
+    if (file) {
+        fputs("#!/bin/sh\nexit 0\n", file);
+        fclose(file);
+        chmod(zellij_path, 0755);
+    }
+
+    const char *old_path = g_getenv("PATH");
+    char *saved_path = old_path ? g_strdup(old_path) : NULL;
+    g_setenv("PATH", dir, TRUE);
+
+    CofiConfig config;
+    init_config_defaults(&config);
+    ConfigEntry entries[MAX_CONFIG_ENTRIES];
+    int count = 0;
+    build_config_entries(&config, entries, &count);
+
+    int saw_zellij = 0;
+    int saw_zoxide_missing = 0;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(entries[i].key, "projects.zellij_path") == 0) {
+            saw_zellij = 1;
+            ASSERT_TRUE("zellij raw value remains empty", entries[i].value[0] == '\0');
+            ASSERT_TRUE("zellij display shows PATH resolution",
+                        strstr(entries[i].display_value, "(PATH:") == entries[i].display_value);
+            ASSERT_TRUE("zellij display includes resolved executable",
+                        strstr(entries[i].display_value, "/zellij)") != NULL);
+        } else if (strcmp(entries[i].key, "projects.zoxide_path") == 0) {
+            saw_zoxide_missing = 1;
+            ASSERT_TRUE("missing zoxide display is explicit",
+                        strcmp(entries[i].display_value, "(NOT FOUND)") == 0);
+        }
+    }
+
+    ASSERT_TRUE("zellij display entry checked", saw_zellij);
+    ASSERT_TRUE("zoxide missing display entry checked", saw_zoxide_missing);
+
+    if (saved_path) {
+        g_setenv("PATH", saved_path, TRUE);
+        g_free(saved_path);
+    } else {
+        g_unsetenv("PATH");
+    }
+    unlink(zellij_path);
+    rmdir(dir);
+}
+
+static void test_path_config_validation(void) {
+    registered_projects_provider();
+    CofiConfig config;
+    init_config_defaults(&config);
+    char err[256] = {0};
+
+    ASSERT_TRUE("empty tmux path accepted",
+                apply_config_setting(&config, "projects.tmux_path", "", err, sizeof(err)));
+    ASSERT_TRUE("empty tmux path stored",
+                strcmp(config.projects_tmux_path, "") == 0);
+
+    ASSERT_TRUE("relative tmux path rejected",
+                !apply_config_setting(&config, "projects.tmux_path", "tmux", err, sizeof(err)));
+    ASSERT_TRUE("relative tmux path error mentions absolute",
+                strstr(err, "absolute") != NULL);
+
+    ASSERT_TRUE("directory tmux path rejected",
+                !apply_config_setting(&config, "projects.tmux_path", "/tmp", err, sizeof(err)));
+
+    ASSERT_TRUE("absolute executable tmux path accepted",
+                apply_config_setting(&config, "projects.tmux_path", "/bin/sh", err, sizeof(err)));
+    ASSERT_TRUE("absolute executable tmux path stored",
+                strcmp(config.projects_tmux_path, "/bin/sh") == 0);
 }
 
 static void test_command_handler_without_args_surfaces_tab(void) {
@@ -362,6 +480,9 @@ int main(int argc, char **argv) {
     printf("===================================\n\n");
 
     test_registered_command_metadata();
+    test_registered_config_entries();
+    test_path_config_display_resolves_path_state();
+    test_path_config_validation();
     test_command_handler_without_args_surfaces_tab();
     test_command_handler_named_session_hides();
     test_command_handler_recalls_slot_and_hides();

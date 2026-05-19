@@ -126,7 +126,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Config
 
-- **`src/config.c`** — load/save/apply config; `build_config_entries` is the single source of truth for editable keys (consumed by `:set` and the Config tab).
+- **`src/config.c`** — load/save/apply config. Built-in keys and provider-registered `CofiConfigSpec` entries share one registry path consumed by `:set`, save/load, and the Config tab.
 - **`src/hotkey_config.c`** — `hotkeys.json` parsing and grab registration.
 
 ### Modes
@@ -150,7 +150,7 @@ These are the rules that don't live in any one file but must hold across the sys
 - **MRU before display.** Filter/scoring runs against MRU-ordered candidates, not the native EWMH order. Reordering for display happens once, after scoring.
 - **Display order = search order.** Never reorder the match-target string vs the display columns — the search string is what scoring sees.
 - **Cache invalidation on show.** Pango/monitor/DPI state is sampled per show, not at startup, to survive `xrandr` and XSettings (`Xft/DPI`) changes mid-session.
-- **Single source of truth for config keys.** `build_config_entries` in `src/config.c` — `:set` and the Config tab both read from it. Adding a key in one place without the other is a bug.
+- **Single source of truth for config keys.** Config descriptors in `src/config.c` drive save/load, `:set`, and Config tab rows. Provider-owned keys use a `provider_id.key_name` namespace and must be registered during provider bootstrap.
 - **Detached launch.** Anything cofi launches (run mode, apps tab, `:run`) must outlive cofi itself. `systemd-run --scope --user` is the primary path; `fork+setsid` is the fallback.
 
 ## Build & test

@@ -365,6 +365,21 @@ static void test_mate_terminal_cmd_uses_modern_double_dash(void) {
     g_strfreev(argv);
 }
 
+static void test_terminal_launch_policy_uses_user_scope_without_stdio_redirect(void) {
+    gboolean redirect_stdio = TRUE;
+    gboolean try_systemd = FALSE;
+    terminal_launch_policy_for_test(&redirect_stdio, &try_systemd);
+
+    tests_run++;
+    if (!redirect_stdio && try_systemd) {
+        tests_passed++;
+        printf("PASS: terminal launch policy uses user scope without stdio redirect\n");
+    } else {
+        printf("FAIL: terminal launch policy redirect_stdio=%d try_systemd=%d (line %d)\n",
+               redirect_stdio, try_systemd, __LINE__);
+    }
+}
+
 // ---- C2: argv-not-shell parse tests ----
 
 static void test_shell_parse_no_variable_expansion(void) {
@@ -426,6 +441,7 @@ int main(void) {
     test_terminal_cmd_argv_has_sh_wrapper();
     test_terminal_cmd_bare_path_still_works();
     test_mate_terminal_cmd_uses_modern_double_dash();
+    test_terminal_launch_policy_uses_user_scope_without_stdio_redirect();
     test_shell_parse_no_variable_expansion();
     test_shell_parse_malformed_returns_false();
 

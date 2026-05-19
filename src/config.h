@@ -26,8 +26,11 @@ typedef enum {
 // Config entry for display and editing (used by Config tab and :show config)
 #define MAX_CONFIG_ENTRIES 32
 #define CONFIG_KEY_LEN 64
-#define CONFIG_VALUE_LEN 128
+#define CONFIG_VALUE_LEN 512
 #define CONFIG_DISABLED_PROVIDERS_LEN 256
+#define CONFIG_TOOL_PATH_LEN 512
+
+typedef struct CofiConfig CofiConfig;
 
 typedef enum {
     CONFIG_TYPE_BOOL,
@@ -40,8 +43,23 @@ typedef enum {
 typedef struct {
     char key[CONFIG_KEY_LEN];
     char value[CONFIG_VALUE_LEN];
+    char display_value[CONFIG_VALUE_LEN];
     ConfigFieldType type;
 } ConfigEntry;
+
+typedef int (*ConfigGetValueFn)(const CofiConfig *config, char *out, size_t out_size);
+typedef int (*ConfigSetValueFn)(CofiConfig *config, const char *value,
+                                char *err_buf, size_t err_size);
+typedef int (*ConfigGetDisplayValueFn)(const CofiConfig *config, char *out, size_t out_size);
+
+typedef struct {
+    const char *key;
+    const char *owner_provider_id;
+    ConfigFieldType type;
+    ConfigGetValueFn get_value;
+    ConfigSetValueFn set_value;
+    ConfigGetDisplayValueFn get_display_value;
+} CofiConfigSpec;
 
 // Sort order for per-workspace slot assignment
 typedef enum {
@@ -57,7 +75,7 @@ typedef enum {
 
 
 // Unified configuration structure
-typedef struct {
+struct CofiConfig {
     int close_on_focus_loss;        // Whether to close window when focus is lost
     WindowAlignment alignment;      // Window alignment setting
     int workspaces_per_row;        // Number of workspaces per row in grid layout (0 = linear)
@@ -71,7 +89,11 @@ typedef struct {
     int show_all_tabs;                  // Show/cycle all tabs instead of only pinned/surfaced tabs
     int slot_occlusion_threshold_pct;   // Min visible percent for workspace slots (1-100, default 5)
     char disabled_providers[CONFIG_DISABLED_PROVIDERS_LEN]; // Comma-separated provider ids
-} CofiConfig;
+    char projects_tmux_path[CONFIG_TOOL_PATH_LEN];
+    char projects_zellij_path[CONFIG_TOOL_PATH_LEN];
+    char projects_zoxide_path[CONFIG_TOOL_PATH_LEN];
+    char projects_file_explorer_path[CONFIG_TOOL_PATH_LEN];
+};
 
 // Alignment string conversion
 const char* alignment_to_string(WindowAlignment align);
@@ -104,6 +126,12 @@ const char* get_next_enum_value(const char *key, const char *current_value);
 
 // Build the canonical list of all config entries. Single source of truth.
 void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *count);
+
+int cofi_register_config_entry(const CofiConfigSpec *spec);
+int cofi_config_entry_count(void);
+const CofiConfigSpec *cofi_config_entry_at(int index);
+const CofiConfigSpec *cofi_config_entry_for_key(const char *key);
+void cofi_config_registry_reset(void);
 
 /* Scoring constants from fzy (moved to bottom to maintain compatibility) */
 #define SCORE_MATCH_CONSECUTIVE 16

@@ -61,6 +61,7 @@ SOURCES = src/main.c \
           src/proc.c \
           src/process_windows.c \
           src/projects.c \
+          src/projects_exec.c \
           src/projects_refresh.c \
           src/projects_parse.c \
           src/projects_commands.c \
@@ -497,11 +498,11 @@ test_proc_provider: test/test_proc_provider.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_proc_provider test/test_proc_provider.c $(LDFLAGS)
 
 # Build projects tab parser and command tests
-test_projects: test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_folder_windows.o src/projects_window_env.c src/projects_window_env.h src/projects_tmux_windows.c src/projects_tmux_windows.h src/projects_zellij_windows.c src/projects_zellij_windows.h
-	$(CC) $(CFLAGS) -o test/test_projects test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_folder_windows.o $(LDFLAGS)
+test_projects: test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_exec.o src/projects_folder_windows.o src/projects_window_env.c src/projects_window_env.h src/projects_tmux_windows.c src/projects_tmux_windows.h src/projects_zellij_windows.c src/projects_zellij_windows.h
+	$(CC) $(CFLAGS) -o test/test_projects test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_exec.o src/projects_folder_windows.o $(LDFLAGS)
 
 test_projects_provider: test/test_projects_provider.c
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c $(LDFLAGS)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c src/config.o $(LDFLAGS)
 
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)

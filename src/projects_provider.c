@@ -4,6 +4,7 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
+#include "config.h"
 #include "overlay_manager.h"
 #include "projects.h"
 #include "projects_parse.h"
@@ -11,10 +12,186 @@
 #include "tab_switching.h"
 #include "window_lifecycle.h"
 
+#include <string.h>
+
 static CofiTabProvider s_projects_provider;
 static int s_projects_provider_id = -1;
 #define PROJECTS_PROVIDER_ID "projects"
 #define LEGACY_PROJECTS_SLOT_PROVIDER_ID "sessions"
+
+static int set_optional_executable_path(char *field, size_t field_size,
+                                        const char *key,
+                                        const char *value,
+                                        char *err_buf,
+                                        size_t err_size) {
+    if (!field || field_size == 0 || !value) return 0;
+    if (value[0] == '\0') {
+        field[0] = '\0';
+        return 1;
+    }
+    if (!g_path_is_absolute(value)) {
+        g_snprintf(err_buf, err_size,
+                   "%s must be absolute, or empty to use PATH", key);
+        return 0;
+    }
+    if (!g_file_test(value, G_FILE_TEST_IS_REGULAR) ||
+        !g_file_test(value, G_FILE_TEST_IS_EXECUTABLE)) {
+        g_snprintf(err_buf, err_size, "%s is not executable: %s", key, value);
+        return 0;
+    }
+    g_strlcpy(field, value, field_size);
+    return 1;
+}
+
+static void copy_front_ellipsized(const char *text, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    out[0] = '\0';
+    if (!text) return;
+
+    size_t len = strlen(text);
+    if (len < out_size) {
+        g_strlcpy(out, text, out_size);
+        return;
+    }
+
+    if (out_size <= 4) {
+        g_strlcpy(out, "...", out_size);
+        return;
+    }
+
+    size_t keep = out_size - 4;
+    g_snprintf(out, out_size, "...%s", text + len - keep);
+}
+
+static int format_path_display(const char *configured, const char *tool_name,
+                               char *out, size_t out_size) {
+    if (!out || out_size == 0 || !tool_name) return 0;
+    out[0] = '\0';
+
+    if (configured && configured[0] != '\0') {
+        copy_front_ellipsized(configured, out, out_size);
+        return 1;
+    }
+
+    gchar *resolved = g_find_program_in_path(tool_name);
+    if (!resolved) {
+        g_strlcpy(out, "(NOT FOUND)", out_size);
+        return 1;
+    }
+
+    char compact_path[CONFIG_VALUE_LEN];
+    copy_front_ellipsized(resolved, compact_path, sizeof(compact_path) - 7);
+    g_snprintf(out, out_size, "(PATH:%s)", compact_path);
+    g_free(resolved);
+    return 1;
+}
+
+static int format_file_explorer_display(const CofiConfig *config,
+                                        char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    if (config->projects_file_explorer_path[0] != '\0') {
+        copy_front_ellipsized(config->projects_file_explorer_path, out, out_size);
+        return 1;
+    }
+
+    const char *tools[] = {"caja", "xdg-open", "gio"};
+    for (size_t i = 0; i < sizeof(tools) / sizeof(tools[0]); i++) {
+        gchar *resolved = g_find_program_in_path(tools[i]);
+        if (!resolved) continue;
+
+        char compact_path[CONFIG_VALUE_LEN];
+        size_t suffix = strcmp(tools[i], "gio") == 0 ? strlen(" open)") : strlen(")");
+        size_t budget = out_size > strlen("(PATH:") + suffix ?
+            out_size - strlen("(PATH:") - suffix : out_size;
+        copy_front_ellipsized(resolved, compact_path, budget);
+        g_snprintf(out, out_size, strcmp(tools[i], "gio") == 0 ?
+                   "(PATH:%s open)" : "(PATH:%s)", compact_path);
+        g_free(resolved);
+        return 1;
+    }
+
+    g_strlcpy(out, "(NOT FOUND)", out_size);
+    return 1;
+}
+
+#define DEFINE_PROJECT_PATH_CONFIG(name, field, tool) \
+static int get_##name(const CofiConfig *config, char *out, size_t out_size) { \
+    if (!config || !out || out_size == 0) return 0; \
+    g_strlcpy(out, config->field, out_size); \
+    return 1; \
+} \
+static int display_##name(const CofiConfig *config, char *out, size_t out_size) { \
+    if (!config || !out || out_size == 0) return 0; \
+    return format_path_display(config->field, tool, out, out_size); \
+} \
+static int set_##name(CofiConfig *config, const char *value, \
+                      char *err_buf, size_t err_size) { \
+    return set_optional_executable_path(config->field, sizeof(config->field), \
+                                        "projects." #name, value, err_buf, err_size); \
+}
+
+DEFINE_PROJECT_PATH_CONFIG(tmux_path, projects_tmux_path, "tmux")
+DEFINE_PROJECT_PATH_CONFIG(zellij_path, projects_zellij_path, "zellij")
+DEFINE_PROJECT_PATH_CONFIG(zoxide_path, projects_zoxide_path, "zoxide")
+
+static int get_file_explorer_path(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    g_strlcpy(out, config->projects_file_explorer_path, out_size);
+    return 1;
+}
+
+static int display_file_explorer_path(const CofiConfig *config,
+                                      char *out, size_t out_size) {
+    return format_file_explorer_display(config, out, out_size);
+}
+
+static int set_file_explorer_path(CofiConfig *config, const char *value,
+                                  char *err_buf, size_t err_size) {
+    return set_optional_executable_path(config->projects_file_explorer_path,
+                                        sizeof(config->projects_file_explorer_path),
+                                        "projects.file_explorer_path",
+                                        value, err_buf, err_size);
+}
+
+static void register_projects_config_entries(void) {
+    static const CofiConfigSpec specs[] = {
+        {
+            .key = "projects.tmux_path",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_tmux_path,
+            .set_value = set_tmux_path,
+            .get_display_value = display_tmux_path,
+        },
+        {
+            .key = "projects.zellij_path",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_zellij_path,
+            .set_value = set_zellij_path,
+            .get_display_value = display_zellij_path,
+        },
+        {
+            .key = "projects.zoxide_path",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_zoxide_path,
+            .set_value = set_zoxide_path,
+            .get_display_value = display_zoxide_path,
+        },
+        {
+            .key = "projects.file_explorer_path",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_file_explorer_path,
+            .set_value = set_file_explorer_path,
+            .get_display_value = display_file_explorer_path,
+        },
+    };
+    for (size_t i = 0; i < sizeof(specs) / sizeof(specs[0]); i++) {
+        cofi_register_config_entry(&specs[i]);
+    }
+}
 
 static TabMode projects_tab_mode(void) {
     const CofiTabProvider *provider = cofi_get_provider(s_projects_provider_id);
@@ -145,6 +322,7 @@ static const CommandSpec s_projects_command = {
 };
 
 void projects_provider_register(void) {
+    register_projects_config_entries();
     cofi_init_provider_defaults(&s_projects_provider);
     s_projects_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_projects_provider.id = PROJECTS_PROVIDER_ID;

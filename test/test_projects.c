@@ -1,9 +1,13 @@
 #include <glib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "../src/projects.h"
 #include "../src/projects_commands.h"
+#include "../src/projects_exec.h"
 #include "../src/projects_folder_windows.h"
 #include "../src/projects_parse.h"
 #include "../src/projects_tmux_windows.h"
@@ -108,10 +112,10 @@ static void test_malformed_lines_are_ignored(void) {
 }
 
 static void test_attach_command_uses_exact_shell_quoted_target(void) {
-    gchar *cmd = projects_build_tmux_attach_command("work:api session");
+    gchar *cmd = projects_build_tmux_attach_command("tmux", "work:api session");
 
     ASSERT_STR_EQ("attach command exact target quoted",
-                  "tmux attach-session -t '=work:api session'", cmd);
+                  "'tmux' attach-session -t '=work:api session'", cmd);
     g_free(cmd);
 }
 
@@ -135,55 +139,55 @@ static void test_parse_zoxide_folders(void) {
 
 static void test_folder_session_command_uses_start_directory(void) {
     gchar *session_name = projects_build_folder_session_name("/home/user/Projects/cofi");
-    gchar *cmd = projects_build_tmux_new_command(session_name, "/home/user/Projects/cofi");
+    gchar *cmd = projects_build_tmux_new_command("tmux", session_name, "/home/user/Projects/cofi");
 
     ASSERT_STR_EQ("folder command creates or attaches in directory",
-                  "tmux new-session -A -s 'cofi' -c '/home/user/Projects/cofi'", cmd);
+                  "'tmux' new-session -A -s 'cofi' -c '/home/user/Projects/cofi'", cmd);
     g_free(cmd);
     g_free(session_name);
 }
 
 static void test_folder_session_command_quotes_path_and_sanitizes_name(void) {
     gchar *session_name = projects_build_folder_session_name("/tmp/work:api session");
-    gchar *cmd = projects_build_tmux_new_command(session_name, "/tmp/work:api session");
+    gchar *cmd = projects_build_tmux_new_command("tmux", session_name, "/tmp/work:api session");
 
     ASSERT_STR_EQ("folder command quotes path and sanitizes session name",
-                  "tmux new-session -A -s 'work_api_session' -c '/tmp/work:api session'", cmd);
+                  "'tmux' new-session -A -s 'work_api_session' -c '/tmp/work:api session'", cmd);
     g_free(cmd);
     g_free(session_name);
 }
 
 static void test_folder_session_name_replaces_tmux_separators(void) {
     gchar *session_name = projects_build_folder_session_name("/tmp/my.project");
-    gchar *cmd = projects_build_tmux_new_command(session_name, "/tmp/my.project");
+    gchar *cmd = projects_build_tmux_new_command("tmux", session_name, "/tmp/my.project");
 
     ASSERT_STR_EQ("folder command replaces dot in session name",
-                  "tmux new-session -A -s 'my_project' -c '/tmp/my.project'", cmd);
+                  "'tmux' new-session -A -s 'my_project' -c '/tmp/my.project'", cmd);
     g_free(cmd);
     g_free(session_name);
 }
 
 static void test_kill_command_uses_exact_target(void) {
-    gchar *cmd = projects_build_tmux_kill_command("work:api session");
+    gchar *cmd = projects_build_tmux_kill_command("tmux", "work:api session");
 
     ASSERT_STR_EQ("kill command exact target quoted",
-                  "tmux kill-session -t '=work:api session'", cmd);
+                  "'tmux' kill-session -t '=work:api session'", cmd);
     g_free(cmd);
 }
 
 static void test_rename_command_quotes_old_and_new_names(void) {
-    gchar *cmd = projects_build_tmux_rename_command("work:api session", "renamed session");
+    gchar *cmd = projects_build_tmux_rename_command("tmux", "work:api session", "renamed session");
 
     ASSERT_STR_EQ("rename command quotes exact target and new name",
-                  "tmux rename-session -t '=work:api session' 'renamed session'", cmd);
+                  "'tmux' rename-session -t '=work:api session' 'renamed session'", cmd);
     g_free(cmd);
 }
 
 static void test_new_session_command_uses_home_directory(void) {
-    gchar *cmd = projects_build_tmux_new_command("scratch", "/home/user");
+    gchar *cmd = projects_build_tmux_new_command("tmux", "scratch", "/home/user");
 
     ASSERT_STR_EQ("new session command starts in home",
-                  "tmux new-session -A -s 'scratch' -c '/home/user'", cmd);
+                  "'tmux' new-session -A -s 'scratch' -c '/home/user'", cmd);
     g_free(cmd);
 }
 
@@ -201,27 +205,72 @@ static void test_parse_zellij_projects(void) {
 }
 
 static void test_zellij_attach_command_quotes_name(void) {
-    gchar *cmd = projects_build_zellij_attach_command("work api");
+    gchar *cmd = projects_build_zellij_attach_command("zellij", "work api");
 
     ASSERT_STR_EQ("zellij attach command creates missing session",
-                  "zellij attach --create 'work api'", cmd);
+                  "'zellij' attach --create 'work api'", cmd);
     g_free(cmd);
 }
 
 static void test_zellij_kill_command_quotes_name(void) {
-    gchar *cmd = projects_build_zellij_kill_command("work api");
+    gchar *cmd = projects_build_zellij_kill_command("zellij", "work api");
 
     ASSERT_STR_EQ("zellij kill command quotes name",
-                  "zellij kill-session 'work api'", cmd);
+                  "'zellij' kill-session 'work api'", cmd);
     g_free(cmd);
 }
 
 static void test_zellij_new_command_starts_in_directory(void) {
-    gchar *cmd = projects_build_zellij_new_command("work api", "/tmp/work api");
+    gchar *cmd = projects_build_zellij_new_command("zellij", "work api", "/tmp/work api");
 
     ASSERT_STR_EQ("zellij new command changes directory before attach",
-                  "cd '/tmp/work api' && zellij attach --create 'work api'", cmd);
+                  "cd '/tmp/work api' && 'zellij' attach --create 'work api'", cmd);
     g_free(cmd);
+}
+
+static void test_project_tool_resolver_prefers_configured_path(void) {
+    CofiConfig config;
+    memset(&config, 0, sizeof(config));
+    g_strlcpy(config.projects_tmux_path, "/bin/sh", sizeof(config.projects_tmux_path));
+
+    gchar *resolved = projects_resolve_tool(&config, PROJECT_TOOL_TMUX, NULL, 0);
+
+    ASSERT_STR_EQ("configured tmux path resolved", "/bin/sh", resolved);
+    g_free(resolved);
+}
+
+static void test_project_tool_resolver_uses_path_when_empty(void) {
+    char dir_template[] = "/tmp/cofi-project-tool-XXXXXX";
+    char *dir = mkdtemp(dir_template);
+    ASSERT_TRUE("resolver temp dir created", dir != NULL);
+    if (!dir) return;
+
+    gchar *tool_path = g_build_filename(dir, "tmux", NULL);
+    FILE *file = fopen(tool_path, "w");
+    ASSERT_TRUE("resolver fake tool created", file != NULL);
+    if (file) {
+        fputs("#!/bin/sh\nexit 0\n", file);
+        fclose(file);
+        chmod(tool_path, 0755);
+    }
+
+    const char *old_path = g_getenv("PATH");
+    gchar *saved_path = old_path ? g_strdup(old_path) : NULL;
+    g_setenv("PATH", dir, TRUE);
+
+    CofiConfig config;
+    memset(&config, 0, sizeof(config));
+    gchar *resolved = projects_resolve_tool(&config, PROJECT_TOOL_TMUX, NULL, 0);
+
+    ASSERT_STR_EQ("empty tmux path uses PATH", tool_path, resolved);
+
+    if (saved_path) g_setenv("PATH", saved_path, TRUE);
+    else g_unsetenv("PATH");
+    g_free(saved_path);
+    g_free(resolved);
+    unlink(tool_path);
+    g_free(tool_path);
+    rmdir(dir);
 }
 
 static void test_tmux_client_pid_parser(void) {
@@ -246,6 +295,7 @@ static void test_zellij_cmdline_matches_short_attach(void) {
 
     ASSERT_TRUE("zellij short attach cmdline matches session",
                 projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "zellij",
                                                         "coiner-dev"));
 }
 
@@ -254,6 +304,7 @@ static void test_zellij_cmdline_matches_attach_create(void) {
 
     ASSERT_TRUE("zellij attach create cmdline matches session",
                 projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "zellij",
                                                         "work api"));
 }
 
@@ -262,6 +313,7 @@ static void test_zellij_cmdline_matches_session_option(void) {
 
     ASSERT_TRUE("zellij session option cmdline matches session",
                 projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "zellij",
                                                         "coiner-dev"));
 }
 
@@ -271,9 +323,11 @@ static void test_zellij_cmdline_rejects_server_and_other_session(void) {
 
     ASSERT_TRUE("zellij server cmdline rejected",
                 !projects_zellij_cmdline_matches_session(server, sizeof(server),
+                                                         "zellij",
                                                          "coiner-dev"));
     ASSERT_TRUE("zellij other session cmdline rejected",
                 !projects_zellij_cmdline_matches_session(other, sizeof(other),
+                                                         "zellij",
                                                          "coiner-dev"));
 }
 
@@ -282,7 +336,17 @@ static void test_zellij_cmdline_rejects_action_with_session_option(void) {
 
     ASSERT_TRUE("zellij action cmdline rejected",
                 !projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                         "zellij",
                                                          "coiner-dev"));
+}
+
+static void test_zellij_cmdline_matches_configured_wrapper_basename(void) {
+    const char cmdline[] = "/opt/bin/zellij-wrapper\0attach\0work api\0";
+
+    ASSERT_TRUE("zellij configured wrapper basename matches",
+                projects_zellij_cmdline_matches_session(cmdline, sizeof(cmdline),
+                                                        "/opt/bin/zellij-wrapper",
+                                                        "work api"));
 }
 
 static void test_zellij_windowid_from_environ(void) {
@@ -472,6 +536,8 @@ int main(void) {
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();
     test_zellij_new_command_starts_in_directory();
+    test_project_tool_resolver_prefers_configured_path();
+    test_project_tool_resolver_uses_path_when_empty();
     test_tmux_client_pid_parser();
     test_tmux_client_pid_parser_ignores_empty_output();
     test_zellij_cmdline_matches_short_attach();
@@ -479,6 +545,7 @@ int main(void) {
     test_zellij_cmdline_matches_session_option();
     test_zellij_cmdline_rejects_server_and_other_session();
     test_zellij_cmdline_rejects_action_with_session_option();
+    test_zellij_cmdline_matches_configured_wrapper_basename();
     test_zellij_windowid_from_environ();
     test_zellij_windowid_rejects_invalid_environ();
     test_match_text_includes_short_backend_markers();

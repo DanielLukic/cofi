@@ -2,11 +2,14 @@
 
 #include "app_data.h"
 #include "projects_parse.h"
+#include "projects_exec.h"
 
 #include <gtk/gtk.h>
 
-static void refresh_tmux_backend(ProjectsMode *mode) {
-    gchar *tmux = g_find_program_in_path("tmux");
+static void refresh_tmux_backend(AppData *app, ProjectsMode *mode) {
+    char err[128] = {0};
+    gchar *tmux = projects_resolve_tool(&app->config, PROJECT_TOOL_TMUX,
+                                        err, sizeof(err));
     if (tmux) {
         gchar *argv[] = {
             tmux,
@@ -47,12 +50,15 @@ static void refresh_tmux_backend(ProjectsMode *mode) {
         g_free(stderr_str);
         g_free(tmux);
     } else {
-        g_strlcpy(mode->last_error, "tmux not found", sizeof(mode->last_error));
+        g_strlcpy(mode->last_error, err[0] ? err : "tmux not found",
+                  sizeof(mode->last_error));
     }
 }
 
-static void refresh_zellij_backend(ProjectsMode *mode) {
-    gchar *zellij = g_find_program_in_path("zellij");
+static void refresh_zellij_backend(AppData *app, ProjectsMode *mode) {
+    char err[128] = {0};
+    gchar *zellij = projects_resolve_tool(&app->config, PROJECT_TOOL_ZELLIJ,
+                                          err, sizeof(err));
     if (!zellij) return;
     if (mode->session_count >= MAX_PROJECTS) {
         g_free(zellij);
@@ -82,8 +88,10 @@ static void refresh_zellij_backend(ProjectsMode *mode) {
     g_free(zellij);
 }
 
-static void refresh_zoxide_backend(ProjectsMode *mode) {
-    gchar *zoxide = g_find_program_in_path("zoxide");
+static void refresh_zoxide_backend(AppData *app, ProjectsMode *mode) {
+    char err[128] = {0};
+    gchar *zoxide = projects_resolve_tool(&app->config, PROJECT_TOOL_ZOXIDE,
+                                          err, sizeof(err));
     if (zoxide) {
         gchar *argv[] = {zoxide, "query", "-l", NULL};
         gchar *stdout_str = NULL;
@@ -102,6 +110,8 @@ static void refresh_zoxide_backend(ProjectsMode *mode) {
         g_clear_error(&error);
         g_free(stdout_str);
         g_free(zoxide);
+    } else if (err[0]) {
+        /* zoxide is optional; log via resolver but don't replace session errors. */
     }
 }
 
@@ -114,9 +124,9 @@ void projects_refresh(AppData *app) {
     mode->filtered_count = 0;
     mode->last_error[0] = '\0';
 
-    refresh_tmux_backend(mode);
-    refresh_zellij_backend(mode);
-    refresh_zoxide_backend(mode);
+    refresh_tmux_backend(app, mode);
+    refresh_zellij_backend(app, mode);
+    refresh_zoxide_backend(app, mode);
 
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
     projects_filter(app, query);
