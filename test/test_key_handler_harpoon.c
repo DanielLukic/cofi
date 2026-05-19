@@ -40,8 +40,11 @@ static int g_last_workspace_slot_query;
 static int g_sinks_assign_calls;
 static int g_sinks_switch_slot_calls;
 static char g_last_sinks_slot;
+static int g_provider_handle_key_calls;
+static int g_ctrl_n_recall_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
+static CofiTabProvider g_ctrl_n_provider;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
@@ -113,6 +116,43 @@ static void enable_test_sinks_provider(void) {
     g_sinks_provider.slot_payload_for = test_sink_slot_payload;
     g_sinks_provider.slot_recall = test_sink_slot_recall;
     g_provider_for_tab = &g_sinks_provider;
+}
+
+static gboolean test_ctrl_n_handle_key(GdkEventKey *event, AppData *app) {
+    (void)app;
+    g_provider_handle_key_calls++;
+    if ((event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N)) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static const char *test_ctrl_n_slot_payload(AppData *app, int raw_idx) {
+    (void)app;
+    (void)raw_idx;
+    return "projects:payload";
+}
+
+static CofiActionStatus test_ctrl_n_slot_recall(AppData *app, const char *payload) {
+    (void)app;
+    if (payload && strcmp(payload, "projects:payload") == 0) {
+        g_ctrl_n_recall_calls++;
+        return COFI_HANDLED_HIDE;
+    }
+    return COFI_ACTION_ERROR;
+}
+
+static void enable_ctrl_n_slot_provider(void) {
+    memset(&g_ctrl_n_provider, 0, sizeof(g_ctrl_n_provider));
+    g_ctrl_n_provider.tab_mode = TEST_SINKS_TAB;
+    g_ctrl_n_provider.id = "projects";
+    g_ctrl_n_provider.handle_key = test_ctrl_n_handle_key;
+    g_ctrl_n_provider.slot_store_enabled = 1;
+    g_ctrl_n_provider.slot_payload_for = test_ctrl_n_slot_payload;
+    g_ctrl_n_provider.slot_recall = test_ctrl_n_slot_recall;
+    g_provider_for_tab = &g_ctrl_n_provider;
 }
 
 WindowInfo *get_selected_window(AppData *app) {
@@ -267,6 +307,8 @@ static void reset_captures(void) {
     g_sinks_assign_calls = 0;
     g_sinks_switch_slot_calls = 0;
     g_last_sinks_slot = '\0';
+    g_provider_handle_key_calls = 0;
+    g_ctrl_n_recall_calls = 0;
     g_provider_for_tab = NULL;
 }
 
@@ -478,6 +520,59 @@ static void test_ctrl_j_on_sinks_remains_navigation_key(void) {
                 g_sinks_assign_calls == 0);
 }
 
+static void test_provider_ctrl_n_shortcut_preempts_provider_slot(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_SINKS_TAB;
+    enable_ctrl_n_slot_provider();
+
+    GdkEventKey ev = make_key(GDK_KEY_n, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Provider Ctrl+n shortcut handled", handled == TRUE);
+    ASSERT_TRUE("Provider handle_key saw Ctrl+n", g_provider_handle_key_calls == 1);
+    ASSERT_TRUE("Ctrl+n did not assign provider slot n",
+                slot_lookup(&app.harpoon.store, "projects", 'n') == NULL);
+}
+
+static void test_ctrl_shift_n_falls_through_to_provider_slot(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_SINKS_TAB;
+    enable_ctrl_n_slot_provider();
+
+    GdkEventKey ev = make_key(GDK_KEY_n, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+Shift+n falls through and is handled", handled == TRUE);
+    ASSERT_TRUE("Provider handle_key saw Ctrl+Shift+n", g_provider_handle_key_calls == 1);
+    ASSERT_TRUE("Ctrl+Shift+n assigns provider slot n",
+                strcmp(slot_lookup(&app.harpoon.store, "projects", 'n'),
+                       "projects:payload") == 0);
+}
+
+static void test_alt_n_falls_through_to_provider_slot_recall(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_SINKS_TAB;
+    enable_ctrl_n_slot_provider();
+    slot_assign(&app.harpoon.store, 'n', "projects", "projects:payload");
+
+    GdkEventKey ev = make_key(GDK_KEY_n, GDK_MOD1_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Alt+n falls through and is handled", handled == TRUE);
+    ASSERT_TRUE("Provider handle_key saw Alt+n", g_provider_handle_key_calls == 1);
+    ASSERT_TRUE("Alt+n recalls provider slot n", g_ctrl_n_recall_calls == 1);
+    ASSERT_TRUE("Alt+n recall hides window", g_hide_calls == 1);
+}
+
 static void test_alt_digit_out_of_workspace_range_non_windows_noop(void) {
     AppData app;
     init_app(&app);
@@ -517,6 +612,9 @@ int main(int argc, char **argv) {
     test_ctrl_a_on_sinks_assigns_sink_slot();
     test_alt_a_on_sinks_switches_sink_slot();
     test_ctrl_j_on_sinks_remains_navigation_key();
+    test_provider_ctrl_n_shortcut_preempts_provider_slot();
+    test_ctrl_shift_n_falls_through_to_provider_slot();
+    test_alt_n_falls_through_to_provider_slot_recall();
     test_alt_digit_out_of_workspace_range_non_windows_noop();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);

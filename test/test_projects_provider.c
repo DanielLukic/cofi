@@ -35,6 +35,12 @@ static int g_attach_named_calls;
 static char g_last_attach_name[MAX_PROJECT_SESSION_NAME_LEN];
 static int g_slot_recall_calls;
 static char g_last_slot_payload[SLOT_STORE_PAYLOAD_LEN];
+static int g_show_project_new_calls;
+static ProjectBackend g_last_new_backend;
+static int g_show_project_rename_calls;
+static char g_last_rename_name[MAX_PROJECT_SESSION_NAME_LEN];
+static gboolean g_has_selected_session;
+static ProjectSessionEntry g_selected_session;
 static gboolean g_has_named_result;
 static CofiActionStatus g_attach_named_result = COFI_HANDLED_HIDE;
 static CofiActionStatus g_slot_recall_result = COFI_HANDLED_HIDE;
@@ -96,7 +102,7 @@ CofiActionStatus projects_slot_recall(AppData *app, const char *payload) {
 
 ProjectSessionEntry *projects_selected_session(AppData *app) {
     (void)app;
-    return NULL;
+    return g_has_selected_session ? &g_selected_session : NULL;
 }
 
 ProjectFolder *projects_selected_folder(AppData *app) {
@@ -114,9 +120,10 @@ void show_project_new_overlay(AppData *app,
                               const char *start_dir,
                               const char *initial_name) {
     (void)app;
-    (void)backend;
     (void)start_dir;
     (void)initial_name;
+    g_show_project_new_calls++;
+    g_last_new_backend = backend;
 }
 
 void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend) {
@@ -127,7 +134,9 @@ void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBa
 
 void show_project_rename_overlay(AppData *app, const char *session_name) {
     (void)app;
-    (void)session_name;
+    g_show_project_rename_calls++;
+    g_strlcpy(g_last_rename_name, session_name ? session_name : "",
+              sizeof(g_last_rename_name));
 }
 
 ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
@@ -217,6 +226,12 @@ static void reset_capture(void) {
     g_last_attach_name[0] = '\0';
     g_slot_recall_calls = 0;
     g_last_slot_payload[0] = '\0';
+    g_show_project_new_calls = 0;
+    g_last_new_backend = PROJECT_BACKEND_TMUX;
+    g_show_project_rename_calls = 0;
+    g_last_rename_name[0] = '\0';
+    g_has_selected_session = FALSE;
+    memset(&g_selected_session, 0, sizeof(g_selected_session));
     g_has_named_result = FALSE;
     g_attach_named_result = COFI_HANDLED_HIDE;
     g_slot_recall_result = COFI_HANDLED_HIDE;
@@ -447,6 +462,65 @@ static void test_command_handler_invalid_arg_shows_error(void) {
     teardown_app(&app);
 }
 
+static void test_ctrl_n_opens_new_session_but_ctrl_shift_n_falls_through(void) {
+    AppData app;
+    const CofiTabProvider *p = registered_projects_provider();
+    setup_app(&app);
+    reset_capture();
+    app.current_tab = (TabMode)p->tab_mode;
+
+    GdkEventKey ctrl_n;
+    memset(&ctrl_n, 0, sizeof(ctrl_n));
+    ctrl_n.keyval = GDK_KEY_n;
+    ctrl_n.state = GDK_CONTROL_MASK;
+    ASSERT_TRUE("Ctrl+n is handled by Projects",
+                handle_projects_tab_keys(&ctrl_n, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+n opens new-session overlay",
+                g_show_project_new_calls == 1 &&
+                g_last_new_backend == PROJECT_BACKEND_TMUX);
+
+    GdkEventKey ctrl_shift_n;
+    memset(&ctrl_shift_n, 0, sizeof(ctrl_shift_n));
+    ctrl_shift_n.keyval = GDK_KEY_n;
+    ctrl_shift_n.state = GDK_CONTROL_MASK | GDK_SHIFT_MASK;
+    ASSERT_TRUE("Ctrl+Shift+n is not a Projects shortcut",
+                handle_projects_tab_keys(&ctrl_shift_n, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+Shift+n does not open new-session overlay",
+                g_show_project_new_calls == 1);
+    teardown_app(&app);
+}
+
+static void test_ctrl_r_opens_rename_but_ctrl_shift_r_falls_through(void) {
+    AppData app;
+    const CofiTabProvider *p = registered_projects_provider();
+    setup_app(&app);
+    reset_capture();
+    app.current_tab = (TabMode)p->tab_mode;
+    g_has_selected_session = TRUE;
+    g_selected_session.backend = PROJECT_BACKEND_TMUX;
+    g_strlcpy(g_selected_session.name, "work", sizeof(g_selected_session.name));
+
+    GdkEventKey ctrl_r;
+    memset(&ctrl_r, 0, sizeof(ctrl_r));
+    ctrl_r.keyval = GDK_KEY_r;
+    ctrl_r.state = GDK_CONTROL_MASK;
+    ASSERT_TRUE("Ctrl+r is handled by Projects",
+                handle_projects_tab_keys(&ctrl_r, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+r opens rename overlay",
+                g_show_project_rename_calls == 1 &&
+                strcmp(g_last_rename_name, "work") == 0);
+
+    GdkEventKey ctrl_shift_r;
+    memset(&ctrl_shift_r, 0, sizeof(ctrl_shift_r));
+    ctrl_shift_r.keyval = GDK_KEY_r;
+    ctrl_shift_r.state = GDK_CONTROL_MASK | GDK_SHIFT_MASK;
+    ASSERT_TRUE("Ctrl+Shift+r is not a Projects shortcut",
+                handle_projects_tab_keys(&ctrl_shift_r, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+Shift+r does not open rename overlay",
+                g_show_project_rename_calls == 1);
+    teardown_app(&app);
+}
+
 static void test_command_args_contract(void) {
     AppData app;
     const CofiTabProvider *p = registered_projects_provider();
@@ -487,6 +561,8 @@ int main(int argc, char **argv) {
     test_command_handler_named_session_hides();
     test_command_handler_recalls_slot_and_hides();
     test_command_handler_invalid_arg_shows_error();
+    test_ctrl_n_opens_new_session_but_ctrl_shift_n_falls_through();
+    test_ctrl_r_opens_rename_but_ctrl_shift_r_falls_through();
     test_command_args_contract();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);

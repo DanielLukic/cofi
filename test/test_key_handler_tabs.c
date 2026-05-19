@@ -451,7 +451,11 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
-    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
+    gboolean ctrl_n =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N);
+    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert || ctrl_n) {
         ProjectBackend backend =
             (event->state & GDK_SHIFT_MASK) ? PROJECT_BACKEND_ZELLIJ : PROJECT_BACKEND_TMUX;
         ProjectSessionEntry *session = projects_selected_session(app);
@@ -479,7 +483,11 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         return TRUE;
     }
 
-    if (event->keyval == GDK_KEY_F2) {
+    gboolean ctrl_r =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R);
+    if (event->keyval == GDK_KEY_F2 || ctrl_r) {
         ProjectSessionEntry *session = projects_selected_session(app);
         if (!session || session->backend != PROJECT_BACKEND_TMUX) {
             return FALSE;
@@ -918,6 +926,13 @@ static void test_projects_tab_shortcuts_open_session_overlays(void) {
                 g_show_project_rename_calls == 1 &&
                 strcmp(g_last_session_name, "work:api session") == 0);
 
+    GdkEventKey ctrl_r_ev = make_key(GDK_KEY_r, GDK_CONTROL_MASK);
+    gboolean ctrl_r_handled = on_key_press(NULL, &ctrl_r_ev, &app);
+    ASSERT_TRUE("Ctrl+r on tmux session handled", ctrl_r_handled == TRUE);
+    ASSERT_TRUE("Ctrl+r on tmux session opens rename overlay",
+                g_show_project_rename_calls == 2 &&
+                strcmp(g_last_session_name, "work:api session") == 0);
+
     GdkEventKey ins_ev = make_key(GDK_KEY_Insert, 0);
     gboolean ins_handled = on_key_press(NULL, &ins_ev, &app);
     ASSERT_TRUE("Insert on Projects opens new-session overlay", ins_handled == TRUE);
@@ -926,12 +941,58 @@ static void test_projects_tab_shortcuts_open_session_overlays(void) {
                 g_last_session_backend == PROJECT_BACKEND_TMUX &&
                 strcmp(g_last_session_start_dir, "") == 0);
 
+    GdkEventKey ctrl_n_ev = make_key(GDK_KEY_n, GDK_CONTROL_MASK);
+    gboolean ctrl_n_handled = on_key_press(NULL, &ctrl_n_ev, &app);
+    ASSERT_TRUE("Ctrl+n on Projects opens new-session overlay", ctrl_n_handled == TRUE);
+    ASSERT_TRUE("Ctrl+n on Projects behaves like Insert",
+                g_show_project_new_calls == 2 &&
+                g_last_session_backend == PROJECT_BACKEND_TMUX &&
+                strcmp(g_last_session_start_dir, "") == 0);
+
     GdkEventKey shift_ins_ev = make_key(GDK_KEY_Insert, GDK_SHIFT_MASK);
     gboolean shift_ins_handled = on_key_press(NULL, &shift_ins_ev, &app);
     ASSERT_TRUE("Shift+Insert on Projects opens new-session overlay", shift_ins_handled == TRUE);
     ASSERT_TRUE("Shift+Insert preselects zellij",
-                g_show_project_new_calls == 2 &&
+                g_show_project_new_calls == 3 &&
                 g_last_session_backend == PROJECT_BACKEND_ZELLIJ);
+}
+
+static void test_projects_tab_ctrl_shift_n_is_not_new_session_shortcut(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_PROJECTS_TAB;
+    g_stub_has_selected_session = TRUE;
+    g_stub_selected_session.backend = PROJECT_BACKEND_TMUX;
+    strncpy(g_stub_selected_session.name, "work",
+            sizeof(g_stub_selected_session.name) - 1);
+
+    GdkEventKey ev = make_key(GDK_KEY_n, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+Shift+n on Projects is left for slot assignment", handled == FALSE);
+    ASSERT_TRUE("Ctrl+Shift+n on Projects does not open new-session overlay",
+                g_show_project_new_calls == 0);
+}
+
+static void test_projects_tab_ctrl_shift_r_is_not_rename_shortcut(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_PROJECTS_TAB;
+    g_stub_has_selected_session = TRUE;
+    g_stub_selected_session.backend = PROJECT_BACKEND_TMUX;
+    strncpy(g_stub_selected_session.name, "work",
+            sizeof(g_stub_selected_session.name) - 1);
+
+    GdkEventKey ev = make_key(GDK_KEY_r, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+Shift+r on Projects is left for slot assignment", handled == FALSE);
+    ASSERT_TRUE("Ctrl+Shift+r on Projects does not open rename overlay",
+                g_show_project_rename_calls == 0);
 }
 
 static void test_projects_tab_delete_on_zellij_session_opens_kill_overlay(void) {
@@ -1052,6 +1113,8 @@ int main(int argc, char **argv) {
     test_ctrl_d_hotkeys_last_row_clamps_selection();
     test_rules_tab_shortcuts_crud_and_replay();
     test_projects_tab_shortcuts_open_session_overlays();
+    test_projects_tab_ctrl_shift_n_is_not_new_session_shortcut();
+    test_projects_tab_ctrl_shift_r_is_not_rename_shortcut();
     test_projects_tab_delete_on_zellij_session_opens_kill_overlay();
     test_projects_tab_rename_ignores_zellij_session_row();
     test_projects_tab_delete_and_rename_ignore_folder_rows();

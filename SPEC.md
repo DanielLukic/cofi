@@ -161,10 +161,12 @@ Hidden Projects surface triggered via `:projects`, `:project`, `:tmux`, `:tx`, `
 - Enter on a zellij session launches a detected terminal detached from cofi, then runs `zellij attach --create <session>`
 - Enter on a folder opens the folder in Caja when available, otherwise the system file opener
 - `Delete` on a tmux or zellij session opens a kill confirmation dialog; folder and status rows are ignored
-- `F2` on a tmux session opens a rename dialog; zellij, folder, and status rows are ignored
-- `Insert` opens a new-session dialog; on folder rows it starts in that folder, otherwise it starts in `$HOME`
+- `F2` or `Ctrl+R` on a tmux session opens a rename dialog; zellij, folder, and status rows are ignored
+- `Insert` or `Ctrl+N` opens a new-session dialog; on folder rows it starts in that folder, otherwise it starts in `$HOME`
 - `Shift+Insert` opens the new-session dialog with zellij preselected
 - `Ctrl+key` assigns a per-Projects slot for the selected tmux session, zellij session, or folder
+  - `Ctrl+N` is reserved for new session; use `Ctrl+Shift+N` to assign Projects slot `n`
+  - `Ctrl+R` is reserved for rename; use `Ctrl+Shift+R` to assign Projects slot `r`
 - `Alt+key` recalls a per-Projects slot; session slots open the session and folder slots open the folder
 - Tmux session names are treated as exact tmux targets and shell-quoted before launch
 - Zellij session names are shell-quoted before attach or kill commands

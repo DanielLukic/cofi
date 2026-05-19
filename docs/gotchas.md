@@ -85,6 +85,10 @@ See also:
   Tab-specific key handling belongs on `CofiTabProvider.handle_key`; list lifecycle belongs on `on_enter`, `on_leave`, and `on_query_changed`.
   Reintroducing provider cases in `key_handler.c`, `selection.c`, or `display.c` is usually architecture drift.
 
+- Provider key hooks get first refusal before generic provider slots.
+  A slottable provider may still need tab-local shortcuts such as Projects `Ctrl+N`.
+  `handle_key` should return `TRUE` only for keys it owns; returning `FALSE` lets `Ctrl+key` / `Alt+key` continue into generic slot assignment and recall.
+
 - Dynamic provider tabs are not `TAB_COUNT`.
   `TAB_COUNT` is the sentinel for the core tab enum. Runtime provider handles start after it.
   Use registry helpers such as `cofi_list_provider_tabs()` instead of looping from `TAB_WINDOWS` to `TAB_COUNT` when you mean "all visible provider tabs."

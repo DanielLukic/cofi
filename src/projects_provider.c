@@ -221,7 +221,11 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
-    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert) {
+    gboolean ctrl_n =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N);
+    if (event->keyval == GDK_KEY_Insert || event->keyval == GDK_KEY_KP_Insert || ctrl_n) {
         show_new_session_for_selection(app, (event->state & GDK_SHIFT_MASK) != 0);
         return TRUE;
     }
@@ -235,7 +239,11 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         return TRUE;
     }
 
-    if (event->keyval == GDK_KEY_F2) {
+    gboolean ctrl_r =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R);
+    if (event->keyval == GDK_KEY_F2 || ctrl_r) {
         ProjectSessionEntry *session = projects_selected_session(app);
         if (!session || session->backend != PROJECT_BACKEND_TMUX) {
             return FALSE;

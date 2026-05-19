@@ -544,13 +544,13 @@ ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
 
 const char *projects_get_shortcut_hint(AppData *app) {
     if (projects_selected_folder(app)) {
-        return "Actions: Enter=Open folder  Insert=New session  Ctrl+key=Slot  Alt+key=Recall";
+        return "Actions: Enter=Open folder  Insert/Ctrl+N=New session  Ctrl+key=Slot  Alt+key=Recall";
     }
     ProjectSessionEntry *session = projects_selected_session(app);
     if (session && session->backend == PROJECT_BACKEND_ZELLIJ) {
-        return "Actions: Enter=Open  Delete=Kill  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
+        return "Actions: Enter=Open  Delete=Kill  Insert/Ctrl+N=New  Ctrl+key=Slot  Alt+key=Recall";
     }
-    return "Actions: Enter=Open  Delete=Kill  F2=Rename  Insert=New  Ctrl+key=Slot  Alt+key=Recall";
+    return "Actions: Enter=Open  Delete=Kill  F2/Ctrl+R=Rename  Insert/Ctrl+N=New  Ctrl+key=Slot  Alt+key=Recall";
 }
 
 const char *projects_slot_payload_for(AppData *app, int visible_idx) {
