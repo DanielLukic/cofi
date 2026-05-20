@@ -125,22 +125,9 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 // pass flipped offset: (total_items - visible_items) - scroll_offset.
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
     if (total_items <= visible_items || target_columns <= 0) return;
-    // TODO(TFD-759): `strlen` and byte truncation in this function are not UTF-8 column-safe.
 
-    // Find max line length so scrollbar column is at least past all content
-    int max_line_len = 0;
-    const char *scan = text->str;
-    while (*scan) {
-        const char *nl = strchr(scan, '\n');
-        int len = nl ? (int)(nl - scan) : (int)strlen(scan);
-        if (len > max_line_len) max_line_len = len;
-        if (!nl) break;
-        scan = nl + 1;
-    }
-    // Content + 1 space gap + 1 scrollbar char
-    int content_columns = max_line_len + 2;
-    if (content_columns > target_columns) target_columns = content_columns;
-
+    // Keep the scrollbar within the fixed display width so the final
+    // utf8_clip_lines_to_columns pass cannot clip it off.
     char sb[visible_items + 1];
     generate_scrollbar(total_items, visible_items, scroll_offset, sb, visible_items);
 
@@ -152,16 +139,14 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
     while (*p && line < visible_items) {
         const char *nl = strchr(p, '\n');
         int line_len = nl ? (int)(nl - p) : (int)strlen(p);
-
-        if (line_len >= target_columns) {
-            // Truncate to target_columns - 1, then scrollbar
-            g_string_append_len(result, p, target_columns - 1);
-        } else {
-            // Append content, pad with spaces
-            g_string_append_len(result, p, line_len);
-            for (int i = line_len; i < target_columns - 1; i++)
-                g_string_append_c(result, ' ');
+        GString *line_text = g_string_new_len(p, line_len);
+        utf8_clip_lines_to_columns(line_text, target_columns - 1);
+        int clipped_cols = utf8_text_columns(line_text->str);
+        g_string_append(result, line_text->str);
+        for (int i = clipped_cols; i < target_columns - 1; i++) {
+            g_string_append_c(result, ' ');
         }
+        g_string_free(line_text, TRUE);
         g_string_append_c(result, sb[line]);
         g_string_append_c(result, '\n');
 
@@ -246,6 +231,64 @@ static void render_windows_item(gpointer context, gint index,
     g_string_append(text, "\n");
 }
 
+typedef struct {
+    AppData *app;
+    const CofiTabProvider *provider;
+    int target_columns;
+} ProviderRenderContext;
+
+static void render_provider_item(gpointer context, gint index,
+                                 gint selected_idx, GString *text) {
+    ProviderRenderContext *provider_ctx = (ProviderRenderContext *)context;
+    AppData *app = provider_ctx->app;
+    const CofiTabProvider *p = provider_ctx->provider;
+    int target_cols = provider_ctx->target_columns;
+
+    CofiRowCells row;
+    memset(&row, 0, sizeof(row));
+    p->format_row(app, index, &row);
+
+    int line_cols = 2;
+    g_string_append(text, (index == selected_idx) ? "> " : "  ");
+    if (p->slot_store_enabled && p->slot_payload_for &&
+        (row.row_flags & COFI_ROW_SLOTTABLE)) {
+        const char *payload = p->slot_payload_for(app, index);
+        char slot = slot_for_payload(&app->harpoon.store, p->id, payload);
+        if (slot != '\0') {
+            g_string_append_printf(text, "[%c] ", slot);
+        } else {
+            g_string_append(text, "    ");
+        }
+        line_cols += 4;
+    }
+
+    for (int c = 0; c < row.cell_count; c++) {
+        const char *t = row.cells[c].text ? row.cells[c].text : "";
+        int w = row.cells[c].width_hint;
+        if (c > 0) {
+            g_string_append_c(text, ' ');
+            line_cols++;
+        }
+        int remaining = target_cols - line_cols;
+        if (target_cols > 0 && remaining <= 0) {
+            break;
+        }
+        int col_width = w > 0 ? w : remaining;
+        if (target_cols > 0 && col_width > remaining) {
+            col_width = remaining;
+        }
+        if (col_width <= 0) {
+            continue;
+        }
+        char col[UTF8_FIT_BUFFER_SIZE];
+        int fit = col_width < 255 ? col_width : 255;
+        utf8_fit_columns_aligned(t, fit, row.cells[c].align == 1, col, sizeof(col));
+        g_string_append(text, col);
+        line_cols += col_width;
+    }
+    g_string_append_c(text, '\n');
+}
+
 static void format_windows_display(AppData *app, GString *text, gint selected_idx) {
     if (app->filtered_count == 0) {
         g_string_append(text, "No matching windows found\n");
@@ -283,56 +326,24 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     }
     cofi_set_filtered_map(provider_id, raw_map, map_count);
 
-    int max_lines = get_max_display_lines_dynamic(app);
-    int start = get_scroll_offset(app);
-    int end = start + max_lines;
-    if (end > count) end = count;
+    ProviderRenderContext provider_ctx = {
+        .app = app,
+        .provider = p,
+        .target_columns = get_display_columns(app),
+    };
 
-    for (int i = end - 1; i >= start; i--) {
-        CofiRowCells row;
-        memset(&row, 0, sizeof(row));
-        p->format_row(app, i, &row);
-
-        int line_cols = 2;
-        int target_cols = get_display_columns(app);
-        g_string_append(text, (i == selected_idx) ? "> " : "  ");
-        if (p->slot_store_enabled && p->slot_payload_for &&
-            (row.row_flags & COFI_ROW_SLOTTABLE)) {
-            const char *payload = p->slot_payload_for(app, i);
-            char slot = slot_for_payload(&app->harpoon.store, p->id, payload);
-            if (slot != '\0') {
-                g_string_append_printf(text, "[%c] ", slot);
-            } else {
-                g_string_append(text, "    ");
-            }
-            line_cols += 4;
-        }
-        for (int c = 0; c < row.cell_count; c++) {
-            const char *t = row.cells[c].text ? row.cells[c].text : "";
-            int w = row.cells[c].width_hint;
-            if (c > 0) {
-                g_string_append_c(text, ' ');
-                line_cols++;
-            }
-            int remaining = target_cols - line_cols;
-            if (target_cols > 0 && remaining <= 0) {
-                break;
-            }
-            int col_width = w > 0 ? w : remaining;
-            if (target_cols > 0 && col_width > remaining) {
-                col_width = remaining;
-            }
-            if (col_width <= 0) {
-                continue;
-            }
-            char col[UTF8_FIT_BUFFER_SIZE];
-            int fit = col_width < 255 ? col_width : 255;
-            utf8_fit_columns_aligned(t, fit, row.cells[c].align == 1, col, sizeof(col));
-            g_string_append(text, col);
-            line_cols += col_width;
-        }
-        g_string_append_c(text, '\n');
-    }
+    DisplayPipelineRequest request = {
+        .total_count = count,
+        .max_lines = get_max_display_lines_dynamic(app),
+        .scroll_offset = get_scroll_offset(app),
+        .selected_idx = selected_idx,
+        .target_columns = provider_ctx.target_columns,
+        .context = &provider_ctx,
+        .overlay_context = app,
+        .render_item = render_provider_item,
+        .overlay_scrollbar = overlay_scrollbar_adapter,
+    };
+    render_display_pipeline(&request, text);
 
     const char *shortcut_hint = p->get_shortcut_hint
         ? p->get_shortcut_hint(app)

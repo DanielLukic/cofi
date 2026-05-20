@@ -302,8 +302,8 @@ test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/window_matche
 	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/window_matcher.o $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
-test_scrollbar: test/test_scrollbar.c
-	$(CC) $(CFLAGS) -DSCROLLBAR_TEST_STANDALONE -o test/test_scrollbar test/test_scrollbar.c $(LDFLAGS)
+test_scrollbar: test/test_scrollbar.c src/utf8_columns.o
+	$(CC) $(CFLAGS) -DSCROLLBAR_TEST_STANDALONE -o test/test_scrollbar test/test_scrollbar.c src/utf8_columns.o $(LDFLAGS)
 
 # Build fixed window sizing tests
 test_dynamic_display_fixed: test/test_dynamic_display_fixed.c src/dynamic_display.o src/log.o

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <glib.h>
+#include "../src/utf8_columns.h"
 
 // Copy of generate_scrollbar and overlay_scrollbar from display.c for isolated testing.
 // When the real implementation changes, this test must be updated to match.
@@ -28,17 +29,20 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
     if (total_items <= visible_items || target_columns <= 0) return;
-    // Find max line length so scrollbar column is at least past all content
-    int max_line_len = 0;
+    // Find max line width in display columns so scrollbar column is past all content
+    int max_line_cols = 0;
     const char *scan = text->str;
     while (*scan) {
         const char *nl = strchr(scan, '\n');
         int len = nl ? (int)(nl - scan) : (int)strlen(scan);
-        if (len > max_line_len) max_line_len = len;
+        GString *line = g_string_new_len(scan, len);
+        int cols = utf8_text_columns(line->str);
+        g_string_free(line, TRUE);
+        if (cols > max_line_cols) max_line_cols = cols;
         if (!nl) break;
         scan = nl + 1;
     }
-    int content_columns = max_line_len + 2;
+    int content_columns = max_line_cols + 2;
     if (content_columns > target_columns) target_columns = content_columns;
     char sb[visible_items + 1];
     generate_scrollbar(total_items, visible_items, scroll_offset, sb, visible_items);
@@ -48,13 +52,14 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
     while (*p && line < visible_items) {
         const char *nl = strchr(p, '\n');
         int line_len = nl ? (int)(nl - p) : (int)strlen(p);
-        if (line_len >= target_columns) {
-            g_string_append_len(result, p, target_columns - 1);
-        } else {
-            g_string_append_len(result, p, line_len);
-            for (int i = line_len; i < target_columns - 1; i++)
-                g_string_append_c(result, ' ');
+        GString *line_text = g_string_new_len(p, line_len);
+        utf8_clip_lines_to_columns(line_text, target_columns - 1);
+        int clipped_cols = utf8_text_columns(line_text->str);
+        g_string_append(result, line_text->str);
+        for (int i = clipped_cols; i < target_columns - 1; i++) {
+            g_string_append_c(result, ' ');
         }
+        g_string_free(line_text, TRUE);
         g_string_append_c(result, sb[line]);
         g_string_append_c(result, '\n');
         line++;
@@ -90,6 +95,36 @@ static int scrollbar_at_column(const char *text, int target_columns) {
 // Helper: check scrollbar char is one of '#' or '.'
 static int is_scrollbar_char(char c) {
     return c == '#' || c == '.';
+}
+
+static int scrollbar_column_is_aligned_utf8(const char *text) {
+    const char *p = text;
+    int expected = -1;
+    int lines = 0;
+    while (*p) {
+        const char *nl = strchr(p, '\n');
+        if (!nl) break;
+        if (nl == p) {
+            p = nl + 1;
+            continue;
+        }
+        if (!is_scrollbar_char(*(nl - 1))) {
+            p = nl + 1;
+            continue;
+        }
+
+        GString *left = g_string_new_len(p, (gssize)((nl - 1) - p));
+        int cols = utf8_text_columns(left->str);
+        g_string_free(left, TRUE);
+        if (expected < 0) {
+            expected = cols;
+        } else if (cols != expected) {
+            return 0;
+        }
+        lines++;
+        p = nl + 1;
+    }
+    return lines > 0;
 }
 
 static void test_generate_scrollbar(void) {
@@ -231,6 +266,31 @@ static void test_overlay_preserves_content(void) {
     g_string_free(text, TRUE);
 }
 
+static void test_overlay_utf8_aligns_scrollbar_columns(void) {
+    printf("\n--- overlay: utf8 column alignment ---\n");
+    GString *text = g_string_new(
+        "Cafe 日本 👍🏽\n"
+        "ASCII only line\n"
+        "☺️ smile VS16\n"
+        "ZWJ 👨‍💻 dev\n");
+
+    overlay_scrollbar(text, 40, 4, 0, 20);
+    ASSERT("utf8 scrollbar column aligned by display width",
+           scrollbar_column_is_aligned_utf8(text->str));
+    g_string_free(text, TRUE);
+}
+
+static void test_overlay_utf8_does_not_split_clusters(void) {
+    printf("\n--- overlay: utf8 cluster-safe clipping ---\n");
+    GString *text = g_string_new(
+        "prefix 👨‍💻👨‍💻👨‍💻 long line\n"
+        "prefix ☺️☺️☺️ long line\n");
+
+    overlay_scrollbar(text, 20, 2, 0, 8);
+    ASSERT("result remains valid UTF-8", g_utf8_validate(text->str, -1, NULL));
+    g_string_free(text, TRUE);
+}
+
 int main(void) {
     printf("Scrollbar overlay tests\n");
     printf("=======================\n");
@@ -244,6 +304,8 @@ int main(void) {
     test_overlay_help_style();
     test_overlay_content_wider_than_target();
     test_overlay_preserves_content();
+    test_overlay_utf8_aligns_scrollbar_columns();
+    test_overlay_utf8_does_not_split_clusters();
 
     printf("\n=== Summary: %d/%d passed ===\n", pass, pass + fail);
     return fail > 0 ? 1 : 0;
