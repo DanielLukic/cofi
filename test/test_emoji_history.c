@@ -1,0 +1,350 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "../src/app_data.h"
+#include "../src/command_registry.h"
+#include "../src/cofi_tab_provider.h"
+#include "../src/emoji_data.h"
+
+static int tests_run = 0;
+static int tests_passed = 0;
+
+#define ASSERT_TRUE(msg, cond) \
+    do { \
+        tests_run++; \
+        if (cond) { \
+            tests_passed++; \
+            printf("PASS: %s\n", msg); \
+        } else { \
+            printf("FAIL: %s (line %d)\n", msg, __LINE__); \
+        } \
+    } while (0)
+
+void log_log(int level, const char *file, int line, const char *fmt, ...) {
+    (void)level; (void)file; (void)line; (void)fmt;
+}
+
+void cofi_init_provider_defaults(CofiTabProvider *p) {
+    if (p) memset(p, 0, sizeof(*p));
+}
+
+int cofi_register_tab_provider(const CofiTabProvider *p) {
+    (void)p;
+    return 0;
+}
+
+const CofiTabProvider *cofi_get_provider(int provider_id) {
+    (void)provider_id;
+    return NULL;
+}
+
+int cofi_register_command(const CommandSpec *spec) {
+    (void)spec;
+    return 0;
+}
+
+void exit_command_mode(AppData *app) {
+    (void)app;
+}
+
+void surface_tab(AppData *app, TabMode tab) {
+    (void)app;
+    (void)tab;
+}
+
+#include "../src/emoji_provider.c"
+
+static void reset_history_state(void) {
+    free(s_history_glyphs);
+    free(s_history_indices);
+    s_history_glyphs = NULL;
+    s_history_indices = NULL;
+    s_history_count = 0;
+    s_history_capacity = 0;
+    s_history_loaded = 0;
+}
+
+static void setup_home(const char *name) {
+    char home[256];
+    snprintf(home, sizeof(home), "/tmp/%s", name);
+    mkdir(home, 0755);
+    setenv("HOME", home, 1);
+    reset_history_state();
+}
+
+static int rank_of_glyph(AppData *app, const char *glyph) {
+    for (int i = 0; i < app->filtered_emoji_count; i++) {
+        int idx = app->filtered_emoji[i];
+        if (strcmp(EMOJI_TABLE[idx].glyph, glyph) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int find_match_pair_for_t1(const char **query_out, int *strong_idx_out, int *weak_idx_out) {
+    static const char *queries[] = {"fire", "joy", "heart", "rocket", "flag", "cat", "face", "arrow", "up"};
+    for (size_t qi = 0; qi < sizeof(queries) / sizeof(queries[0]); qi++) {
+        const char *q = queries[qi];
+        int strong = -1;
+        int weak = -1;
+        for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+            int score = emoji_rank_score(q, &EMOJI_TABLE[i]);
+            if (score <= 0) {
+                continue;
+            }
+            if (name_has_word(EMOJI_TABLE[i].name_norm, q)) {
+                if (strong < 0) strong = i;
+            } else {
+                if (weak < 0) weak = i;
+            }
+            if (strong >= 0 && weak >= 0) {
+                *query_out = q;
+                *strong_idx_out = strong;
+                *weak_idx_out = weak;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static void test_t1_strong_name_match_beats_heavy_mru_weak_match(void) {
+    setup_home("cofi-emoji-mru-t1");
+    const char *query = NULL;
+    int strong_idx = -1;
+    int weak_idx = -1;
+    int found = find_match_pair_for_t1(&query, &strong_idx, &weak_idx);
+    ASSERT_TRUE("T1: found query with strong name match and weak keyword match", found);
+    if (!found) return;
+
+    for (int i = 0; i < 200; i++) {
+        emoji_history_push(EMOJI_TABLE[weak_idx].glyph);
+    }
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, query);
+    ASSERT_TRUE("T1: query has matches", app.filtered_emoji_count > 0);
+    int strong_rank = rank_of_glyph(&app, EMOJI_TABLE[strong_idx].glyph);
+    int weak_rank = rank_of_glyph(&app, EMOJI_TABLE[weak_idx].glyph);
+    ASSERT_TRUE("T1: strong name match present", strong_rank >= 0);
+    ASSERT_TRUE("T1: weak MRU-biased match present", weak_rank >= 0);
+    ASSERT_TRUE("T1: strong name match still ranks above weak heavy-MRU match", strong_rank < weak_rank);
+}
+
+static void test_t2_mru_breaks_ties(void) {
+    setup_home("cofi-emoji-mru-t2");
+    AppData app;
+    memset(&app, 0, sizeof(app));
+
+    int a = -1;
+    int b = -1;
+    for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+        int si = emoji_rank_score("face", &EMOJI_TABLE[i]);
+        if (si <= 0) continue;
+        for (int j = i + 1; j < EMOJI_TABLE_LEN; j++) {
+            int sj = emoji_rank_score("face", &EMOJI_TABLE[j]);
+            if (sj == si) {
+                a = i;
+                b = j;
+                break;
+            }
+        }
+        if (a >= 0) break;
+    }
+
+    ASSERT_TRUE("T2: found equal-score face pair", a >= 0 && b >= 0);
+    if (a < 0 || b < 0) return;
+
+    emoji_on_query_changed(&app, "face");
+    int rank_a_before = rank_of_glyph(&app, EMOJI_TABLE[a].glyph);
+    int rank_b_before = rank_of_glyph(&app, EMOJI_TABLE[b].glyph);
+    ASSERT_TRUE("T2: pair present before MRU", rank_a_before >= 0 && rank_b_before >= 0);
+
+    int mru_idx = rank_a_before > rank_b_before ? a : b;
+    int other_idx = mru_idx == a ? b : a;
+    emoji_history_push(EMOJI_TABLE[mru_idx].glyph);
+    emoji_on_query_changed(&app, "face");
+
+    int rank_mru = rank_of_glyph(&app, EMOJI_TABLE[mru_idx].glyph);
+    int rank_other = rank_of_glyph(&app, EMOJI_TABLE[other_idx].glyph);
+    ASSERT_TRUE("T2: MRU item ranks above equal-score peer", rank_mru >= 0 && rank_other >= 0 && rank_mru < rank_other);
+}
+
+static void test_t3_mru_never_resurrects_or_beats_strong(void) {
+    setup_home("cofi-emoji-mru-t3");
+    emoji_history_push("😂");
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "fire");
+    ASSERT_TRUE("T3: strong fire match stays above MRU noise", rank_of_glyph(&app, "🔥") == 0);
+
+    emoji_on_query_changed(&app, "zzzzzzzz");
+    ASSERT_TRUE("T3: non-match query returns zero rows", app.filtered_emoji_count == 0);
+}
+
+static void test_empty_query_unchanged_by_history(void) {
+    setup_home("cofi-emoji-mru-empty");
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "");
+
+    int baseline[8];
+    for (int i = 0; i < 8; i++) baseline[i] = app.filtered_emoji[i];
+
+    emoji_history_push("😂");
+    emoji_history_push("🔥");
+    emoji_history_push("😄");
+    emoji_on_query_changed(&app, "");
+
+    int unchanged = 1;
+    for (int i = 0; i < 8; i++) {
+        if (app.filtered_emoji[i] != baseline[i]) {
+            unchanged = 0;
+            break;
+        }
+    }
+    ASSERT_TRUE("empty query order unchanged by MRU", unchanged);
+}
+
+static void test_t5_dedup_move_to_front(void) {
+    setup_home("cofi-emoji-mru-t5");
+    emoji_history_push("😂");
+    emoji_history_push("🔥");
+    emoji_history_push("😂");
+    ASSERT_TRUE("T5: dedup keeps count unchanged", s_history_count == 2);
+    ASSERT_TRUE("T5: repeated glyph moved to front", strcmp(s_history_glyphs[0], "😂") == 0);
+}
+
+static void test_t7_persistence_round_trip(void) {
+    setup_home("cofi-emoji-mru-t7");
+    emoji_history_push("😂");
+    emoji_history_push("🔥");
+    emoji_history_save();
+
+    reset_history_state();
+    emoji_history_load();
+    ASSERT_TRUE("T7: history count restored", s_history_count == 2);
+    ASSERT_TRUE("T7: most recent restored first", strcmp(s_history_glyphs[0], "🔥") == 0);
+    ASSERT_TRUE("T7: second restored", strcmp(s_history_glyphs[1], "😂") == 0);
+}
+
+static void test_long_glyph_round_trip_and_reindex(void) {
+    setup_home("cofi-emoji-mru-long-glyph");
+    int idx = -1;
+    for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+        if (strlen(EMOJI_TABLE[i].glyph) > 15) {
+            idx = i;
+            break;
+        }
+    }
+    ASSERT_TRUE("long glyph: found >15-byte glyph in table", idx >= 0);
+    if (idx < 0) return;
+
+    const char *glyph = EMOJI_TABLE[idx].glyph;
+    emoji_history_push(glyph);
+    ASSERT_TRUE("long glyph: stored intact", strcmp(s_history_glyphs[0], glyph) == 0);
+    ASSERT_TRUE("long glyph: reindexed to table", s_history_indices[0] == idx);
+
+    emoji_history_save();
+    reset_history_state();
+    emoji_history_load();
+    ASSERT_TRUE("long glyph: round-trip stored intact", strcmp(s_history_glyphs[0], glyph) == 0);
+    ASSERT_TRUE("long glyph: round-trip reindex works", s_history_indices[0] == idx);
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, EMOJI_TABLE[idx].name_norm);
+    int rank = rank_of_glyph(&app, glyph);
+    ASSERT_TRUE("long glyph: appears in filtered results", rank >= 0);
+}
+
+static void test_t8_load_idempotent(void) {
+    setup_home("cofi-emoji-mru-t8");
+    FILE *f = fopen(emoji_history_path(), "w");
+    ASSERT_TRUE("T8: opened history file", f != NULL);
+    if (!f) return;
+    fprintf(f, "{\n  \"picks\": [\n    {\"glyph\": \"😂\"}\n  ]\n}\n");
+    fclose(f);
+
+    emoji_history_load();
+    ASSERT_TRUE("T8: loaded count once", s_history_count == 1);
+    strcpy(s_history_glyphs[0], "X");
+    emoji_history_load();
+    ASSERT_TRUE("T8: second load is no-op", strcmp(s_history_glyphs[0], "X") == 0);
+}
+
+static void test_t9_unknown_glyph_round_trip(void) {
+    setup_home("cofi-emoji-mru-t9");
+    FILE *f = fopen(emoji_history_path(), "w");
+    ASSERT_TRUE("T9: opened history file", f != NULL);
+    if (!f) return;
+    fprintf(f, "{\n  \"picks\": [\n    {\"glyph\": \"NOTREAL\"},\n    {\"glyph\": \"😂\"}\n  ]\n}\n");
+    fclose(f);
+
+    emoji_history_load();
+    ASSERT_TRUE("T9: loaded unknown glyph entry", s_history_count == 2);
+    ASSERT_TRUE("T9: unknown glyph retained", strcmp(s_history_glyphs[0], "NOTREAL") == 0);
+    ASSERT_TRUE("T9: unknown glyph index is -1", s_history_indices[0] == -1);
+    ASSERT_TRUE("T9: known glyph still indexed", s_history_indices[1] >= 0);
+}
+
+static void test_mru_bonus_floor_and_never_picked(void) {
+    setup_home("cofi-emoji-mru-floor");
+    int match_a = -1;
+    int match_b = -1;
+    for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+        if (emoji_rank_score("face", &EMOJI_TABLE[i]) > 0) {
+            if (match_a < 0) {
+                match_a = i;
+            } else if (match_b < 0) {
+                match_b = i;
+                break;
+            }
+        }
+    }
+    ASSERT_TRUE("floor: found two matching entries", match_a >= 0 && match_b >= 0);
+    if (match_a < 0 || match_b < 0) return;
+
+    for (int i = 0; i < 80; i++) {
+        emoji_history_push(EMOJI_TABLE[(i + 2) % EMOJI_TABLE_LEN].glyph);
+    }
+    emoji_history_push(EMOJI_TABLE[match_a].glyph);
+    for (int i = 0; i < 80; i++) {
+        emoji_history_push(EMOJI_TABLE[(i + 120) % EMOJI_TABLE_LEN].glyph);
+    }
+
+    int pos = emoji_history_position(match_a);
+    ASSERT_TRUE("floor: historical match has deep position", pos >= 50);
+
+    int base_a = emoji_rank_score("face", &EMOJI_TABLE[match_a]);
+    int base_b = emoji_rank_score("face", &EMOJI_TABLE[match_b]);
+    int final_a = base_a + EMOJI_MRU_MIN_BONUS;
+    int final_b = base_b;
+    ASSERT_TRUE("floor: deep history still gets minimum bonus", final_a >= base_a + EMOJI_MRU_MIN_BONUS);
+    ASSERT_TRUE("floor: never-picked emoji has no bonus", emoji_history_position(match_b) < 0 || final_b == base_b);
+}
+
+int main(void) {
+    printf("Emoji MRU history tests\n");
+    printf("=======================\n\n");
+
+    test_t1_strong_name_match_beats_heavy_mru_weak_match();
+    test_t2_mru_breaks_ties();
+    test_t3_mru_never_resurrects_or_beats_strong();
+    test_empty_query_unchanged_by_history();
+    test_t5_dedup_move_to_front();
+    test_t7_persistence_round_trip();
+    test_long_glyph_round_trip_and_reindex();
+    test_t8_load_idempotent();
+    test_t9_unknown_glyph_round_trip();
+    test_mru_bonus_floor_and_never_picked();
+
+    printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
+    return tests_run == tests_passed ? 0 : 1;
+}

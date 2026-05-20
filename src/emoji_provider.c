@@ -11,7 +11,10 @@
 
 #include <gtk/gtk.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 enum {
     EMOJI_ALIAS_EXACT_BOOST = 200000,
@@ -22,10 +25,188 @@ enum {
     EMOJI_KEYWORDS_WEIGHT = 2,
     EMOJI_NAME_PREFIX_BOOST = 600,
     EMOJI_NAME_WORD_PREFIX_BOOST = 220,
+    EMOJI_GLYPH_MAX_BYTES = 32,
+    // Keep MRU boost well below EMOJI_NAME_WORD_BOOST so it only breaks ties
+    // within a match tier and never beats a strong name-word match.
+    EMOJI_MRU_MAX_BONUS = 5000,
+    EMOJI_MRU_MIN_BONUS = 100,
 };
 
 static CofiTabProvider s_emoji_provider;
 static int s_emoji_provider_id = -1;
+static char (*s_history_glyphs)[EMOJI_GLYPH_MAX_BYTES] = NULL;
+static int *s_history_indices = NULL;
+static int s_history_count = 0;
+static int s_history_capacity = 0;
+static int s_history_loaded = 0;
+
+static int emoji_history_ensure_capacity(int needed) {
+    if (needed <= s_history_capacity) {
+        return 1;
+    }
+    int new_capacity = s_history_capacity > 0 ? s_history_capacity : 64;
+    while (new_capacity < needed) {
+        if (new_capacity > INT_MAX / 2) {
+            new_capacity = needed;
+            break;
+        }
+        new_capacity *= 2;
+    }
+
+    int *new_indices = realloc(s_history_indices, sizeof(int) * (size_t)new_capacity);
+    if (!new_indices) {
+        return 0;
+    }
+    s_history_indices = new_indices;
+    char (*new_glyphs)[EMOJI_GLYPH_MAX_BYTES] =
+        realloc(s_history_glyphs, (size_t)new_capacity * EMOJI_GLYPH_MAX_BYTES);
+    if (!new_glyphs) {
+        return 0;
+    }
+
+    s_history_glyphs = new_glyphs;
+    for (int i = s_history_capacity; i < new_capacity; i++) {
+        s_history_indices[i] = -1;
+    }
+    s_history_capacity = new_capacity;
+    return 1;
+}
+
+static const char *emoji_history_path(void) {
+    static char path[512];
+    const char *home = getenv("HOME");
+    if (!home || home[0] == '\0') {
+        home = ".";
+    }
+    snprintf(path, sizeof(path), "%s/.config", home);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", home);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/emoji_history.json", home);
+    return path;
+}
+
+static int emoji_history_find_table_index(const char *glyph) {
+    if (!glyph || glyph[0] == '\0') {
+        return -1;
+    }
+    for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+        if (strcmp(EMOJI_TABLE[i].glyph, glyph) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void emoji_history_reindex(void) {
+    for (int i = 0; i < s_history_count; i++) {
+        s_history_indices[i] = emoji_history_find_table_index(s_history_glyphs[i]);
+    }
+}
+
+static int emoji_history_position(int table_idx) {
+    if (table_idx < 0) {
+        return -1;
+    }
+    for (int i = 0; i < s_history_count; i++) {
+        if (s_history_indices[i] == table_idx) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void emoji_history_load(void) {
+    if (s_history_loaded) {
+        return;
+    }
+    s_history_loaded = 1;
+    s_history_count = 0;
+
+    FILE *f = fopen(emoji_history_path(), "r");
+    if (!f) {
+        return;
+    }
+
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        char *glyph_start = strstr(line, "\"glyph\": \"");
+        if (!glyph_start) {
+            continue;
+        }
+        glyph_start += 10;
+        char *glyph_end = strchr(glyph_start, '"');
+        if (!glyph_end) {
+            continue;
+        }
+        if (!emoji_history_ensure_capacity(s_history_count + 1)) {
+            continue;
+        }
+        size_t glyph_len = (size_t)(glyph_end - glyph_start);
+        if (glyph_len >= EMOJI_GLYPH_MAX_BYTES) {
+            glyph_len = EMOJI_GLYPH_MAX_BYTES - 1;
+        }
+        memcpy(s_history_glyphs[s_history_count], glyph_start, glyph_len);
+        s_history_glyphs[s_history_count][glyph_len] = '\0';
+        s_history_count++;
+    }
+
+    fclose(f);
+    emoji_history_reindex();
+}
+
+static void emoji_history_save(void) {
+    FILE *f = fopen(emoji_history_path(), "w");
+    if (!f) {
+        return;
+    }
+    fprintf(f, "{\n  \"picks\": [\n");
+    for (int i = 0; i < s_history_count; i++) {
+        fprintf(f, "    {\"glyph\": \"%s\"}%s\n",
+                s_history_glyphs[i], (i < s_history_count - 1) ? "," : "");
+    }
+    fprintf(f, "  ]\n}\n");
+    fclose(f);
+}
+
+static void emoji_history_push(const char *glyph) {
+    if (!glyph || glyph[0] == '\0') {
+        return;
+    }
+
+    int existing = -1;
+    for (int i = 0; i < s_history_count; i++) {
+        if (strcmp(s_history_glyphs[i], glyph) == 0) {
+            existing = i;
+            break;
+        }
+    }
+
+    if (existing == 0) {
+        s_history_indices[0] = emoji_history_find_table_index(glyph);
+        return;
+    }
+
+    if (existing > 0) {
+        for (int i = existing; i > 0; i--) {
+            memcpy(s_history_glyphs[i], s_history_glyphs[i - 1], EMOJI_GLYPH_MAX_BYTES);
+            s_history_indices[i] = s_history_indices[i - 1];
+        }
+    } else {
+        if (!emoji_history_ensure_capacity(s_history_count + 1)) {
+            return;
+        }
+        s_history_count++;
+        for (int i = s_history_count - 1; i > 0; i--) {
+            memcpy(s_history_glyphs[i], s_history_glyphs[i - 1], EMOJI_GLYPH_MAX_BYTES);
+            s_history_indices[i] = s_history_indices[i - 1];
+        }
+    }
+
+    strncpy(s_history_glyphs[0], glyph, EMOJI_GLYPH_MAX_BYTES - 1);
+    s_history_glyphs[0][EMOJI_GLYPH_MAX_BYTES - 1] = '\0';
+    s_history_indices[0] = emoji_history_find_table_index(s_history_glyphs[0]);
+}
 
 static TabMode emoji_tab_mode(void) {
     const CofiTabProvider *provider = cofi_get_provider(s_emoji_provider_id);
@@ -251,6 +432,8 @@ static CofiActionStatus emoji_on_enter_pressed(AppData *app, int filtered_idx,
 
     GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gtk_clipboard_set_text(clipboard, EMOJI_TABLE[actual_idx].glyph, -1);
+    emoji_history_push(EMOJI_TABLE[actual_idx].glyph);
+    emoji_history_save();
     return COFI_HANDLED_HIDE;
 }
 
@@ -273,6 +456,16 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
     for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
         int score = emoji_rank_score(query, &EMOJI_TABLE[i]);
         if (score > 0) {
+            int pos = emoji_history_position(i);
+            if (pos >= 0) {
+                const int span = 49;
+                const int step = (EMOJI_MRU_MAX_BONUS - EMOJI_MRU_MIN_BONUS) / span;
+                int mru_bonus = EMOJI_MRU_MAX_BONUS - (pos * step);
+                if (mru_bonus < EMOJI_MRU_MIN_BONUS) {
+                    mru_bonus = EMOJI_MRU_MIN_BONUS;
+                }
+                score += mru_bonus;
+            }
             matched_idx[app->filtered_emoji_count] = i;
             matched_score[app->filtered_emoji_count] = score;
             app->filtered_emoji_count++;
@@ -300,6 +493,7 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
 
 static void emoji_on_enter(AppData *app) {
     if (!app || !app->entry) return;
+    emoji_history_load();
     gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "search emoji");
     emoji_on_query_changed(app, "");
 }

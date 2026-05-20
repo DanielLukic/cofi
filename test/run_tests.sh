@@ -208,6 +208,15 @@ if [ -f test_emoji_ranking ]; then
     fi
 fi
 
+if [ -f test_emoji_history ]; then
+    echo ""
+    echo "Running emoji MRU history tests..."
+    ./test_emoji_history
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 if [ -f test_provider_selection ]; then
     echo ""
     echo "Running provider selection tests..."
