@@ -1,5 +1,9 @@
 # cofi plugin architecture plan
 
+> **Landed (TFD-675).** The resulting architecture is recorded in
+> [ADR-0007](../adr/0007-provider-registry-architecture.md). This document is
+> retained as the design-exploration history that led there.
+
 Status: draft for TFD-675
 
 Progress:

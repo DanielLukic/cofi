@@ -14,6 +14,8 @@ Format: numbered, dated, with `Status` + `Supersedes` / `Superseded by` headers.
 | 0004 | [Single-pass fzf FuzzyMatchV2 over the full display row](0004-fzf-fuzzymatchv2-full-row.md) | **Accepted** |
 | 0005 | [One-shot fixed-window-size init](0005-one-shot-fixed-window-size.md) | Superseded by 0006 |
 | 0006 | [Per-show window-size recompute on cursor monitor](0006-per-show-window-size-recompute.md) | **Accepted** |
+| 0007 | [Registry-based tab architecture (CofiTabProvider)](0007-provider-registry-architecture.md) | **Accepted** |
+| 0008 | [Cluster-correct UTF-8 column rendering](0008-utf8-column-rendering.md) | **Accepted** |
 
 ## Topics intentionally not recorded
 
@@ -48,4 +50,4 @@ Other options and why they were rejected.
 
 ## See also
 
-- [docs/decisions/](../decisions/) — design exploration notes for the plugin API (not strict ADRs); `0004-plugin-architecture-plan.md` is the current TFD-675 roadmap.
+- [docs/decisions/](../decisions/) — design exploration notes for the plugin API (not strict ADRs). The architecture they explored is now recorded in [0007](0007-provider-registry-architecture.md); the decisions docs remain as historical context.
