@@ -296,6 +296,19 @@ wait_for_log_line() {
     fail "$CASE_NAME: timed out waiting for $description"
 }
 
+wait_for_log_literal() {
+    local text="$1"
+    local description="$2"
+
+    for _ in {1..100}; do
+        if [[ -f "$LOG_FILE" ]] && grep -Fq "$text" "$LOG_FILE"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+    fail "$CASE_NAME: timed out waiting for $description"
+}
+
 focus_cofi() {
     wmctrl -a cofi >/dev/null 2>&1 || true
     xdotool windowactivate --sync "$cofi_window"
@@ -495,11 +508,15 @@ run_command_tab_basic() {
     xdotool key Return
     local tab_upper="${tab_name^^}"
     wait_for_log_line "Switched to $tab_name tab|Switched to $tab_upper tab" "$tab_name tab"
+    wait_for_window_geometry_stable "$cofi_window" 8 5 0.1
 
     if [[ -n "$query" ]]; then
         xdotool type --clearmodifiers "$query"
-        wait_for_window_geometry_stable "$cofi_window" 5 3 0.1
+        wait_for_log_literal "USER: Filter text changed -> '$query'" "final '$query' filter text"
+        wait_for_window_geometry_stable "$cofi_window" 8 5 0.1
         sleep 0.05
+    else
+        wait_for_window_geometry_stable "$cofi_window" 8 5 0.1
     fi
 
     capture_and_compare "$fixture_name"
