@@ -5,6 +5,7 @@
 #include "calc_provider.h"
 #include "config_provider.h"
 #include "core_commands.h"
+#include "emoji_provider.h"
 #include "harpoon_provider.h"
 #include "hotkeys_provider.h"
 #include "names_provider.h"
@@ -32,4 +33,5 @@ void cofi_register_builtin_plugins(void) {
     proc_provider_register();
     projects_provider_register();
     profiles_provider_register();
+    emoji_provider_register();
 }

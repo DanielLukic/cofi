@@ -403,6 +403,8 @@ void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
+void preserve_selection(AppData *app) { (void)app; }
+void restore_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
 ProjectSessionEntry *projects_selected_session(AppData *app) {
     (void)app;

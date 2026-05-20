@@ -20,6 +20,10 @@ run = "scripts/run-test-targets.sh"
 description = "Run Xvfb screenshot integration tests"
 run = "make test-integration"
 
+[tasks.gen-emoji]
+description = "Generate emoji dataset sources from scripts/emoji.json"
+run = "python3 scripts/gen_emoji.py"
+
 [tasks.restart]
 description = "Rebuild and restart the user service"
 run = "./restart.sh"

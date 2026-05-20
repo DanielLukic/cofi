@@ -181,6 +181,42 @@ if [ -f test_utf8_columns ]; then
     fi
 fi
 
+if [ -f test_emoji_data ]; then
+    echo ""
+    echo "Running emoji dataset tests..."
+    ./test_emoji_data
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_emoji_provider ]; then
+    echo ""
+    echo "Running emoji provider tests..."
+    ./test_emoji_provider
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_emoji_ranking ]; then
+    echo ""
+    echo "Running emoji ranking oracle tests..."
+    ./test_emoji_ranking
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
+if [ -f test_provider_selection ]; then
+    echo ""
+    echo "Running provider selection tests..."
+    ./test_provider_selection
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run overlay dispatch tests if they exist
 if [ -f test_overlay_dispatch ]; then
     echo ""

@@ -284,6 +284,8 @@ void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query
 void filter_rules(AppData *app, const char *filter) { (void)app; (void)filter; }
 void filter_apps(AppData *app, const char *query) { (void)app; (void)query; }
 void reset_selection(AppData *app) { (void)app; }
+void preserve_selection(AppData *app) { (void)app; }
+void restore_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
 
 #include "../src/key_handler.c"

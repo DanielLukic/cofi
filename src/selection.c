@@ -4,12 +4,15 @@
 #include "display.h"
 #include "tab_metadata.h"
 
+#include <string.h>
+
 // Initialize selection state
 void init_selection(AppData *app) {
     if (!app) return;
 
     app->selection.window_index = 0;
     app->selection.selected_window_id = 0;
+    app->selection.selected_provider_id[0] = '\0';
     app->selection.provider_index = 0;
     app->selection.sinks_index = 0;
 
@@ -166,7 +169,29 @@ void preserve_selection(AppData *app) {
             log_trace("Preserved window selection: ID 0x%lx at index %d",
                       app->selection.selected_window_id, app->selection.window_index);
         }
+        return;
     }
+
+    const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+    if (!provider || !provider->row_identity || !provider->row_count) {
+        app->selection.selected_provider_id[0] = '\0';
+        return;
+    }
+
+    int count = provider->row_count(app);
+    if (count <= 0 || app->selection.provider_index < 0 || app->selection.provider_index >= count) {
+        app->selection.selected_provider_id[0] = '\0';
+        return;
+    }
+
+    const char *id = provider->row_identity(app, app->selection.provider_index);
+    if (!id || id[0] == '\0') {
+        app->selection.selected_provider_id[0] = '\0';
+        return;
+    }
+
+    snprintf(app->selection.selected_provider_id,
+             sizeof(app->selection.selected_provider_id), "%s", id);
 }
 
 // Restore selection after filtering
@@ -198,6 +223,33 @@ void restore_selection(AppData *app) {
             app->selection.window_index = 0;
             app->selection.selected_window_id = (app->filtered_count > 0) ? app->filtered[0].id : 0;
             log_debug("No previous window selection, defaulting to index 0");
+        }
+    } else {
+        const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+        if (provider) {
+            int count = provider->row_count ? provider->row_count(app) : 0;
+            int initial_index = provider->initial_selection_index;
+            if (initial_index < 0 || initial_index >= count) {
+                initial_index = 0;
+            }
+
+            if (count > 0 && provider->row_identity &&
+                app->selection.selected_provider_id[0] != '\0') {
+                bool found = false;
+                for (int i = 0; i < count; i++) {
+                    const char *id = provider->row_identity(app, i);
+                    if (id && strcmp(id, app->selection.selected_provider_id) == 0) {
+                        app->selection.provider_index = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    app->selection.provider_index = initial_index;
+                }
+            } else {
+                app->selection.provider_index = initial_index;
+            }
         }
     }
 

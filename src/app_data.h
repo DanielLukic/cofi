@@ -24,6 +24,7 @@
 #include "daemon_socket.h"
 #include "calc.h"
 #include "sessions.h"
+#include "emoji_data.h"
 
 #define MAX_PROVIDER_ENABLEMENT_ROWS 32
 
@@ -102,10 +103,13 @@ typedef struct {
 
 typedef enum { APPS_MODE_DEFAULT, APPS_MODE_PATH } AppsMode;
 
+#define PROVIDER_ID_MAX SESSION_PATH_LEN
+
 // Selection management structure
 typedef struct {
     int window_index;                       // Selected index in filtered windows array
     Window selected_window_id;              // ID of currently selected window (for persistence)
+    char selected_provider_id[PROVIDER_ID_MAX]; // Selected provider row identity (for persistence)
 
     int provider_index;                     // Selected index for any registered provider tab
     int sinks_index;                        // Selected index in sinks tab
@@ -176,6 +180,8 @@ typedef struct AppData {
     // Apps tab data
     AppEntry filtered_apps[MAX_APPS];
     int filtered_apps_count;
+    int filtered_emoji[EMOJI_COUNT];
+    int filtered_emoji_count;
 
     // Sinks tab data
     SinksMode sinks_mode;

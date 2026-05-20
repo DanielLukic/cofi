@@ -178,7 +178,9 @@ void on_entry_changed(GtkEntry *entry, AppData *app) {
     } else {
         const CofiTabProvider *p = cofi_get_provider_for_tab(app->current_tab);
         if (p && p->on_query_changed) {
+            preserve_selection(app);
             p->on_query_changed(app, text);
+            restore_selection(app);
             handled_by_provider = TRUE;
         }
     }

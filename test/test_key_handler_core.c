@@ -104,6 +104,8 @@ void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void filter_rules(AppData *app, const char *filter);
 void reset_selection(AppData *app);
+void preserve_selection(AppData *app);
+void restore_selection(AppData *app);
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
@@ -516,6 +518,8 @@ void filter_apps(AppData *app, const char *query) {
 }
 
 void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
+void preserve_selection(AppData *app) { (void)app; }
+void restore_selection(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 
 #include "../src/key_handler.c"

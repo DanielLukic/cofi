@@ -136,6 +136,47 @@ wait_for_window_title() {
     [[ "$windows_ready" -eq 1 ]] || fail "$CASE_NAME: expected window title '$title' in the WM client list"
 }
 
+wait_for_window_geometry_stable() {
+    local window_id="$1"
+    local timeout_secs="${2:-5}"
+    local stable_reads_required="${3:-3}"
+    local poll_interval_secs="${4:-0.1}"
+
+    local deadline=$((SECONDS + timeout_secs))
+    local stable_reads=0
+    local prev_dims=""
+    local width=0
+    local height=0
+
+    while (( SECONDS < deadline )); do
+        WIDTH=0
+        HEIGHT=0
+        if ! eval "$(xdotool getwindowgeometry --shell "$window_id" 2>/dev/null)"; then
+            stable_reads=0
+            prev_dims=""
+            sleep "$poll_interval_secs"
+            continue
+        fi
+
+        width="$WIDTH"
+        height="$HEIGHT"
+        local dims="${width}x${height}"
+        if [[ "$dims" == "$prev_dims" ]]; then
+            stable_reads=$((stable_reads + 1))
+            if (( stable_reads >= stable_reads_required )); then
+                return 0
+            fi
+        else
+            prev_dims="$dims"
+            stable_reads=1
+        fi
+
+        sleep "$poll_interval_secs"
+    done
+
+    fail "$CASE_NAME: cofi window geometry did not stabilize within ${timeout_secs}s"
+}
+
 start_test_windows() {
     xterm -T "TestWindow::One - title uses reclaimed XID space - visible-extra-marker-END" >"$TEST_ROOT/xterm-one.log" 2>&1 &
     pids+=("$!")
@@ -457,6 +498,8 @@ run_command_tab_basic() {
 
     if [[ -n "$query" ]]; then
         xdotool type --clearmodifiers "$query"
+        wait_for_window_geometry_stable "$cofi_window" 5 3 0.1
+        sleep 0.05
     fi
 
     capture_and_compare "$fixture_name"
@@ -500,6 +543,26 @@ run_rules_basic() {
 
 run_calc_basic() {
     run_command_tab_basic "calc" "Calc" "calc-basic.png"
+}
+
+run_emoji_initial() {
+    run_command_tab_basic "emoji" "Emoji" "emoji-initial.png"
+}
+
+run_emoji_joy() {
+    run_command_tab_basic "emoji" "Emoji" "emoji-joy.png" "joy"
+}
+
+run_emoji_arrows() {
+    run_command_tab_basic "emoji" "Emoji" "emoji-arrows.png" "aup"
+}
+
+run_emoji_heart() {
+    run_command_tab_basic "emoji" "Emoji" "emoji-heart.png" "heart"
+}
+
+run_emoji_flags() {
+    run_command_tab_basic "emoji" "Emoji" "emoji-flags.png" "flag"
 }
 
 run_sinks_basic() {
@@ -658,6 +721,11 @@ run_selected_case config_basic
 run_selected_case hotkeys_basic
 run_selected_case rules_basic
 run_selected_case calc_basic
+run_selected_case emoji_initial
+run_selected_case emoji_joy
+run_selected_case emoji_arrows
+run_selected_case emoji_heart
+run_selected_case emoji_flags
 run_selected_case sinks_basic
 run_selected_case proc_basic
 run_selected_case sessions_keys
