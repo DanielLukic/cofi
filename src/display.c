@@ -20,6 +20,9 @@
 #include "tab_metadata.h"
 #include "tab_header.h"
 #include "slot_store.h"
+#include "utf8_columns.h"
+
+#define UTF8_FIT_BUFFER_SIZE 4096
 
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
@@ -52,47 +55,6 @@ static void format_candidate_strip(AppData *app, GString *output) {
     }
 }
 
-static void clip_display_lines_to_columns(GString *text, int target_columns) {
-    // `get_display_columns()` falls back to a positive value before the fixed
-    // window cache is initialized; a non-positive value means the caller passed
-    // an invalid target and clipping would be ambiguous.
-    if (!text || target_columns <= 0) {
-        return;
-    }
-
-    GString *clipped = g_string_sized_new(text->len);
-    const char *p = text->str;
-    while (*p) {
-        const char *nl = strchr(p, '\n');
-        const char *line_end = nl ? nl : p + strlen(p);
-        int cols = 0;
-        while (p < line_end && cols < target_columns) {
-            gunichar ch = g_utf8_get_char_validated(p, line_end - p);
-            if (ch == (gunichar)-1 || ch == (gunichar)-2) {
-                g_string_append_c(clipped, ' ');
-                p++;
-                cols++;
-                continue;
-            }
-            int char_cols = g_unichar_iswide(ch) ? 2 : 1;
-            if (cols + char_cols > target_columns) {
-                break;
-            }
-            const char *next = g_utf8_next_char(p);
-            g_string_append_len(clipped, p, next - p);
-            p = next;
-            cols += char_cols;
-        }
-        p = line_end;
-        if (nl) {
-            g_string_append_c(clipped, '\n');
-            p = nl + 1;
-        }
-    }
-    g_string_assign(text, clipped->str);
-    g_string_free(clipped, TRUE);
-}
-
 // Format desktop string like Go code
 static void format_desktop_str(int desktop, char *output) {
     if (desktop < 0 || desktop > 99) {
@@ -100,108 +62,6 @@ static void format_desktop_str(int desktop, char *output) {
     } else {
         snprintf(output, 5, DESKTOP_FORMAT, desktop + 1);  // Display as 1-based
     }
-}
-
-// Clean text: replace non-ASCII and newlines with spaces, squash consecutive spaces
-static void clean_text(const char *text, char *output, size_t output_size) {
-    int j = 0;
-    int last_was_space = 0;
-    
-    for (int i = 0; text[i] && j < (int)output_size - 1; i++) {
-        unsigned char c = (unsigned char)text[i];
-        if (c < 32 || c > 126) {
-            // Replace non-printable and non-ASCII with space
-            if (!last_was_space) {
-                output[j++] = ' ';
-                last_was_space = 1;
-            }
-        } else if (c == ' ') {
-            // Regular space
-            if (!last_was_space) {
-                output[j++] = ' ';
-                last_was_space = 1;
-            }
-        } else {
-            // Normal character
-            output[j++] = text[i];
-            last_was_space = 0;
-        }
-    }
-    output[j] = '\0';
-}
-
-// Trim leading and trailing spaces from text
-static char* trim_text(char *text) {
-    // Trim leading spaces
-    char *start = text;
-    while (*start == ' ') start++;
-    
-    // Trim trailing spaces
-    char *end = start + strlen(start) - 1;
-    while (end > start && *end == ' ') end--;
-    *(end + 1) = '\0';
-    
-    return start;
-}
-
-// Pad text to specified width
-static void pad_text(const char *text, int width, char *output) {
-    snprintf(output, width + 1, "%-*s", width, text);
-}
-
-// Fit text to column width like Go code
-static void fit_column(const char *text, int width, char *output) {
-    if (!text || text[0] == '\0') {
-        // Fill with spaces if empty
-        memset(output, ' ', width);
-        output[width] = '\0';
-        return;
-    }
-    
-    // Clean text
-    char clean_buffer[512];
-    clean_text(text, clean_buffer, sizeof(clean_buffer));
-    
-    // Trim spaces
-    char *trimmed = trim_text(clean_buffer);
-    
-    // Truncate if too long
-    if (strlen(trimmed) > (size_t)width) {
-        trimmed[width] = '\0';
-    }
-    
-    // Left-align with padding
-    pad_text(trimmed, width, output);
-}
-
-static void fit_column_ellipsis(const char *text, int width, char *output) {
-    if (!output || width <= 0) {
-        return;
-    }
-    if (!text || text[0] == '\0') {
-        memset(output, ' ', width);
-        output[width] = '\0';
-        return;
-    }
-
-    char clean_buffer[1024];
-    clean_text(text, clean_buffer, sizeof(clean_buffer));
-    char *trimmed = trim_text(clean_buffer);
-    size_t len = strlen(trimmed);
-    if ((int)len <= width) {
-        pad_text(trimmed, width, output);
-        return;
-    }
-
-    if (width <= 3) {
-        memset(output, '.', width);
-        output[width] = '\0';
-        return;
-    }
-
-    memcpy(output, trimmed, (size_t)(width - 3));
-    memcpy(output + width - 3, "...", 3);
-    output[width] = '\0';
 }
 
 // Get maximum display lines using dynamic calculation
@@ -265,6 +125,7 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 // pass flipped offset: (total_items - visible_items) - scroll_offset.
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
     if (total_items <= visible_items || target_columns <= 0) return;
+    // TODO(TFD-759): `strlen` and byte truncation in this function are not UTF-8 column-safe.
 
     // Find max line length so scrollbar column is at least past all content
     int max_line_len = 0;
@@ -347,9 +208,9 @@ static void render_windows_item(gpointer context, gint index,
 
     char harpoon_col[DISPLAY_HARPOON_WIDTH + 2];
     char desktop_col[DISPLAY_DESKTOP_WIDTH + 1];
-    char instance_col[DISPLAY_INSTANCE_WIDTH + 1];
-    char title_col[WINDOWS_TITLE_WIDTH + 1];
-    char class_col[DISPLAY_CLASS_WIDTH + 1];
+    char instance_col[UTF8_FIT_BUFFER_SIZE];
+    char title_col[UTF8_FIT_BUFFER_SIZE];
+    char class_col[UTF8_FIT_BUFFER_SIZE];
 
     gint slot = get_window_slot(&app->harpoon, win->id);
 
@@ -365,14 +226,14 @@ static void render_windows_item(gpointer context, gint index,
     }
 
     format_desktop_str(win->desktop, desktop_col);
-    fit_column(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col);
+    utf8_fit_columns(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col, sizeof(instance_col));
 
     char display_title[MAX_TITLE_LEN];
     strncpy(display_title, win->title, sizeof(display_title) - 1);
     display_title[sizeof(display_title) - 1] = '\0';
 
-    fit_column(display_title, WINDOWS_TITLE_WIDTH, title_col);
-    fit_column(display_class, DISPLAY_CLASS_WIDTH, class_col);
+    utf8_fit_columns(display_title, WINDOWS_TITLE_WIDTH, title_col, sizeof(title_col));
+    utf8_fit_columns(display_class, DISPLAY_CLASS_WIDTH, class_col, sizeof(class_col));
 
     g_string_append(text, harpoon_col);
     g_string_append(text, desktop_col);
@@ -464,18 +325,10 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
             if (col_width <= 0) {
                 continue;
             }
-            char col[256];
+            char col[UTF8_FIT_BUFFER_SIZE];
             int fit = col_width < 255 ? col_width : 255;
-            fit_column(t, fit, col);
-            if (w > 0) {
-                if (row.cells[c].align == 1) {
-                    g_string_append_printf(text, "%*s", col_width, col);
-                } else {
-                    g_string_append_printf(text, "%-*s", col_width, col);
-                }
-            } else {
-                g_string_append(text, col);
-            }
+            utf8_fit_columns_aligned(t, fit, row.cells[c].align == 1, col, sizeof(col));
+            g_string_append(text, col);
             line_cols += col_width;
         }
         g_string_append_c(text, '\n');
@@ -534,7 +387,7 @@ void update_display(AppData *app) {
     tab_header_format(app, app->current_tab, get_display_columns(app), text);
 
     format_candidate_strip(app, text);
-    clip_display_lines_to_columns(text, get_display_columns(app));
+    utf8_clip_lines_to_columns(text, get_display_columns(app));
     
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);

@@ -172,6 +172,15 @@ if [ -f test_display_pipeline ]; then
     fi
 fi
 
+if [ -f test_utf8_columns ]; then
+    echo ""
+    echo "Running UTF-8 column tests..."
+    ./test_utf8_columns
+    if [ $? -ne 0 ]; then
+        overall_exit=1
+    fi
+fi
+
 # Run overlay dispatch tests if they exist
 if [ -f test_overlay_dispatch ]; then
     echo ""

@@ -26,6 +26,7 @@ SOURCES = src/main.c \
           src/window_list.c \
           src/history.c \
           src/display.c \
+          src/utf8_columns.c \
           src/filter.c \
           src/log.c \
           src/x11_events.c \
@@ -231,7 +232,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 # Test targets
-test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_hotkey_dispatch test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_workspaces_provider test_hotkeys_provider test_names_provider test_rules_provider test_sessions test_sessions_provider test_browser_profiles test_profiles_provider test_sinks test_sinks_provider test_proc test_proc_provider test_projects test_projects_provider test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_header test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_plugin_boundaries test_cofi_modal test_run_provider
+test: test_window_matcher test_command_parsing test_command_parser_execution test_config_roundtrip test_config_set test_hotkey_config test_hotkey_dispatch test_fzf_algo test_named_window test_match_scoring test_command_aliases test_wildcard_match test_parse_shortcut test_scrollbar test_utf8_columns test_rules test_rules_replay test_command_dispatch test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state test_hotkey_rebind_flow test_command_handlers_split test_command_handlers_behavior test_main_split_regression test_key_handler_core test_key_handler_harpoon test_key_handler_tabs test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion test_window_lifecycle_fixed_reset test_initial_slot_overlays test_repeat_action test_run_mode test_cli_args_run test_filter_ranking test_apps test_apps_provider test_config_provider test_harpoon_provider test_workspaces_provider test_hotkeys_provider test_names_provider test_rules_provider test_sessions test_sessions_provider test_browser_profiles test_profiles_provider test_sinks test_sinks_provider test_proc test_proc_provider test_projects test_projects_provider test_slot_store test_system_actions test_path_binaries test_command_mode_targeting test_daemon_socket test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility test_tab_header test_tab_metadata test_command_candidates test_detach_launch test/test_detach_survival_bin test_calc test_calc_provider test_cofi_tab_provider test_plugin_boundaries test_cofi_modal test_run_provider
 	cd test && ./run_tests.sh
 
 .PHONY: test-integration
@@ -309,6 +310,9 @@ test_dynamic_display_fixed: test/test_dynamic_display_fixed.c src/dynamic_displa
 # Build display pipeline tests
 test_display_pipeline: test/test_display_pipeline.c src/display_pipeline.o
 	$(CC) $(CFLAGS) -o test/test_display_pipeline test/test_display_pipeline.c src/display_pipeline.o $(LDFLAGS)
+
+test_utf8_columns: test/test_utf8_columns.c src/utf8_columns.o
+	$(CC) $(CFLAGS) -o test/test_utf8_columns test/test_utf8_columns.c src/utf8_columns.o $(LDFLAGS)
 
 # Build overlay dispatch tests
 test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o
@@ -440,8 +444,8 @@ test_tab_metadata: test/test_tab_metadata.c src/tab_metadata.o
 	$(CC) $(CFLAGS) -o test/test_tab_metadata test/test_tab_metadata.c src/tab_metadata.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)

@@ -68,6 +68,10 @@ JSON
         chmod +x "$bin"
     done
 
+    unicode_bin="$PATH_BIN_DIR/cofi-path-unicode-Café-日本-👍🏽-👨‍💻-🇩🇪"
+    printf '#!/usr/bin/env sh\nexit 0\n' > "$unicode_bin"
+    chmod +x "$unicode_bin"
+
     cat > "$PATH_BIN_DIR/pactl" <<'SH'
 #!/usr/bin/env sh
 if [ "$1" = "get-default-sink" ]; then
@@ -118,6 +122,20 @@ wait_for_test_window_count() {
     [[ "$windows_ready" -eq 1 ]] || fail "$CASE_NAME: expected $expected_count test windows in the WM client list"
 }
 
+wait_for_window_title() {
+    local title="$1"
+
+    windows_ready=0
+    for _ in {1..100}; do
+        if wmctrl -l 2>/dev/null | grep -Fq "$title"; then
+            windows_ready=1
+            break
+        fi
+        sleep 0.1
+    done
+    [[ "$windows_ready" -eq 1 ]] || fail "$CASE_NAME: expected window title '$title' in the WM client list"
+}
+
 start_test_windows() {
     xterm -T "TestWindow::One - title uses reclaimed XID space - visible-extra-marker-END" >"$TEST_ROOT/xterm-one.log" 2>&1 &
     pids+=("$!")
@@ -128,6 +146,55 @@ start_test_windows() {
     wait_for_test_window_count 2
 
     wmctrl -a "TestWindow::Two" >/dev/null 2>&1 || true
+}
+
+start_dense_test_windows() {
+    local titles=(
+        "DenseWindow::Root htop - Terminal"
+        "DenseWindow::backup Caja"
+        "DenseWindow::auto-hook | * auto-hook Terminal"
+        "DenseWindow::Chrome Issue › Review — Browser"
+        "DenseWindow::brew | * brew mirror sync Terminal"
+        "DenseWindow::admin | * admin Terminal"
+        "DenseWindow::Trading - Price & Chart | Browser"
+        "DenseWindow::taxes | * taxes Terminal"
+        "DenseWindow::Daily Software Team 2026 | Teams"
+        "DenseWindow::Slack DM - Test User"
+        "DenseWindow::Symbols ∗ · › — Café 日本 👍🏽"
+        "DenseWindow::long title with enough words to force clipping at the title column boundary END"
+    )
+
+    local count=0
+    local safe_title
+    local title
+    local wid
+    for title in "${titles[@]}"; do
+        count=$((count + 1))
+        safe_title="DenseWindow::seed-$count"
+        xterm -T "$safe_title" >"$TEST_ROOT/xterm-dense-$count.log" 2>&1 &
+        pids+=("$!")
+        wait_for_dense_window_count "$count"
+        wid="$(xdotool search --name "$safe_title" | tail -n 1)"
+        [[ -n "$wid" ]] || fail "$CASE_NAME: could not find dense test window $safe_title"
+        xprop -id "$wid" -f _NET_WM_NAME 8u -set _NET_WM_NAME "$title"
+        xprop -id "$wid" -set WM_NAME "$title"
+    done
+    wait_for_dense_window_count "${#titles[@]}"
+}
+
+wait_for_dense_window_count() {
+    local expected_count="$1"
+
+    windows_ready=0
+    for _ in {1..100}; do
+        count="$(wmctrl -l 2>/dev/null | grep -c "DenseWindow::" || true)"
+        if [[ "$count" -ge "$expected_count" ]]; then
+            windows_ready=1
+            break
+        fi
+        sleep 0.1
+    done
+    [[ "$windows_ready" -eq 1 ]] || fail "$CASE_NAME: expected $expected_count dense test windows in the WM client list"
 }
 
 launch_cofi() {
@@ -167,7 +234,7 @@ launch_cofi_windows() {
 wait_for_window_enumeration() {
     for _ in {1..100}; do
         if [[ -f "$LOG_FILE" ]] &&
-           grep -Eq "Window enumeration completed .*\\([2-9][0-9]* windows\\)|Total windows stored: [2-9][0-9]*" "$LOG_FILE"; then
+           grep -Eq "Window enumeration completed .*\\(([2-9]|[1-9][0-9]+) windows\\)|Total windows stored: ([2-9]|[1-9][0-9]+)" "$LOG_FILE"; then
             return 0
         fi
         sleep 0.1
@@ -281,6 +348,75 @@ run_windows_basic() {
     focus_cofi
 
     capture_and_compare "windows-basic.png"
+}
+
+run_windows_dense_columns() {
+    setup_common_config
+    export LC_ALL=C.utf8
+    export LANG=C.utf8
+    start_window_manager
+    start_dense_test_windows
+    launch_cofi_windows
+    wait_for_window_enumeration
+    focus_cofi
+
+    capture_and_compare "windows-dense-columns.png"
+}
+
+run_windows_symbol_columns() {
+    setup_common_config
+    export LC_ALL=C.utf8
+    export LANG=C.utf8
+    start_window_manager
+    start_test_windows
+
+    xterm -T "TestWindow::Symbols" >"$TEST_ROOT/xterm-symbols.log" 2>&1 &
+    pids+=("$!")
+    wait_for_test_window_count 3
+    xdotool search --name "TestWindow::Symbols" set_window --name "TestWindow::Symbols ∗ · › — Café 日本 👍🏽"
+    wait_for_window_title "TestWindow::Symbols"
+
+    launch_cofi_windows
+    wait_for_window_enumeration
+    focus_cofi
+    xdotool type --clearmodifiers 'Symbols'
+
+    wait_for_log_line "Filter text changed -> 'Symbols'" "Symbols filter"
+    capture_and_compare "windows-symbol-columns.png"
+}
+
+run_unicode_rendering() {
+    setup_common_config
+    export LC_ALL=C.utf8
+    export LANG=C.utf8
+    start_window_manager
+    start_test_windows
+    launch_cofi_windows
+    wait_for_window_enumeration
+    focus_cofi
+    xdotool type --clearmodifiers '$unicode'
+
+    for _ in {1..100}; do
+        if [[ -f "$LOG_FILE" ]] &&
+           grep -q "path_binaries_filter 'unicode'" "$LOG_FILE" &&
+           grep -q "PATH scan:" "$LOG_FILE"; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    kill -0 "$cofi_pid" >/dev/null 2>&1 || fail "$CASE_NAME: cofi exited while rendering Unicode provider row"
+    WIDTH=0
+    HEIGHT=0
+    eval "$(xdotool getwindowgeometry --shell "$cofi_window" 2>/dev/null || true)"
+    [[ "$WIDTH" -gt 0 && "$WIDTH" -le 1220 ]] \
+        || fail "$CASE_NAME: cofi window too wide after Unicode provider row: $WIDTH"
+    [[ "$HEIGHT" -gt 0 ]] || fail "$CASE_NAME: cofi window has invalid height after Unicode provider row"
+
+    import -window "$cofi_window" "$WINDOW_SCREENSHOT_FILE"
+    local screenshot_size
+    screenshot_size="$(gm identify -format '%wx%h' "$WINDOW_SCREENSHOT_FILE")"
+    [[ -n "$screenshot_size" ]] || fail "$CASE_NAME: failed to capture Unicode rendering screenshot"
 }
 
 run_cli_tab_basic() {
@@ -511,6 +647,9 @@ run_selected_case() {
 
 run_selected_case apps_path_bin
 run_selected_case windows_basic
+run_selected_case windows_dense_columns
+run_selected_case windows_symbol_columns
+run_selected_case unicode_rendering
 run_selected_case workspaces_basic
 run_selected_case harpoon_basic
 run_selected_case names_basic
