@@ -54,16 +54,17 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
 
 #include "../src/window_lifecycle.c"
 
-static AppData make_app(DigitSlotMode mode, TabMode tab, gboolean visible) {
-    AppData app = {0};
-    app.config.digit_slot_mode = mode;
-    app.current_tab = tab;
-    app.window_visible = visible;
-    return app;
+static void init_app(AppData *app, DigitSlotMode mode, TabMode tab, gboolean visible) {
+    if (!app) return;
+    memset(app, 0, sizeof(*app));
+    app->config.digit_slot_mode = mode;
+    app->current_tab = tab;
+    app->window_visible = visible;
 }
 
 static void test_calls_assign_for_workspace_windows_visible(void) {
-    AppData app = make_app(DIGIT_MODE_PER_WORKSPACE, TAB_WINDOWS, TRUE);
+    AppData app;
+    init_app(&app, DIGIT_MODE_PER_WORKSPACE, TAB_WINDOWS, TRUE);
     assign_workspace_slots_calls = 0;
 
     maybe_show_initial_slot_overlays(&app);
@@ -73,7 +74,8 @@ static void test_calls_assign_for_workspace_windows_visible(void) {
 }
 
 static void test_does_not_call_for_default_mode(void) {
-    AppData app = make_app(DIGIT_MODE_DEFAULT, TAB_WINDOWS, TRUE);
+    AppData app;
+    init_app(&app, DIGIT_MODE_DEFAULT, TAB_WINDOWS, TRUE);
     assign_workspace_slots_calls = 0;
 
     maybe_show_initial_slot_overlays(&app);
@@ -83,7 +85,8 @@ static void test_does_not_call_for_default_mode(void) {
 }
 
 static void test_does_not_call_for_workspaces_mode(void) {
-    AppData app = make_app(DIGIT_MODE_WORKSPACES, TAB_WINDOWS, TRUE);
+    AppData app;
+    init_app(&app, DIGIT_MODE_WORKSPACES, TAB_WINDOWS, TRUE);
     assign_workspace_slots_calls = 0;
 
     maybe_show_initial_slot_overlays(&app);
@@ -93,8 +96,10 @@ static void test_does_not_call_for_workspaces_mode(void) {
 }
 
 static void test_does_not_call_for_non_windows_tabs(void) {
-    AppData app_harpoon = make_app(DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 1), TRUE);
-    AppData app_apps = make_app(DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 2), TRUE);
+    AppData app_harpoon;
+    AppData app_apps;
+    init_app(&app_harpoon, DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 1), TRUE);
+    init_app(&app_apps, DIGIT_MODE_PER_WORKSPACE, (TabMode)(TAB_COUNT + 2), TRUE);
     assign_workspace_slots_calls = 0;
 
     maybe_show_initial_slot_overlays(&app_harpoon);
@@ -105,7 +110,8 @@ static void test_does_not_call_for_non_windows_tabs(void) {
 }
 
 static void test_does_not_call_when_not_visible(void) {
-    AppData app = make_app(DIGIT_MODE_PER_WORKSPACE, TAB_WINDOWS, FALSE);
+    AppData app;
+    init_app(&app, DIGIT_MODE_PER_WORKSPACE, TAB_WINDOWS, FALSE);
     assign_workspace_slots_calls = 0;
 
     maybe_show_initial_slot_overlays(&app);

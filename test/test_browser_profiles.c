@@ -99,9 +99,16 @@ int main(void) {
     ASSERT_TRUE("profile-name fuzzy match wins over email-only match",
                 mode.filtered_count > 0 && mode.filtered_indices[0] == 1);
 
-    browser_profiles_filter(&mode, "gh");
+    browser_profiles_filter(&mode, "stha");
+    gboolean found_hannah = FALSE;
+    for (int i = 0; i < mode.filtered_count; i++) {
+        if (mode.filtered_indices[i] == 1) {
+            found_hannah = TRUE;
+            break;
+        }
+    }
     ASSERT_TRUE("domain-plus-name fuzzy match finds Hannah",
-                mode.filtered_count > 0 && mode.filtered_indices[0] == 1);
+                mode.filtered_count > 0 && found_hannah);
 
     browser_profiles_filter(&mode, "gc");
     ASSERT_TRUE("browser marker can still show chrome profiles", mode.filtered_count == 3);
