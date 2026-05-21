@@ -17,7 +17,6 @@
 static CofiTabProvider s_projects_provider;
 static int s_projects_provider_id = -1;
 #define PROJECTS_PROVIDER_ID "projects"
-#define LEGACY_PROJECTS_SLOT_PROVIDER_ID "sessions"
 
 static int set_optional_executable_path(char *field, size_t field_size,
                                         const char *key,
@@ -282,9 +281,6 @@ static CofiActionStatus projects_provider_on_command_args(AppData *app, const ch
     char slot = '\0';
     if (slot_parse_at_key_arg(args, &slot)) {
         const char *payload = slot_lookup(&app->harpoon.store, PROJECTS_PROVIDER_ID, slot);
-        if (!payload) {
-            payload = slot_lookup(&app->harpoon.store, LEGACY_PROJECTS_SLOT_PROVIDER_ID, slot);
-        }
         if (!payload) return COFI_ACTION_ERROR;
         return projects_slot_recall(app, payload);
     }
