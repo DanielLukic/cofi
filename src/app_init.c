@@ -15,6 +15,7 @@
 #include "command_mode.h"
 #include "cofi_tab_provider.h"
 #include "run_mode.h"
+#include "calc.h"
 #include "selection.h"
 #include "rules_config.h"
 #include "rules.h"
@@ -112,6 +113,7 @@ void init_app_data(AppData *app) {
 
     // Initialize calc mode
     memset(&app->calc_mode, 0, sizeof(app->calc_mode));
+    calc_history_load(&app->calc_mode);
     init_sinks_mode(&app->sinks_mode);
     init_proc_mode(&app->proc_mode);
     init_projects_mode(&app->projects_mode);

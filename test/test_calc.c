@@ -10,9 +10,12 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <locale.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* Stub log functions that calc.c calls */
 void log_debug(const char *fmt, ...) { (void)fmt; }
@@ -346,9 +349,48 @@ static void test_eval_chained_operations(void) {
     ASSERT_TRUE("history has 3 entries", calc.count == 3);
 }
 
+static void test_history_json_roundtrip(void) {
+    CalcMode calc = {0};
+    CalcMode loaded = {0};
+    mkdir("/tmp/cofi-calc-history-roundtrip", 0755);
+    setenv("HOME", "/tmp/cofi-calc-history-roundtrip", 1);
+
+    calc_push(&calc, "1+1", "2", FALSE);
+    calc_push(&calc, "2+2", "4", FALSE);
+
+    calc_history_load(&loaded);
+    ASSERT_TRUE("history roundtrip count", loaded.count == 2);
+    ASSERT_STR("history roundtrip newest expr", loaded.entries[0].expr, "2+2");
+    ASSERT_STR("history roundtrip newest result", loaded.entries[0].result, "4");
+    ASSERT_STR("history roundtrip second expr", loaded.entries[1].expr, "1+1");
+    ASSERT_STR("history roundtrip last_result", loaded.last_result, "4");
+}
+
+static void test_history_load_restores_operator_continuation(void) {
+    CalcMode calc = {0};
+    CalcMode loaded = {0};
+    char result[CALC_RESULT_LEN];
+
+    mkdir("/tmp/cofi-calc-history-continuation", 0755);
+    setenv("HOME", "/tmp/cofi-calc-history-continuation", 1);
+
+    calc_eval(&calc, "17+4", result);
+    calc_history_load(&loaded);
+    gboolean ok = calc_eval(&loaded, "-1", result);
+
+    ASSERT_TRUE("history load continuation eval succeeds", ok);
+    ASSERT_STR("history load continuation uses restored last_result", result, "20");
+    ASSERT_STR("history load continuation stores expanded expr", loaded.entries[0].expr, "21-1");
+}
+
 /* ---- main ---- */
 
 int main(void) {
+    char home_dir[128];
+    snprintf(home_dir, sizeof(home_dir), "/tmp/cofi-calc-test-%ld", (long)getpid());
+    mkdir(home_dir, 0755);
+    setenv("HOME", home_dir, 1);
+
     printf("Calculator behavioral tests\n");
     printf("===========================\n\n");
 
@@ -390,6 +432,8 @@ int main(void) {
     test_eval_operator_continuation();
     test_eval_empty_expr_returns_false();
     test_eval_chained_operations();
+    test_history_json_roundtrip();
+    test_history_load_restores_operator_continuation();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return (fail == 0) ? 0 : 1;

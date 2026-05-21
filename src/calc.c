@@ -2,14 +2,30 @@
 #include "tinyexpr.h"
 #include "log.h"
 
+#include <json-glib/json-glib.h>
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <locale.h>
+#include <sys/stat.h>
 
 static int is_leading_operator(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^';
+}
+
+static const char *calc_history_path(void) {
+    static char path[512];
+    const char *home = getenv("HOME");
+    if (!home || home[0] == '\0') {
+        home = ".";
+    }
+    snprintf(path, sizeof(path), "%s/.config", home);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", home);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/calc_history.json", home);
+    return path;
 }
 
 static char *push_c_numeric_locale(void) {
@@ -133,6 +149,8 @@ void calc_push(CalcMode *calc, const char *expr, const char *result, gboolean is
         strncpy(calc->last_result, result, CALC_RESULT_LEN - 1);
         calc->last_result[CALC_RESULT_LEN - 1] = '\0';
     }
+
+    calc_history_save(calc);
 }
 
 gboolean calc_eval(CalcMode *calc, const char *raw_expr, char *result_out) {
@@ -165,4 +183,96 @@ gboolean calc_eval(CalcMode *calc, const char *raw_expr, char *result_out) {
     calc_push(calc, prepared, result_out, FALSE);
     log_debug("calc: '%s' = %s", prepared, result_out);
     return TRUE;
+}
+
+void calc_clear(CalcMode *calc) {
+    if (!calc) return;
+    memset(calc->entries, 0, sizeof(calc->entries));
+    calc->count = 0;
+    calc->last_result[0] = '\0';
+}
+
+void calc_history_save(const CalcMode *calc) {
+    if (!calc) return;
+
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "entries");
+    json_builder_begin_array(builder);
+    for (int i = 0; i < calc->count; i++) {
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "expr");
+        json_builder_add_string_value(builder, calc->entries[i].expr);
+        json_builder_set_member_name(builder, "result");
+        json_builder_add_string_value(builder, calc->entries[i].result);
+        json_builder_end_object(builder);
+    }
+    json_builder_end_array(builder);
+    json_builder_set_member_name(builder, "last_result");
+    json_builder_add_string_value(builder, calc->last_result);
+    json_builder_end_object(builder);
+
+    JsonGenerator *gen = json_generator_new();
+    JsonNode *root = json_builder_get_root(builder);
+    json_generator_set_root(gen, root);
+    json_generator_set_pretty(gen, TRUE);
+
+    GError *error = NULL;
+    json_generator_to_file(gen, calc_history_path(), &error);
+    if (error) {
+        log_warn("calc: failed to save history: %s", error->message);
+        g_clear_error(&error);
+    }
+
+    json_node_free(root);
+    g_object_unref(gen);
+    g_object_unref(builder);
+}
+
+void calc_history_load(CalcMode *calc) {
+    if (!calc) return;
+    calc_clear(calc);
+
+    if (!g_file_test(calc_history_path(), G_FILE_TEST_EXISTS)) {
+        return;
+    }
+
+    JsonParser *parser = json_parser_new();
+    GError *error = NULL;
+    if (!json_parser_load_from_file(parser, calc_history_path(), &error)) {
+        log_warn("calc: failed to parse history file: %s", error ? error->message : "unknown");
+        g_clear_error(&error);
+        g_object_unref(parser);
+        return;
+    }
+
+    JsonNode *root = json_parser_get_root(parser);
+    if (!root || json_node_get_node_type(root) != JSON_NODE_OBJECT) {
+        g_object_unref(parser);
+        return;
+    }
+
+    JsonObject *obj = json_node_get_object(root);
+    if (json_object_has_member(obj, "entries")) {
+        JsonArray *entries = json_object_get_array_member(obj, "entries");
+        guint len = json_array_get_length(entries);
+        if (len > CALC_HISTORY_CAP) len = CALC_HISTORY_CAP;
+        for (guint i = 0; i < len; i++) {
+            JsonObject *entry = json_array_get_object_element(entries, i);
+            const char *expr = json_object_has_member(entry, "expr")
+                ? json_object_get_string_member(entry, "expr") : "";
+            const char *result = json_object_has_member(entry, "result")
+                ? json_object_get_string_member(entry, "result") : "";
+            g_strlcpy(calc->entries[i].expr, expr ? expr : "", CALC_EXPR_LEN);
+            g_strlcpy(calc->entries[i].result, result ? result : "", CALC_RESULT_LEN);
+            calc->count++;
+        }
+    }
+
+    if (json_object_has_member(obj, "last_result")) {
+        const char *last = json_object_get_string_member(obj, "last_result");
+        g_strlcpy(calc->last_result, last ? last : "", CALC_RESULT_LEN);
+    }
+
+    g_object_unref(parser);
 }

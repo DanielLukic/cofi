@@ -34,4 +34,11 @@ void calc_format_double(double val, char *out, int out_len);
  * set, prepend it. */
 void calc_prepare_expr(CalcMode *calc, const char *raw, char *out, int out_len);
 
+/* Reset history and last_result; if persistence is enabled, callers can save after clearing. */
+void calc_clear(CalcMode *calc);
+
+/* Persist history to ~/.config/cofi/calc_history.json and load it back. */
+void calc_history_save(const CalcMode *calc);
+void calc_history_load(CalcMode *calc);
+
 #endif /* CALC_H */

@@ -11,6 +11,8 @@
 #include <gtk/gtk.h>
 #include <string.h>
 
+extern void update_display(AppData *app);
+
 /* ---- adapter functions ---- */
 
 static int calc_row_count(AppData *app) {
@@ -64,6 +66,26 @@ static CofiActionStatus calc_on_command_args(AppData *app, const char *args) {
     char result[CALC_RESULT_LEN];
     calc_eval(&app->calc_mode, args, result);
     return COFI_HANDLED_KEEP;
+}
+
+static gboolean calc_handle_key(GdkEventKey *event, AppData *app) {
+    if (!event || !app) return FALSE;
+
+    if ((event->state & GDK_CONTROL_MASK) && (event->keyval == GDK_KEY_x || event->keyval == GDK_KEY_X)) {
+        calc_clear(&app->calc_mode);
+        calc_history_save(&app->calc_mode);
+        update_display(app);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) && (event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C)) {
+        const char *entry_text = app->command_mode.command_buffer;
+        (void)calc_on_enter_pressed(app, app->selection.window_index, app->selection.window_index,
+                                    entry_text ? entry_text : "", event->state);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 /* ---- on_enter: sets placeholder text for the calc tab ---- */
@@ -127,6 +149,8 @@ void calc_provider_register(void) {
     s_calc_provider.row_identity      = calc_row_identity;
     s_calc_provider.on_enter_pressed  = calc_on_enter_pressed;
     s_calc_provider.on_command_args   = calc_on_command_args;
+    s_calc_provider.handle_key        = calc_handle_key;
+    s_calc_provider.shortcut_hint     = "Actions: Enter / Ctrl+C = Copy   Ctrl+X = Clear";
     s_calc_provider_id = cofi_register_tab_provider(&s_calc_provider);
     if (s_calc_provider_id >= 0) {
         cofi_register_command(&s_calc_command);
