@@ -23,6 +23,9 @@ static void set_startup_delegate(AppData *app, uint8_t opcode) {
     }
 
     app->startup_delegate_opcode = opcode;
+    if (opcode != COFI_OPCODE_SHOW_TAB) {
+        app->startup_delegate_tab_name[0] = '\0';
+    }
     app->start_in_command_mode = (opcode == COFI_OPCODE_COMMAND);
     app->start_in_run_mode = (opcode == COFI_OPCODE_RUN);
 
@@ -57,10 +60,10 @@ void print_usage(const char *prog_name) {
     printf("  --workspaces         Delegate to Workspaces tab\n");
     printf("  --harpoon            Delegate to Harpoon tab\n");
     printf("  --names              Delegate to Names tab\n");
+    printf("  --show NAME          Surface any tab by name (e.g. --show emoji, --show projects)\n");
     printf("  --command            Delegate to command mode (':' prompt)\n");
     printf("  --run                Delegate to run mode ('!' prompt)\n");
     printf("  --applications       Delegate to Apps tab\n");
-    printf("  Other tabs: use --command, then :show <tab>\n");
 
     printf("\nStandalone operations:\n");
     printf("  --assign-slots       Assign workspace window slots and exit\n");
@@ -126,6 +129,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto workspaces_opt = op.add<Switch>("w", "workspaces", "Delegate to the Workspaces tab");
     auto harpoon_opt = op.add<Switch>("", "harpoon", "Delegate to the Harpoon tab");
     auto names_opt = op.add<Switch>("", "names", "Delegate to the Names tab");
+    auto show_opt = op.add<Value<std::string>>("", "show", "Surface any tab by name");
     auto command_opt = op.add<Switch>("c", "command", "Delegate to command mode (with ':' prompt)");
     auto run_opt = op.add<Switch>("", "run", "Delegate to run mode (with '!' prompt)");
     auto applications_opt = op.add<Switch>("", "applications", "Delegate to the Apps tab");
@@ -214,6 +218,13 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
 
     if (names_opt->is_set()) {
         set_startup_delegate(app, COFI_OPCODE_NAMES);
+    }
+
+    if (show_opt->is_set()) {
+        set_startup_delegate(app, COFI_OPCODE_SHOW_TAB);
+        strncpy(app->startup_delegate_tab_name, show_opt->value().c_str(),
+                sizeof(app->startup_delegate_tab_name) - 1);
+        app->startup_delegate_tab_name[sizeof(app->startup_delegate_tab_name) - 1] = '\0';
     }
 
     if (command_opt->is_set()) {

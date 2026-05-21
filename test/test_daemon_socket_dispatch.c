@@ -33,6 +33,8 @@ static int xinternatom_calls = 0;
 static int xchangeproperty_calls = 0;
 static int xflush_calls = 0;
 static guint32 user_time_property_value_at_set = 0;
+static int surface_provider_command_calls = 0;
+static char surfaced_provider_name[64];
 static CofiTabProvider run_provider_stub;
 static CofiTabProvider delegate_providers[4];
 static int run_provider_available = 1;
@@ -213,6 +215,14 @@ CofiActionStatus cofi_call_on_command_args(int id, AppData *app, const char *arg
     (void)id; (void)app; (void)args; return COFI_NO_OP;
 }
 
+gboolean cofi_surface_provider_command(AppData *app, const char *command) {
+    (void)app;
+    surface_provider_command_calls++;
+    strncpy(surfaced_provider_name, command ? command : "", sizeof(surfaced_provider_name) - 1);
+    surfaced_provider_name[sizeof(surfaced_provider_name) - 1] = '\0';
+    return FALSE;
+}
+
 #include "../src/daemon_socket_runtime.c"
 
 static void reset_mocks(void) {
@@ -237,6 +247,8 @@ static void reset_mocks(void) {
     xchangeproperty_calls = 0;
     xflush_calls = 0;
     user_time_property_value_at_set = 0;
+    surface_provider_command_calls = 0;
+    surfaced_provider_name[0] = '\0';
     memset(&run_provider_stub, 0, sizeof(run_provider_stub));
     run_provider_stub.tab_mode = TAB_COUNT + 1;
     run_provider_stub.prefix_char = '!';
@@ -382,12 +394,31 @@ static void test_tab_opcode_ignores_disabled_provider(void) {
                 app.current_tab == TAB_WINDOWS);
 }
 
+static void test_show_tab_dispatch_surfaces_provider_command(void) {
+    AppData app = make_app();
+    reset_mocks();
+    app.command_mode.state = CMD_MODE_COMMAND;
+    app.current_tab = TEST_HARPOON_TAB;
+    fresh_focus_timestamp_stub = 0x1234;
+
+    daemon_socket_dispatch_show_tab(&app, "emoji");
+
+    ASSERT_TRUE("show-tab exits command mode", exit_command_mode_calls == 1);
+    ASSERT_TRUE("show-tab shows window", show_window_calls == 1);
+    ASSERT_TRUE("show-tab starts from windows tab", app.current_tab == TAB_WINDOWS);
+    ASSERT_TRUE("show-tab routes through provider resolver",
+                surface_provider_command_calls == 1 &&
+                strcmp(surfaced_provider_name, "emoji") == 0);
+    ASSERT_TRUE("show-tab focuses entry", gtk_widget_grab_focus_calls == 1);
+}
+
 int main(void) {
     test_tab_opcode_dispatch();
     test_command_opcode_dispatch();
     test_run_opcode_dispatch();
     test_run_opcode_ignores_disabled_provider();
     test_tab_opcode_ignores_disabled_provider();
+    test_show_tab_dispatch_surfaces_provider_command();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

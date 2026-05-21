@@ -11,8 +11,12 @@
 
 #include "log.h"
 
+#define COFI_SHOW_TAB_NAME_MAX 63
+
+static int s_show_tab_client_fd = -1;
+
 int daemon_socket_is_valid_opcode(uint8_t opcode) {
-    return opcode >= COFI_OPCODE_WINDOWS && opcode <= COFI_OPCODE_APPLICATIONS;
+    return opcode >= COFI_OPCODE_WINDOWS && opcode <= COFI_OPCODE_SHOW_TAB;
 }
 
 const char *daemon_socket_opcode_name(uint8_t opcode) {
@@ -31,6 +35,8 @@ const char *daemon_socket_opcode_name(uint8_t opcode) {
             return "run";
         case COFI_OPCODE_APPLICATIONS:
             return "applications";
+        case COFI_OPCODE_SHOW_TAB:
+            return "show_tab";
         default:
             return "invalid";
     }
@@ -92,6 +98,34 @@ int daemon_socket_send_opcode(int socket_fd, uint8_t opcode) {
         if (sent >= 0) {
             errno = EIO;
         }
+        return -1;
+    }
+
+    return 0;
+}
+
+int daemon_socket_send_tab_name(int socket_fd, const char *name) {
+    if (socket_fd < 0 || !name) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    size_t name_len = strnlen(name, COFI_SHOW_TAB_NAME_MAX + 1);
+    if (name_len == 0 || name_len > COFI_SHOW_TAB_NAME_MAX) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    uint8_t header[2] = {COFI_OPCODE_SHOW_TAB, (uint8_t)name_len};
+    ssize_t sent = send(socket_fd, header, sizeof(header), 0);
+    if (sent != (ssize_t)sizeof(header)) {
+        if (sent >= 0) errno = EIO;
+        return -1;
+    }
+
+    sent = send(socket_fd, name, name_len, 0);
+    if (sent != (ssize_t)name_len) {
+        if (sent >= 0) errno = EIO;
         return -1;
     }
 
@@ -202,18 +236,57 @@ int daemon_socket_accept_opcode(int listener_fd, uint8_t *opcode_out) {
     uint8_t opcode = 0;
     ssize_t bytes = recv(client_fd, &opcode, sizeof(opcode), 0);
     int saved_errno = errno;
-    close(client_fd);
 
     if (bytes != (ssize_t)sizeof(opcode)) {
+        close(client_fd);
         errno = (bytes < 0) ? saved_errno : EPROTO;
         return -1;
     }
 
     if (!daemon_socket_is_valid_opcode(opcode)) {
+        close(client_fd);
         errno = EPROTO;
         return -1;
     }
 
+    if (opcode == COFI_OPCODE_SHOW_TAB) {
+        if (s_show_tab_client_fd >= 0) {
+            close(s_show_tab_client_fd);
+        }
+        s_show_tab_client_fd = client_fd;
+    } else {
+        close(client_fd);
+    }
+
     *opcode_out = opcode;
+    return 0;
+}
+
+int daemon_socket_accept_tab_name(int listener_fd, char *out, size_t max) {
+    (void)listener_fd;
+    if (!out || max == 0 || s_show_tab_client_fd < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    uint8_t len = 0;
+    ssize_t bytes = recv(s_show_tab_client_fd, &len, sizeof(len), 0);
+    if (bytes != (ssize_t)sizeof(len) || len == 0 || len > COFI_SHOW_TAB_NAME_MAX ||
+        (size_t)len >= max) {
+        close(s_show_tab_client_fd);
+        s_show_tab_client_fd = -1;
+        errno = EPROTO;
+        return -1;
+    }
+
+    bytes = recv(s_show_tab_client_fd, out, len, 0);
+    close(s_show_tab_client_fd);
+    s_show_tab_client_fd = -1;
+    if (bytes != (ssize_t)len) {
+        errno = EPROTO;
+        return -1;
+    }
+
+    out[len] = '\0';
     return 0;
 }

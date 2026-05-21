@@ -163,6 +163,36 @@ static void test_applications_flag_resets_apps_mode(void) {
                 app.apps_mode == APPS_MODE_DEFAULT);
 }
 
+static void test_show_flag_sets_delegate_and_name(void) {
+    AppData app = {0};
+    char *argv[] = {(char *)"cofi", (char *)"--show", (char *)"emoji", NULL};
+
+    int rc = parse_args(&app, 3, argv);
+    ASSERT_TRUE("parse --show succeeds", rc == 0);
+    ASSERT_TRUE("--show maps to opcode show-tab", app.startup_delegate_opcode == COFI_OPCODE_SHOW_TAB);
+    ASSERT_TRUE("--show stores tab name", strcmp(app.startup_delegate_tab_name, "emoji") == 0);
+}
+
+static void test_show_unknown_still_sets_delegate_and_name(void) {
+    AppData app = {0};
+    char *argv[] = {(char *)"cofi", (char *)"--show", (char *)"unknown", NULL};
+
+    int rc = parse_args(&app, 3, argv);
+    ASSERT_TRUE("parse --show unknown succeeds", rc == 0);
+    ASSERT_TRUE("--show unknown keeps show opcode", app.startup_delegate_opcode == COFI_OPCODE_SHOW_TAB);
+    ASSERT_TRUE("--show unknown preserves name", strcmp(app.startup_delegate_tab_name, "unknown") == 0);
+}
+
+static void test_show_then_legacy_flag_legacy_wins(void) {
+    AppData app = {0};
+    char *argv[] = {(char *)"cofi", (char *)"--show", (char *)"emoji", (char *)"--applications", NULL};
+
+    int rc = parse_args(&app, 4, argv);
+    ASSERT_TRUE("parse --show then legacy succeeds", rc == 0);
+    ASSERT_TRUE("legacy delegate wins after --show", app.startup_delegate_opcode == COFI_OPCODE_APPLICATIONS);
+    ASSERT_TRUE("legacy delegate clears show name", app.startup_delegate_tab_name[0] == '\0');
+}
+
 int main(void) {
     test_windows_flag_sets_delegate_opcode();
     test_command_flag_sets_command_mode_delegate();
@@ -170,6 +200,9 @@ int main(void) {
     test_delegate_flags_prepare_startup_mode_when_becoming_daemon();
     test_cli_flag_to_opcode_round_trip_names();
     test_applications_flag_resets_apps_mode();
+    test_show_flag_sets_delegate_and_name();
+    test_show_unknown_still_sets_delegate_and_name();
+    test_show_then_legacy_flag_legacy_wins();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

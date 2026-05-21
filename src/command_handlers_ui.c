@@ -74,7 +74,7 @@ static void handle_set_error(AppData *app, const char *error_text) {
     show_error_in_display(app, msg);
 }
 
-static gboolean surface_provider_command(AppData *app, const char *command) {
+gboolean cofi_surface_provider_command(AppData *app, const char *command) {
     const CommandSpec *spec = cofi_command_for_token(command);
     if (!spec || !spec->owner_provider_id ||
         strcmp(spec->owner_provider_id, COMMAND_OWNER_CORE) == 0) {
@@ -141,7 +141,7 @@ gboolean cmd_show(AppData *app, WindowInfo *window __attribute__((unused)), cons
             mode = SHOW_MODE_RUN;
         }
         else {
-            return surface_provider_command(app, args);
+            return cofi_surface_provider_command(app, args);
         }
     }
 

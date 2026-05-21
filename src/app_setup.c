@@ -304,7 +304,12 @@ int run_cofi(int argc, char *argv[]) {
         int existing_fd = daemon_socket_connect(socket_path);
         if (existing_fd >= 0) {
             if (app.startup_delegate_opcode != COFI_OPCODE_RESERVED) {
-                int send_rc = daemon_socket_send_opcode(existing_fd, app.startup_delegate_opcode);
+                int send_rc = 0;
+                if (app.startup_delegate_opcode == COFI_OPCODE_SHOW_TAB) {
+                    send_rc = daemon_socket_send_tab_name(existing_fd, app.startup_delegate_tab_name);
+                } else {
+                    send_rc = daemon_socket_send_opcode(existing_fd, app.startup_delegate_opcode);
+                }
                 int saved_errno = errno;
                 close(existing_fd);
                 if (send_rc != 0) {
@@ -417,7 +422,11 @@ int run_cofi(int argc, char *argv[]) {
     }
 
     if (app.startup_delegate_opcode != COFI_OPCODE_RESERVED) {
-        daemon_socket_dispatch_opcode(&app, app.startup_delegate_opcode);
+        if (app.startup_delegate_opcode == COFI_OPCODE_SHOW_TAB) {
+            daemon_socket_dispatch_show_tab(&app, app.startup_delegate_tab_name);
+        } else {
+            daemon_socket_dispatch_opcode(&app, app.startup_delegate_opcode);
+        }
         log_info("Started daemon with delegated startup mode: %s",
                  daemon_socket_opcode_name(app.startup_delegate_opcode));
     } else {

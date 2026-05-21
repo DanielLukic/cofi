@@ -11,6 +11,7 @@ typedef struct WindowInfo WindowInfo;
 gboolean cmd_show(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_set_config(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_help(AppData *app, WindowInfo *window, const char *args);
+gboolean cofi_surface_provider_command(AppData *app, const char *command);
 char *generate_command_help_text(HelpFormat format, int width);
 
 #endif

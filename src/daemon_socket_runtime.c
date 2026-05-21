@@ -9,6 +9,7 @@
 
 #include "cofi_modal.h"
 #include "cofi_tab_provider.h"
+#include "command_handlers_ui.h"
 #include "command_mode.h"
 #include "daemon_socket.h"
 #include "display.h"
@@ -213,6 +214,25 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
              opcode, daemon_socket_opcode_name(opcode));
 }
 
+void daemon_socket_dispatch_show_tab(AppData *app, const char *name) {
+    if (!app || !name || name[0] == '\0') {
+        return;
+    }
+
+    refresh_focus_timestamp(app);
+    reset_interaction_modes(app);
+    app->apps_mode = APPS_MODE_DEFAULT;
+    app->current_tab = TAB_WINDOWS;
+    show_window(app);
+    cofi_surface_provider_command(app, name);
+
+    if (app->entry) {
+        gtk_widget_grab_focus(app->entry);
+    }
+
+    log_info("Delegated show-tab handled: %s", name);
+}
+
 static gboolean process_daemon_socket_events(GIOChannel *source, GIOCondition condition,
                                              gpointer data) {
     (void)source;
@@ -230,6 +250,15 @@ static gboolean process_daemon_socket_events(GIOChannel *source, GIOCondition co
     while (1) {
         uint8_t opcode = 0;
         if (daemon_socket_accept_opcode(app->daemon_socket_fd, &opcode) == 0) {
+            if (opcode == COFI_OPCODE_SHOW_TAB) {
+                char tab_name[64] = {0};
+                if (daemon_socket_accept_tab_name(app->daemon_socket_fd, tab_name, sizeof(tab_name)) == 0) {
+                    daemon_socket_dispatch_show_tab(app, tab_name);
+                    continue;
+                }
+                log_warn("Failed to read delegated show-tab payload: %s", strerror(errno));
+                continue;
+            }
             daemon_socket_dispatch_opcode(app, opcode);
             continue;
         }

@@ -294,6 +294,7 @@ typedef struct AppData {
     int start_in_run_mode;                  // Whether to start in run mode (--run delegate)
     int assign_slots_and_exit;              // Whether to assign workspace slots and exit (--assign-slots flag)
     uint8_t startup_delegate_opcode;        // Startup delegate opcode requested by CLI (0 = none)
+    char startup_delegate_tab_name[64];     // Optional delegate payload for --show NAME
 
     int daemon_socket_fd;                   // Listening unix socket fd (-1 when inactive)
     char daemon_socket_path[COFI_SOCKET_PATH_MAX]; // Bound unix socket path
