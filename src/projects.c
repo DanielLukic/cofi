@@ -97,13 +97,17 @@ static CofiActionStatus attach_tmux_session(AppData *app, const char *session_na
     g_free(tmux);
     if (!command) return COFI_ACTION_ERROR;
 
-    gboolean ok = s_launch_in_terminal(command);
+    gchar *launch_command = projects_with_terminal_title(command, session_name);
+    g_free(command);
+    if (!launch_command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(launch_command);
     if (ok) {
         log_info("USER: tmux: attaching session '%s'", session_name);
     } else {
         log_warn("tmux: failed to launch session '%s'", session_name);
     }
-    g_free(command);
+    g_free(launch_command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
@@ -122,13 +126,17 @@ static CofiActionStatus zellij_attach_session(AppData *app, const char *session_
     g_free(zellij);
     if (!command) return COFI_ACTION_ERROR;
 
-    gboolean ok = s_launch_in_terminal(command);
+    gchar *launch_command = projects_with_terminal_title(command, session_name);
+    g_free(command);
+    if (!launch_command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(launch_command);
     if (ok) {
         log_info("USER: zellij: attaching session '%s'", session_name);
     } else {
         log_warn("zellij: failed to launch session '%s'", session_name);
     }
-    g_free(command);
+    g_free(launch_command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
@@ -514,7 +522,11 @@ CofiActionStatus projects_new_session(AppData *app,
     g_free(program);
     if (!command) return COFI_ACTION_ERROR;
 
-    gboolean ok = s_launch_in_terminal(command);
+    gchar *launch_command = projects_with_terminal_title(command, session_name);
+    g_free(command);
+    if (!launch_command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(launch_command);
     if (ok) {
         log_info("USER: %s: created/attached session '%s'",
                  backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
@@ -524,7 +536,7 @@ CofiActionStatus projects_new_session(AppData *app,
                  backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux",
                  session_name);
     }
-    g_free(command);
+    g_free(launch_command);
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 

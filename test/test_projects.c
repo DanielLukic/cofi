@@ -191,6 +191,18 @@ static void test_new_session_command_uses_home_directory(void) {
     g_free(cmd);
 }
 
+static void test_terminal_title_prefix_wraps_command_with_safe_quoted_title(void) {
+    gchar *wrapped = projects_with_terminal_title(
+        "'tmux' attach-session -t '=work:api session'",
+        "dev'session;$(rm -rf /)");
+
+    ASSERT_STR_EQ("terminal title wrapper uses literal printf format and shell-quoted title",
+                  "printf '\\033]2;%s\\007' 'dev'\\''session;$(rm -rf /)'; "
+                  "'tmux' attach-session -t '=work:api session'",
+                  wrapped);
+    g_free(wrapped);
+}
+
 static void test_parse_zellij_projects(void) {
     ProjectSessionEntry projects[4];
     char error[128];
@@ -532,6 +544,7 @@ int main(void) {
     test_kill_command_uses_exact_target();
     test_rename_command_quotes_old_and_new_names();
     test_new_session_command_uses_home_directory();
+    test_terminal_title_prefix_wraps_command_with_safe_quoted_title();
     test_parse_zellij_projects();
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();

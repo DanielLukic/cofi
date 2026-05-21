@@ -104,3 +104,14 @@ gchar *projects_build_zellij_new_command(const char *zellij_path,
     g_free(quoted_zellij);
     return command;
 }
+
+gchar *projects_with_terminal_title(const char *command, const char *title) {
+    if (!command || command[0] == '\0' || !title || title[0] == '\0') {
+        return NULL;
+    }
+    gchar *quoted_title = g_shell_quote(title);
+    gchar *wrapped = g_strdup_printf("printf '\\033]2;%%s\\007' %s; %s",
+                                     quoted_title, command);
+    g_free(quoted_title);
+    return wrapped;
+}

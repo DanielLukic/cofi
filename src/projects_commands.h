@@ -16,5 +16,6 @@ gchar *projects_build_tmux_new_command(const char *tmux_path,
 gchar *projects_build_zellij_new_command(const char *zellij_path,
                                          const char *session_name,
                                          const char *start_dir);
+gchar *projects_with_terminal_title(const char *command, const char *title);
 
 #endif /* PROJECTS_COMMANDS_H */
