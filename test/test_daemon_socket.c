@@ -129,7 +129,7 @@ static void test_socket_level_delivery_harness(void) {
             COFI_OPCODE_WINDOWS,
             COFI_OPCODE_WORKSPACES,
             COFI_OPCODE_HARPOON,
-            COFI_OPCODE_NAMES,
+            COFI_OPCODE_MATCHING,
             COFI_OPCODE_COMMAND,
             COFI_OPCODE_RUN,
             COFI_OPCODE_APPLICATIONS
@@ -147,7 +147,7 @@ static void test_socket_level_delivery_harness(void) {
         COFI_OPCODE_WINDOWS,
         COFI_OPCODE_WORKSPACES,
         COFI_OPCODE_HARPOON,
-        COFI_OPCODE_NAMES,
+        COFI_OPCODE_MATCHING,
         COFI_OPCODE_COMMAND,
         COFI_OPCODE_RUN,
         COFI_OPCODE_APPLICATIONS

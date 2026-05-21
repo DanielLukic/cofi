@@ -16,8 +16,8 @@
 #include "x11_utils.h"
 #include "harpoon.h"
 #include "harpoon_config.h"
-#include "named_window.h"
-#include "named_window_config.h"
+#include "match_entry.h"
+#include "match_entry_config.h"
 #include "window_highlight.h"
 #include "hotkeys.h"
 #include "command_api.h"
@@ -353,10 +353,10 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 }
                 
                 // Check for named windows reassignments
-                log_trace("Calling check_and_reassign_names()");
-                bool names_changed = check_and_reassign_names(&app->names, app->windows, app->window_count);
+                log_trace("Calling match_entry_reassign_live_windows()");
+                bool names_changed = match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count);
                 if (names_changed) {
-                    save_named_windows(&app->names);
+                    save_match_entries(&app->matching);
                     log_debug("Saved reassigned named windows after window list change");
                 }
 

@@ -4,11 +4,11 @@
 
 #include "display.h"
 #include "filter.h"
-#include "filter_names.h"
+#include "filter_matching.h"
 #include "log.h"
-#include "names_provider.h"
-#include "named_window.h"
-#include "named_window_config.h"
+#include "matching_provider.h"
+#include "match_entry.h"
+#include "match_entry_config.h"
 #include "overlay_manager.h"
 
 static gboolean focus_name_entry_timeout(gpointer user_data) {
@@ -74,8 +74,8 @@ void create_name_assign_overlay_content(GtkWidget *parent_container, AppData *ap
 }
 
 void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
-    NamedWindow *selected = names_selected_entry(app);
-    if (app->current_tab != names_tab_mode() || !selected) {
+    MatchEntry *selected = matching_selected_entry(app);
+    if (app->current_tab != matching_tab_mode() || !selected) {
         GtkWidget *error_label = gtk_label_new("No named window selected for editing");
         gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
         return;
@@ -175,8 +175,8 @@ gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event) {
     }
 
     WindowInfo *selected = &app->filtered[app->selection.window_index];
-    assign_custom_name(&app->names, selected, custom_name);
-    save_named_windows(&app->names);
+    match_entry_assign_custom_name(&app->matching, selected, custom_name);
+    save_match_entries(&app->matching);
     log_info("Assigned custom name '%s' to window: %s", custom_name, selected->title);
 
     hide_overlay(app);
@@ -209,18 +209,18 @@ gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
         return TRUE;
     }
 
-    int manager_index = names_selected_manager_index(app);
+    int manager_index = matching_selected_manager_index(app);
     if (manager_index < 0) {
         log_error("Named window not found in manager");
         hide_overlay(app);
         return TRUE;
     }
 
-    update_custom_name(&app->names, manager_index, new_name);
-    save_named_windows(&app->names);
+    match_entry_update_custom_name(&app->matching, manager_index, new_name);
+    save_match_entries(&app->matching);
 
     const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-    filter_names(app, current_filter);
+    filter_matching(app, current_filter);
 
     hide_overlay(app);
     update_display(app);
@@ -237,23 +237,23 @@ gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
 
     if (is_confirm) {
         int manager_index = app->name_delete.manager_index;
-        if (manager_index < 0 || manager_index >= app->names.count) {
-            manager_index = find_named_window_by_name(
-                &app->names, app->name_delete.custom_name);
+        if (manager_index < 0 || manager_index >= app->matching.count) {
+            manager_index = match_entry_find_index_by_custom_name(
+                &app->matching, app->name_delete.custom_name);
         }
 
-        if (manager_index < 0 || manager_index >= app->names.count) {
+        if (manager_index < 0 || manager_index >= app->matching.count) {
             log_warn("Delete target unresolved for '%s'", app->name_delete.custom_name);
         } else {
-            delete_custom_name(&app->names, manager_index);
-            save_named_windows(&app->names);
+            match_entry_delete_custom_name(&app->matching, manager_index);
+            save_match_entries(&app->matching);
             log_info("USER: Deleted custom name '%s'", app->name_delete.custom_name);
         }
 
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        filter_names(app, current_filter);
-        if (app->selection.provider_index >= app->filtered_names_count && app->filtered_names_count > 0) {
-            app->selection.provider_index = app->filtered_names_count - 1;
+        filter_matching(app, current_filter);
+        if (app->selection.provider_index >= app->filtered_matching_count && app->filtered_matching_count > 0) {
+            app->selection.provider_index = app->filtered_matching_count - 1;
         }
         clear_name_delete_state(app);
         hide_overlay(app);
@@ -263,9 +263,9 @@ gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
 
     if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
         const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        filter_names(app, current_filter);
-        if (app->selection.provider_index >= app->filtered_names_count && app->filtered_names_count > 0) {
-            app->selection.provider_index = app->filtered_names_count - 1;
+        filter_matching(app, current_filter);
+        if (app->selection.provider_index >= app->filtered_matching_count && app->filtered_matching_count > 0) {
+            app->selection.provider_index = app->filtered_matching_count - 1;
         }
         clear_name_delete_state(app);
         hide_overlay(app);

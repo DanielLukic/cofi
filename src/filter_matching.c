@@ -1,27 +1,27 @@
 #include "app_data.h"
-#include "named_window.h"
+#include "match_entry.h"
 #include "match.h"
 #include "log.h"
 #include <string.h>
 #include <stdio.h>
 
 // Filter named windows based on search text
-void filter_names(AppData *app, const char *filter) {
-    app->filtered_names_count = 0;
+void filter_matching(AppData *app, const char *filter) {
+    app->filtered_matching_count = 0;
     
     if (!filter || !*filter) {
         // No filter - show all named windows
-        for (int i = 0; i < app->names.count; i++) {
-            app->filtered_names[app->filtered_names_count] = app->names.entries[i];
-            app->filtered_names_count++;
+        for (int i = 0; i < app->matching.count; i++) {
+            app->filtered_matching[app->filtered_matching_count] = app->matching.entries[i];
+            app->filtered_matching_count++;
         }
         return;
     }
     
     // Build searchable string for each named window
     char searchable[1024];
-    for (int i = 0; i < app->names.count; i++) {
-        NamedWindow *entry = &app->names.entries[i];
+    for (int i = 0; i < app->matching.count; i++) {
+        MatchEntry *entry = &app->matching.entries[i];
         
         // Build searchable string: "custom_name original_title class instance"
         snprintf(searchable, sizeof(searchable), "%s %s %s %s",
@@ -30,8 +30,8 @@ void filter_names(AppData *app, const char *filter) {
         
         // Use has_match for filtering
         if (has_match(filter, searchable)) {
-            app->filtered_names[app->filtered_names_count] = *entry;
-            app->filtered_names_count++;
+            app->filtered_matching[app->filtered_matching_count] = *entry;
+            app->filtered_matching_count++;
         }
     }
 }

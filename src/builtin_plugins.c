@@ -8,7 +8,7 @@
 #include "emoji_provider.h"
 #include "harpoon_provider.h"
 #include "hotkeys_provider.h"
-#include "names_provider.h"
+#include "matching_provider.h"
 #include "proc_provider.h"
 #include "profiles_provider.h"
 #include "rules_provider.h"
@@ -25,7 +25,7 @@ void cofi_register_builtin_plugins(void) {
     config_provider_register();
     harpoon_provider_register();
     hotkeys_provider_register();
-    names_provider_register();
+    matching_provider_register();
     rules_provider_register();
     workspaces_provider_register();
     sinks_provider_register();

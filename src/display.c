@@ -14,7 +14,7 @@
 #include "selection.h"
 #include "harpoon.h"
 #include "dynamic_display.h"
-#include "named_window.h"
+#include "match_entry.h"
 #include "display_pipeline.h"
 #include "tab_switching.h"
 #include "tab_metadata.h"

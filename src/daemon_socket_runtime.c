@@ -180,7 +180,7 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
         case COFI_OPCODE_HARPOON:
             show_provider_for_opcode(app, opcode);
             break;
-        case COFI_OPCODE_NAMES:
+        case COFI_OPCODE_MATCHING:
             show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_APPLICATIONS:

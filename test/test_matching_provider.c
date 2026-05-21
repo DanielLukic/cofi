@@ -73,7 +73,7 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     (void)app; (void)custom_name; (void)manager_index;
 }
 
-int find_named_window_index(const NamedWindowManager *manager, Window id) {
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].bound_x11_id == id) return i;
@@ -81,7 +81,7 @@ int find_named_window_index(const NamedWindowManager *manager, Window id) {
     return -1;
 }
 
-int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) {
+int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
     if (!manager || !custom_name) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (strcmp(manager->entries[i].custom_name, custom_name) == 0) return i;
@@ -89,8 +89,8 @@ int find_named_window_by_name(const NamedWindowManager *manager, const char *cus
     return -1;
 }
 
-#include "../src/filter_names.c"
-#include "../src/names_provider.c"
+#include "../src/filter_matching.c"
+#include "../src/matching_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
@@ -102,28 +102,28 @@ static void reset_state(AppData *app) {
 }
 
 static void seed_names(AppData *app) {
-    app->names.count = 2;
-    app->names.entries[0].bound_x11_id = (Window)0x111;
-    app->names.entries[0].assigned = 1;
-    g_strlcpy(app->names.entries[0].custom_name, "editor",
-              sizeof(app->names.entries[0].custom_name));
-    g_strlcpy(app->names.entries[0].original_title, "main.c",
-              sizeof(app->names.entries[0].original_title));
-    g_strlcpy(app->names.entries[0].class_name, "Code",
-              sizeof(app->names.entries[0].class_name));
-    g_strlcpy(app->names.entries[0].instance, "code",
-              sizeof(app->names.entries[0].instance));
+    app->matching.count = 2;
+    app->matching.entries[0].bound_x11_id = (Window)0x111;
+    app->matching.entries[0].assigned = 1;
+    g_strlcpy(app->matching.entries[0].custom_name, "editor",
+              sizeof(app->matching.entries[0].custom_name));
+    g_strlcpy(app->matching.entries[0].original_title, "main.c",
+              sizeof(app->matching.entries[0].original_title));
+    g_strlcpy(app->matching.entries[0].class_name, "Code",
+              sizeof(app->matching.entries[0].class_name));
+    g_strlcpy(app->matching.entries[0].instance, "code",
+              sizeof(app->matching.entries[0].instance));
 
-    app->names.entries[1].bound_x11_id = 0;
-    app->names.entries[1].assigned = 0;
-    g_strlcpy(app->names.entries[1].custom_name, "terminal",
-              sizeof(app->names.entries[1].custom_name));
-    g_strlcpy(app->names.entries[1].original_title, "shell",
-              sizeof(app->names.entries[1].original_title));
-    g_strlcpy(app->names.entries[1].class_name, "Mate-terminal",
-              sizeof(app->names.entries[1].class_name));
-    g_strlcpy(app->names.entries[1].instance, "mate-terminal",
-              sizeof(app->names.entries[1].instance));
+    app->matching.entries[1].bound_x11_id = 0;
+    app->matching.entries[1].assigned = 0;
+    g_strlcpy(app->matching.entries[1].custom_name, "terminal",
+              sizeof(app->matching.entries[1].custom_name));
+    g_strlcpy(app->matching.entries[1].original_title, "shell",
+              sizeof(app->matching.entries[1].original_title));
+    g_strlcpy(app->matching.entries[1].class_name, "Mate-terminal",
+              sizeof(app->matching.entries[1].class_name));
+    g_strlcpy(app->matching.entries[1].instance, "mate-terminal",
+              sizeof(app->matching.entries[1].instance));
 }
 
 static void test_filter_and_format_row(void) {
@@ -132,14 +132,14 @@ static void test_filter_and_format_row(void) {
     reset_state(&app);
     seed_names(&app);
 
-    filter_names(&app, "term");
+    filter_matching(&app, "term");
 
-    ASSERT_TRUE("filter narrows named windows", app.filtered_names_count == 1);
+    ASSERT_TRUE("filter narrows named windows", app.filtered_matching_count == 1);
     ASSERT_TRUE("filter keeps matching name",
-                strcmp(app.filtered_names[0].custom_name, "terminal") == 0);
+                strcmp(app.filtered_matching[0].custom_name, "terminal") == 0);
 
     memset(&row, 0, sizeof(row));
-    names_format_row(&app, 0, &row);
+    matching_format_row(&app, 0, &row);
     ASSERT_TRUE("row has four cells", row.cell_count == 4);
     ASSERT_TRUE("row name text", strcmp(row.cells[0].text, "terminal") == 0);
     ASSERT_TRUE("orphan row shows none", strcmp(row.cells[3].text, "* NONE *") == 0);
@@ -151,10 +151,10 @@ static void test_empty_row(void) {
     CofiRowCells row;
     reset_state(&app);
 
-    ASSERT_TRUE("empty provider exposes one status row", names_row_count(&app) == 1);
+    ASSERT_TRUE("empty provider exposes one status row", matching_row_count(&app) == 1);
 
     memset(&row, 0, sizeof(row));
-    names_format_row(&app, 0, &row);
+    matching_format_row(&app, 0, &row);
     ASSERT_TRUE("empty row text", strcmp(row.cells[0].text, "No named windows found") == 0);
     ASSERT_TRUE("empty row not actionable", row.row_flags == 0);
 }
@@ -164,9 +164,9 @@ static void test_query_resets_selection(void) {
     reset_state(&app);
     seed_names(&app);
 
-    names_on_query_changed(&app, "editor");
+    matching_on_query_changed(&app, "editor");
 
-    ASSERT_TRUE("query filters", app.filtered_names_count == 1);
+    ASSERT_TRUE("query filters", app.filtered_matching_count == 1);
     ASSERT_TRUE("query resets selection", g_reset_selection_calls == 1);
 }
 
@@ -174,53 +174,57 @@ static void test_selected_entry_and_manager_index(void) {
     AppData app;
     reset_state(&app);
     seed_names(&app);
-    filter_names(&app, "");
+    filter_matching(&app, "");
     app.selection.provider_index = 99;
 
-    NamedWindow *entry = names_selected_entry(&app);
+    MatchEntry *entry = matching_selected_entry(&app);
 
     ASSERT_TRUE("selected entry clamps to last row", entry != NULL &&
                 strcmp(entry->custom_name, "terminal") == 0);
     ASSERT_TRUE("provider index clamped", app.selection.provider_index == 1);
-    ASSERT_TRUE("manager index resolved by name", names_selected_manager_index(&app) == 1);
+    ASSERT_TRUE("manager index resolved by name", matching_selected_manager_index(&app) == 1);
 
-    names_select_custom_name(&app, "editor");
+    matching_select_custom_name(&app, "editor");
     ASSERT_TRUE("select custom name sets provider index", app.selection.provider_index == 0);
 }
 
 static void test_command_metadata(void) {
-    names_provider_register();
+    matching_provider_register();
 
-    ASSERT_TRUE("provider primary command is names",
-                strcmp(s_names_command.primary, "names") == 0);
-    ASSERT_TRUE("provider alias is nm",
-                strcmp(s_names_command.aliases[0], "nm") == 0);
+    ASSERT_TRUE("provider primary command is matching",
+                strcmp(s_matching_command.primary, "matching") == 0);
+    ASSERT_TRUE("provider alias m",
+                strcmp(s_matching_command.aliases[0], "m") == 0);
+    ASSERT_TRUE("provider alias names",
+                strcmp(s_matching_command.aliases[1], "names") == 0);
+    ASSERT_TRUE("provider alias nm",
+                strcmp(s_matching_command.aliases[2], "nm") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_names_command.help_format, "names, nm") == 0);
+                strcmp(s_matching_command.help_format, "matching, m, names, nm") == 0);
     ASSERT_TRUE("provider command keeps open",
-                s_names_command.keeps_open_on_hotkey_auto == 1);
-    ASSERT_TRUE("provider command handler set", s_names_command.handler != NULL);
-    ASSERT_TRUE("names provider uses dynamic tab", g_registered_provider.tab_mode >= TAB_COUNT);
+                s_matching_command.keeps_open_on_hotkey_auto == 1);
+    ASSERT_TRUE("provider command handler set", s_matching_command.handler != NULL);
+    ASSERT_TRUE("matching provider uses dynamic tab", g_registered_provider.tab_mode >= TAB_COUNT);
 }
 
 static void test_command_handler_surfaces_tab(void) {
     AppData app;
     reset_state(&app);
-    names_provider_register();
+    matching_provider_register();
     app.current_tab = TAB_WINDOWS;
 
-    gboolean result = s_names_command.handler(&app, NULL, NULL);
+    gboolean result = s_matching_command.handler(&app, NULL, NULL);
 
-    ASSERT_TRUE("names command returns false", result == FALSE);
-    ASSERT_TRUE("names command exits command mode", g_exit_command_mode_calls == 1);
-    ASSERT_TRUE("names command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
-    ASSERT_TRUE("names command surfaces names tab", g_surface_tab_calls == 1 &&
+    ASSERT_TRUE("matching command returns false", result == FALSE);
+    ASSERT_TRUE("matching command exits command mode", g_exit_command_mode_calls == 1);
+    ASSERT_TRUE("matching command records origin tab", app.prefix_origin_tab == TAB_WINDOWS);
+    ASSERT_TRUE("matching command surfaces matching tab", g_surface_tab_calls == 1 &&
                 g_last_surface_tab == (TabMode)g_registered_provider.tab_mode &&
                 app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
 int main(void) {
-    printf("Names provider tests\n");
+    printf("Matching provider tests\n");
     printf("====================\n\n");
 
     test_filter_and_format_row();

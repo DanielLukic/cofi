@@ -34,7 +34,7 @@ static int disabled_provider_tab = -1;
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
 #define TEST_APPS_TAB       ((TabMode)(TAB_COUNT + 3))
-#define TEST_NAMES_TAB      ((TabMode)(TAB_COUNT + 4))
+#define TEST_MATCHING_TAB      ((TabMode)(TAB_COUNT + 4))
 #define TEST_CONFIG_TAB     ((TabMode)(TAB_COUNT + 5))
 #define TEST_HOTKEYS_TAB    ((TabMode)(TAB_COUNT + 6))
 #define TEST_RULES_TAB      ((TabMode)(TAB_COUNT + 7))
@@ -77,7 +77,7 @@ void filter_windows(AppData *app, const char *filter) {
     (void)filter;
 }
 
-void filter_names(AppData *app, const char *filter) {
+void filter_matching(AppData *app, const char *filter) {
     (void)app;
     (void)filter;
 }
@@ -175,8 +175,8 @@ TabMode apps_tab_mode(void) {
     return TEST_APPS_TAB;
 }
 
-TabMode names_tab_mode(void) {
-    return TEST_NAMES_TAB;
+TabMode matching_tab_mode(void) {
+    return TEST_MATCHING_TAB;
 }
 
 TabMode harpoon_tab_mode(void) {
@@ -197,8 +197,8 @@ const CofiTabProvider *cofi_get_provider_for_delegate_opcode(int opcode) {
             return cofi_get_provider_for_tab(TEST_WORKSPACES_TAB);
         case COFI_OPCODE_HARPOON:
             return cofi_get_provider_for_tab(TEST_HARPOON_TAB);
-        case COFI_OPCODE_NAMES:
-            return cofi_get_provider_for_tab(TEST_NAMES_TAB);
+        case COFI_OPCODE_MATCHING:
+            return cofi_get_provider_for_tab(TEST_MATCHING_TAB);
         case COFI_OPCODE_APPLICATIONS:
             return cofi_get_provider_for_tab(TEST_APPS_TAB);
         default:
@@ -288,7 +288,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
         provider.id = "workspaces";
         return &provider;
     }
-    if (tab_mode == TEST_NAMES_TAB) {
+    if (tab_mode == TEST_MATCHING_TAB) {
         provider.id = "names";
     } else if (tab_mode == TEST_PROJECTS_TAB) {
         provider.id = "projects";
@@ -303,7 +303,7 @@ int cofi_get_provider_id(const char *id) {
     if (strcmp(id, "config") == 0) return TEST_CONFIG_TAB;
     if (strcmp(id, "harpoon") == 0) return TEST_HARPOON_TAB;
     if (strcmp(id, "hotkeys") == 0) return TEST_HOTKEYS_TAB;
-    if (strcmp(id, "names") == 0) return TEST_NAMES_TAB;
+    if (strcmp(id, "names") == 0) return TEST_MATCHING_TAB;
     if (strcmp(id, "rules") == 0) return TEST_RULES_TAB;
     if (strcmp(id, "workspaces") == 0) return TEST_WORKSPACES_TAB;
     if (strcmp(id, "projects") == 0) return TEST_PROJECTS_TAB;
@@ -331,7 +331,7 @@ int cofi_list_provider_tabs(int *tabs, int max_tabs) {
         tabs[count++] = TEST_APPS_TAB;
     }
     if (count < max_tabs) {
-        tabs[count++] = TEST_NAMES_TAB;
+        tabs[count++] = TEST_MATCHING_TAB;
     }
     if (count < max_tabs) {
         tabs[count++] = TEST_CONFIG_TAB;
@@ -518,7 +518,7 @@ static void test_tab_switching_forward_cycles_all_tabs(void) {
         TEST_WORKSPACES_TAB,
         TEST_HARPOON_TAB,
         TEST_APPS_TAB,
-        TEST_NAMES_TAB,
+        TEST_MATCHING_TAB,
         TEST_CONFIG_TAB,
         TEST_HOTKEYS_TAB,
         TEST_RULES_TAB,
@@ -549,7 +549,7 @@ static void test_tab_switching_backward_cycles_all_tabs(void) {
         TEST_RULES_TAB,
         TEST_HOTKEYS_TAB,
         TEST_CONFIG_TAB,
-        TEST_NAMES_TAB,
+        TEST_MATCHING_TAB,
         TEST_APPS_TAB,
         TEST_HARPOON_TAB,
         TEST_WORKSPACES_TAB,
@@ -592,7 +592,7 @@ static void test_cmd_show_names_switches_to_names_tab(void) {
 
     ASSERT_TRUE("cmd_show names returns FALSE", result == FALSE);
     ASSERT_TRUE("cmd_show names exits command mode", exit_command_mode_calls == 1);
-    ASSERT_TRUE("cmd_show names switches tab", app.current_tab == TEST_NAMES_TAB);
+    ASSERT_TRUE("cmd_show names switches tab", app.current_tab == TEST_MATCHING_TAB);
 }
 
 static void test_cmd_show_rules_switches_to_rules_tab(void) {

@@ -12,7 +12,7 @@
 #include "harpoon_config.h"
 #include "history.h"
 #include "log.h"
-#include "named_window.h"
+#include "match_entry.h"
 #include "overlay_manager.h"
 #include "cofi_modal.h"
 #include "selection.h"

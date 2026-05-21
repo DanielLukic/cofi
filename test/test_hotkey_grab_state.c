@@ -64,8 +64,8 @@ void init_hotkey_config(HotkeyConfig *config) { config->count = 0; }
 void init_default_hotkey_config(HotkeyConfig *config) { config->count = 3; }
 gboolean load_hotkey_config(HotkeyConfig *config) { (void)config; return TRUE; }
 gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return TRUE; }
-void init_named_window_manager(NamedWindowManager *manager) { (void)manager; }
-void load_named_windows(NamedWindowManager *manager) { (void)manager; }
+void match_entry_manager_init(MatchEntryManager *manager) { (void)manager; }
+void load_match_entries(MatchEntryManager *manager) { (void)manager; }
 void init_rules_config(RulesConfig *config) { (void)config; }
 gboolean load_rules_config(RulesConfig *config) { (void)config; return TRUE; }
 void init_rule_state(RuleState *state) { (void)state; }
@@ -79,7 +79,7 @@ bool check_and_reassign_windows(HarpoonManager *h, WindowInfo *w, int count) {
     (void)h; (void)w; (void)count;
     return false;
 }
-bool check_and_reassign_names(NamedWindowManager *n, WindowInfo *w, int count) {
+bool match_entry_reassign_live_windows(MatchEntryManager *n, WindowInfo *w, int count) {
     (void)n; (void)w; (void)count;
     return false;
 }

@@ -27,8 +27,8 @@ const char *daemon_socket_opcode_name(uint8_t opcode) {
             return "workspaces";
         case COFI_OPCODE_HARPOON:
             return "harpoon";
-        case COFI_OPCODE_NAMES:
-            return "names";
+        case COFI_OPCODE_MATCHING:
+            return "matching";
         case COFI_OPCODE_COMMAND:
             return "command";
         case COFI_OPCODE_RUN:

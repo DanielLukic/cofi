@@ -32,7 +32,7 @@ TabMode apps_tab_mode(void) { return (TabMode)(TAB_COUNT + 2); }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_next_generation(int provider_id) { (void)provider_id; return -1; }
 void filter_windows(AppData *app, const char *filter) { (void)app; (void)filter; }
-void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
+void filter_matching(AppData *app, const char *filter) { (void)app; (void)filter; }
 void reset_selection(AppData *app) { (void)app; }
 void update_display(AppData *app) { (void)app; }
 void apps_load(void) {}

@@ -9,7 +9,7 @@
 #include "command_mode.h"
 #include "display.h"
 #include "filter.h"
-#include "filter_names.h"
+#include "filter_matching.h"
 #include "harpoon_provider.h"
 #include "key_handler_harpoon.h"
 #include "log.h"

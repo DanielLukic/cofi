@@ -5,8 +5,8 @@
 #include "window_list.h"
 #include "workspace_info.h"
 #include "harpoon.h"
-#include "named_window.h"
-#include "named_window_config.h"
+#include "match_entry.h"
+#include "match_entry_config.h"
 #include "filter.h"
 #include "log.h"
 #include "utils.h"
@@ -95,11 +95,11 @@ void init_app_data(AppData *app) {
     app->rules_delete.rule_index = -1;
 
     // Initialize named windows manager
-    init_named_window_manager(&app->names);
-    app->filtered_names_count = 0;
+    match_entry_manager_init(&app->matching);
+    app->filtered_matching_count = 0;
     
     // Load named windows from configuration
-    load_named_windows(&app->names);
+    load_match_entries(&app->matching);
 
     // Initialize rules
     init_rules_config(&app->rules_config);
@@ -193,7 +193,7 @@ void init_window_list(AppData *app) {
     check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
     
     // Check for named windows reassignments
-    check_and_reassign_names(&app->names, app->windows, app->window_count);
+    match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count);
 }
 
 void init_history_from_windows(AppData *app) {

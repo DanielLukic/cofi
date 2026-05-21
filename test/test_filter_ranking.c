@@ -33,8 +33,8 @@ void partition_and_reorder(AppData *app) { (void)app; }
 /* x11_utils.c */
 int get_current_desktop(Display *d)      { (void)d; return mock_current_desktop; }
 
-/* named_window.c */
-const char *get_window_custom_name(const NamedWindowManager *manager, Window id) {
+/* match_entry.c */
+const char *match_entry_get_custom_name(const MatchEntryManager *manager, Window id) {
     (void)manager; (void)id; return NULL;
 }
 

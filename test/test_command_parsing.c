@@ -112,7 +112,7 @@ int main() {
         {"help", "help", "", "Help command (no arg)"},
         {"c", "c", "", "Close window (no arg)"},
         {"mouse away", "mouse", "away", "Multi-word command with spaced arg"},
-        {"m show", "m", "show", "Alias command with spaced arg"},
+        {"ma show", "ma", "show", "Alias command with spaced arg"},
         {"rules", "rules", "", "Rules command"},
         {"rl", "rl", "", "Rules alias"},
         {"show rules", "show", "rules", "Show rules tab"},

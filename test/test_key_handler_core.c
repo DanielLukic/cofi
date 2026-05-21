@@ -90,7 +90,7 @@ static CofiTabProvider g_modal_prefix_stub;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 3))
+#define TEST_MATCHING_TAB ((TabMode)(TAB_COUNT + 3))
 #define TEST_CONFIG_TAB ((TabMode)(TAB_COUNT + 4))
 #define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 5))
 #define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 6))
@@ -99,7 +99,7 @@ static CofiTabProvider g_modal_prefix_stub;
 void filter_apps(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
 void filter_harpoon(AppData *app, const char *filter);
-void filter_names(AppData *app, const char *filter);
+void filter_matching(AppData *app, const char *filter);
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);
 void filter_rules(AppData *app, const char *filter);
@@ -377,7 +377,7 @@ static void mock_config_query_changed(AppData *app, const char *query) {
 }
 
 static void mock_names_query_changed(AppData *app, const char *query) {
-    filter_names(app, query);
+    filter_matching(app, query);
     reset_selection(app);
 }
 
@@ -411,10 +411,10 @@ void show_name_edit_overlay(AppData *app) { (void)app; }
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
     (void)app; (void)custom_name; (void)manager_index;
 }
-int find_named_window_index(const NamedWindowManager *manager, Window id) { (void)manager; (void)id; return -1; }
-int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
-void delete_custom_name(NamedWindowManager *manager, int index) { (void)manager; (void)index; }
-void save_named_windows(const NamedWindowManager *manager) { (void)manager; }
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager; (void)id; return -1; }
+int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
+void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }
@@ -444,15 +444,15 @@ void filter_harpoon(AppData *app, const char *filter) {
     g_filter_harpoon_calls++;
     strncpy(g_last_filter_harpoon, filter ? filter : "", sizeof(g_last_filter_harpoon) - 1);
 }
-void filter_names(AppData *app, const char *filter) {
+void filter_matching(AppData *app, const char *filter) {
     (void)app;
     g_filter_names_calls++;
     strncpy(g_last_filter_names, filter ? filter : "", sizeof(g_last_filter_names) - 1);
 }
 
-NamedWindow *names_selected_entry(AppData *app) { (void)app; return NULL; }
-int names_selected_manager_index(AppData *app) { (void)app; return -1; }
-void names_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
+MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
+int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
+void matching_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 
 void filter_config(AppData *app, const char *filter) {
     (void)app;
@@ -979,7 +979,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
 
     TabMode tabs[] = {
         TAB_WINDOWS, TEST_WORKSPACES_TAB, TEST_HARPOON_TAB,
-        TEST_NAMES_TAB, TEST_CONFIG_TAB, TEST_HOTKEYS_TAB, TEST_RULES_TAB, TEST_APPS_TAB
+        TEST_MATCHING_TAB, TEST_CONFIG_TAB, TEST_HOTKEYS_TAB, TEST_RULES_TAB, TEST_APPS_TAB
     };
 
     for (int i = 0; i < 8; i++) {
@@ -1009,10 +1009,10 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         config_provider.tab_mode = TEST_CONFIG_TAB;
         config_provider.on_query_changed = mock_config_query_changed;
 
-        CofiTabProvider names_provider;
-        memset(&names_provider, 0, sizeof(names_provider));
-        names_provider.tab_mode = TEST_NAMES_TAB;
-        names_provider.on_query_changed = mock_names_query_changed;
+        CofiTabProvider matching_provider;
+        memset(&matching_provider, 0, sizeof(matching_provider));
+        matching_provider.tab_mode = TEST_MATCHING_TAB;
+        matching_provider.on_query_changed = mock_names_query_changed;
 
         CofiTabProvider rules_provider;
         memset(&rules_provider, 0, sizeof(rules_provider));
@@ -1030,8 +1030,8 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
             g_provider_for_tab = &workspaces_provider;
         } else if (tabs[i] == TEST_HARPOON_TAB) {
             g_provider_for_tab = &harpoon_provider;
-        } else if (tabs[i] == TEST_NAMES_TAB) {
-            g_provider_for_tab = &names_provider;
+        } else if (tabs[i] == TEST_MATCHING_TAB) {
+            g_provider_for_tab = &matching_provider;
         } else if (tabs[i] == TEST_CONFIG_TAB) {
             g_provider_for_tab = &config_provider;
         } else if (tabs[i] == TEST_HOTKEYS_TAB) {
@@ -1060,7 +1060,7 @@ static void test_on_entry_changed_routes_per_tab_filters(void) {
         ASSERT_TRUE("HARPOON filter routing",
                     tabs[i] != TEST_HARPOON_TAB || (g_filter_harpoon_calls == 1 && strcmp(g_last_filter_harpoon, "query") == 0));
         ASSERT_TRUE("NAMES filter routing",
-                    tabs[i] != TEST_NAMES_TAB || (g_filter_names_calls == 1 && strcmp(g_last_filter_names, "query") == 0));
+                    tabs[i] != TEST_MATCHING_TAB || (g_filter_names_calls == 1 && strcmp(g_last_filter_names, "query") == 0));
         ASSERT_TRUE("CONFIG filter routing",
                     tabs[i] != TEST_CONFIG_TAB || (g_filter_config_calls == 1 && strcmp(g_last_filter_config, "query") == 0));
         ASSERT_TRUE("HOTKEYS filter routing",

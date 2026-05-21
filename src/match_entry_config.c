@@ -1,4 +1,4 @@
-#include "named_window_config.h"
+#include "match_entry_config.h"
 #include "log.h"
 #include "utils.h"
 #include <stdio.h>
@@ -7,8 +7,8 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-// Helper function to get named windows config file path
-static const char* get_named_windows_config_path() {
+// Helper function to get match entries config file path
+static const char* get_match_entries_config_path() {
     static char path[512];
     const char *home = getenv("HOME");
     if (!home) {
@@ -23,8 +23,8 @@ static const char* get_named_windows_config_path() {
     snprintf(path, sizeof(path), "%s/.config/cofi", home);
     mkdir(path, 0755);
     
-    // Return full path to names.json
-    snprintf(path, sizeof(path), "%s/.config/cofi/names.json", home);
+    // Return full path to matching.json
+    snprintf(path, sizeof(path), "%s/.config/cofi/matching.json", home);
     return path;
 }
 
@@ -44,23 +44,23 @@ static void escape_json_string(const char *input, char *output, size_t output_si
     output[j] = '\0';
 }
 
-void save_named_windows(const NamedWindowManager *manager) {
+void save_match_entries(const MatchEntryManager *manager) {
     if (!manager) return;
     
-    const char *path = get_named_windows_config_path();
+    const char *path = get_match_entries_config_path();
     FILE *file = fopen(path, "w");
     if (!file) {
-        log_error("Failed to open named windows config file for writing: %s", path);
+        log_error("Failed to open matching config file for writing: %s", path);
         return;
     }
     
     fprintf(file, "{\n");
     fprintf(file, "  \"next_match_id\": %d,\n", manager->next_match_id > 0 ? manager->next_match_id : 1);
-    fprintf(file, "  \"named_windows\": [\n");
+    fprintf(file, "  \"match_entries\": [\n");
     
     int first = 1;
     for (int i = 0; i < manager->count; i++) {
-        const NamedWindow *entry = &manager->entries[i];
+        const MatchEntry *entry = &manager->entries[i];
         
         if (!first) fprintf(file, ",\n");
         first = 0;
@@ -94,17 +94,15 @@ void save_named_windows(const NamedWindowManager *manager) {
     fprintf(file, "}\n");
     
     fclose(file);
-    log_debug("Saved %d named windows to %s", manager->count, path);
+    log_debug("Saved %d match entries to %s", manager->count, path);
 }
 
-// Helper function to parse named window data from a line
-static void parse_named_window_line(const char *line, NamedWindow *temp_entry, int *in_entry) {
+// Helper function to parse match entry data from a line
+static void parse_match_entry_line(const char *line, MatchEntry *temp_entry, int *in_entry) {
     if (strstr(line, "{")) {
         *in_entry = 1;
-        memset(temp_entry, 0, sizeof(NamedWindow));
+        memset(temp_entry, 0, sizeof(MatchEntry));
         temp_entry->match_mode = TITLE_MATCH_MODE_EXACT;
-    } else if (strstr(line, "\"window_id\":")) {
-        sscanf(line, " \"window_id\": %lu", &temp_entry->bound_x11_id);
     } else if (strstr(line, "\"bound_x11_id\":")) {
         sscanf(line, " \"bound_x11_id\": %lu", &temp_entry->bound_x11_id);
     } else if (strstr(line, "\"match_id\":")) {
@@ -193,17 +191,17 @@ static void parse_named_window_line(const char *line, NamedWindow *temp_entry, i
     }
 }
 
-void load_named_windows(NamedWindowManager *manager) {
+void load_match_entries(MatchEntryManager *manager) {
     if (!manager) return;
     
     // Initialize manager first
-    init_named_window_manager(manager);
+    match_entry_manager_init(manager);
     
-    const char *path = get_named_windows_config_path();
+    const char *path = get_match_entries_config_path();
     FILE *file = fopen(path, "r");
     if (!file) {
         if (errno != ENOENT) {
-            log_error("Failed to open named windows config file for reading: %s", path);
+            log_error("Failed to open matching config file for reading: %s", path);
         }
         return;
     }
@@ -212,7 +210,7 @@ void load_named_windows(NamedWindowManager *manager) {
     char line[1024];
     int in_array = 0;
     int in_entry = 0;
-    NamedWindow temp_entry = {0};
+    MatchEntry temp_entry = {0};
     
     while (fgets(line, sizeof(line), file)) {
         // Trim whitespace
@@ -225,7 +223,7 @@ void load_named_windows(NamedWindowManager *manager) {
             if (sscanf(p, "\"next_match_id\": %d", &next) == 1 && next > 0) {
                 manager->next_match_id = next;
             }
-        } else if (strstr(p, "\"named_windows\":")) {
+        } else if (strstr(p, "\"match_entries\":")) {
             in_array = 1;
         } else if (in_array && strstr(p, "}")) {
             if (in_entry) {
@@ -241,7 +239,7 @@ void load_named_windows(NamedWindowManager *manager) {
         
         // Parse content if in array
         if (in_array) {
-            parse_named_window_line(p, &temp_entry, &in_entry);
+            parse_match_entry_line(p, &temp_entry, &in_entry);
         }
     }
 
@@ -275,5 +273,5 @@ void load_named_windows(NamedWindowManager *manager) {
     }
     
     fclose(file);
-    log_info("Loaded %d named windows from %s", manager->count, path);
+    log_info("Loaded %d match entries from %s", manager->count, path);
 }

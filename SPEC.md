@@ -212,7 +212,7 @@ Only one cofi instance runs at a time.
 
 - Primary guard is a Unix domain socket at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`)
 - `cofi` with no delegate flags returns `already running` + exit 1 when daemon exists
-- Delegate flags (`--windows`, `--workspaces`, `--harpoon`, `--names`, `--command`, `--run`, `--applications`) connect to the daemon, send a 1-byte opcode, and exit 0
+- Delegate flags (`--windows`, `--workspaces`, `--harpoon`, `--matching` with `--names` alias, `--command`, `--run`, `--applications`) connect to the daemon, send a 1-byte opcode, and exit 0
 - If no daemon exists, cofi binds the socket, starts daemon mode, and applies the requested startup delegate mode
 - Stale socket path is recovered by connect-fail → unlink → bind retry
 
@@ -307,7 +307,7 @@ Assign custom names to windows that override the displayed title.
 - Display format: "custom_name - original_title"
 - Names persist across cofi restarts (stored in config)
 - When a named window closes, the name attempts to reassign to a matching window
-- Names tab (Ctrl+E to edit, Ctrl+D to delete — works on both active and orphaned entries)
+- Matching tab (Ctrl+E to edit, Ctrl+D to delete — works on both active and orphaned entries)
 - Searchable — custom names are included in filter matching
 
 ## Rules Tab
@@ -387,7 +387,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `rules`, `apps`/`applications`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `matching` (with `names` alias), `config`, `rules`, `apps`/`applications`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
 - `:rules` (`:rl`) — switch to the interactive Rules tab
 
 ### Hotkey Management Commands
@@ -581,7 +581,7 @@ Stored in `~/.config/cofi/`:
   - Managed via `:hotkeys` command or by editing the file directly
   - Auto-generated with default show-mode bindings on first run
 - `harpoon.json` — harpoon slot assignments with match patterns
-- `names.json` — custom window names
+- `matching.json` — custom window matching entries
 - `rules.json` — window-title rules (`pattern`, `commands`) in stored order
 
 Runtime config changes via `:set <key> <value>` are saved to `options.json` immediately. View current config with `:config`.
@@ -593,7 +593,7 @@ Runtime config changes via `:set <key> <value>` are saved to `options.json` imme
 - `--windows` / `-W` — delegate to Windows tab
 - `--workspaces` — delegate to Workspaces tab
 - `--harpoon` — delegate to Harpoon tab
-- `--names` — delegate to Names tab
+- `--matching` — delegate to Matching tab (`--names` alias kept for compatibility)
 - `--command` — delegate to command mode
 - `--run` — delegate to run mode
 - `--applications` — delegate to Apps tab

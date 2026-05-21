@@ -285,7 +285,7 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_line(out, "sessions     :sessions", "Claude/Codex sessions", width);
     append_wrapped_line(out, "workspaces   :workspaces", "Workspace management", width);
     append_wrapped_line(out, "harpoon      :harpoon", "Window slots", width);
-    append_wrapped_line(out, "names        :names", "Custom window names", width);
+    append_wrapped_line(out, "matching     :matching", "Custom window matching", width);
     append_wrapped_line(out, "config       :config", "Configuration values", width);
     append_wrapped_line(out, "hotkeys      :hotkeys", "Global hotkey bindings", width);
     append_wrapped_line(out, "rules        :rules", "Window auto-action rules", width);

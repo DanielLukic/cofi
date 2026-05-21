@@ -75,7 +75,7 @@ static void test_last_delegate_flag_wins(void) {
 
     int rc = parse_args(&app, 3, argv);
     ASSERT_TRUE("parse multi-delegate succeeds", rc == 0);
-    ASSERT_TRUE("last delegate flag wins", app.startup_delegate_opcode == COFI_OPCODE_NAMES);
+    ASSERT_TRUE("last delegate flag wins", app.startup_delegate_opcode == COFI_OPCODE_MATCHING);
     ASSERT_TRUE("last delegate leaves startup tab at windows", app.current_tab == TAB_WINDOWS);
 }
 
@@ -90,7 +90,7 @@ static void test_delegate_flags_prepare_startup_mode_when_becoming_daemon(void) 
         {"--windows", COFI_OPCODE_WINDOWS, TAB_WINDOWS, 0, 0},
         {"--workspaces", COFI_OPCODE_WORKSPACES, TAB_WINDOWS, 0, 0},
         {"--harpoon", COFI_OPCODE_HARPOON, TAB_WINDOWS, 0, 0},
-        {"--names", COFI_OPCODE_NAMES, TAB_WINDOWS, 0, 0},
+        {"--names", COFI_OPCODE_MATCHING, TAB_WINDOWS, 0, 0},
         {"--applications", COFI_OPCODE_APPLICATIONS, TAB_WINDOWS, 0, 0},
         {"--command", COFI_OPCODE_COMMAND, TAB_WINDOWS, 1, 0},
         {"--run", COFI_OPCODE_RUN, TAB_WINDOWS, 0, 1}
@@ -130,7 +130,8 @@ static void test_cli_flag_to_opcode_round_trip_names(void) {
         {"--windows", COFI_OPCODE_WINDOWS, "windows"},
         {"--workspaces", COFI_OPCODE_WORKSPACES, "workspaces"},
         {"--harpoon", COFI_OPCODE_HARPOON, "harpoon"},
-        {"--names", COFI_OPCODE_NAMES, "names"},
+        {"--matching", COFI_OPCODE_MATCHING, "matching"},
+        {"--names", COFI_OPCODE_MATCHING, "matching"},
         {"--command", COFI_OPCODE_COMMAND, "command"},
         {"--run", COFI_OPCODE_RUN, "run"},
         {"--applications", COFI_OPCODE_APPLICATIONS, "applications"}

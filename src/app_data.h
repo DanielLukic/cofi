@@ -9,7 +9,7 @@
 #include "harpoon.h"
 #include "config.h"
 #include "atom_cache.h"
-#include "named_window.h"
+#include "match_entry.h"
 #include "workspace_slots.h"
 #include "slot_overlay.h"
 #include "window_highlight.h"
@@ -167,8 +167,8 @@ typedef struct AppData {
     int filtered_harpoon_count;
 
     // Names tab data
-    NamedWindow filtered_names[MAX_WINDOWS];
-    int filtered_names_count;
+    MatchEntry filtered_matching[MAX_WINDOWS];
+    int filtered_matching_count;
 
     // Config tab data
     ConfigEntry filtered_config[MAX_CONFIG_ENTRIES];
@@ -277,7 +277,7 @@ typedef struct AppData {
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms
     HarpoonManager harpoon;                 // Harpoon number assignments
-    NamedWindowManager names;               // Custom window names
+    MatchEntryManager matching;            // Custom window matching registry
     CofiConfig config;                      // Unified configuration settings
     WorkspaceSlotManager workspace_slots;   // Per-workspace window slot assignments
     SlotOverlayState slot_overlays;         // Active slot number overlays

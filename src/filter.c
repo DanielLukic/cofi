@@ -16,7 +16,7 @@
 #include "constants.h"
 #include "selection.h"
 #include "x11_utils.h"
-#include "named_window.h"
+#include "match_entry.h"
 #include <X11/Xatom.h>
 
 #define UNUSED __attribute__((unused))
@@ -299,7 +299,7 @@ static void prepare_windows_for_filtering(AppData *app) {
 
     // Second, update window titles to include custom names for filtering
     for (int i = 0; i < app->history_count; i++) {
-        const char *custom_name = get_window_custom_name(&app->names, app->history[i].id);
+        const char *custom_name = match_entry_get_custom_name(&app->matching, app->history[i].id);
         if (custom_name) {
             // Store original title and create modified title for filtering
             char original_title[MAX_TITLE_LEN];

@@ -244,14 +244,14 @@ void show_name_edit_overlay(AppData *app) { (void)app; }
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
     (void)app; (void)custom_name; (void)manager_index;
 }
-int find_named_window_index(const NamedWindowManager *manager, Window id) { (void)manager; (void)id; return -1; }
-int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
-void delete_custom_name(NamedWindowManager *manager, int index) { (void)manager; (void)index; }
-void save_named_windows(const NamedWindowManager *manager) { (void)manager; }
-void filter_names(AppData *app, const char *filter) { (void)app; (void)filter; }
-NamedWindow *names_selected_entry(AppData *app) { (void)app; return NULL; }
-int names_selected_manager_index(AppData *app) { (void)app; return -1; }
-void names_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager; (void)id; return -1; }
+int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
+void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
+void filter_matching(AppData *app, const char *filter) { (void)app; (void)filter; }
+MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
+int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
+void matching_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }

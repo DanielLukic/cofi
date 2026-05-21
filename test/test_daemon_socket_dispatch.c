@@ -42,7 +42,7 @@ static const char *disabled_provider_id = NULL;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
-#define TEST_NAMES_TAB      ((TabMode)(TAB_COUNT + 3))
+#define TEST_MATCHING_TAB      ((TabMode)(TAB_COUNT + 3))
 #define TEST_APPS_TAB       ((TabMode)(TAB_COUNT + 4))
 
 TabMode workspaces_tab_mode(void) {
@@ -57,8 +57,8 @@ TabMode apps_tab_mode(void) {
     return TEST_APPS_TAB;
 }
 
-TabMode names_tab_mode(void) {
-    return TEST_NAMES_TAB;
+TabMode matching_tab_mode(void) {
+    return TEST_MATCHING_TAB;
 }
 
 void show_window(AppData *app) {
@@ -263,8 +263,8 @@ static void reset_mocks(void) {
     delegate_providers[1].tab_mode = TEST_HARPOON_TAB;
     delegate_providers[1].delegate_opcode = COFI_OPCODE_HARPOON;
     delegate_providers[2].id = "names";
-    delegate_providers[2].tab_mode = TEST_NAMES_TAB;
-    delegate_providers[2].delegate_opcode = COFI_OPCODE_NAMES;
+    delegate_providers[2].tab_mode = TEST_MATCHING_TAB;
+    delegate_providers[2].delegate_opcode = COFI_OPCODE_MATCHING;
     delegate_providers[3].id = "apps";
     delegate_providers[3].tab_mode = TEST_APPS_TAB;
     delegate_providers[3].delegate_opcode = COFI_OPCODE_APPLICATIONS;
@@ -288,7 +288,7 @@ static void test_tab_opcode_dispatch(void) {
         {COFI_OPCODE_WINDOWS, TAB_WINDOWS},
         {COFI_OPCODE_WORKSPACES, TEST_WORKSPACES_TAB},
         {COFI_OPCODE_HARPOON, TEST_HARPOON_TAB},
-        {COFI_OPCODE_NAMES, TEST_NAMES_TAB},
+        {COFI_OPCODE_MATCHING, TEST_MATCHING_TAB},
         {COFI_OPCODE_APPLICATIONS, TEST_APPS_TAB}
     };
 

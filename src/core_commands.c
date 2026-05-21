@@ -120,12 +120,12 @@ static const CommandSpec s_core_commands[] = {
     },
     {
         .primary = "mouse",
-        .aliases = {"m", "ma", "ms", "mh", NULL},
+        .aliases = {"ma", "ms", "mh", NULL},
         .compact_suffix = "ash",
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_mouse,
         .description = "Mouse control: away/show/hide",
-        .help_format = "m, mouse [away|show|hide]"
+        .help_format = "mouse, ma/ms/mh [away|show|hide]"
     },
     {
         .primary = "mw",
@@ -167,7 +167,7 @@ static const CommandSpec s_core_commands[] = {
         .aliases = {"s", NULL},
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_show,
-        .description = "Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps/emoji/projects/calc/proc/sinks/sessions/profiles)",
+        .description = "Show cofi in a specific mode (windows/command/run/workspaces/harpoon/matching/config/rules/apps/emoji/projects/calc/proc/sinks/sessions/profiles)",
         .help_format = "show [MODE]",
         .keeps_open_on_hotkey_auto = 1
     },

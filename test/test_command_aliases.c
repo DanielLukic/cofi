@@ -118,9 +118,9 @@ static void test_mouse_aliases(void) {
     check("mouse show", "mouse show", "mouse", "show");
     check("mouse hide", "mouse hide", "mouse", "hide");
 
-    // m alias
-    check("m bare", "m", "m", "");
-    check("m with space arg", "m show", "m", "show");
+    // ma alias
+    check("ma bare", "ma", "ma", "");
+    check("ma with space arg", "ma show", "ma", "show");
 
     // ma alias - "ma" is exact, "mah" expands
     check("ma bare", "ma", "ma", "");

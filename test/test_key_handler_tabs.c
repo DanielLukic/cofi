@@ -8,7 +8,7 @@
 #include "../src/harpoon_provider.h"
 #include "../src/hotkeys_provider.h"
 #include "../src/key_handler.h"
-#include "../src/names_provider.h"
+#include "../src/matching_provider.h"
 #include "../src/rules_provider.h"
 #include "../src/projects_parse.h"
 #include "../src/projects_provider.h"
@@ -29,11 +29,11 @@ static int fail = 0;
 
 static int g_show_name_edit_calls;
 static int g_last_name_edit_index;
-static NamedWindow g_last_name_edit_named;
+static MatchEntry g_last_name_edit_named;
 
 static int g_show_name_delete_calls;
 static int g_last_name_delete_manager_index;
-static char g_last_name_delete_custom_name[MAX_TITLE_LEN];
+static char g_last_matching_delete_custom_name[MAX_TITLE_LEN];
 
 static int g_show_harpoon_delete_calls;
 static int g_last_harpoon_delete_slot;
@@ -45,7 +45,7 @@ static int g_save_config_calls;
 static int g_regrab_hotkeys_calls;
 static int g_save_hotkey_config_calls;
 static int g_update_display_calls;
-static int g_save_named_windows_calls;
+static int g_save_match_entries_calls;
 static int g_cleanup_hotkeys_calls;
 static int g_replay_selected_rule_calls;
 static int g_replay_all_rules_calls;
@@ -63,7 +63,7 @@ static gboolean g_stub_has_selected_folder;
 
 #define TEST_HARPOON_TAB  ((TabMode)(TAB_COUNT + 1))
 #define TEST_PROJECTS_TAB ((TabMode)(TAB_COUNT + 2))
-#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 3))
+#define TEST_MATCHING_TAB    ((TabMode)(TAB_COUNT + 3))
 #define TEST_CONFIG_TAB   ((TabMode)(TAB_COUNT + 4))
 #define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 5))
 #define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 6))
@@ -121,21 +121,21 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) { (void)app; (v
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) { (void)prefix; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
-    static CofiTabProvider names_provider;
+    static CofiTabProvider matching_provider;
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
     static CofiTabProvider projects_provider;
     static CofiTabProvider harpoon_provider;
-    memset(&names_provider, 0, sizeof(names_provider));
+    memset(&matching_provider, 0, sizeof(matching_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
     memset(&projects_provider, 0, sizeof(projects_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     g_last_provider_tab_lookup = tab_mode;
-    names_provider.tab_mode = TEST_NAMES_TAB;
-    names_provider.handle_key = handle_names_tab_keys;
+    matching_provider.tab_mode = TEST_MATCHING_TAB;
+    matching_provider.handle_key = handle_matching_tab_keys;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     config_provider.handle_key = handle_config_tab_keys;
     hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
@@ -148,7 +148,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     harpoon_provider.handle_key = handle_harpoon_tab_keys;
 
     if (tab_mode == TEST_PROJECTS_TAB) return &projects_provider;
-    if (tab_mode == TEST_NAMES_TAB) return &names_provider;
+    if (tab_mode == TEST_MATCHING_TAB) return &matching_provider;
     if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
     if (tab_mode == TEST_HOTKEYS_TAB) return &hotkeys_provider;
     if (tab_mode == TEST_RULES_TAB) return &rules_provider;
@@ -162,18 +162,18 @@ int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_filtered_to_raw(int provider_id, int filtered_idx) { (void)provider_id; return filtered_idx; }
 TabMode apps_tab_mode(void) { return TEST_APPS_TAB; }
 const CofiTabProvider *cofi_get_provider(int provider_id) {
-    static CofiTabProvider names_provider;
+    static CofiTabProvider matching_provider;
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
     static CofiTabProvider harpoon_provider;
     (void)provider_id;
-    memset(&names_provider, 0, sizeof(names_provider));
+    memset(&matching_provider, 0, sizeof(matching_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
-    names_provider.tab_mode = TEST_NAMES_TAB;
+    matching_provider.tab_mode = TEST_MATCHING_TAB;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     rules_provider.tab_mode = TEST_RULES_TAB;
@@ -184,7 +184,7 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
         return &config_provider;
     if (g_last_provider_tab_lookup == TEST_HOTKEYS_TAB)
         return &hotkeys_provider;
-    return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &names_provider;
+    return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &matching_provider;
 }
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
@@ -214,8 +214,8 @@ void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 void show_name_edit_overlay(AppData *app) {
     g_show_name_edit_calls++;
     g_last_name_edit_index = app ? app->selection.provider_index : -1;
-    if (app && app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_names_count) {
-        g_last_name_edit_named = app->filtered_names[app->selection.provider_index];
+    if (app && app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_matching_count) {
+        g_last_name_edit_named = app->filtered_matching[app->selection.provider_index];
     } else {
         memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
     }
@@ -225,13 +225,13 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     (void)app;
     g_show_name_delete_calls++;
     g_last_name_delete_manager_index = manager_index;
-    strncpy(g_last_name_delete_custom_name,
+    strncpy(g_last_matching_delete_custom_name,
             custom_name ? custom_name : "",
-            sizeof(g_last_name_delete_custom_name) - 1);
-    g_last_name_delete_custom_name[sizeof(g_last_name_delete_custom_name) - 1] = '\0';
+            sizeof(g_last_matching_delete_custom_name) - 1);
+    g_last_matching_delete_custom_name[sizeof(g_last_matching_delete_custom_name) - 1] = '\0';
 }
 
-int find_named_window_index(const NamedWindowManager *manager, Window id) {
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].bound_x11_id == id) {
@@ -241,7 +241,7 @@ int find_named_window_index(const NamedWindowManager *manager, Window id) {
     return -1;
 }
 
-int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name) {
+int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
     if (!manager || !custom_name) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (strcmp(manager->entries[i].custom_name, custom_name) == 0) {
@@ -251,7 +251,7 @@ int find_named_window_by_name(const NamedWindowManager *manager, const char *cus
     return -1;
 }
 
-void delete_custom_name(NamedWindowManager *manager, int index) {
+void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
     if (!manager || index < 0 || index >= manager->count) return;
     for (int i = index; i < manager->count - 1; i++) {
         manager->entries[i] = manager->entries[i + 1];
@@ -259,13 +259,13 @@ void delete_custom_name(NamedWindowManager *manager, int index) {
     manager->count--;
 }
 
-void save_named_windows(const NamedWindowManager *manager) { (void)manager; g_save_named_windows_calls++; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; g_save_match_entries_calls++; }
 
-void filter_names(AppData *app, const char *filter) {
+void filter_matching(AppData *app, const char *filter) {
     (void)filter;
-    app->filtered_names_count = app->names.count;
-    for (int i = 0; i < app->names.count; i++) {
-        app->filtered_names[i] = app->names.entries[i];
+    app->filtered_matching_count = app->matching.count;
+    for (int i = 0; i < app->matching.count; i++) {
+        app->filtered_matching[i] = app->matching.entries[i];
     }
 }
 
@@ -510,7 +510,7 @@ static void reset_captures(void) {
 
     g_show_name_delete_calls = 0;
     g_last_name_delete_manager_index = -1;
-    g_last_name_delete_custom_name[0] = '\0';
+    g_last_matching_delete_custom_name[0] = '\0';
 
     g_show_harpoon_delete_calls = 0;
     g_last_harpoon_delete_slot = -1;
@@ -521,7 +521,7 @@ static void reset_captures(void) {
     g_regrab_hotkeys_calls = 0;
     g_save_hotkey_config_calls = 0;
     g_update_display_calls = 0;
-    g_save_named_windows_calls = 0;
+    g_save_match_entries_calls = 0;
     g_cleanup_hotkeys_calls = 0;
     g_replay_selected_rule_calls = 0;
     g_replay_all_rules_calls = 0;
@@ -585,12 +585,12 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_NAMES_TAB;
-    app.filtered_names_count = 2;
+    app.current_tab = TEST_MATCHING_TAB;
+    app.filtered_matching_count = 2;
     app.selection.provider_index = 1;
-    strcpy(app.filtered_names[0].custom_name, "alpha");
-    strcpy(app.filtered_names[1].custom_name, "beta");
-    app.filtered_names[1].bound_x11_id = (Window)0xBEEF;
+    strcpy(app.filtered_matching[0].custom_name, "alpha");
+    strcpy(app.filtered_matching[1].custom_name, "beta");
+    app.filtered_matching[1].bound_x11_id = (Window)0xBEEF;
 
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -608,13 +608,13 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_NAMES_TAB;
-    app.names.count = 2;
-    strcpy(app.names.entries[0].custom_name, "alpha");
-    strcpy(app.names.entries[1].custom_name, "beta");
-    app.filtered_names_count = 1;
+    app.current_tab = TEST_MATCHING_TAB;
+    app.matching.count = 2;
+    strcpy(app.matching.entries[0].custom_name, "alpha");
+    strcpy(app.matching.entries[1].custom_name, "beta");
+    app.filtered_matching_count = 1;
     app.selection.provider_index = 0;
-    strcpy(app.filtered_names[0].custom_name, "beta");
+    strcpy(app.filtered_matching[0].custom_name, "beta");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -622,10 +622,10 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     ASSERT_TRUE("Ctrl+d on Names handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+d on Names shows delete-confirm overlay",
                 g_show_name_delete_calls == 1 &&
-                strcmp(g_last_name_delete_custom_name, "beta") == 0 &&
+                strcmp(g_last_matching_delete_custom_name, "beta") == 0 &&
                 g_last_name_delete_manager_index == 1);
     ASSERT_TRUE("Ctrl+d on Names does not delete immediately",
-                app.names.count == 2 && g_save_named_windows_calls == 0);
+                app.matching.count == 2 && g_save_match_entries_calls == 0);
 }
 
 static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index(void) {
@@ -633,12 +633,12 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_NAMES_TAB;
-    app.names.count = 0;
-    app.filtered_names_count = 1;
+    app.current_tab = TEST_MATCHING_TAB;
+    app.matching.count = 0;
+    app.filtered_matching_count = 1;
     app.selection.provider_index = 0;
-    app.filtered_names[0].bound_x11_id = (Window)0xDEAD;
-    strcpy(app.filtered_names[0].custom_name, "orphan");
+    app.filtered_matching[0].bound_x11_id = (Window)0xDEAD;
+    strcpy(app.filtered_matching[0].custom_name, "orphan");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -646,7 +646,7 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     ASSERT_TRUE("Ctrl+d on unresolved Names row still handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+d on unresolved Names row still shows overlay",
                 g_show_name_delete_calls == 1 &&
-                strcmp(g_last_name_delete_custom_name, "orphan") == 0 &&
+                strcmp(g_last_matching_delete_custom_name, "orphan") == 0 &&
                 g_last_name_delete_manager_index == -1);
 }
 

@@ -13,7 +13,7 @@ D-Bus IPC + spawn-per-invocation (ADR-0001) was too slow on keypress paths. Inte
 One binary, two roles:
 
 - **First invocation** binds `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`), grabs global hotkeys, keeps the GTK toplevel hidden, runs the X11 event loop.
-- **Second invocation** finds the socket bound, sends a one-byte **opcode** (1=windows, 2=workspaces, 3=harpoon, 4=names, 5=command, 6=run, 7=applications; byte 0 reserved for protocol version) plus argv tail, and exits.
+- **Second invocation** finds the socket bound, sends a one-byte **opcode** (1=windows, 2=workspaces, 3=harpoon, 4=matching, 5=command, 6=run, 7=applications; byte 0 reserved for protocol version) plus argv tail, and exits.
 
 Stale-socket recovery on bind. `--no-daemon` flag removed.
 

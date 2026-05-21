@@ -56,7 +56,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
                 ┌────────────────────────────────────┐
                 │ Provider registry + data modules   │
                 │  - cofi_tab_provider registry      │
-                │  - workspaces / harpoon / names    │
+                │  - workspaces / harpoon / matching │
                 │  - config / hotkeys / rules / apps │
                 │  - calc / sinks / run / proc       │
                 │  - projects / profiles             │
@@ -81,7 +81,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### IPC
 
 - **`src/daemon_socket.c`** — protocol primitives (path resolution, bind, connect, send, accept).
-- **`src/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_NAMES`, `_COMMAND`, `_RUN`, `_APPLICATIONS`).
+- **`src/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_MATCHING`, `_COMMAND`, `_RUN`, `_APPLICATIONS`).
 
 ### X11
 
@@ -120,7 +120,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 - **`src/match.c`** — match-stage classification (exact / prefix / initials / fuzzy).
 - **`src/harpoon.c`** — 36 persistent slot assignments (`~/.config/cofi/harpoon.json`).
 - **`src/workspace_slots.c`** — per-workspace auto-numbered slots (column-major).
-- **`src/named_window.c`** + `src/window_matcher.c` — user-assigned names + matching rules.
+- **`src/match_entry.c`** + `src/window_matcher.c` — user-assigned names + matching rules.
 - **`src/rules.c`** + `src/rules_config.c` — rule-based window classification.
 - **`src/sessions.c`** — live cancellable `rg` search over Claude/Codex JSONL session files; groups raw matches into session rows and applies `terms | refine` filtering without a persistent index.
 
