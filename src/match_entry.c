@@ -21,6 +21,14 @@ static const WindowInfo *find_live_window_by_id(const WindowInfo *windows, int w
     return NULL;
 }
 
+static int match_id_is_referenced(const int *referenced_ids, int referenced_count, int match_id) {
+    if (!referenced_ids || referenced_count <= 0 || match_id <= 0) return 0;
+    for (int i = 0; i < referenced_count; i++) {
+        if (referenced_ids[i] == match_id) return 1;
+    }
+    return 0;
+}
+
 void match_entry_manager_init(MatchEntryManager *manager) {
     if (!manager) return;
     
@@ -179,6 +187,27 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
         log_debug("Named windows were automatically reassigned");
     }
     return config_changed;
+}
+
+int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int referenced_count) {
+    if (!manager) return 0;
+
+    int removed = 0;
+    for (int i = 0; i < manager->count; ) {
+        MatchEntry *entry = &manager->entries[i];
+        if (entry->custom_name[0] != '\0' ||
+            match_id_is_referenced(referenced_ids, referenced_count, entry->match_id)) {
+            i++;
+            continue;
+        }
+
+        log_info("GC removing unreferenced unlabeled match entry %d (match_id=%d)",
+                 i, entry->match_id);
+        match_entry_delete_custom_name(manager, i);
+        removed++;
+    }
+
+    return removed;
 }
 
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {

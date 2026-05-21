@@ -405,6 +405,7 @@ Window get_slot_window(const HarpoonManager *manager, int slot) { (void)manager;
 int get_window_slot(const HarpoonManager *manager, Window id) { (void)manager; (void)id; return -1; }
 void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slot; }
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
+int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) { (void)manager; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
 void save_config(const CofiConfig *config) { (void)config; }
 void show_name_edit_overlay(AppData *app) { (void)app; }

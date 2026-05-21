@@ -236,6 +236,11 @@ void unassign_slot(HarpoonManager *manager, int slot) {
     memset(&manager->slots[slot], 0, sizeof(manager->slots[slot]));
 }
 
+int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) {
+    (void)manager;
+    return 0;
+}
+
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) {
     if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS || !manager->matching) return;
     int match_id = 0;

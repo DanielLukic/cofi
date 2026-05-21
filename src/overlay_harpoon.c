@@ -122,6 +122,9 @@ gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event) {
         int slot_index = app->harpoon_delete.delete_slot;
 
         unassign_slot(&app->harpoon, slot_index);
+        if (harpoon_gc_unreferenced_match_entries(&app->harpoon) > 0) {
+            save_match_entries(&app->matching);
+        }
         save_harpoon_slots(&app->harpoon);
 
         log_info("USER: Deleted harpoon assignment for slot %d", slot_index);

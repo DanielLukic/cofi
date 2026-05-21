@@ -588,6 +588,34 @@ static void test_glob_pattern_persists_and_rebinds_changed_title(void) {
     ASSERT_INT("exact entry does not match changed title", 0, loaded.entries[0].assigned);
 }
 
+static void test_match_entry_gc_keeps_labeled_and_referenced_entries(void) {
+    printf("\n--- match_entry_gc keeps labeled and referenced entries ---\n");
+
+    MatchEntryManager mgr;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    match_entry_manager_init(&mgr);
+
+    WindowInfo unlabeled = make_window(100, "Unlabeled", "ClassA", "instA", "Normal");
+    WindowInfo labeled = make_window(200, "Labeled", "ClassB", "instB", "Normal");
+    WindowInfo referenced = make_window(300, "Referenced", "ClassC", "instC", "Normal");
+    windows[0] = unlabeled;
+    windows[1] = labeled;
+    windows[2] = referenced;
+
+    int unlabeled_id = matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    match_entry_assign_custom_name(&mgr, &labeled, "keep");
+    int referenced_id = matching_capture_or_get(&mgr, windows, 3, &referenced);
+    int referenced_ids[] = {referenced_id};
+
+    ASSERT_INT("three entries captured before gc", 3, mgr.count);
+    ASSERT_INT("gc removes only unlabeled unreferenced entry", 1,
+               match_entry_gc(&mgr, referenced_ids, 1));
+    ASSERT_INT("count after gc", 2, mgr.count);
+    ASSERT_INT("unlabeled entry removed", -1, match_entry_find_index_by_match_id(&mgr, unlabeled_id));
+    ASSERT_INT("labeled entry kept", 1, match_entry_find_index_by_custom_name(&mgr, "keep") >= 0);
+    ASSERT_INT("referenced entry kept", 1, match_entry_find_index_by_match_id(&mgr, referenced_id) >= 0);
+}
+
 int main(void) {
     printf("Named Window Manager Tests\n");
     printf("==========================\n");
@@ -612,6 +640,7 @@ int main(void) {
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
     test_glob_pattern_persists_and_rebinds_changed_title();
+    test_match_entry_gc_keeps_labeled_and_referenced_entries();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

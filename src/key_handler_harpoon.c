@@ -93,8 +93,12 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
     }
 
     Window current_window = get_slot_window(&app->harpoon, slot);
+    int gc_removed = 0;
+    gboolean matching_changed = FALSE;
     if (current_window == selected_window->id) {
         unassign_slot(&app->harpoon, slot);
+        gc_removed = harpoon_gc_unreferenced_match_entries(&app->harpoon);
+        matching_changed = gc_removed > 0;
         log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
     } else {
         int old_slot = get_window_slot(&app->harpoon, selected_window->id);
@@ -102,11 +106,15 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
             unassign_slot(&app->harpoon, old_slot);
         }
         assign_window_to_slot(&app->harpoon, slot, selected_window);
+        gc_removed = harpoon_gc_unreferenced_match_entries(&app->harpoon);
+        matching_changed = TRUE;
         log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
     }
 
     save_config(&app->config);
-    save_match_entries(&app->matching);
+    if (matching_changed) {
+        save_match_entries(&app->matching);
+    }
     save_harpoon_slots(&app->harpoon);
     update_display(app);
     return TRUE;

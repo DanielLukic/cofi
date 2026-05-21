@@ -43,6 +43,10 @@ int match_entry_is_bound_window(const MatchEntryManager *manager, Window id);
 // Returns true if any entries were reassigned.
 bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *windows, int window_count);
 
+// Delete unlabeled entries that are not referenced by any consumer match_id list.
+// Returns the number of entries removed.
+int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int referenced_count);
+
 // Delete a custom label by index.
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index);
 

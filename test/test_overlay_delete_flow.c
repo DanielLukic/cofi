@@ -103,6 +103,11 @@ void unassign_slot(HarpoonManager *harpoon, int slot) {
     memset(&harpoon->slots[slot], 0, sizeof(harpoon->slots[slot]));
 }
 
+int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) {
+    (void)manager;
+    return 0;
+}
+
 void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
     (void)manager;
     (void)window;
