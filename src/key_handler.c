@@ -12,6 +12,7 @@
 #include "filter_matching.h"
 #include "harpoon_provider.h"
 #include "key_handler_harpoon.h"
+#include "window_geometry_matching.h"
 #include "log.h"
 #include "overlay_manager.h"
 #include "prefix_tabs.h"
@@ -120,6 +121,8 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, AppData *app) {
         cofi_get_provider_for_tab(app->current_tab);
     if ((current_provider && current_provider->handle_key &&
          current_provider->handle_key(event, app)) ||
+        handle_window_geometry_save(event, app) ||
+        handle_window_geometry_restore(event, app) ||
         handle_harpoon_assignment(event, app) ||
         handle_harpoon_workspace_switching(event, app)) {
         return TRUE;

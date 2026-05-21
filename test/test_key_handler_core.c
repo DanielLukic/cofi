@@ -407,6 +407,9 @@ void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slo
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
 int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) { (void)manager; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    (void)manager; (void)match_id; return -1;
+}
 void save_config(const CofiConfig *config) { (void)config; }
 void show_name_edit_overlay(AppData *app) { (void)app; }
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
@@ -416,6 +419,16 @@ int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
+int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
+    (void)manager; (void)windows; (void)window_count; (void)w; return -1;
+}
+gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
+    (void)display; (void)window; (void)x; (void)y; (void)width; (void)height; return FALSE;
+}
+int get_window_desktop(Display *display, Window window) { (void)display; (void)window; return 0; }
+void move_window_to_desktop(Display *display, Window window, int desktop_index) {
+    (void)display; (void)window; (void)desktop_index;
+}
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }

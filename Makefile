@@ -59,6 +59,7 @@ SOURCES = src/main.c \
           src/nav_keys.c \
           src/prefix_tabs.c \
           src/key_handler_harpoon.c \
+          src/window_geometry_matching.c \
           src/harpoon_provider.c \
           src/workspaces_provider.c \
           src/window_lifecycle.c \
@@ -312,8 +313,8 @@ test_fzf_algo: test/test_fzf_algo.c src/fzf_algo.o
 	$(CC) $(CFLAGS) -o test/test_fzf_algo test/test_fzf_algo.c src/fzf_algo.o $(LDFLAGS)
 
 # Build named window test
-test_match_entry: test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_match_entry: test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/window_geometry_matching.o src/window_matcher.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/window_geometry_matching.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build match scoring test (fzy algorithm)
 test_match_scoring: test/test_match_scoring.c src/match.o
@@ -431,14 +432,14 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/window_geometry_matching.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)

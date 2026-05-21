@@ -208,6 +208,16 @@ void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slo
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
 int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) { (void)manager; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
+int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
+    (void)manager; (void)windows; (void)window_count; (void)w; return -1;
+}
+gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
+    (void)display; (void)window; (void)x; (void)y; (void)width; (void)height; return FALSE;
+}
+int get_window_desktop(Display *display, Window window) { (void)display; (void)window; return 0; }
+void move_window_to_desktop(Display *display, Window window, int desktop_index) {
+    (void)display; (void)window; (void)desktop_index;
+}
 
 void save_config(const CofiConfig *config) { (void)config; g_save_config_calls++; }
 

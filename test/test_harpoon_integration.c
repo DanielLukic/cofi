@@ -212,6 +212,33 @@ static void test_gc_keeps_labeled_entry_without_harpoon_reference(void) {
     ASSERT_TRUE("labeled entry name preserved", strcmp(matching.entries[0].custom_name, "named") == 0);
 }
 
+static void test_gc_keeps_geometry_only_entry_without_harpoon_reference(void) {
+    set_test_home("gc-geom");
+
+    MatchEntryManager matching;
+    HarpoonManager harpoon;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    int window_count = 1;
+
+    match_entry_manager_init(&matching);
+    init_harpoon_manager(&harpoon);
+    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
+
+    windows[0] = make_window(0x90A, "Keep Geom", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&harpoon, 2, &windows[0]);
+    matching.entries[0].has_geom = 1;
+    matching.entries[0].geom_x = 1;
+    matching.entries[0].geom_y = 2;
+    matching.entries[0].geom_w = 300;
+    matching.entries[0].geom_h = 200;
+    matching.entries[0].geom_desktop = 4;
+
+    unassign_slot(&harpoon, 2);
+    ASSERT_TRUE("geometry-only entry survives gc", harpoon_gc_unreferenced_match_entries(&harpoon) == 0);
+    ASSERT_TRUE("geometry-only entry remains present", matching.count == 1);
+    ASSERT_TRUE("geometry flag preserved", matching.entries[0].has_geom == 1);
+}
+
 static void test_gc_keeps_entry_referenced_by_live_harpoon_slot(void) {
     set_test_home("gc-referenced");
 
@@ -310,6 +337,7 @@ int main(void) {
     test_slot_rebinds_after_orphaned_reopen_cycle();
     test_unassign_gc_removes_unlabeled_unreferenced_entry();
     test_gc_keeps_labeled_entry_without_harpoon_reference();
+    test_gc_keeps_geometry_only_entry_without_harpoon_reference();
     test_gc_keeps_entry_referenced_by_live_harpoon_slot();
     test_window_close_keeps_entry_while_slot_still_references_it();
     test_match_id_persists_and_reloads_with_rebind();

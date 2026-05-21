@@ -18,6 +18,12 @@ typedef struct MatchEntry {
     char type[16];                     // Window type ("Normal" or "Special")
     TitleMatchMode match_mode;         // EXACT(default) or GLOB (future UI edit)
     int assigned;                      // 1 if matched to existing window, 0 if orphaned
+    int geom_x;
+    int geom_y;
+    int geom_w;
+    int geom_h;
+    int geom_desktop;
+    int has_geom;
 } MatchEntry;
 
 // Manager for all matching entries.
@@ -45,6 +51,9 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
 
 // Collect match_ids referenced by the naming/display consumer.
 int match_entry_collect_labeled_ids(const MatchEntryManager *manager, int *out, int max);
+
+// Collect match_ids referenced by the geometry consumer.
+int match_entry_collect_geom_ids(const MatchEntryManager *manager, int *out, int max);
 
 // Delete entries that are not referenced by any consumer match_id list.
 // Returns the number of entries removed.

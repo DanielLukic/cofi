@@ -343,6 +343,25 @@ int get_current_desktop(Display *display) {
     return 0; // Default to desktop 0
 }
 
+int get_window_desktop(Display *display, Window window) {
+    Atom net_wm_desktop = XInternAtom(display, "_NET_WM_DESKTOP", False);
+    int actual_format;
+    unsigned long n_items;
+    unsigned char *prop = NULL;
+
+    if (get_x11_property(display, window, net_wm_desktop,
+                        XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop) == COFI_SUCCESS) {
+        if (actual_format == 32 && n_items >= 1) {
+            int desktop = *(int *)prop;
+            XFree(prop);
+            return desktop;
+        }
+        XFree(prop);
+    }
+
+    return 0;
+}
+
 // Switch to a specific desktop using _NET_CURRENT_DESKTOP
 void switch_to_desktop(Display *display, int desktop) {
     Atom net_current_desktop = XInternAtom(display, "_NET_CURRENT_DESKTOP", False);

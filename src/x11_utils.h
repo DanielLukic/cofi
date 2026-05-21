@@ -44,6 +44,9 @@ int set_desktop_names(Display *display, char **names, int num_desktops);
 // Get current desktop from _NET_CURRENT_DESKTOP
 int get_current_desktop(Display *display);
 
+// Get a specific window's desktop from _NET_WM_DESKTOP
+int get_window_desktop(Display *display, Window window);
+
 // Switch to a specific desktop using _NET_CURRENT_DESKTOP
 void switch_to_desktop(Display *display, int desktop);
 

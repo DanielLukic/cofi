@@ -45,6 +45,17 @@ static int g_ctrl_n_recall_calls;
 static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
 static CofiTabProvider g_ctrl_n_provider;
+static int g_save_match_entries_calls;
+static int g_matching_capture_calls;
+static int g_get_window_geometry_calls;
+static int g_get_window_desktop_calls;
+static int g_move_window_to_desktop_calls;
+static Window g_last_move_window;
+static int g_last_move_desktop;
+static int g_last_restore_x;
+static int g_last_restore_y;
+static unsigned int g_last_restore_w;
+static unsigned int g_last_restore_h;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
@@ -270,9 +281,56 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     (void)app; (void)custom_name; (void)manager_index;
 }
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager; (void)id; return -1; }
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    if (!manager || match_id <= 0) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) return i;
+    }
+    return -1;
+}
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
-void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; g_save_match_entries_calls++; }
+int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
+    (void)windows;
+    (void)window_count;
+    g_matching_capture_calls++;
+    if (!manager || !w) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].bound_x11_id == w->id) {
+            manager->entries[i].assigned = 1;
+            return manager->entries[i].match_id;
+        }
+    }
+    if (manager->count >= MAX_WINDOWS) return -1;
+    int idx = manager->count++;
+    manager->entries[idx].match_id = idx + 1;
+    manager->entries[idx].bound_x11_id = w->id;
+    manager->entries[idx].assigned = 1;
+    return manager->entries[idx].match_id;
+}
+gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
+    (void)display;
+    (void)window;
+    g_get_window_geometry_calls++;
+    if (x) *x = 12;
+    if (y) *y = 34;
+    if (width) *width = 640;
+    if (height) *height = 480;
+    return TRUE;
+}
+int get_window_desktop(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    g_get_window_desktop_calls++;
+    return 3;
+}
+void move_window_to_desktop(Display *display, Window window, int desktop_index) {
+    (void)display;
+    g_move_window_to_desktop_calls++;
+    g_last_move_window = window;
+    g_last_move_desktop = desktop_index;
+}
 void filter_matching(AppData *app, const char *filter) { (void)app; (void)filter; }
 MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
 int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
@@ -315,6 +373,19 @@ void apps_launch(const AppEntry *entry) { (void)entry; }
 
 #include "../src/key_handler.c"
 
+int XMoveResizeWindow(Display *display, Window window, int x, int y,
+                      unsigned int width, unsigned int height) {
+    (void)display;
+    g_last_move_window = window;
+    g_last_restore_x = x;
+    g_last_restore_y = y;
+    g_last_restore_w = width;
+    g_last_restore_h = height;
+    return 0;
+}
+
+int XFlush(Display *display) { (void)display; return 0; }
+
 static void reset_captures(void) {
     g_hide_calls = 0;
     g_activate_calls = 0;
@@ -337,6 +408,17 @@ static void reset_captures(void) {
     g_provider_handle_key_calls = 0;
     g_ctrl_n_recall_calls = 0;
     g_provider_for_tab = NULL;
+    g_save_match_entries_calls = 0;
+    g_matching_capture_calls = 0;
+    g_get_window_geometry_calls = 0;
+    g_get_window_desktop_calls = 0;
+    g_move_window_to_desktop_calls = 0;
+    g_last_move_window = 0;
+    g_last_move_desktop = -1;
+    g_last_restore_x = 0;
+    g_last_restore_y = 0;
+    g_last_restore_w = 0;
+    g_last_restore_h = 0;
 }
 
 static void init_app(AppData *app) {
@@ -443,6 +525,74 @@ static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
     ASSERT_TRUE("Reassignment clears old slot 3", app.harpoon.slots[3].assigned == 0);
     ASSERT_TRUE("Reassignment sets new slot 5", app.harpoon.slots[5].assigned == 1);
     ASSERT_TRUE("Reassignment new slot 5 resolves selected window", get_slot_window(&app.harpoon, 5) == x);
+}
+
+static void test_ctrl_semicolon_saves_geometry_on_selected_window(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    GdkEventKey ev = make_key(GDK_KEY_semicolon, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+semicolon save handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+semicolon captures selected match entry", g_matching_capture_calls == 1);
+    ASSERT_TRUE("Ctrl+semicolon reads geometry and desktop",
+                g_get_window_geometry_calls == 1 && g_get_window_desktop_calls == 1);
+    ASSERT_TRUE("Ctrl+semicolon persists matching", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("Ctrl+semicolon stores geometry on entry",
+                app.matching.count == 1 &&
+                app.matching.entries[0].has_geom == 1 &&
+                app.matching.entries[0].geom_x == 12 &&
+                app.matching.entries[0].geom_y == 34 &&
+                app.matching.entries[0].geom_w == 640 &&
+                app.matching.entries[0].geom_h == 480 &&
+                app.matching.entries[0].geom_desktop == 3);
+}
+
+static void test_ctrl_apostrophe_restores_geometry_for_selected_window(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.matching.count = 1;
+    app.matching.entries[0].match_id = 1;
+    app.matching.entries[0].bound_x11_id = app.filtered[0].id;
+    app.matching.entries[0].assigned = 1;
+    app.matching.entries[0].has_geom = 1;
+    app.matching.entries[0].geom_x = 101;
+    app.matching.entries[0].geom_y = 202;
+    app.matching.entries[0].geom_w = 303;
+    app.matching.entries[0].geom_h = 404;
+    app.matching.entries[0].geom_desktop = 5;
+
+    GdkEventKey ev = make_key(GDK_KEY_apostrophe, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+apostrophe restore handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+apostrophe resolves existing match entry", g_matching_capture_calls == 1);
+}
+
+static void test_geometry_shortcuts_fall_through_without_windows_selection(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+    app.current_tab = TEST_SINKS_TAB;
+
+    GdkEventKey save_ev = make_key(GDK_KEY_semicolon, GDK_CONTROL_MASK);
+    GdkEventKey restore_ev = make_key(GDK_KEY_apostrophe, GDK_CONTROL_MASK);
+
+    ASSERT_TRUE("Ctrl+semicolon falls through outside Windows",
+                on_key_press(NULL, &save_ev, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+apostrophe falls through outside Windows",
+                on_key_press(NULL, &restore_ev, &app) == FALSE);
+
+    app.current_tab = TAB_WINDOWS;
+    app.filtered_count = 0;
+    ASSERT_TRUE("Ctrl+semicolon falls through without selection",
+                on_key_press(NULL, &save_ev, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+apostrophe falls through without selection",
+                on_key_press(NULL, &restore_ev, &app) == FALSE);
 }
 
 static void test_alt_1_workspaces_mode_switches_workspace(void) {
@@ -644,6 +794,9 @@ int main(int argc, char **argv) {
     test_ctrl_j_without_shift_not_assignment();
     test_ctrl_shift_j_assigns_letter_slot();
     test_ctrl_5_reassigns_existing_window_from_old_slot();
+    test_ctrl_semicolon_saves_geometry_on_selected_window();
+    test_ctrl_apostrophe_restores_geometry_for_selected_window();
+    test_geometry_shortcuts_fall_through_without_windows_selection();
     test_alt_1_workspaces_mode_switches_workspace();
     test_alt_1_per_workspace_mode_activates_slot_window();
     test_alt_a_default_mode_activates_harpoon_letter_slot();
