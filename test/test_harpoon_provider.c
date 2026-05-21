@@ -75,6 +75,14 @@ int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
 
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    if (!manager || match_id <= 0) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) return i;
+    }
+    return -1;
+}
+
 void show_harpoon_delete_overlay(AppData *app, int slot) {
     (void)app;
     g_show_delete_calls++;
@@ -105,24 +113,31 @@ static void reset_state(AppData *app) {
 
 static void seed_slots(AppData *app) {
     app->harpoon.slots[3].assigned = 1;
-    g_strlcpy(app->harpoon.slots[3].title, "Terminal",
-              sizeof(app->harpoon.slots[3].title));
-    g_strlcpy(app->harpoon.slots[3].class_name, "Mate-terminal",
-              sizeof(app->harpoon.slots[3].class_name));
-    g_strlcpy(app->harpoon.slots[3].instance, "mate-terminal",
-              sizeof(app->harpoon.slots[3].instance));
-    g_strlcpy(app->harpoon.slots[3].type, "normal",
-              sizeof(app->harpoon.slots[3].type));
+    app->harpoon.slots[3].match_id = 101;
+    app->matching.entries[0].match_id = 101;
+    g_strlcpy(app->matching.entries[0].original_title, "Terminal",
+              sizeof(app->matching.entries[0].original_title));
+    g_strlcpy(app->matching.entries[0].class_name, "Mate-terminal",
+              sizeof(app->matching.entries[0].class_name));
+    g_strlcpy(app->matching.entries[0].instance, "mate-terminal",
+              sizeof(app->matching.entries[0].instance));
+    g_strlcpy(app->matching.entries[0].type, "normal",
+              sizeof(app->matching.entries[0].type));
+    app->matching.entries[0].assigned = 1;
 
     app->harpoon.slots[12].assigned = 1;
-    g_strlcpy(app->harpoon.slots[12].title, "Browser",
-              sizeof(app->harpoon.slots[12].title));
-    g_strlcpy(app->harpoon.slots[12].class_name, "Firefox",
-              sizeof(app->harpoon.slots[12].class_name));
-    g_strlcpy(app->harpoon.slots[12].instance, "firefox",
-              sizeof(app->harpoon.slots[12].instance));
-    g_strlcpy(app->harpoon.slots[12].type, "normal",
-              sizeof(app->harpoon.slots[12].type));
+    app->harpoon.slots[12].match_id = 202;
+    app->matching.entries[1].match_id = 202;
+    g_strlcpy(app->matching.entries[1].original_title, "Browser",
+              sizeof(app->matching.entries[1].original_title));
+    g_strlcpy(app->matching.entries[1].class_name, "Firefox",
+              sizeof(app->matching.entries[1].class_name));
+    g_strlcpy(app->matching.entries[1].instance, "firefox",
+              sizeof(app->matching.entries[1].instance));
+    g_strlcpy(app->matching.entries[1].type, "normal",
+              sizeof(app->matching.entries[1].type));
+    app->matching.entries[1].assigned = 1;
+    app->matching.count = 2;
 }
 
 static void test_filter_and_format_row(void) {

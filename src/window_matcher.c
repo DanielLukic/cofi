@@ -145,15 +145,3 @@ bool window_matches_identity_and_title_pattern(const WindowInfo *window,
     }
     return wildcard_match(title_pattern, window->title);
 }
-
-// Check if window matches harpoon slot with wildcard support
-bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot) {
-    if (!window || !slot || !slot->assigned) return false;
-
-    return window_matches_identity_and_title_pattern(window,
-                                                     slot->class_name,
-                                                     slot->instance,
-                                                     slot->type,
-                                                     slot->title,
-                                                     TITLE_MATCH_MODE_LEGACY_WILDCARD);
-}

@@ -127,78 +127,6 @@ static void test_glob_match_leading_and_trailing_star(void) {
     ASSERT_TRUE("leading star no match", !glob_match("*xyz", "abc"));
 }
 
-/* --- window_matches_harpoon_slot tests --- */
-
-static void test_harpoon_slot_matching(void) {
-    printf("\n--- window_matches_harpoon_slot ---\n");
-
-    WindowInfo w = {0};
-    w.id = 100;
-    strncpy(w.title, "Terminal - bash", sizeof(w.title) - 1);
-    strncpy(w.class_name, "gnome-terminal", sizeof(w.class_name) - 1);
-    strncpy(w.instance, "gnome-terminal-server", sizeof(w.instance) - 1);
-    strncpy(w.type, "Normal", sizeof(w.type) - 1);
-
-    HarpoonSlot slot = {0};
-    slot.assigned = 1;
-    strncpy(slot.title, "Terminal - *", sizeof(slot.title) - 1);
-    strncpy(slot.class_name, "gnome-terminal", sizeof(slot.class_name) - 1);
-    strncpy(slot.instance, "gnome-terminal-server", sizeof(slot.instance) - 1);
-    strncpy(slot.type, "Normal", sizeof(slot.type) - 1);
-
-    ASSERT_TRUE("matching slot", window_matches_harpoon_slot(&w, &slot));
-
-    // Wrong class
-    HarpoonSlot slot_bad_class = slot;
-    strncpy(slot_bad_class.class_name, "other", sizeof(slot_bad_class.class_name) - 1);
-    ASSERT_TRUE("wrong class", !window_matches_harpoon_slot(&w, &slot_bad_class));
-
-    // Wrong instance
-    HarpoonSlot slot_bad_inst = slot;
-    strncpy(slot_bad_inst.instance, "other", sizeof(slot_bad_inst.instance) - 1);
-    ASSERT_TRUE("wrong instance", !window_matches_harpoon_slot(&w, &slot_bad_inst));
-
-    // Wrong type
-    HarpoonSlot slot_bad_type = slot;
-    strncpy(slot_bad_type.type, "Special", sizeof(slot_bad_type.type) - 1);
-    ASSERT_TRUE("wrong type", !window_matches_harpoon_slot(&w, &slot_bad_type));
-
-    // Unassigned slot
-    HarpoonSlot slot_unassigned = slot;
-    slot_unassigned.assigned = 0;
-    ASSERT_TRUE("unassigned slot", !window_matches_harpoon_slot(&w, &slot_unassigned));
-
-    // NULL safety
-    ASSERT_TRUE("NULL window", !window_matches_harpoon_slot(NULL, &slot));
-    ASSERT_TRUE("NULL slot", !window_matches_harpoon_slot(&w, NULL));
-}
-
-static void test_harpoon_title_wildcard_characterization(void) {
-    printf("\n--- window_matches_harpoon_slot title wildcard characterization ---\n");
-
-    WindowInfo w = {0};
-    w.id = 101;
-    strncpy(w.class_name, "ClassA", sizeof(w.class_name) - 1);
-    strncpy(w.instance, "instA", sizeof(w.instance) - 1);
-    strncpy(w.type, "Normal", sizeof(w.type) - 1);
-    strncpy(w.title, "term-1", sizeof(w.title) - 1);
-
-    HarpoonSlot slot = {0};
-    slot.assigned = 1;
-    strncpy(slot.class_name, "ClassA", sizeof(slot.class_name) - 1);
-    strncpy(slot.instance, "instA", sizeof(slot.instance) - 1);
-    strncpy(slot.type, "Normal", sizeof(slot.type) - 1);
-
-    strncpy(slot.title, "term-*", sizeof(slot.title) - 1);
-    ASSERT_TRUE("title '*' matches run", window_matches_harpoon_slot(&w, &slot));
-
-    strncpy(slot.title, "term-.", sizeof(slot.title) - 1);
-    ASSERT_TRUE("title '.' matches exactly one char", window_matches_harpoon_slot(&w, &slot));
-
-    strncpy(slot.title, "term-..", sizeof(slot.title) - 1);
-    ASSERT_TRUE("title '..' fails for one-char suffix", !window_matches_harpoon_slot(&w, &slot));
-}
-
 int main(void) {
     printf("Wildcard Match & Harpoon Slot Tests\n");
     printf("====================================\n");
@@ -213,9 +141,6 @@ int main(void) {
     test_glob_match_question_mark();
     test_glob_match_star();
     test_glob_match_leading_and_trailing_star();
-    test_harpoon_slot_matching();
-    test_harpoon_title_wildcard_characterization();
-
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
 

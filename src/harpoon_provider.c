@@ -6,6 +6,7 @@
 #include "daemon_socket.h"
 #include "log.h"
 #include "match.h"
+#include "match_entry.h"
 #include "overlay_manager.h"
 #include "selection.h"
 #include "tab_switching.h"
@@ -26,6 +27,13 @@ static void format_slot_key(int slot_idx, char *out, size_t out_size) {
 
 static CofiTabProvider s_harpoon_provider;
 static int s_harpoon_provider_id = -1;
+
+static MatchEntry *harpoon_slot_entry(AppData *app, const HarpoonSlot *slot) {
+    if (!app || !slot || !slot->assigned || slot->match_id <= 0) return NULL;
+    int idx = match_entry_find_index_by_match_id(&app->matching, slot->match_id);
+    if (idx < 0 || idx >= app->matching.count) return NULL;
+    return &app->matching.entries[idx];
+}
 
 TabMode harpoon_tab_mode(void) {
     const CofiTabProvider *provider = cofi_get_provider(s_harpoon_provider_id);
@@ -60,12 +68,14 @@ void filter_harpoon(AppData *app, const char *filter) {
     for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
         HarpoonSlot *slot = &app->harpoon.slots[i];
         if (!slot->assigned) continue;
+        MatchEntry *entry = harpoon_slot_entry(app, slot);
+        if (!entry) continue;
 
         char slot_key[4];
         char searchable[1024];
         format_slot_key(i, slot_key, sizeof(slot_key));
         snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-                 slot_key, slot->title, slot->class_name, slot->instance);
+                 slot_key, entry->original_title, entry->class_name, entry->instance);
 
         if (!filter || !*filter || has_match(filter, searchable)) {
             app->filtered_harpoon[app->filtered_harpoon_count] = *slot;
@@ -124,13 +134,14 @@ static void harpoon_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     out->cell_count = 5;
     out->cells[0].text = slot_key;
     out->cells[0].width_hint = 4;
-    out->cells[1].text = slot->title;
+    MatchEntry *entry = harpoon_slot_entry(app, slot);
+    out->cells[1].text = entry ? entry->original_title : "(missing)";
     out->cells[1].width_hint = 55;
-    out->cells[2].text = slot->class_name;
+    out->cells[2].text = entry ? entry->class_name : "";
     out->cells[2].width_hint = 18;
-    out->cells[3].text = slot->instance;
+    out->cells[3].text = entry ? entry->instance : "";
     out->cells[3].width_hint = 20;
-    out->cells[4].text = slot->type;
+    out->cells[4].text = entry ? entry->type : "";
     out->cells[4].width_hint = 8;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
@@ -141,10 +152,12 @@ static const char *harpoon_match_string(AppData *app, int raw_idx) {
     static char searchable[1024];
     char slot_key[4];
     if (!slot) return "";
+    MatchEntry *entry = harpoon_slot_entry(app, slot);
+    if (!entry) return "";
 
     format_slot_key(actual_slot, slot_key, sizeof(slot_key));
     snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-             slot_key, slot->title, slot->class_name, slot->instance);
+             slot_key, entry->original_title, entry->class_name, entry->instance);
     return searchable;
 }
 
@@ -209,7 +222,7 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.on_query_changed = harpoon_on_query_changed;
     s_harpoon_provider.handle_key = handle_harpoon_tab_keys;
     s_harpoon_provider.shortcut_hint =
-        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)";
+        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, ? = single char)";
     s_harpoon_provider_id = cofi_register_tab_provider(&s_harpoon_provider);
     if (s_harpoon_provider_id >= 0) {
         cofi_register_command(&s_harpoon_command);

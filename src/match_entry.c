@@ -234,6 +234,16 @@ int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id
     return -1;
 }
 
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    if (!manager || match_id <= 0) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
     if (!manager || !custom_name) return -1;
 
@@ -263,7 +273,13 @@ int matching_capture_or_get(AppData *app, const WindowInfo *w) {
         if (entry->assigned && entry->bound_x11_id != 0) {
             const WindowInfo *bound = find_live_window_by_id(app->windows, app->window_count,
                                                              entry->bound_x11_id);
-            if (!bound) continue;                // stale live binding -> skip during capture
+            if (!bound) {
+                // Stale binding: allow this entry to dedup by criteria for current capture.
+                entry->assigned = 0;
+                entry->bound_x11_id = 0;
+            }
+        }
+        if (entry->assigned && entry->bound_x11_id != 0) {
             if (entry->bound_x11_id != w->id) continue; // currently bound to a different live window
         }
 

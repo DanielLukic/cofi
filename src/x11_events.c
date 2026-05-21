@@ -344,20 +344,12 @@ void handle_x11_event(AppData *app, XEvent *event) {
                              i, app->windows[i].id, app->windows[i].title, app->windows[i].class_name);
                 }
 
-                // Check for automatic reassignments
-                log_trace("Calling check_and_reassign_windows()");
-                bool harpoon_changed = check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
-                if (harpoon_changed) {
-                    save_harpoon_slots(&app->harpoon);
-                    log_debug("Saved reassigned harpoon slots after window list change");
-                }
-                
-                // Check for named windows reassignments
+                // Reassign matching entries used by matching + harpoon.
                 log_trace("Calling match_entry_reassign_live_windows()");
                 bool names_changed = match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count);
                 if (names_changed) {
                     save_match_entries(&app->matching);
-                    log_debug("Saved reassigned named windows after window list change");
+                    log_debug("Saved reassigned matching entries after window list change");
                 }
 
                 // Subscribe to per-window property changes and apply rules

@@ -13,6 +13,7 @@
 #include "history.h"
 #include "log.h"
 #include "match_entry.h"
+#include "match_entry_config.h"
 #include "overlay_manager.h"
 #include "cofi_modal.h"
 #include "selection.h"
@@ -307,7 +308,9 @@ void show_window(AppData *app) {
     }
 
     get_window_list(app);
-    check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
+    if (match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count)) {
+        save_match_entries(&app->matching);
+    }
 
     if (app->current_tab == TAB_WINDOWS) {
         reset_selection(app);

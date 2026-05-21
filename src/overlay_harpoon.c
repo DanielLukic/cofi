@@ -5,11 +5,22 @@
 #include "harpoon_config.h"
 #include "harpoon_provider.h"
 #include "log.h"
+#include "match_entry.h"
+#include "match_entry_config.h"
 #include "overlay_manager.h"
 #include "utils.h"
 
 extern void unassign_slot(HarpoonManager *harpoon, int slot);
 extern void save_harpoon_slots(const HarpoonManager *harpoon);
+
+static MatchEntry *slot_entry(AppData *app, int slot_index) {
+    if (!app || slot_index < 0 || slot_index >= MAX_HARPOON_SLOTS) return NULL;
+    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
+    if (!slot->assigned || slot->match_id <= 0) return NULL;
+    int idx = match_entry_find_index_by_match_id(&app->matching, slot->match_id);
+    if (idx < 0 || idx >= app->matching.count) return NULL;
+    return &app->matching.entries[idx];
+}
 
 static gboolean focus_harpoon_edit_entry(gpointer user_data) {
     AppData *app = (AppData *)user_data;
@@ -29,8 +40,6 @@ static gboolean focus_harpoon_edit_entry(gpointer user_data) {
 void create_harpoon_delete_overlay_content(GtkWidget *parent_container,
                                            AppData *app,
                                            int slot_index) {
-    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
-
     char *header_markup = g_strdup_printf("<b>Delete Harpoon Assignment?</b>");
     GtkWidget *header_label = create_markup_label(header_markup, TRUE);
     g_free(header_markup);
@@ -45,12 +54,15 @@ void create_harpoon_delete_overlay_content(GtkWidget *parent_container,
         snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_index - 10));
     }
 
-    char *escaped_title = g_markup_escape_text(slot->title, -1);
+    MatchEntry *entry = slot_entry(app, slot_index);
+    const char *title = entry ? entry->original_title : "(missing)";
+    const char *class_name = entry ? entry->class_name : "(missing)";
+    char *escaped_title = g_markup_escape_text(title, -1);
     char *slot_info = g_strdup_printf(
         "<b>Slot:</b> %s\n"
         "<b>Window:</b> %s\n"
         "<b>Class:</b> %s",
-        slot_name, escaped_title, slot->class_name);
+        slot_name, escaped_title, class_name);
 
     GtkWidget *info_label = create_markup_label(slot_info, TRUE);
     g_free(escaped_title);
@@ -66,8 +78,6 @@ void create_harpoon_delete_overlay_content(GtkWidget *parent_container,
 void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
                                          AppData *app,
                                          int slot_index) {
-    HarpoonSlot *slot = &app->harpoon.slots[slot_index];
-
     char slot_name[4];
     if (slot_index < 10) {
         snprintf(slot_name, sizeof(slot_name), "%d", slot_index);
@@ -84,7 +94,9 @@ void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), separator1, FALSE, FALSE, 10);
 
     GtkWidget *entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(entry), slot->title);
+    MatchEntry *match_entry = slot_entry(app, slot_index);
+    gtk_entry_set_text(GTK_ENTRY(entry),
+                       match_entry ? match_entry->original_title : "");
     gtk_entry_set_max_length(GTK_ENTRY(entry), MAX_TITLE_LEN - 1);
     gtk_widget_set_size_request(entry, 400, -1);
     g_object_set_data(G_OBJECT(parent_container), "edit-entry", entry);
@@ -144,7 +156,15 @@ gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {
     const char *new_title = gtk_entry_get_text(GTK_ENTRY(entry));
     int slot_index = app->harpoon_edit.editing_slot;
 
-    safe_string_copy(app->harpoon.slots[slot_index].title, new_title, MAX_TITLE_LEN);
+    MatchEntry *entry_match = slot_entry(app, slot_index);
+    if (!entry_match) {
+        hide_overlay(app);
+        update_display(app);
+        return TRUE;
+    }
+    safe_string_copy(entry_match->original_title, new_title, MAX_TITLE_LEN);
+    entry_match->match_mode = TITLE_MATCH_MODE_GLOB;
+    save_match_entries(&app->matching);
     save_harpoon_slots(&app->harpoon);
 
     log_info("USER: Edited harpoon slot %d title to: %s", slot_index, new_title);

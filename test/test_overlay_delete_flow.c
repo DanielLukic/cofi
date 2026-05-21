@@ -139,6 +139,14 @@ int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, cons
     return -1;
 }
 
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    if (!manager) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) return i;
+    }
+    return -1;
+}
+
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
     g_match_entry_delete_custom_name_calls++;
     if (!manager || index < 0 || index >= manager->count) {

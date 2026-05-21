@@ -208,14 +208,24 @@ Window get_workspace_slot_window(const WorkspaceSlotManager *manager, int slot) 
 
 Window get_slot_window(const HarpoonManager *manager, int slot) {
     if (!manager || slot < 0 || slot >= MAX_HARPOON_SLOTS) return 0;
-    return manager->slots[slot].assigned ? manager->slots[slot].id : 0;
+    if (!manager->slots[slot].assigned || !manager->matching) return 0;
+    for (int i = 0; i < manager->matching->count; i++) {
+        if (manager->matching->entries[i].match_id == manager->slots[slot].match_id) {
+            return manager->matching->entries[i].bound_x11_id;
+        }
+    }
+    return 0;
 }
 
 int get_window_slot(const HarpoonManager *manager, Window id) {
-    if (!manager) return -1;
+    if (!manager || !manager->matching) return -1;
     for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-        if (manager->slots[i].assigned && manager->slots[i].id == id) {
-            return i;
+        if (!manager->slots[i].assigned) continue;
+        for (int j = 0; j < manager->matching->count; j++) {
+            if (manager->matching->entries[j].match_id == manager->slots[i].match_id &&
+                manager->matching->entries[j].bound_x11_id == id) {
+                return i;
+            }
         }
     }
     return -1;
@@ -227,13 +237,23 @@ void unassign_slot(HarpoonManager *manager, int slot) {
 }
 
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) {
-    if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS) return;
+    if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS || !manager->matching) return;
+    int match_id = 0;
+    for (int i = 0; i < manager->matching->count; i++) {
+        if (manager->matching->entries[i].bound_x11_id == window->id) {
+            match_id = manager->matching->entries[i].match_id;
+            break;
+        }
+    }
+    if (match_id == 0 && manager->matching->count < MAX_WINDOWS) {
+        int idx = manager->matching->count++;
+        manager->matching->entries[idx].match_id = idx + 1;
+        manager->matching->entries[idx].bound_x11_id = window->id;
+        manager->matching->entries[idx].assigned = 1;
+        match_id = manager->matching->entries[idx].match_id;
+    }
     manager->slots[slot].assigned = 1;
-    manager->slots[slot].id = window->id;
-    strncpy(manager->slots[slot].title, window->title, sizeof(manager->slots[slot].title) - 1);
-    strncpy(manager->slots[slot].class_name, window->class_name, sizeof(manager->slots[slot].class_name) - 1);
-    strncpy(manager->slots[slot].instance, window->instance, sizeof(manager->slots[slot].instance) - 1);
-    strncpy(manager->slots[slot].type, window->type, sizeof(manager->slots[slot].type) - 1);
+    manager->slots[slot].match_id = match_id;
 }
 
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; g_save_harpoon_calls++; }
@@ -326,6 +346,7 @@ static void init_app(AppData *app) {
     strcpy(app->filtered[0].class_name, "Class");
     strcpy(app->filtered[0].instance, "Inst");
     strcpy(app->filtered[0].type, "Normal");
+    app->harpoon.matching = &app->matching;
 }
 
 static GdkEventKey make_key(guint keyval, GdkModifierType state) {
@@ -350,7 +371,8 @@ static void test_ctrl_1_assigns_selected_window_to_slot_1(void) {
 
     ASSERT_TRUE("Ctrl+1 assignment handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+1 assigns slot 1", app.harpoon.slots[1].assigned == 1);
-    ASSERT_TRUE("Ctrl+1 slot 1 gets selected window id", app.harpoon.slots[1].id == app.filtered[0].id);
+    ASSERT_TRUE("Ctrl+1 slot 1 resolves selected window id",
+                get_slot_window(&app.harpoon, 1) == app.filtered[0].id);
 }
 
 static void test_ctrl_1_second_press_unassigns_same_window(void) {
@@ -391,7 +413,8 @@ static void test_ctrl_shift_j_assigns_letter_slot(void) {
 
     ASSERT_TRUE("Ctrl+Shift+j assignment handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+Shift+j assigns j slot", app.harpoon.slots[j_slot].assigned == 1);
-    ASSERT_TRUE("Ctrl+Shift+j slot stores selected window", app.harpoon.slots[j_slot].id == app.filtered[0].id);
+    ASSERT_TRUE("Ctrl+Shift+j slot resolves selected window",
+                get_slot_window(&app.harpoon, j_slot) == app.filtered[0].id);
 }
 
 static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
@@ -401,8 +424,12 @@ static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
 
     Window x = (Window)0xCAFE;
     app.filtered[0].id = x;
+    app.matching.count = 1;
+    app.matching.entries[0].match_id = 44;
+    app.matching.entries[0].bound_x11_id = x;
+    app.matching.entries[0].assigned = 1;
     app.harpoon.slots[3].assigned = 1;
-    app.harpoon.slots[3].id = x;
+    app.harpoon.slots[3].match_id = 44;
 
     GdkEventKey ev = make_key(GDK_KEY_5, GDK_CONTROL_MASK);
     gboolean handled = handle_harpoon_assignment(&ev, &app);
@@ -410,7 +437,7 @@ static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
     ASSERT_TRUE("Ctrl+5 reassignment handled", handled == TRUE);
     ASSERT_TRUE("Reassignment clears old slot 3", app.harpoon.slots[3].assigned == 0);
     ASSERT_TRUE("Reassignment sets new slot 5", app.harpoon.slots[5].assigned == 1);
-    ASSERT_TRUE("Reassignment new slot 5 has selected window", app.harpoon.slots[5].id == x);
+    ASSERT_TRUE("Reassignment new slot 5 resolves selected window", get_slot_window(&app.harpoon, 5) == x);
 }
 
 static void test_alt_1_workspaces_mode_switches_workspace(void) {
@@ -462,8 +489,12 @@ static void test_alt_a_default_mode_activates_harpoon_letter_slot(void) {
     int a_slot = slot_for_letter('a');
     app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
     app.current_tab = TAB_WINDOWS;
+    app.matching.count = 1;
+    app.matching.entries[0].match_id = 91;
+    app.matching.entries[0].bound_x11_id = (Window)0xA11;
+    app.matching.entries[0].assigned = 1;
     app.harpoon.slots[a_slot].assigned = 1;
-    app.harpoon.slots[a_slot].id = (Window)0xA11;
+    app.harpoon.slots[a_slot].match_id = 91;
 
     GdkEventKey ev = make_key(GDK_KEY_a, GDK_MOD1_MASK);
     gboolean handled = handle_harpoon_workspace_switching(&ev, &app);

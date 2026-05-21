@@ -97,6 +97,9 @@ void init_app_data(AppData *app) {
     // Initialize named windows manager
     match_entry_manager_init(&app->matching);
     app->filtered_matching_count = 0;
+    app->harpoon.matching = &app->matching;
+    app->harpoon.windows = app->windows;
+    app->harpoon.window_count = &app->window_count;
     
     // Load named windows from configuration
     load_match_entries(&app->matching);
@@ -188,11 +191,7 @@ void init_window_list(AppData *app) {
     // Get window list
     get_window_list(app);
     
-    // Check for automatic reassignments after loading config and getting window list
-    // Note: we don't save here because this is during initial startup
-    check_and_reassign_windows(&app->harpoon, app->windows, app->window_count);
-    
-    // Check for named windows reassignments
+    // Check for matching reassignments after loading config and getting window list.
     match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count);
 }
 

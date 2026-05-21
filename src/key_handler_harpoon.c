@@ -6,6 +6,7 @@
 #include "harpoon.h"
 #include "harpoon_config.h"
 #include "log.h"
+#include "match_entry_config.h"
 #include "selection.h"
 #include "slot_store.h"
 #include "window_highlight.h"
@@ -105,6 +106,7 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
     }
 
     save_config(&app->config);
+    save_match_entries(&app->matching);
     save_harpoon_slots(&app->harpoon);
     update_display(app);
     return TRUE;

@@ -5,23 +5,23 @@
 #include <stdbool.h>
 #include "slot_store.h"
 #include "types.h"
+#include "match_entry.h"
 
 // Forward declare WindowAlignment
 struct AppData;
 
 // Structure to store a harpoon assignment
 typedef struct HarpoonSlot {
-    Window id;
-    char title[MAX_TITLE_LEN];
-    char class_name[MAX_CLASS_LEN];
-    char instance[MAX_CLASS_LEN];
-    char type[16];
+    int match_id;
     int assigned;  // 1 if slot is assigned, 0 otherwise
 } HarpoonSlot;
 
 // Structure to manage all harpoon assignments
 typedef struct HarpoonManager {
     SlotStore store;
+    MatchEntryManager *matching;
+    WindowInfo *windows;
+    int *window_count;
     HarpoonSlot slots[MAX_HARPOON_SLOTS];  // Slots 0-9 and a-z (excluding h,j,k,l,u)
 } HarpoonManager;
 
@@ -35,11 +35,5 @@ int is_slot_assigned(const HarpoonManager *manager, int slot);
 const char *harpoon_tab_id(void);
 char *serialize_window_slot_payload(const HarpoonSlot *slot, char *out, size_t out_size);
 bool deserialize_window_slot_payload(const char *payload, HarpoonSlot *slot);
-
-
-
-// Automatic reassignment functions
-// Returns true if any slots were reassigned
-bool check_and_reassign_windows(HarpoonManager *manager, WindowInfo *windows, int window_count);
 
 #endif // HARPOON_H

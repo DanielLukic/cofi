@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include "window_info.h"
-#include "harpoon.h"
 
 typedef enum {
     TITLE_MATCH_MODE_LEGACY_WILDCARD = 0,  // '*' + '.' semantics via wildcard_match
@@ -20,9 +19,6 @@ int get_title_base_length(const char *title);
 
 // Check if two titles match with fuzzy logic
 bool titles_match_fuzzy(const char *title1, const char *title2);
-
-// Check if window matches harpoon slot using shared identity+title pattern matching.
-bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot);
 
 // Shared exact class/instance/type + title matcher core with mode-controlled title semantics.
 bool window_matches_identity_and_title_pattern(const WindowInfo *window,

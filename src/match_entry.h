@@ -56,6 +56,7 @@ MatchEntry* match_entry_get_by_index(MatchEntryManager *manager, int index);
 
 // Find entry index by bound window ID.
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id);
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id);
 
 // Find entry index by custom label.
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name);
