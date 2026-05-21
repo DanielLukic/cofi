@@ -576,11 +576,11 @@ test_slot_store: test/test_slot_store.c src/slot_store.o src/log.o
 test_window_matcher: test/test_window_matcher.c src/window_matcher.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_window_matcher test/test_window_matcher.c src/window_matcher.o src/log.o $(LDFLAGS)
 
-test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c src/harpoon.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
 
-test_event_sequence: test/test_event_sequence.c src/harpoon.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_event_sequence: test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
 
 test_calc: test/test_calc.c src/tinyexpr.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_calc test/test_calc.c src/tinyexpr.o src/log.o $(LDFLAGS)

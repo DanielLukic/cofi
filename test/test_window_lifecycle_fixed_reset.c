@@ -20,8 +20,6 @@ void cofi_exit_modal(AppData *app) { (void)app; }
 void clear_surfaced_tabs(AppData *app) { (void)app; }
 void hide_overlay(AppData *app) { (void)app; }
 void get_window_list(AppData *app) { (void)app; }
-bool check_and_reassign_windows(HarpoonManager *harpoon, WindowInfo *windows, int window_count)
-    { (void)harpoon; (void)windows; (void)window_count; return false; }
 bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *windows, int window_count)
     { (void)manager; (void)windows; (void)window_count; return false; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }

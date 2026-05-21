@@ -7,8 +7,6 @@
 #include "constants.h"
 #include "window_matcher.h"
 
-typedef struct AppData AppData;
-
 // Structure to store a matching entry.
 typedef struct MatchEntry {
     int match_id;                       // Stable persistent key (never reused)
@@ -62,6 +60,9 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name);
 
 // Capture or deduplicate a match entry for a live window and return its stable match_id.
-int matching_capture_or_get(AppData *app, const WindowInfo *w);
+int matching_capture_or_get(MatchEntryManager *manager,
+                            WindowInfo *windows,
+                            int window_count,
+                            const WindowInfo *w);
 
 #endif // MATCH_ENTRY_H

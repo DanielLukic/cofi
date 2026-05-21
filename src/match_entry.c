@@ -4,7 +4,6 @@
 #include "log.h"
 #include "window_matcher.h"
 #include "utils.h"
-#include "app_data.h"
 
 static int allocate_match_id(MatchEntryManager *manager) {
     if (!manager) return -1;
@@ -255,9 +254,11 @@ int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, cons
     return -1;
 }
 
-int matching_capture_or_get(AppData *app, const WindowInfo *w) {
-    if (!app || !w) return -1;
-    MatchEntryManager *manager = &app->matching;
+int matching_capture_or_get(MatchEntryManager *manager,
+                            WindowInfo *windows,
+                            int window_count,
+                            const WindowInfo *w) {
+    if (!manager || !w) return -1;
 
     // First pass: exact live-bound match to this window id.
     for (int i = 0; i < manager->count; i++) {
@@ -271,7 +272,7 @@ int matching_capture_or_get(AppData *app, const WindowInfo *w) {
     for (int i = 0; i < manager->count; i++) {
         MatchEntry *entry = &manager->entries[i];
         if (entry->assigned && entry->bound_x11_id != 0) {
-            const WindowInfo *bound = find_live_window_by_id(app->windows, app->window_count,
+            const WindowInfo *bound = find_live_window_by_id(windows, window_count,
                                                              entry->bound_x11_id);
             if (!bound) {
                 // Stale binding: allow this entry to dedup by criteria for current capture.

@@ -7,7 +7,6 @@
 #include "../src/match_entry_config.h"
 #include "../src/window_matcher.h"
 #include "../src/utils.h"
-#include "../src/app_data.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -396,18 +395,18 @@ static void set_test_home(const char *suffix) {
 static void test_matching_capture_or_get_dedups_same_window(void) {
     printf("\n--- matching_capture_or_get dedup ---\n");
 
-    AppData app = {0};
-    match_entry_manager_init(&app.matching);
+    MatchEntryManager manager;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    match_entry_manager_init(&manager);
     WindowInfo w = make_window(111, "Editor", "Code", "code", "Normal");
-    app.windows[0] = w;
-    app.window_count = 1;
+    windows[0] = w;
 
-    int id1 = matching_capture_or_get(&app, &w);
-    int id2 = matching_capture_or_get(&app, &w);
+    int id1 = matching_capture_or_get(&manager, windows, 1, &w);
+    int id2 = matching_capture_or_get(&manager, windows, 1, &w);
 
     ASSERT_INT("first capture succeeds", 1, id1 > 0);
     ASSERT_INT("second capture returns same match id", id1, id2);
-    ASSERT_INT("capture dedup keeps one entry", 1, app.matching.count);
+    ASSERT_INT("capture dedup keeps one entry", 1, manager.count);
 }
 
 static void test_match_id_persist_and_non_reuse(void) {

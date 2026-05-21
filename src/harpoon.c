@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "app_data.h"
 #include "log.h"
 #include "utils.h"
 
@@ -48,21 +47,14 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS) return;
     if (!manager->matching || !manager->windows || !manager->window_count) return;
 
-    AppData capture_ctx = {0};
-    capture_ctx.matching = *manager->matching;
-    capture_ctx.window_count = *manager->window_count;
-    for (int i = 0; i < capture_ctx.window_count && i < MAX_WINDOWS; i++) {
-        capture_ctx.windows[i] = manager->windows[i];
-    }
-
-    int match_id = matching_capture_or_get(&capture_ctx, window);
+    int match_id = matching_capture_or_get(manager->matching,
+                                           manager->windows,
+                                           *manager->window_count,
+                                           window);
     if (match_id <= 0) {
         log_warn("Unable to capture matching entry for harpoon slot %d", slot);
         return;
     }
-
-    // Propagate any capture-side updates back to the shared registry.
-    *manager->matching = capture_ctx.matching;
 
     manager->slots[slot].match_id = match_id;
     manager->slots[slot].assigned = 1;
