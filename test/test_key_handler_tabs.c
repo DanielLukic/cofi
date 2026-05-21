@@ -28,6 +28,7 @@ static int fail = 0;
 } while (0)
 
 static int g_show_name_edit_calls;
+static int g_show_name_pattern_edit_calls;
 static int g_last_name_edit_index;
 static MatchEntry g_last_name_edit_named;
 
@@ -219,6 +220,11 @@ void show_name_edit_overlay(AppData *app) {
     } else {
         memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
     }
+}
+
+void show_name_pattern_edit_overlay(AppData *app) {
+    (void)app;
+    g_show_name_pattern_edit_calls++;
 }
 
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
@@ -505,6 +511,7 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
 
 static void reset_captures(void) {
     g_show_name_edit_calls = 0;
+    g_show_name_pattern_edit_calls = 0;
     g_last_name_edit_index = -1;
     memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
 
@@ -626,6 +633,24 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
                 g_last_name_delete_manager_index == 1);
     ASSERT_TRUE("Ctrl+d on Names does not delete immediately",
                 app.matching.count == 2 && g_save_match_entries_calls == 0);
+}
+
+static void test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry(void) {
+    AppData app;
+    init_app(&app);
+    reset_captures();
+
+    app.current_tab = TEST_MATCHING_TAB;
+    app.filtered_matching_count = 1;
+    app.selection.provider_index = 0;
+    strcpy(app.filtered_matching[0].custom_name, "beta");
+
+    GdkEventKey ev = make_key(GDK_KEY_p, GDK_CONTROL_MASK);
+    gboolean handled = on_key_press(NULL, &ev, &app);
+
+    ASSERT_TRUE("Ctrl+p on Matching handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+p on Matching shows pattern edit overlay",
+                g_show_name_pattern_edit_calls == 1);
 }
 
 static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index(void) {
@@ -1102,6 +1127,7 @@ int main(int argc, char **argv) {
 
     test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named();
     test_ctrl_d_names_tab_shows_delete_confirm_overlay();
+    test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry();
     test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index();
     test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot();
     test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot();

@@ -25,6 +25,7 @@ static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static TabMode g_last_surface_tab = -1;
 static CofiTabProvider g_registered_provider;
+static int g_show_name_pattern_edit_overlay_calls;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -69,6 +70,10 @@ int cofi_register_command(const CommandSpec *spec) {
 }
 
 void show_name_edit_overlay(AppData *app) { (void)app; }
+void show_name_pattern_edit_overlay(AppData *app) {
+    (void)app;
+    g_show_name_pattern_edit_overlay_calls++;
+}
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
     (void)app; (void)custom_name; (void)manager_index;
 }
@@ -98,6 +103,7 @@ static void reset_state(AppData *app) {
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
     g_last_surface_tab = -1;
+    g_show_name_pattern_edit_overlay_calls = 0;
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
 }
 
@@ -141,7 +147,8 @@ static void test_filter_and_format_row(void) {
     memset(&row, 0, sizeof(row));
     matching_format_row(&app, 0, &row);
     ASSERT_TRUE("row has four cells", row.cell_count == 4);
-    ASSERT_TRUE("row name text", strcmp(row.cells[0].text, "terminal") == 0);
+    ASSERT_TRUE("row pattern text", strcmp(row.cells[0].text, "shell") == 0);
+    ASSERT_TRUE("row label text", strcmp(row.cells[1].text, "terminal") == 0);
     ASSERT_TRUE("orphan row shows none", strcmp(row.cells[3].text, "* NONE *") == 0);
     ASSERT_TRUE("row is actionable", row.row_flags == COFI_ROW_ACTIONABLE);
 }
@@ -193,12 +200,16 @@ static void test_command_metadata(void) {
 
     ASSERT_TRUE("provider primary command is matching",
                 strcmp(s_matching_command.primary, "matching") == 0);
+    ASSERT_TRUE("provider alias m",
+                strcmp(s_matching_command.aliases[0], "m") == 0);
     ASSERT_TRUE("provider alias names",
-                strcmp(s_matching_command.aliases[0], "names") == 0);
+                strcmp(s_matching_command.aliases[1], "names") == 0);
     ASSERT_TRUE("provider alias nm",
-                strcmp(s_matching_command.aliases[1], "nm") == 0);
+                strcmp(s_matching_command.aliases[2], "nm") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_matching_command.help_format, "matching, names, nm") == 0);
+                strcmp(s_matching_command.help_format, "matching, m, names, nm") == 0);
+    ASSERT_TRUE("provider shortcut hint includes pattern edit",
+                strstr(g_registered_provider.shortcut_hint, "Ctrl+P=Edit pattern") != NULL);
     ASSERT_TRUE("provider command keeps open",
                 s_matching_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_matching_command.handler != NULL);
@@ -221,6 +232,23 @@ static void test_command_handler_surfaces_tab(void) {
                 app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
+static void test_ctrl_p_shows_pattern_edit_overlay(void) {
+    AppData app;
+    reset_state(&app);
+    seed_names(&app);
+    filter_matching(&app, "");
+    app.current_tab = matching_tab_mode();
+    app.selection.provider_index = 0;
+
+    GdkEventKey event = {0};
+    event.keyval = GDK_KEY_p;
+    event.state = GDK_CONTROL_MASK;
+
+    gboolean handled = handle_matching_tab_keys(&event, &app);
+    ASSERT_TRUE("Ctrl+P handled in matching tab", handled == TRUE);
+    ASSERT_TRUE("Ctrl+P opens pattern edit overlay", g_show_name_pattern_edit_overlay_calls == 1);
+}
+
 int main(void) {
     printf("Matching provider tests\n");
     printf("====================\n\n");
@@ -231,6 +259,7 @@ int main(void) {
     test_selected_entry_and_manager_index();
     test_command_metadata();
     test_command_handler_surfaces_tab();
+    test_ctrl_p_shows_pattern_edit_overlay();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

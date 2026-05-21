@@ -114,6 +114,47 @@ void create_name_edit_overlay_content(GtkWidget *parent_container, AppData *app)
     log_info("Name edit overlay created for window: %s", selected->original_title);
 }
 
+void create_name_pattern_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
+    MatchEntry *selected = matching_selected_entry(app);
+    if (app->current_tab != matching_tab_mode() || !selected) {
+        GtkWidget *error_label = gtk_label_new("No matching entry selected for pattern editing");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
+
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Edit Match Pattern");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    char window_info[512];
+    snprintf(window_info, sizeof(window_info), "Label: %s [%s]",
+             selected->custom_name, selected->class_name);
+    GtkWidget *info_label = gtk_label_new(window_info);
+    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
+
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(name_entry), selected->original_title);
+    gtk_editable_select_region(GTK_EDITABLE(name_entry), 0, -1);
+    gtk_widget_set_size_request(name_entry, 300, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), name_entry, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
+
+    GtkWidget *inst_label = gtk_label_new("Press Enter to save pattern, Escape to cancel");
+    gtk_widget_set_opacity(inst_label, 0.7);
+    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+    log_info("Match pattern edit overlay created for entry: %s", selected->custom_name);
+}
+
 void create_name_delete_overlay_content(GtkWidget *parent_container, AppData *app) {
     log_info("Name delete overlay content created (pending=%d, mgr_idx=%d, name='%s')",
              app->name_delete.pending_delete,
@@ -226,6 +267,46 @@ gboolean handle_name_edit_key_press(AppData *app, GdkEventKey *event) {
     update_display(app);
 
     log_info("USER: Updated custom name to '%s'", new_name);
+    return TRUE;
+}
+
+gboolean handle_name_pattern_edit_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
+        return FALSE;
+    }
+
+    GtkWidget *name_entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+    if (!name_entry) {
+        log_error("Pattern entry widget not found");
+        hide_overlay(app);
+        return TRUE;
+    }
+
+    const char *new_pattern = gtk_entry_get_text(GTK_ENTRY(name_entry));
+    if (!new_pattern || strlen(new_pattern) == 0) {
+        log_info("Empty pattern entered, canceling pattern edit");
+        hide_overlay(app);
+        return TRUE;
+    }
+
+    int manager_index = matching_selected_manager_index(app);
+    if (manager_index < 0 || manager_index >= app->matching.count) {
+        log_error("Matching entry not found in manager");
+        hide_overlay(app);
+        return TRUE;
+    }
+
+    MatchEntry *entry = &app->matching.entries[manager_index];
+    g_strlcpy(entry->original_title, new_pattern, sizeof(entry->original_title));
+    entry->match_mode = TITLE_MATCH_MODE_GLOB;
+    save_match_entries(&app->matching);
+
+    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+    filter_matching(app, current_filter);
+
+    hide_overlay(app);
+    update_display(app);
+    log_info("USER: Updated match pattern for '%s' to '%s'", entry->custom_name, new_pattern);
     return TRUE;
 }
 

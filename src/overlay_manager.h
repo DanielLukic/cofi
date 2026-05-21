@@ -25,6 +25,7 @@ void show_harpoon_delete_overlay(AppData *app, int slot_index);
 void show_harpoon_edit_overlay(AppData *app, int slot_index);
 void show_name_assign_overlay(AppData *app);
 void show_name_edit_overlay(AppData *app);
+void show_name_pattern_edit_overlay(AppData *app);
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index);
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
@@ -49,6 +50,7 @@ void show_session_rename_overlay(AppData *app,
 // Utility functions
 static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
     return type == OVERLAY_NAME_ASSIGN || type == OVERLAY_NAME_EDIT ||
+           type == OVERLAY_MATCH_PATTERN_EDIT ||
            type == OVERLAY_CONFIG_EDIT || type == OVERLAY_HOTKEY_ADD ||
            type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||

@@ -45,10 +45,10 @@ static void matching_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     }
 
     out->cell_count = 4;
-    out->cells[0].text = named->custom_name;
-    out->cells[0].width_hint = 20;
-    out->cells[1].text = named->original_title;
-    out->cells[1].width_hint = 45;
+    out->cells[0].text = named->original_title;
+    out->cells[0].width_hint = 45;
+    out->cells[1].text = named->custom_name;
+    out->cells[1].width_hint = 20;
     out->cells[2].text = named->class_name;
     out->cells[2].width_hint = 18;
     out->cells[3].text = window_id;
@@ -135,15 +135,23 @@ gboolean handle_matching_tab_keys(GdkEventKey *event, AppData *app) {
         return TRUE;
     }
 
+    if (event->keyval == GDK_KEY_p && (event->state & GDK_CONTROL_MASK)) {
+        if (!matching_selected_entry(app)) {
+            return FALSE;
+        }
+        show_name_pattern_edit_overlay(app);
+        return TRUE;
+    }
+
     if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
         MatchEntry *named = matching_selected_entry(app);
         if (!named) {
-            log_debug("Names Ctrl+D ignored: no rows to delete");
+            log_debug("Matching Ctrl+D ignored: no rows to delete");
             return FALSE;
         }
 
         int manager_index = matching_selected_manager_index(app);
-        log_info("Names Ctrl+D: showing delete confirm for '%s' (mgr_idx=%d, sel=%d/%d)",
+        log_info("Matching Ctrl+D: showing delete confirm for '%s' (mgr_idx=%d, sel=%d/%d)",
                  named->custom_name, manager_index,
                  app->selection.provider_index, app->filtered_matching_count);
         show_name_delete_overlay(app, named->custom_name, manager_index);
@@ -174,11 +182,11 @@ static gboolean matching_command_handler(AppData *app,
 
 static const CommandSpec s_matching_command = {
     .primary = "matching",
-    .aliases = {"names", "nm", NULL},
+    .aliases = {"m", "names", "nm", NULL},
     .owner_provider_id = "matching",
     .handler = matching_command_handler,
     .description = "Switch to Matching tab",
-    .help_format = "matching, names, nm",
+    .help_format = "matching, m, names, nm",
     .keeps_open_on_hotkey_auto = 1
 };
 
@@ -198,7 +206,7 @@ void matching_provider_register(void) {
     s_matching_provider.on_enter = matching_on_enter;
     s_matching_provider.on_query_changed = matching_on_query_changed;
     s_matching_provider.handle_key = handle_matching_tab_keys;
-    s_matching_provider.shortcut_hint = "Shortcuts: Ctrl+E=Edit name  Ctrl+D=Delete name";
+    s_matching_provider.shortcut_hint = "Shortcuts: Ctrl+E=Edit name  Ctrl+P=Edit pattern  Ctrl+D=Delete";
     s_matching_provider_id = cofi_register_tab_provider(&s_matching_provider);
     if (s_matching_provider_id >= 0) {
         cofi_register_command(&s_matching_command);

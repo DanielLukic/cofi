@@ -28,6 +28,7 @@ static void test_overlay_should_focus_name_entry(void) {
 
     ASSERT_TRUE("name assign focuses entry", overlay_should_focus_name_entry(OVERLAY_NAME_ASSIGN));
     ASSERT_TRUE("name edit focuses entry", overlay_should_focus_name_entry(OVERLAY_NAME_EDIT));
+    ASSERT_TRUE("pattern edit focuses entry", overlay_should_focus_name_entry(OVERLAY_MATCH_PATTERN_EDIT));
     ASSERT_TRUE("config edit focuses entry", overlay_should_focus_name_entry(OVERLAY_CONFIG_EDIT));
     ASSERT_TRUE("hotkey add focuses entry", overlay_should_focus_name_entry(OVERLAY_HOTKEY_ADD));
     ASSERT_TRUE("hotkey edit focuses entry", overlay_should_focus_name_entry(OVERLAY_HOTKEY_EDIT));

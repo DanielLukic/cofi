@@ -46,6 +46,9 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_NAME_EDIT:
             create_name_edit_overlay_content(app->dialog_container, app);
             return;
+        case OVERLAY_MATCH_PATTERN_EDIT:
+            create_name_pattern_edit_overlay_content(app->dialog_container, app);
+            return;
         case OVERLAY_NAME_DELETE:
             create_name_delete_overlay_content(app->dialog_container, app);
             return;
@@ -118,6 +121,8 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_assign_key_press(app, event);
         case OVERLAY_NAME_EDIT:
             return handle_name_edit_key_press(app, event);
+        case OVERLAY_MATCH_PATTERN_EDIT:
+            return handle_name_pattern_edit_key_press(app, event);
         case OVERLAY_NAME_DELETE:
             return handle_name_delete_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
@@ -192,6 +197,10 @@ void show_name_assign_overlay(AppData *app) {
 
 void show_name_edit_overlay(AppData *app) {
     show_overlay(app, OVERLAY_NAME_EDIT, NULL);
+}
+
+void show_name_pattern_edit_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_MATCH_PATTERN_EDIT, NULL);
 }
 
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {

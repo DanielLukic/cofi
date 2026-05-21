@@ -557,6 +557,38 @@ static void test_startup_load_then_reassign_path(void) {
     ASSERT_INT("startup rebound to live window", 300, (int)loaded.entries[0].bound_x11_id);
 }
 
+static void test_glob_pattern_persists_and_rebinds_changed_title(void) {
+    printf("\n--- glob pattern persists and rematches changed title ---\n");
+
+    set_test_home("glob-persist");
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo w = make_window(100, "cofi*Terminal", "ClassA", "instA", "Normal");
+    match_entry_assign_custom_name(&mgr, &w, "term");
+    mgr.entries[0].match_mode = TITLE_MATCH_MODE_GLOB;
+    save_match_entries(&mgr);
+
+    MatchEntryManager loaded;
+    load_match_entries(&loaded);
+    ASSERT_INT("loaded one entry", 1, loaded.count);
+    ASSERT_INT("glob mode persisted", TITLE_MATCH_MODE_GLOB, loaded.entries[0].match_mode);
+    ASSERT_STR("pattern persisted", "cofi*Terminal", loaded.entries[0].original_title);
+
+    loaded.entries[0].bound_x11_id = 999;
+    loaded.entries[0].assigned = 1;
+    WindowInfo changed_title = make_window(200, "cofi | main - Terminal", "ClassA", "instA", "Normal");
+    int changed = match_entry_reassign_live_windows(&loaded, &changed_title, 1);
+    ASSERT_INT("glob entry rebinds changed title", 1, changed);
+    ASSERT_INT("glob entry rebound id", 200, (int)loaded.entries[0].bound_x11_id);
+
+    loaded.entries[0].match_mode = TITLE_MATCH_MODE_EXACT;
+    loaded.entries[0].bound_x11_id = 998;
+    loaded.entries[0].assigned = 1;
+    changed = match_entry_reassign_live_windows(&loaded, &changed_title, 1);
+    ASSERT_INT("exact entry does not match changed title", 0, loaded.entries[0].assigned);
+}
+
 int main(void) {
     printf("Named Window Manager Tests\n");
     printf("==========================\n");
@@ -580,6 +612,7 @@ int main(void) {
     test_load_repairs_malformed_or_duplicate_match_ids();
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
+    test_glob_pattern_persists_and_rebinds_changed_title();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
