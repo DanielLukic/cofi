@@ -5,15 +5,20 @@
 #include <stdbool.h>
 #include "window_info.h"
 #include "constants.h"
+#include "window_matcher.h"
+
+typedef struct AppData AppData;
 
 // Structure to store a custom window name
 typedef struct NamedWindow {
-    Window id;                          // X11 window ID
+    int match_id;                       // Stable persistent key (never reused)
+    Window bound_x11_id;                // Live X11 binding (validated against criteria)
     char custom_name[MAX_TITLE_LEN];   // User-defined custom name
-    char original_title[MAX_TITLE_LEN]; // Original title (can use wildcards for matching)
+    char original_title[MAX_TITLE_LEN]; // Captured title or pattern
     char class_name[MAX_CLASS_LEN];    // Window class name
     char instance[MAX_CLASS_LEN];      // Window instance name
     char type[16];                     // Window type ("Normal" or "Special")
+    TitleMatchMode match_mode;         // EXACT(default) or GLOB (future UI edit)
     int assigned;                      // 1 if matched to existing window, 0 if orphaned
 } NamedWindow;
 
@@ -21,6 +26,7 @@ typedef struct NamedWindow {
 typedef struct {
     NamedWindow entries[MAX_WINDOWS];
     int count;
+    int next_match_id;
 } NamedWindowManager;
 
 // Initialize the named window manager
@@ -53,5 +59,8 @@ int find_named_window_index(const NamedWindowManager *manager, Window id);
 
 // Find named window index by custom name
 int find_named_window_by_name(const NamedWindowManager *manager, const char *custom_name);
+
+// Capture or deduplicate a match entry for a live window and return its stable match_id.
+int matching_capture_or_get(AppData *app, const WindowInfo *w);
 
 #endif // NAMED_WINDOW_H

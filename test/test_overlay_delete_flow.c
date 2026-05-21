@@ -120,7 +120,7 @@ int find_named_window_index(const NamedWindowManager *manager, Window id) {
         return -1;
     }
     for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].id == id) {
+        if (manager->entries[i].bound_x11_id == id) {
             return i;
         }
     }
@@ -267,11 +267,11 @@ static void test_name_delete_confirm_y_deletes_and_clamps_last_row(void) {
 
     app.names.count = 3;
     strcpy(app.names.entries[0].custom_name, "alpha");
-    app.names.entries[0].id = (Window)0xA;
+    app.names.entries[0].bound_x11_id = (Window)0xA;
     strcpy(app.names.entries[1].custom_name, "beta");
-    app.names.entries[1].id = (Window)0xB;
+    app.names.entries[1].bound_x11_id = (Window)0xB;
     strcpy(app.names.entries[2].custom_name, "gamma");
-    app.names.entries[2].id = (Window)0xC;
+    app.names.entries[2].bound_x11_id = (Window)0xC;
 
     app.name_delete.pending_delete = TRUE;
     app.name_delete.manager_index = 2;
@@ -302,9 +302,9 @@ static void test_name_delete_confirm_ctrl_d_deletes_and_hides_overlay(void) {
 
     app.names.count = 2;
     strcpy(app.names.entries[0].custom_name, "alpha");
-    app.names.entries[0].id = (Window)0xA;
+    app.names.entries[0].bound_x11_id = (Window)0xA;
     strcpy(app.names.entries[1].custom_name, "beta");
-    app.names.entries[1].id = (Window)0xB;
+    app.names.entries[1].bound_x11_id = (Window)0xB;
 
     app.name_delete.pending_delete = TRUE;
     app.name_delete.manager_index = 0;
@@ -331,7 +331,7 @@ static void test_name_delete_confirm_ctrl_d_works_for_orphan_fallback(void) {
 
     app.names.count = 1;
     strcpy(app.names.entries[0].custom_name, "orphan");
-    app.names.entries[0].id = 0;
+    app.names.entries[0].bound_x11_id = 0;
 
     app.name_delete.pending_delete = TRUE;
     app.name_delete.manager_index = -1;

@@ -172,7 +172,7 @@ int test_config_persistence_issue() {
     return 1;
 }
 
-int test_assign_converts_asterisk_to_dot_in_slot_title() {
+int test_assign_preserves_literal_asterisk_in_slot_title() {
     HarpoonManager manager;
     init_harpoon_manager(&manager);
 
@@ -187,8 +187,8 @@ int test_assign_converts_asterisk_to_dot_in_slot_title() {
     assign_window_to_slot(&manager, 2, &window);
 
     printf("\n  Assigned title stored as: '%s'", manager.slots[2].title);
-    if (strcmp(manager.slots[2].title, "term.1") != 0) {
-        printf("\n  ERROR: expected stored slot title 'term.1'");
+    if (strcmp(manager.slots[2].title, "term*1") != 0) {
+        printf("\n  ERROR: expected stored slot title 'term*1'");
         return 0;
     }
 
@@ -201,7 +201,7 @@ int main() {
     TEST(window_reassignment_flow);
     TEST(display_logic_after_reassignment);
     TEST(config_persistence_issue);
-    TEST(assign_converts_asterisk_to_dot_in_slot_title);
+    TEST(assign_preserves_literal_asterisk_in_slot_title);
     
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

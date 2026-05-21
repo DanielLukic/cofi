@@ -127,7 +127,8 @@ bool window_matches_identity_and_title_pattern(const WindowInfo *window,
                                                const char *class_name,
                                                const char *instance,
                                                const char *type,
-                                               const char *title_pattern) {
+                                               const char *title_pattern,
+                                               TitleMatchMode title_mode) {
     if (!window || !class_name || !instance || !type || !title_pattern) return false;
 
     if (strcmp(window->class_name, class_name) != 0 ||
@@ -136,6 +137,12 @@ bool window_matches_identity_and_title_pattern(const WindowInfo *window,
         return false;
     }
 
+    if (title_mode == TITLE_MATCH_MODE_EXACT) {
+        return strcmp(title_pattern, window->title) == 0;
+    }
+    if (title_mode == TITLE_MATCH_MODE_GLOB) {
+        return glob_match(title_pattern, window->title);
+    }
     return wildcard_match(title_pattern, window->title);
 }
 
@@ -147,5 +154,6 @@ bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *sl
                                                      slot->class_name,
                                                      slot->instance,
                                                      slot->type,
-                                                     slot->title);
+                                                     slot->title,
+                                                     TITLE_MATCH_MODE_LEGACY_WILDCARD);
 }

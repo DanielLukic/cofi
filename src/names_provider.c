@@ -39,7 +39,7 @@ static void names_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
 
     static char window_id[32];
     if (named->assigned) {
-        snprintf(window_id, sizeof(window_id), "0x%lx", named->id);
+        snprintf(window_id, sizeof(window_id), "0x%lx", named->bound_x11_id);
     } else {
         g_strlcpy(window_id, "* NONE *", sizeof(window_id));
     }
@@ -70,7 +70,7 @@ static const char *names_row_identity(AppData *app, int raw_idx) {
     static char identity[256];
     if (!entry) return "";
     g_snprintf(identity, sizeof(identity), "name:%s:%lx",
-               entry->custom_name, entry->id);
+             entry->custom_name, entry->bound_x11_id);
     return identity;
 }
 
@@ -102,8 +102,8 @@ int names_selected_manager_index(AppData *app) {
     if (!app || !named) return -1;
 
     int manager_index = -1;
-    if (named->id != 0) {
-        manager_index = find_named_window_index(&app->names, named->id);
+    if (named->bound_x11_id != 0) {
+        manager_index = find_named_window_index(&app->names, named->bound_x11_id);
     }
     if (manager_index < 0) {
         manager_index = find_named_window_by_name(&app->names, named->custom_name);

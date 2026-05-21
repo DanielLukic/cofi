@@ -279,8 +279,8 @@ test_fzf_algo: test/test_fzf_algo.c src/fzf_algo.o
 	$(CC) $(CFLAGS) -o test/test_fzf_algo test/test_fzf_algo.c src/fzf_algo.o $(LDFLAGS)
 
 # Build named window test
-test_named_window: test/test_named_window.c src/named_window.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_named_window test/test_named_window.c src/named_window.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_named_window: test/test_named_window.c src/named_window.o src/named_window_config.o src/window_matcher.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_named_window test/test_named_window.c src/named_window.o src/named_window_config.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build match scoring test (fzy algorithm)
 test_match_scoring: test/test_match_scoring.c src/match.o

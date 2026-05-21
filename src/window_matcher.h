@@ -5,6 +5,12 @@
 #include "window_info.h"
 #include "harpoon.h"
 
+typedef enum {
+    TITLE_MATCH_MODE_LEGACY_WILDCARD = 0,  // '*' + '.' semantics via wildcard_match
+    TITLE_MATCH_MODE_EXACT = 1,            // strcmp
+    TITLE_MATCH_MODE_GLOB = 2              // '*' + '?' semantics via glob_match
+} TitleMatchMode;
+
 // Check if two windows match with fuzzy title matching (same class, instance, type, but title can differ)
 bool windows_match_fuzzy(const WindowInfo *window1, const WindowInfo *window2);
 
@@ -18,12 +24,13 @@ bool titles_match_fuzzy(const char *title1, const char *title2);
 // Check if window matches harpoon slot using shared identity+title pattern matching.
 bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot);
 
-// Shared exact class/instance/type + wildcard title matcher core
+// Shared exact class/instance/type + title matcher core with mode-controlled title semantics.
 bool window_matches_identity_and_title_pattern(const WindowInfo *window,
                                                const char *class_name,
                                                const char *instance,
                                                const char *type,
-                                               const char *title_pattern);
+                                               const char *title_pattern,
+                                               TitleMatchMode title_mode);
 
 // Wildcard matching function
 // '*' matches any sequence of characters, '.' matches any single character

@@ -234,7 +234,7 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 int find_named_window_index(const NamedWindowManager *manager, Window id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].id == id) {
+        if (manager->entries[i].bound_x11_id == id) {
             return i;
         }
     }
@@ -590,7 +590,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     app.selection.provider_index = 1;
     strcpy(app.filtered_names[0].custom_name, "alpha");
     strcpy(app.filtered_names[1].custom_name, "beta");
-    app.filtered_names[1].id = (Window)0xBEEF;
+    app.filtered_names[1].bound_x11_id = (Window)0xBEEF;
 
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -600,7 +600,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     ASSERT_TRUE("Ctrl+e on Names overlay targets selected index", g_last_name_edit_index == 1);
     ASSERT_TRUE("Ctrl+e on Names overlay targets selected named entry",
                 strcmp(g_last_name_edit_named.custom_name, "beta") == 0 &&
-                g_last_name_edit_named.id == (Window)0xBEEF);
+                g_last_name_edit_named.bound_x11_id == (Window)0xBEEF);
 }
 
 static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
@@ -637,7 +637,7 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     app.names.count = 0;
     app.filtered_names_count = 1;
     app.selection.provider_index = 0;
-    app.filtered_names[0].id = (Window)0xDEAD;
+    app.filtered_names[0].bound_x11_id = (Window)0xDEAD;
     strcpy(app.filtered_names[0].custom_name, "orphan");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);

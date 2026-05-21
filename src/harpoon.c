@@ -109,22 +109,7 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     
     // Store window information in the slot
     manager->slots[slot].id = window->id;
-    
-    // Copy title, replacing '*' with '.' to escape wildcards
-    const char *src = window->title;
-    char *dst = manager->slots[slot].title;
-    size_t i = 0;
-    
-    while (*src && i < MAX_TITLE_LEN - 1) {
-        if (*src == '*') {
-            dst[i] = '.';
-        } else {
-            dst[i] = *src;
-        }
-        src++;
-        i++;
-    }
-    dst[i] = '\0';
+    safe_string_copy(manager->slots[slot].title, window->title, MAX_TITLE_LEN);
     
     safe_string_copy(manager->slots[slot].class_name, window->class_name, MAX_CLASS_LEN);
     safe_string_copy(manager->slots[slot].instance, window->instance, MAX_CLASS_LEN);

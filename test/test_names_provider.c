@@ -76,7 +76,7 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
 int find_named_window_index(const NamedWindowManager *manager, Window id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].id == id) return i;
+        if (manager->entries[i].bound_x11_id == id) return i;
     }
     return -1;
 }
@@ -103,7 +103,7 @@ static void reset_state(AppData *app) {
 
 static void seed_names(AppData *app) {
     app->names.count = 2;
-    app->names.entries[0].id = (Window)0x111;
+    app->names.entries[0].bound_x11_id = (Window)0x111;
     app->names.entries[0].assigned = 1;
     g_strlcpy(app->names.entries[0].custom_name, "editor",
               sizeof(app->names.entries[0].custom_name));
@@ -114,7 +114,7 @@ static void seed_names(AppData *app) {
     g_strlcpy(app->names.entries[0].instance, "code",
               sizeof(app->names.entries[0].instance));
 
-    app->names.entries[1].id = 0;
+    app->names.entries[1].bound_x11_id = 0;
     app->names.entries[1].assigned = 0;
     g_strlcpy(app->names.entries[1].custom_name, "terminal",
               sizeof(app->names.entries[1].custom_name));

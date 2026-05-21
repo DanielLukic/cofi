@@ -55,6 +55,7 @@ void save_named_windows(const NamedWindowManager *manager) {
     }
     
     fprintf(file, "{\n");
+    fprintf(file, "  \"next_match_id\": %d,\n", manager->next_match_id > 0 ? manager->next_match_id : 1);
     fprintf(file, "  \"named_windows\": [\n");
     
     int first = 1;
@@ -76,12 +77,15 @@ void save_named_windows(const NamedWindowManager *manager) {
         escape_json_string(entry->instance, escaped_instance, sizeof(escaped_instance));
         
         fprintf(file, "    {\n");
-        fprintf(file, "      \"window_id\": %lu,\n", entry->id);
+        fprintf(file, "      \"match_id\": %d,\n", entry->match_id);
+        fprintf(file, "      \"bound_x11_id\": %lu,\n", entry->bound_x11_id);
         fprintf(file, "      \"custom_name\": \"%s\",\n", escaped_name);
         fprintf(file, "      \"original_title\": \"%s\",\n", escaped_title);
         fprintf(file, "      \"class_name\": \"%s\",\n", escaped_class);
         fprintf(file, "      \"instance\": \"%s\",\n", escaped_instance);
         fprintf(file, "      \"type\": \"%s\",\n", entry->type);
+        fprintf(file, "      \"match_mode\": \"%s\",\n",
+                entry->match_mode == TITLE_MATCH_MODE_GLOB ? "GLOB" : "EXACT");
         fprintf(file, "      \"assigned\": %d\n", entry->assigned);
         fprintf(file, "    }");
     }
@@ -98,8 +102,13 @@ static void parse_named_window_line(const char *line, NamedWindow *temp_entry, i
     if (strstr(line, "{")) {
         *in_entry = 1;
         memset(temp_entry, 0, sizeof(NamedWindow));
+        temp_entry->match_mode = TITLE_MATCH_MODE_EXACT;
     } else if (strstr(line, "\"window_id\":")) {
-        sscanf(line, " \"window_id\": %lu", &temp_entry->id);
+        sscanf(line, " \"window_id\": %lu", &temp_entry->bound_x11_id);
+    } else if (strstr(line, "\"bound_x11_id\":")) {
+        sscanf(line, " \"bound_x11_id\": %lu", &temp_entry->bound_x11_id);
+    } else if (strstr(line, "\"match_id\":")) {
+        sscanf(line, " \"match_id\": %d", &temp_entry->match_id);
     } else if (strstr(line, "\"custom_name\":")) {
         char *colon = strchr(line, ':');
         if (colon) {
@@ -170,6 +179,12 @@ static void parse_named_window_line(const char *line, NamedWindow *temp_entry, i
                 }
             }
         }
+    } else if (strstr(line, "\"match_mode\":")) {
+        if (strstr(line, "GLOB")) {
+            temp_entry->match_mode = TITLE_MATCH_MODE_GLOB;
+        } else {
+            temp_entry->match_mode = TITLE_MATCH_MODE_EXACT;
+        }
     } else if (strstr(line, "\"assigned\":")) {
         int assigned;
         if (sscanf(line, " \"assigned\": %d", &assigned) == 1) {
@@ -205,10 +220,15 @@ void load_named_windows(NamedWindowManager *manager) {
         while (*p == ' ' || *p == '\t') p++;
         
         // Check for section markers
-        if (strstr(p, "\"named_windows\":")) {
+        if (strstr(p, "\"next_match_id\":")) {
+            int next = 0;
+            if (sscanf(p, "\"next_match_id\": %d", &next) == 1 && next > 0) {
+                manager->next_match_id = next;
+            }
+        } else if (strstr(p, "\"named_windows\":")) {
             in_array = 1;
         } else if (in_array && strstr(p, "}")) {
-            if (in_entry && temp_entry.id != 0) {
+            if (in_entry) {
                 // End of entry, save it
                 if (manager->count < MAX_WINDOWS) {
                     manager->entries[manager->count] = temp_entry;
@@ -222,6 +242,35 @@ void load_named_windows(NamedWindowManager *manager) {
         // Parse content if in array
         if (in_array) {
             parse_named_window_line(p, &temp_entry, &in_entry);
+        }
+    }
+
+    // Normalize match IDs: repair malformed/duplicate ids and keep next_match_id monotonic.
+    if (manager->next_match_id <= 0) {
+        manager->next_match_id = 1;
+    }
+    int seen_ids[MAX_WINDOWS];
+    int seen_count = 0;
+    for (int i = 0; i < manager->count; i++) {
+        int id = manager->entries[i].match_id;
+        int duplicate = 0;
+        for (int j = 0; j < seen_count; j++) {
+            if (seen_ids[j] == id) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (id <= 0 || duplicate) {
+            id = manager->next_match_id++;
+            manager->entries[i].match_id = id;
+        } else if (id >= manager->next_match_id) {
+            manager->next_match_id = id + 1;
+        }
+        if (seen_count < MAX_WINDOWS) {
+            seen_ids[seen_count++] = id;
+        }
+        if (manager->entries[i].match_mode != TITLE_MATCH_MODE_GLOB) {
+            manager->entries[i].match_mode = TITLE_MATCH_MODE_EXACT;
         }
     }
     
