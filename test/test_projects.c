@@ -10,6 +10,7 @@
 #include "../src/projects_exec.h"
 #include "../src/projects_folder_windows.h"
 #include "../src/projects_parse.h"
+#include "../src/projects_remote_windows.h"
 #include "../src/projects_tmux_windows.h"
 #include "../src/projects_window_env.h"
 #include "../src/projects_zellij_windows.h"
@@ -43,6 +44,7 @@ gboolean process_find_window_for_pid_ancestry(AppData *app,
 }
 
 #include "../src/projects_window_env.c"
+#include "../src/projects_remote_windows.c"
 #include "../src/projects_tmux_windows.c"
 #include "../src/projects_zellij_windows.c"
 
@@ -201,6 +203,98 @@ static void test_terminal_title_prefix_wraps_command_with_safe_quoted_title(void
                   "'tmux' attach-session -t '=work:api session'",
                   wrapped);
     g_free(wrapped);
+}
+
+static void test_remote_attach_command_builds_ssh_t_path(void) {
+    gchar *cmd = projects_build_remote_attach_command(
+        PROJECT_BACKEND_TMUX, "tsunami", "tmux", "work api");
+    ASSERT_STR_EQ("remote tmux attach uses ssh -t host bare tool attach-session",
+                  "ssh -t 'tsunami' 'tmux' attach-session -t 'work api'", cmd);
+    g_free(cmd);
+}
+
+static void test_remote_new_command_builds_ssh_t_with_cwd(void) {
+    gchar *cmd = projects_build_remote_new_command(
+        PROJECT_BACKEND_TMUX, "tsunami", "tmux", "work api", "/srv/work");
+    ASSERT_STR_EQ("remote tmux new uses ssh -t host bare tool new with cwd",
+                  "ssh -t 'tsunami' 'tmux' new -A -s 'work api' -c '/srv/work'", cmd);
+    g_free(cmd);
+}
+
+static void test_folder_terminal_command_cd_and_exec_shell(void) {
+    gchar *cmd = projects_build_folder_terminal_command("/home/user/work dir");
+    ASSERT_STR_EQ("folder terminal command cds and execs login shell",
+                  "cd '/home/user/work dir' && exec \"${SHELL:-bash}\" -l", cmd);
+    g_free(cmd);
+}
+
+static void test_remote_folder_terminal_command_ssh_cd_and_exec_shell(void) {
+    gchar *cmd = projects_build_remote_folder_terminal_command("root@tsunami",
+                                                               "/srv/work dir");
+    ASSERT_STR_EQ("remote folder terminal command uses ssh -t with quoted remote shell command",
+                  "ssh -t 'root@tsunami' 'cd '\\''/srv/work dir'\\'' && exec \"${SHELL:-bash}\" -l'",
+                  cmd);
+    g_free(cmd);
+}
+
+static void test_remote_cmdline_matcher_matches_tmux_attach(void) {
+    const char cmdline[] =
+        "ssh\0-t\0root@tsunami\0tmux\0attach-session\0-t\0work api\0";
+
+    ASSERT_TRUE("remote matcher matches tmux attach-session",
+                projects_remote_cmdline_matches_attach(cmdline,
+                                                       sizeof(cmdline),
+                                                       "root@tsunami",
+                                                       "tmux",
+                                                       "work api"));
+}
+
+static void test_remote_cmdline_matcher_matches_zellij_attach_create(void) {
+    const char cmdline[] =
+        "ssh\0-t\0root@tsunami\0zellij\0attach\0--create\0work api\0";
+
+    ASSERT_TRUE("remote matcher matches zellij attach --create",
+                projects_remote_cmdline_matches_attach(cmdline,
+                                                       sizeof(cmdline),
+                                                       "root@tsunami",
+                                                       "zellij",
+                                                       "work api"));
+}
+
+static void test_remote_cmdline_matcher_rejects_wrong_host_or_session(void) {
+    const char cmdline[] =
+        "ssh\0-t\0root@tsunami\0tmux\0attach-session\0-t\0work api\0";
+
+    ASSERT_TRUE("remote matcher rejects wrong host",
+                !projects_remote_cmdline_matches_attach(cmdline,
+                                                        sizeof(cmdline),
+                                                        "root@other",
+                                                        "tmux",
+                                                        "work api"));
+    ASSERT_TRUE("remote matcher rejects wrong session",
+                !projects_remote_cmdline_matches_attach(cmdline,
+                                                        sizeof(cmdline),
+                                                        "root@tsunami",
+                                                        "tmux",
+                                                        "other"));
+}
+
+static void test_remote_cmdline_matcher_rejects_non_remote_attach(void) {
+    const char local_zellij[] = "zellij\0attach\0--create\0work api\0";
+    const char plain_ssh_shell[] = "ssh\0-t\0root@tsunami\0";
+
+    ASSERT_TRUE("remote matcher rejects local zellij client process",
+                !projects_remote_cmdline_matches_attach(local_zellij,
+                                                        sizeof(local_zellij),
+                                                        "root@tsunami",
+                                                        "zellij",
+                                                        "work api"));
+    ASSERT_TRUE("remote matcher rejects plain ssh shell",
+                !projects_remote_cmdline_matches_attach(plain_ssh_shell,
+                                                        sizeof(plain_ssh_shell),
+                                                        "root@tsunami",
+                                                        "zellij",
+                                                        "work api"));
 }
 
 static void test_parse_zellij_projects(void) {
@@ -545,6 +639,14 @@ int main(void) {
     test_rename_command_quotes_old_and_new_names();
     test_new_session_command_uses_home_directory();
     test_terminal_title_prefix_wraps_command_with_safe_quoted_title();
+    test_remote_attach_command_builds_ssh_t_path();
+    test_remote_new_command_builds_ssh_t_with_cwd();
+    test_folder_terminal_command_cd_and_exec_shell();
+    test_remote_folder_terminal_command_ssh_cd_and_exec_shell();
+    test_remote_cmdline_matcher_matches_tmux_attach();
+    test_remote_cmdline_matcher_matches_zellij_attach_create();
+    test_remote_cmdline_matcher_rejects_wrong_host_or_session();
+    test_remote_cmdline_matcher_rejects_non_remote_attach();
     test_parse_zellij_projects();
     test_zellij_attach_command_quotes_name();
     test_zellij_kill_command_quotes_name();

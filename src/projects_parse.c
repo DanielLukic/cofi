@@ -58,6 +58,9 @@ int projects_parse_tmux_list(const char *output,
                     out[count].backend = PROJECT_BACKEND_TMUX;
                     out[count].windows = windows;
                     out[count].attached = attached;
+                    out[count].is_saved_remote = FALSE;
+                    out[count].remote_host[0] = '\0';
+                    out[count].remote_cwd[0] = '\0';
                     count++;
                 }
             }
@@ -96,6 +99,9 @@ int projects_parse_zellij_list(const char *output,
                 out[count].backend = PROJECT_BACKEND_ZELLIJ;
                 out[count].windows = -1;
                 out[count].attached = -1;
+                out[count].is_saved_remote = FALSE;
+                out[count].remote_host[0] = '\0';
+                out[count].remote_cwd[0] = '\0';
                 count++;
             }
         }
@@ -155,6 +161,8 @@ int projects_parse_zoxide_list(const char *output,
         if (line_end > line) {
             out[count].path = g_strndup(line, (size_t)(line_end - line));
             out[count].label = folder_label_from_path(out[count].path);
+            out[count].is_remote = FALSE;
+            out[count].remote_host[0] = '\0';
             if (out[count].path[0] != '\0' && out[count].label[0] != '\0') {
                 count++;
             } else {
@@ -253,6 +261,13 @@ void projects_format_session_match_text(const ProjectSessionEntry *session,
         out[0] = '\0';
         return;
     }
+    if (session->is_saved_remote) {
+        g_snprintf(out, out_size, "%s [REMOTE:%s] %s",
+                   projects_session_marker(session->backend),
+                   session->remote_host[0] ? session->remote_host : "?",
+                   session->name);
+        return;
+    }
     if (session->backend == PROJECT_BACKEND_ZELLIJ) {
         g_snprintf(out, out_size, "%s %s", projects_session_marker(session->backend),
                    session->name);
@@ -273,6 +288,13 @@ void projects_format_folder_match_text(const ProjectFolder *folder,
     if (!out || out_size == 0) return;
     if (!folder) {
         out[0] = '\0';
+        return;
+    }
+    if (folder->is_remote) {
+        g_snprintf(out, out_size, "%s [REMOTE:%s] %s %s", projects_folder_marker(),
+                   folder->remote_host[0] ? folder->remote_host : "?",
+                   folder->label ? folder->label : "",
+                   folder->path ? folder->path : "");
         return;
     }
     g_snprintf(out, out_size, "%s %s %s", projects_folder_marker(),

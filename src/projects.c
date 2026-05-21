@@ -12,8 +12,11 @@
 #include "projects_exec.h"
 #include "projects_folder_windows.h"
 #include "projects_parse.h"
+#include "projects_remote_windows.h"
 #include "projects_tmux_windows.h"
 #include "projects_zellij_windows.h"
+#include "projects_remote_store.h"
+#include "projects_remote_scope.h"
 #include "window_list.h"
 
 #include <gtk/gtk.h>
@@ -61,6 +64,59 @@ static gboolean default_run_session_command(const char *command) {
 }
 
 static gboolean (*s_run_session_command)(const char *command) = default_run_session_command;
+
+static gboolean default_exec_command(const char *command) {
+    if (!command || command[0] == '\0') return FALSE;
+    gint wait_status = 0;
+    GError *error = NULL;
+    gboolean spawned = g_spawn_command_line_sync(command, NULL, NULL,
+                                                 &wait_status, &error);
+    if (!spawned) {
+        g_clear_error(&error);
+        return FALSE;
+    }
+    gboolean ok = g_spawn_check_wait_status(wait_status, &error);
+    g_clear_error(&error);
+    return ok;
+}
+
+static gboolean (*s_exec_command)(const char *command) = default_exec_command;
+
+static gchar *build_remote_terminal_title(const char *host, const char *name) {
+    if (!host || !host[0] || !name || !name[0]) return NULL;
+    return g_strdup_printf("%s:%s", host, name);
+}
+
+static CofiActionStatus launch_remote_session(AppData *app,
+                                              const char *host,
+                                              ProjectBackend backend,
+                                              const char *session_name,
+                                              const char *cwd,
+                                              gboolean is_new) {
+    const char *remote_tool = backend == PROJECT_BACKEND_ZELLIJ ? "zellij" : "tmux";
+    if (!is_new &&
+        projects_activate_remote_attach_window(app, host, remote_tool, session_name)) {
+        return COFI_HANDLED_HIDE;
+    }
+
+    gchar *command = is_new
+        ? projects_build_remote_new_command(backend, host, remote_tool, session_name, cwd && cwd[0] ? cwd : g_get_home_dir())
+        : projects_build_remote_attach_command(backend, host, remote_tool, session_name);
+    if (!command) return COFI_ACTION_ERROR;
+
+    gchar *title = build_remote_terminal_title(host, session_name);
+    gchar *launch_command = projects_with_terminal_title(command, title ? title : session_name);
+    g_free(title);
+    g_free(command);
+    if (!launch_command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(launch_command);
+    g_free(launch_command);
+    if (!ok) return COFI_ACTION_ERROR;
+
+    projects_remote_store_save_intent(host, backend, session_name, cwd ? cwd : "");
+    return COFI_HANDLED_HIDE;
+}
 
 static ProjectSessionEntry *session_at_visible(AppData *app, int visible_idx) {
     if (!app) return NULL;
@@ -217,6 +273,7 @@ static gboolean activate_existing_caja_folder(AppData *app, const char *path) {
 }
 
 CofiActionStatus projects_open_folder(AppData *app, const char *path) {
+    projects_remote_scope_clear_status_message();
     if (!path || path[0] == '\0') return COFI_ACTION_ERROR;
 
     if (activate_existing_caja_folder(app, path)) {
@@ -236,6 +293,74 @@ CofiActionStatus projects_open_folder(AppData *app, const char *path) {
 
     log_warn("No file manager opener found for folder: %s", path);
     return COFI_ACTION_ERROR;
+}
+
+CofiActionStatus projects_open_folder_terminal(AppData *app, const ProjectFolder *folder) {
+    if (!app || !folder || !folder->path || folder->path[0] == '\0') return COFI_ACTION_ERROR;
+    gchar *command = NULL;
+    if (folder->is_remote) {
+        command = projects_build_remote_folder_terminal_command(folder->remote_host, folder->path);
+    } else {
+        command = projects_build_folder_terminal_command(folder->path);
+    }
+    if (!command) return COFI_ACTION_ERROR;
+
+    gchar *base = g_path_get_basename(folder->path);
+    gchar *title = folder->is_remote
+        ? g_strdup_printf("%s:%s", folder->remote_host[0] ? folder->remote_host : "?",
+                          base && base[0] ? base : folder->path)
+        : g_strdup(base && base[0] ? base : folder->path);
+    gchar *launch_command = projects_with_terminal_title(command, title && title[0] ? title : folder->path);
+    g_free(title);
+    g_free(base);
+    g_free(command);
+    if (!launch_command) return COFI_ACTION_ERROR;
+
+    gboolean ok = s_launch_in_terminal(launch_command);
+    g_free(launch_command);
+    return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
+}
+
+static CofiActionStatus projects_open_remote_folder(AppData *app,
+                                                    const char *host,
+                                                    const char *path) {
+    if (!host || !host[0] || !path || path[0] == '\0') return COFI_ACTION_ERROR;
+    gchar *uri = g_strdup_printf("sftp://%s%s", host, path);
+    CofiActionStatus status = projects_open_folder(app, uri);
+    g_free(uri);
+    return status;
+}
+
+CofiActionStatus projects_remove_folder_entry(AppData *app,
+                                              const char *path,
+                                              gboolean is_remote,
+                                              const char *remote_host) {
+    if (!app || !path || path[0] == '\0') return COFI_ACTION_ERROR;
+
+    gchar *command = NULL;
+    if (is_remote) {
+        if (!remote_host || remote_host[0] == '\0') return COFI_ACTION_ERROR;
+        gchar *quoted_host = g_shell_quote(remote_host);
+        gchar *quoted_path = g_shell_quote(path);
+        command = g_strdup_printf("ssh -o BatchMode=yes -o ConnectTimeout=4 %s zoxide remove %s",
+                                  quoted_host, quoted_path);
+        g_free(quoted_path);
+        g_free(quoted_host);
+    } else {
+        char err[128] = {0};
+        gchar *zoxide = projects_resolve_tool(&app->config, PROJECT_TOOL_ZOXIDE, err, sizeof(err));
+        if (!zoxide) return COFI_ACTION_ERROR;
+        gchar *quoted_tool = g_shell_quote(zoxide);
+        gchar *quoted_path = g_shell_quote(path);
+        command = g_strdup_printf("%s remove %s", quoted_tool, quoted_path);
+        g_free(quoted_path);
+        g_free(quoted_tool);
+        g_free(zoxide);
+    }
+
+    gboolean ok = s_exec_command(command);
+    g_free(command);
+    return ok ? COFI_HANDLED_REFRESH : COFI_ACTION_ERROR;
 }
 
 static void add_filtered_row(ProjectsMode *mode, ProjectRowType type, int index) {
@@ -331,12 +456,22 @@ void projects_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
     ProjectFolder *folder = folder_at_visible(app, visible_idx);
     static char windows_buf[16];
     static char attached_buf[16];
+    static char remote_name_buf[640];
+    static char remote_folder_label_buf[640];
 
     if (folder) {
         out->cell_count = 3;
         out->cells[0].text = projects_folder_marker();
         out->cells[0].width_hint = 3;
-        out->cells[1].text = folder->label;
+        if (folder->is_remote) {
+            g_snprintf(remote_folder_label_buf, sizeof(remote_folder_label_buf),
+                       "[REMOTE:%s] %s",
+                       folder->remote_host[0] ? folder->remote_host : "?",
+                       folder->label ? folder->label : "");
+            out->cells[1].text = remote_folder_label_buf;
+        } else {
+            out->cells[1].text = folder->label;
+        }
         out->cells[1].width_hint = 24;
         out->cells[2].text = folder->path;
         out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
@@ -353,6 +488,22 @@ void projects_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
         } else {
             out->cells[0].text = "No tmux/zellij sessions or zoxide folders";
         }
+        return;
+    }
+
+    if (session->is_saved_remote) {
+        g_snprintf(remote_name_buf, sizeof(remote_name_buf), "[REMOTE:%s] %s",
+                   session->remote_host[0] ? session->remote_host : "?",
+                   session->name);
+        out->cell_count = 4;
+        out->cells[0].text = projects_session_marker(session->backend);
+        out->cells[0].width_hint = 3;
+        out->cells[1].text = remote_name_buf;
+        out->cells[2].text = "";
+        out->cells[2].width_hint = 7;
+        out->cells[3].text = "";
+        out->cells[3].width_hint = 10;
+        out->row_flags = COFI_ROW_ACTIONABLE | COFI_ROW_SLOTTABLE;
         return;
     }
 
@@ -412,8 +563,17 @@ void projects_on_enter(AppData *app) {
 }
 
 void projects_on_query_changed(AppData *app, const char *query) {
+    if (query && query[0] != '\0') {
+        projects_remote_scope_clear_status_message();
+    }
     projects_filter(app, query);
     reset_selection(app);
+}
+
+void projects_on_leave(AppData *app) {
+    (void)app;
+    projects_remote_scope_clear_status_message();
+    projects_remote_scope_clear();
 }
 
 void projects_on_tick(AppData *app, int generation) {
@@ -458,11 +618,22 @@ void projects_on_tick(AppData *app, int generation) {
 CofiActionStatus projects_attach_visible(AppData *app, int visible_idx) {
     ProjectSessionEntry *session = session_at_visible(app, visible_idx);
     if (session) {
+        if (session->is_saved_remote) {
+            return launch_remote_session(app,
+                                         session->remote_host,
+                                         session->backend,
+                                         session->name,
+                                         session->remote_cwd,
+                                         FALSE);
+        }
         return session->backend == PROJECT_BACKEND_ZELLIJ
             ? zellij_attach_session(app, session->name)
             : attach_tmux_session(app, session->name);
     }
     ProjectFolder *folder = folder_at_visible(app, visible_idx);
+    if (folder && folder->is_remote) {
+        return projects_open_remote_folder(app, folder->remote_host, folder->path);
+    }
     return folder ? projects_open_folder(app, folder->path) : COFI_ACTION_ERROR;
 }
 
@@ -511,6 +682,14 @@ CofiActionStatus projects_new_session(AppData *app,
                                        const char *session_name,
                                        ProjectBackend backend,
                                        const char *start_dir) {
+    if (projects_remote_scope_is_active()) {
+        const char *host = projects_remote_scope_current_host();
+        if (host && host[0]) {
+            CofiActionStatus remote_status = launch_remote_session(app, host, backend, session_name, start_dir, TRUE);
+            return remote_status;
+        }
+    }
+
     const char *home = g_get_home_dir();
     const char *dir = (start_dir && start_dir[0] != '\0') ? start_dir : (home ? home : "/");
     ProjectTool tool = backend == PROJECT_BACKEND_ZELLIJ ? PROJECT_TOOL_ZELLIJ : PROJECT_TOOL_TMUX;
@@ -540,6 +719,25 @@ CofiActionStatus projects_new_session(AppData *app,
     return ok ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
+gboolean projects_forget_selected_remote(AppData *app) {
+    if (!app) return FALSE;
+    ProjectSessionEntry *session = projects_selected_session(app);
+    if (!session || !session->is_saved_remote) return FALSE;
+
+    return projects_forget_remote_entry(session->remote_host,
+                                        session->backend,
+                                        session->name,
+                                        session->remote_cwd);
+}
+
+gboolean projects_forget_remote_entry(const char *host,
+                                      ProjectBackend backend,
+                                      const char *name,
+                                      const char *cwd) {
+    if (!host || !host[0] || !name || name[0] == '\0') return FALSE;
+    return projects_remote_store_forget(host, backend, name, cwd);
+}
+
 ProjectSessionEntry *projects_selected_session(AppData *app) {
     if (!app) return NULL;
     return session_at_visible(app, app->selection.provider_index);
@@ -555,14 +753,11 @@ ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
 }
 
 const char *projects_get_shortcut_hint(AppData *app) {
+    /* Ctrl+T (terminal here) applies to folder rows only — show it only then. */
     if (projects_selected_folder(app)) {
-        return "Actions: Enter=Open folder  Insert/Ctrl+N=New session  Ctrl+key=Slot  Alt+key=Recall";
+        return "Actions: Ctrl+S=Remote   Enter=Open   Ctrl+D=Delete   Ctrl+N=New   Ctrl+T=Terminal";
     }
-    ProjectSessionEntry *session = projects_selected_session(app);
-    if (session && session->backend == PROJECT_BACKEND_ZELLIJ) {
-        return "Actions: Enter=Open  Delete=Kill  Insert/Ctrl+N=New  Ctrl+key=Slot  Alt+key=Recall";
-    }
-    return "Actions: Enter=Open  Delete=Kill  F2/Ctrl+R=Rename  Insert/Ctrl+N=New  Ctrl+key=Slot  Alt+key=Recall";
+    return "Actions: Ctrl+S=Remote   Enter=Open   Ctrl+D=Delete   Ctrl+N=New";
 }
 
 const char *projects_slot_payload_for(AppData *app, int visible_idx) {
@@ -636,4 +831,9 @@ void projects_set_command_impl_test_hook(gboolean (*impl)(const char *command)) 
 void projects_set_argv_launch_impl_test_hook(gboolean (*impl)(const char *const *argv)) {
     s_launch_argv = impl ? impl : default_launch_argv;
 }
+
+void projects_set_exec_impl_test_hook(gboolean (*impl)(const char *command)) {
+    s_exec_command = impl ? impl : default_exec_command;
+}
+
 #endif

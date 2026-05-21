@@ -4,6 +4,9 @@ Description=cofi window switcher
 [Service]
 Type=simple
 Environment=DISPLAY=:0
+# SSH agent socket so remote-projects (TFD-772) can authenticate non-interactively.
+# %t = XDG_RUNTIME_DIR; this path is the gnome-keyring ssh agent.
+Environment=SSH_AUTH_SOCK=%t/keyring/ssh
 ExecStart=@BINDIR@/cofi
 Restart=always
 RestartSec=3

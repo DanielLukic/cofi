@@ -171,6 +171,12 @@ void hide_window(AppData *app) {
         gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
     }
 
+    TabMode previous_tab = app->current_tab;
+    const CofiTabProvider *previous_provider = cofi_get_provider_for_tab(previous_tab);
+    if (previous_provider && previous_provider->on_leave) {
+        previous_provider->on_leave(app);
+    }
+
     clear_surfaced_tabs(app);
     app->current_tab = TAB_WINDOWS;
     app->apps_mode = APPS_MODE_DEFAULT;

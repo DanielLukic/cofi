@@ -8,6 +8,7 @@
 #include "overlay_manager.h"
 #include "selection.h"
 #include "projects.h"
+#include "projects_remote_scope.h"
 #include "window_lifecycle.h"
 
 static GtkWidget *create_session_form_box(GtkWidget *parent_container) {
@@ -90,17 +91,38 @@ static gboolean on_project_new_entry_key_press(GtkWidget *widget,
 void create_project_kill_overlay_content(GtkWidget *parent_container, AppData *app) {
     GtkWidget *vbox = create_session_form_box(parent_container);
 
-    GtkWidget *title_label = gtk_label_new("Kill Session?");
+    const char *title = "Delete?";
+    const char *info_text = "";
+    const char *instructions = "Y or Delete = confirm, N or Esc = cancel";
+    char info[1024];
+    info[0] = '\0';
+
+    if (app->project_kill.action == PROJECT_DELETE_KILL_SESSION) {
+        title = "Kill Session?";
+        g_snprintf(info, sizeof(info), "Session: %s", app->project_kill.session_name);
+        info_text = info;
+        instructions = "Y or Delete = kill, N or Esc = cancel";
+    } else if (app->project_kill.action == PROJECT_DELETE_FORGET_REMOTE) {
+        title = "Forget Remote Entry?";
+        g_snprintf(info, sizeof(info), "Entry: [REMOTE:%s] %s",
+                   app->project_kill.remote_host,
+                   app->project_kill.session_name);
+        info_text = info;
+    } else if (app->project_kill.action == PROJECT_DELETE_REMOVE_FOLDER) {
+        title = "Remove Folder From zoxide?";
+        g_snprintf(info, sizeof(info), "Folder: %s", app->project_kill.folder_path);
+        info_text = info;
+    }
+
+    GtkWidget *title_label = gtk_label_new(title);
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
-    char info[512];
-    g_snprintf(info, sizeof(info), "Session: %s", app->project_kill.session_name);
-    GtkWidget *info_label = gtk_label_new(info);
+    GtkWidget *info_label = gtk_label_new(info_text);
     gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
     gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
 
-    GtkWidget *inst = create_centered_label("Y or Delete = kill, N or Esc = cancel");
+    GtkWidget *inst = create_centered_label(instructions);
     gtk_widget_set_opacity(inst, 0.7);
     gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
 }
@@ -143,6 +165,12 @@ void create_project_new_overlay_content(GtkWidget *parent_container, AppData *ap
     update_project_new_labels(app);
 }
 
+void create_project_remote_host_overlay_content(GtkWidget *parent_container, AppData *app) {
+    create_session_entry_form(parent_container, "Remote Host",
+                              app->project_remote.host,
+                              "Enter=fetch remote sessions/folders  Esc=cancel");
+}
+
 static void refresh_projects_tab(AppData *app) {
     projects_refresh(app);
     validate_selection(app);
@@ -154,10 +182,24 @@ gboolean handle_project_kill_key_press(AppData *app, GdkEventKey *event) {
     gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
                        event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete;
     if (confirm) {
-        char session_name[MAX_PROJECT_SESSION_NAME_LEN];
-        ProjectBackend backend = app->project_kill.backend;
-        g_strlcpy(session_name, app->project_kill.session_name, sizeof(session_name));
-        CofiActionStatus status = projects_kill_session(app, session_name, backend);
+        CofiActionStatus status = COFI_ACTION_ERROR;
+        if (app->project_kill.action == PROJECT_DELETE_KILL_SESSION) {
+            char session_name[MAX_PROJECT_SESSION_NAME_LEN];
+            ProjectBackend backend = app->project_kill.backend;
+            g_strlcpy(session_name, app->project_kill.session_name, sizeof(session_name));
+            status = projects_kill_session(app, session_name, backend);
+        } else if (app->project_kill.action == PROJECT_DELETE_FORGET_REMOTE) {
+            gboolean removed = projects_forget_remote_entry(app->project_kill.remote_host,
+                                                            app->project_kill.backend,
+                                                            app->project_kill.session_name,
+                                                            app->project_kill.remote_cwd);
+            status = removed ? COFI_HANDLED_REFRESH : COFI_ACTION_ERROR;
+        } else if (app->project_kill.action == PROJECT_DELETE_REMOVE_FOLDER) {
+            status = projects_remove_folder_entry(app,
+                                                  app->project_kill.folder_path,
+                                                  app->project_kill.folder_is_remote,
+                                                  app->project_kill.remote_host);
+        }
         hide_overlay(app);
         if (status == COFI_HANDLED_REFRESH) {
             refresh_projects_tab(app);
@@ -231,5 +273,32 @@ gboolean handle_project_new_key_press(AppData *app, GdkEventKey *event) {
     } else {
         refresh_projects_tab(app);
     }
+    return TRUE;
+}
+
+gboolean handle_project_remote_host_key_press(AppData *app, GdkEventKey *event) {
+    if (event->keyval != GDK_KEY_Return && event->keyval != GDK_KEY_KP_Enter) {
+        return FALSE;
+    }
+
+    GtkWidget *entry = g_object_get_data(G_OBJECT(app->dialog_container), "name_entry");
+    if (!entry) {
+        hide_overlay(app);
+        return TRUE;
+    }
+
+    const char *host = gtk_entry_get_text(GTK_ENTRY(entry));
+    if (!host || host[0] == '\0') {
+        hide_overlay(app);
+        return TRUE;
+    }
+
+    g_strlcpy(app->project_remote.host, host, sizeof(app->project_remote.host));
+    projects_remote_scope_begin_fetch(app, host);
+    hide_overlay(app);
+    projects_refresh(app);
+    reset_selection(app);
+    update_scroll_position(app);
+    update_display(app);
     return TRUE;
 }

@@ -35,6 +35,7 @@ void show_project_new_overlay(AppData *app,
                               ProjectBackend backend,
                               const char *start_dir,
                               const char *initial_name);
+void show_project_remote_host_overlay(AppData *app);
 void show_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
@@ -52,7 +53,7 @@ static inline gboolean overlay_should_focus_name_entry(OverlayType type) {
            type == OVERLAY_HOTKEY_REBIND ||
            type == OVERLAY_HOTKEY_EDIT || type == OVERLAY_RULE_ADD ||
            type == OVERLAY_RULE_EDIT || type == OVERLAY_PROJECT_RENAME ||
-           type == OVERLAY_PROJECT_NEW ||
+           type == OVERLAY_PROJECT_NEW || type == OVERLAY_PROJECT_REMOTE_HOST ||
            type == OVERLAY_SESSION_RENAME;
 }
 

@@ -3,6 +3,8 @@
 #include "app_data.h"
 #include "projects_parse.h"
 #include "projects_exec.h"
+#include "projects_remote_store.h"
+#include "projects_remote_scope.h"
 
 #include <gtk/gtk.h>
 
@@ -124,8 +126,18 @@ void projects_refresh(AppData *app) {
     mode->filtered_count = 0;
     mode->last_error[0] = '\0';
 
+    if (projects_remote_scope_apply(mode)) {
+        const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
+        projects_filter(app, query);
+        return;
+    }
+
     refresh_tmux_backend(app, mode);
     refresh_zellij_backend(app, mode);
+    projects_remote_store_reload();
+    mode->session_count = projects_remote_store_append_sessions(mode->projects,
+                                                                mode->session_count,
+                                                                MAX_PROJECTS);
     refresh_zoxide_backend(app, mode);
 
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";

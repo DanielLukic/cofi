@@ -82,6 +82,9 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_PROJECT_NEW:
             create_project_new_overlay_content(app->dialog_container, app);
             return;
+        case OVERLAY_PROJECT_REMOTE_HOST:
+            create_project_remote_host_overlay_content(app->dialog_container, app);
+            return;
         case OVERLAY_SESSION_DELETE:
             create_session_delete_overlay_content(app->dialog_container, app);
             return;
@@ -139,6 +142,8 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_project_rename_key_press(app, event);
         case OVERLAY_PROJECT_NEW:
             return handle_project_new_key_press(app, event);
+        case OVERLAY_PROJECT_REMOTE_HOST:
+            return handle_project_remote_host_key_press(app, event);
         case OVERLAY_SESSION_DELETE:
             return handle_session_delete_key_press(app, event);
         case OVERLAY_SESSION_RENAME:
@@ -216,6 +221,7 @@ void show_rule_delete_overlay(AppData *app, int rule_index) {
 
 void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend) {
     app->project_kill.pending_kill = TRUE;
+    app->project_kill.action = PROJECT_DELETE_KILL_SESSION;
     app->project_kill.backend = backend;
     g_strlcpy(app->project_kill.session_name, session_name ? session_name : "",
               sizeof(app->project_kill.session_name));
@@ -239,6 +245,10 @@ void show_project_new_overlay(AppData *app,
     g_strlcpy(app->project_new.session_name, initial_name ? initial_name : "",
               sizeof(app->project_new.session_name));
     show_overlay(app, OVERLAY_PROJECT_NEW, NULL);
+}
+
+void show_project_remote_host_overlay(AppData *app) {
+    show_overlay(app, OVERLAY_PROJECT_REMOTE_HOST, NULL);
 }
 
 void show_session_delete_overlay(AppData *app,

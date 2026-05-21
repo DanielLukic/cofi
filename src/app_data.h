@@ -64,10 +64,17 @@ typedef enum {
     OVERLAY_PROJECT_KILL,
     OVERLAY_PROJECT_RENAME,
     OVERLAY_PROJECT_NEW,
+    OVERLAY_PROJECT_REMOTE_HOST,
     OVERLAY_SESSION_DELETE,
     OVERLAY_SESSION_RENAME,
     OVERLAY_PROVIDER_ENABLEMENT
 } OverlayType;
+
+typedef enum {
+    PROJECT_DELETE_KILL_SESSION,
+    PROJECT_DELETE_FORGET_REMOTE,
+    PROJECT_DELETE_REMOVE_FOLDER
+} ProjectDeleteAction;
 
 // Entry mode definitions
 typedef enum {
@@ -218,8 +225,13 @@ typedef struct AppData {
     // Projects tab overlay state
     struct {
         gboolean pending_kill;
+        ProjectDeleteAction action;
         ProjectBackend backend;
         char session_name[MAX_PROJECT_SESSION_NAME_LEN];
+        char remote_host[128];
+        char remote_cwd[512];
+        char folder_path[1024];
+        gboolean folder_is_remote;
     } project_kill;
 
     struct {
@@ -232,6 +244,10 @@ typedef struct AppData {
         char session_name[MAX_PROJECT_SESSION_NAME_LEN];
         char start_dir[1024];
     } project_new;
+
+    struct {
+        char host[128];
+    } project_remote;
 
     // Sessions tab overlay state
     struct {

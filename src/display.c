@@ -22,6 +22,8 @@
 #include "slot_store.h"
 #include "utf8_columns.h"
 
+extern const char *projects_remote_scope_status_message(void) __attribute__((weak));
+
 #define UTF8_FIT_BUFFER_SIZE 4096
 
 // Check if instance and class should be swapped for display
@@ -353,6 +355,14 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         g_string_append(text, shortcut_hint);
         g_string_append_c(text, '\n');
     }
+    if (p->id && strcmp(p->id, "projects") == 0) {
+        const char *status = projects_remote_scope_status_message
+            ? projects_remote_scope_status_message()
+            : "";
+        /* Reuse the existing spacer line between actions and entry: blank when clear, status when set. */
+        if (status && status[0] != '\0') g_string_append(text, status);
+        g_string_append_c(text, '\n');
+    }
 }
 
 
@@ -400,8 +410,33 @@ void update_display(AppData *app) {
     format_candidate_strip(app, text);
     utf8_clip_lines_to_columns(text, get_display_columns(app));
     
+    const char *projects_status = "";
+    const CofiTabProvider *active_provider = cofi_get_provider_for_tab(app->current_tab);
+    if (active_provider && active_provider->id &&
+        strcmp(active_provider->id, "projects") == 0 &&
+        projects_remote_scope_status_message) {
+        projects_status = projects_remote_scope_status_message();
+    }
+
     // Set the text
     gtk_text_buffer_set_text(app->textbuffer, text->str, -1);
+
+    if (projects_status && projects_status[0] != '\0') {
+        GtkTextTagTable *table = gtk_text_buffer_get_tag_table(app->textbuffer);
+        GtkTextTag *tag = gtk_text_tag_table_lookup(table, "projects_remote_status_error");
+        if (!tag) {
+            tag = gtk_text_buffer_create_tag(app->textbuffer,
+                                             "projects_remote_status_error",
+                                             "foreground", "#d32f2f",
+                                             NULL);
+        }
+        GtkTextIter start, end, match_start, match_end;
+        gtk_text_buffer_get_bounds(app->textbuffer, &start, &end);
+        if (gtk_text_iter_forward_search(&start, projects_status, GTK_TEXT_SEARCH_TEXT_ONLY,
+                                         &match_start, &match_end, &end)) {
+            gtk_text_buffer_apply_tag(app->textbuffer, tag, &match_start, &match_end);
+        }
+    }
     g_string_free(text, TRUE);
 
 }

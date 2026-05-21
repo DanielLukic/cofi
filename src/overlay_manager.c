@@ -52,8 +52,13 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
 
     if (type == OVERLAY_PROJECT_KILL) {
         app->project_kill.pending_kill = FALSE;
+        app->project_kill.action = PROJECT_DELETE_KILL_SESSION;
         app->project_kill.backend = PROJECT_BACKEND_TMUX;
         app->project_kill.session_name[0] = '\0';
+        app->project_kill.remote_host[0] = '\0';
+        app->project_kill.remote_cwd[0] = '\0';
+        app->project_kill.folder_path[0] = '\0';
+        app->project_kill.folder_is_remote = FALSE;
     }
 
     if (type == OVERLAY_PROJECT_RENAME) {
@@ -65,6 +70,10 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         app->project_new.backend = PROJECT_BACKEND_TMUX;
         app->project_new.session_name[0] = '\0';
         app->project_new.start_dir[0] = '\0';
+    }
+
+    if (type == OVERLAY_PROJECT_REMOTE_HOST) {
+        app->project_remote.host[0] = '\0';
     }
 
     if (type == OVERLAY_SESSION_DELETE) {

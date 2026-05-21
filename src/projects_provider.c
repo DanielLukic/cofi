@@ -5,9 +5,13 @@
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
 #include "config.h"
+#include "display.h"
 #include "overlay_manager.h"
 #include "projects.h"
 #include "projects_parse.h"
+#include "projects_remote_store.h"
+#include "projects_remote_scope.h"
+#include "selection.h"
 #include "slot_store.h"
 #include "tab_switching.h"
 #include "window_lifecycle.h"
@@ -197,7 +201,50 @@ static TabMode projects_tab_mode(void) {
     return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
 }
 
+static gboolean handle_delete_selected_entry(AppData *app) {
+    ProjectSessionEntry *session = projects_selected_session(app);
+    ProjectFolder *folder = projects_selected_folder(app);
+
+    if (!session && !folder) {
+        return TRUE;
+    }
+
+    if (session) {
+        if (session->is_saved_remote) {
+            app->project_kill.pending_kill = TRUE;
+            app->project_kill.action = PROJECT_DELETE_FORGET_REMOTE;
+            app->project_kill.backend = session->backend;
+            g_strlcpy(app->project_kill.session_name, session->name,
+                      sizeof(app->project_kill.session_name));
+            g_strlcpy(app->project_kill.remote_host, session->remote_host,
+                      sizeof(app->project_kill.remote_host));
+            g_strlcpy(app->project_kill.remote_cwd, session->remote_cwd,
+                      sizeof(app->project_kill.remote_cwd));
+            show_overlay(app, OVERLAY_PROJECT_KILL, NULL);
+            return TRUE;
+        }
+
+        show_project_kill_overlay(app, session->name, session->backend);
+        return TRUE;
+    }
+
+    app->project_kill.pending_kill = TRUE;
+    app->project_kill.action = PROJECT_DELETE_REMOVE_FOLDER;
+    app->project_kill.backend = PROJECT_BACKEND_TMUX;
+    g_strlcpy(app->project_kill.folder_path, folder->path ? folder->path : "",
+              sizeof(app->project_kill.folder_path));
+    app->project_kill.folder_is_remote = folder->is_remote;
+    g_strlcpy(app->project_kill.remote_host,
+              folder->is_remote ? folder->remote_host : "",
+              sizeof(app->project_kill.remote_host));
+    app->project_kill.remote_cwd[0] = '\0';
+    app->project_kill.session_name[0] = '\0';
+    show_overlay(app, OVERLAY_PROJECT_KILL, NULL);
+    return TRUE;
+}
+
 static void show_new_session_for_selection(AppData *app, gboolean prefer_zellij) {
+    projects_remote_scope_clear_status_message();
     ProjectBackend backend = prefer_zellij ? PROJECT_BACKEND_ZELLIJ : PROJECT_BACKEND_TMUX;
     ProjectSessionEntry *session = projects_selected_session(app);
     if (!prefer_zellij && session && session->backend == PROJECT_BACKEND_ZELLIJ) {
@@ -229,13 +276,62 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         return TRUE;
     }
 
-    if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
-        ProjectSessionEntry *session = projects_selected_session(app);
-        if (!session) {
-            return FALSE;
-        }
-        show_project_kill_overlay(app, session->name, session->backend);
+    gboolean ctrl_s =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_s || event->keyval == GDK_KEY_S);
+    if (ctrl_s) {
+        projects_remote_scope_clear_status_message();
+        show_project_remote_host_overlay(app);
         return TRUE;
+    }
+
+    if (event->keyval == GDK_KEY_Escape && projects_remote_scope_is_active()) {
+        projects_remote_scope_clear_status_message();
+        projects_remote_scope_clear();
+        projects_refresh(app);
+        reset_selection(app);
+        update_scroll_position(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    gboolean ctrl_t =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_t || event->keyval == GDK_KEY_T);
+    if (ctrl_t) {
+        projects_remote_scope_clear_status_message();
+        ProjectFolder *folder = projects_selected_folder(app);
+        if (!folder) return FALSE; /* not a folder: let Ctrl+T fall through to harpoon slot 't' */
+
+        CofiActionStatus status = projects_open_folder_terminal(app, folder);
+        if (status == COFI_HANDLED_HIDE) {
+            hide_window(app);
+            return TRUE;
+        }
+        if (status == COFI_HANDLED_REFRESH) {
+            projects_refresh(app);
+            reset_selection(app);
+            update_scroll_position(app);
+            update_display(app);
+            return TRUE;
+        }
+        return status == COFI_NO_OP ? TRUE : (status == COFI_ACTION_ERROR);
+    }
+
+    if (event->keyval == GDK_KEY_Delete || event->keyval == GDK_KEY_KP_Delete) {
+        projects_remote_scope_clear_status_message();
+        return handle_delete_selected_entry(app);
+    }
+
+    gboolean ctrl_d =
+        (event->state & GDK_CONTROL_MASK) &&
+        !(event->state & GDK_SHIFT_MASK) &&
+        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D);
+    if (ctrl_d) {
+        projects_remote_scope_clear_status_message();
+        return handle_delete_selected_entry(app);
     }
 
     gboolean ctrl_r =
@@ -243,6 +339,7 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
         !(event->state & GDK_SHIFT_MASK) &&
         (event->keyval == GDK_KEY_r || event->keyval == GDK_KEY_R);
     if (event->keyval == GDK_KEY_F2 || ctrl_r) {
+        projects_remote_scope_clear_status_message();
         ProjectSessionEntry *session = projects_selected_session(app);
         if (!session || session->backend != PROJECT_BACKEND_TMUX) {
             return FALSE;
@@ -261,6 +358,7 @@ static CofiActionStatus projects_provider_on_enter_pressed(AppData *app, int fil
     (void)filtered_idx;
     (void)entry_text;
     (void)modifier_state;
+    projects_remote_scope_clear_status_message();
     /* raw_idx is visible here: Projects exposes its filtered list directly to the provider renderer. */
     ProjectFolder *folder = projects_folder_at_visible(app, raw_idx);
     if (folder) {
@@ -272,6 +370,7 @@ static CofiActionStatus projects_provider_on_enter_pressed(AppData *app, int fil
 static CofiActionStatus projects_provider_on_command_args(AppData *app, const char *args) {
     if (!app) return COFI_NO_OP;
     if (!args || args[0] == '\0') return COFI_NO_OP;
+    projects_remote_scope_clear_status_message();
     projects_refresh(app);
 
     if (projects_has_named(app, args)) {
@@ -326,6 +425,9 @@ static const CommandSpec s_projects_command = {
 };
 
 void projects_provider_register(void) {
+    projects_remote_store_init();
+    projects_remote_store_reload();
+    projects_remote_scope_init();
     register_projects_config_entries();
     cofi_init_provider_defaults(&s_projects_provider);
     s_projects_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
@@ -343,6 +445,7 @@ void projects_provider_register(void) {
     s_projects_provider.row_identity = projects_row_identity;
     s_projects_provider.on_enter = projects_on_enter;
     s_projects_provider.on_query_changed = projects_on_query_changed;
+    s_projects_provider.on_leave = projects_on_leave;
     s_projects_provider.on_tick = projects_on_tick;
     s_projects_provider.tick_interval_ms = 1500;
     s_projects_provider.on_enter_pressed = projects_provider_on_enter_pressed;

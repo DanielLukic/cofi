@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "../src/app_data.h"
 #include "../src/cofi_tab_provider.h"
@@ -23,7 +24,14 @@ bool check_and_reassign_windows(HarpoonManager *harpoon, WindowInfo *windows, in
     { (void)harpoon; (void)windows; (void)window_count; return false; }
 void filter_windows(AppData *app, const char *query) { (void)app; (void)query; }
 void filter_workspaces(AppData *app, const char *query) { (void)app; (void)query; }
-const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
+static int provider_on_leave_calls = 0;
+static CofiTabProvider test_provider;
+static int test_provider_tab_mode = -1;
+static void test_provider_on_leave(AppData *app) { (void)app; provider_on_leave_calls++; }
+const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
+    if (tab_mode == test_provider_tab_mode) return &test_provider;
+    return NULL;
+}
 void update_display(AppData *app) { (void)app; }
 static int init_fixed_window_size_calls = 0;
 void init_fixed_window_size(AppData *app) { (void)app; init_fixed_window_size_calls++; }
@@ -68,6 +76,28 @@ static void test_show_window_reinitializes_fixed_window_cache(void) {
     gtk_widget_destroy(app.window);
 }
 
+static void test_hide_window_notifies_provider_on_leave(void) {
+    AppData app = {0};
+
+    test_provider_tab_mode = TAB_COUNT + 42;
+    memset(&test_provider, 0, sizeof(test_provider));
+    test_provider.tab_mode = test_provider_tab_mode;
+    test_provider.on_leave = test_provider_on_leave;
+    provider_on_leave_calls = 0;
+
+    app.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    app.entry = gtk_entry_new();
+    app.window_visible = TRUE;
+    app.current_tab = (TabMode)test_provider_tab_mode;
+
+    hide_window(&app);
+
+    ASSERT_TRUE("hide_window calls provider on_leave for active provider tab",
+                provider_on_leave_calls == 1);
+
+    gtk_widget_destroy(app.window);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Window lifecycle fixed-size reset tests\n");
@@ -80,6 +110,7 @@ int main(int argc, char **argv) {
     printf("======================================\n\n");
 
     test_show_window_reinitializes_fixed_window_cache();
+    test_hide_window_notifies_provider_on_leave();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;
