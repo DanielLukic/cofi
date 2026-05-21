@@ -410,8 +410,8 @@ test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/o
 	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build hotkey grab state tests
-test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o
-	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o $(LDFLAGS)
+test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o $(LDFLAGS)
 
 # Build command handlers split tests
 test_command_handlers_split: test/test_command_handlers_split.c test/command_handler_stubs.c src/core_commands.o src/command_registry.o

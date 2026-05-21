@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include "../src/app_data.h"
 #include "../src/app_init.h"
@@ -12,6 +15,13 @@ static int fail = 0;
     if (cond) { printf("  PASS: %s\n", name); pass++; } \
     else { printf("  FAIL: %s\n", name); fail++; } \
 } while (0)
+
+static void set_test_home(const char *suffix) {
+    char path[256];
+    snprintf(path, sizeof(path), "/tmp/cofi-hotkey-grab-%s-%ld", suffix, (long)getpid());
+    mkdir(path, 0755);
+    setenv("HOME", path, 1);
+}
 
 static void test_init_hotkey_grab_state_resets_fields(void) {
     printf("\n--- init_hotkey_grab_state resets fields ---\n");
@@ -65,7 +75,6 @@ void init_default_hotkey_config(HotkeyConfig *config) { config->count = 3; }
 gboolean load_hotkey_config(HotkeyConfig *config) { (void)config; return TRUE; }
 gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return TRUE; }
 void match_entry_manager_init(MatchEntryManager *manager) { (void)manager; }
-void load_match_entries(MatchEntryManager *manager) { (void)manager; }
 void init_rules_config(RulesConfig *config) { (void)config; }
 gboolean load_rules_config(RulesConfig *config) { (void)config; return TRUE; }
 void init_rule_state(RuleState *state) { (void)state; }
@@ -139,6 +148,8 @@ static void test_init_app_data_resets_invalid_tab(void) {
 int main(void) {
     printf("Hotkey grab state tests\n");
     printf("=======================\n");
+
+    set_test_home("hotkey-grab");
 
     test_init_hotkey_grab_state_resets_fields();
     test_populate_hotkey_grab_state_counts_valid_bindings();

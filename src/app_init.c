@@ -192,7 +192,11 @@ void init_window_list(AppData *app) {
     get_window_list(app);
     
     // Check for matching reassignments after loading config and getting window list.
-    match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count);
+    // Persist immediately so matching.json reflects the bound state at startup
+    // (otherwise the file lags until the next window event triggers a save).
+    if (match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count)) {
+        save_match_entries(&app->matching);
+    }
 }
 
 void init_history_from_windows(AppData *app) {
