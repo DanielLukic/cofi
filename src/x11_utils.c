@@ -471,6 +471,24 @@ void set_window_state(Display *display, Window window, const char *state_atom_na
               state_atom_name, action_name, window);
 }
 
+// Force the window title. Sets the modern _NET_WM_NAME (UTF8_STRING) that
+// EWMH-aware panels read, plus the legacy WM_NAME for older readers.
+// XSync flushes the requests and round-trips so the change is on the server
+// before we return (spike: measuring how fast the taskbar reflects it).
+void set_window_name(Display *display, Window window, const char *name) {
+    Atom net_wm_name = XInternAtom(display, "_NET_WM_NAME", False);
+    Atom utf8_string = XInternAtom(display, "UTF8_STRING", False);
+
+    int len = (int)strlen(name);
+    XChangeProperty(display, window, net_wm_name, utf8_string, 8,
+                    PropModeReplace, (const unsigned char *)name, len);
+    XChangeProperty(display, window, XA_WM_NAME, XA_STRING, 8,
+                    PropModeReplace, (const unsigned char *)name, len);
+    XSync(display, False);
+
+    log_info("Set window name for 0x%lx to \"%s\"", window, name);
+}
+
 // Toggle window state (add or remove a specific state atom)
 void toggle_window_state(Display *display, Window window, const char *state_atom_name) {
     set_window_state(display, window, state_atom_name, WINDOW_STATE_TOGGLE);

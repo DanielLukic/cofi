@@ -334,7 +334,8 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 ### Naming Commands
 
-- `:an` (`:assign-name`, `:n`) — assign custom name to selected window
+- `:an` (`:assign-name`, `:n`) — assign custom name to selected window (cofi-internal alias)
+- `:rename <title>` (`:rn`) — force the selected window's X11 title (`_NET_WM_NAME`/`WM_NAME`); apps that self-title may overwrite it
 
 ### Configuration Commands
 

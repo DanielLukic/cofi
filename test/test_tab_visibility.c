@@ -421,32 +421,8 @@ int format_hotkey_display(const HotkeyConfig *config, char *buffer, size_t size)
     return 0;
 }
 
-#define STUB_UI_HANDLER(name) \
-    gboolean name(AppData *app, WindowInfo *window, const char *args) { \
-        (void)app; (void)window; (void)args; return FALSE; \
-    }
-
-STUB_UI_HANDLER(cmd_always_below)
-STUB_UI_HANDLER(cmd_assign_name)
-STUB_UI_HANDLER(cmd_assign_slots)
-STUB_UI_HANDLER(cmd_always_on_top)
-STUB_UI_HANDLER(cmd_close_window)
-STUB_UI_HANDLER(cmd_change_workspace)
-STUB_UI_HANDLER(cmd_every_workspace)
-STUB_UI_HANDLER(cmd_horizontal_maximize)
-STUB_UI_HANDLER(cmd_jump_workspace)
-STUB_UI_HANDLER(cmd_jump_slot)
-STUB_UI_HANDLER(cmd_move_all_to_workspace)
-STUB_UI_HANDLER(cmd_minimize_window)
-STUB_UI_HANDLER(cmd_mouse)
-STUB_UI_HANDLER(cmd_maximize_window)
-STUB_UI_HANDLER(cmd_pull_window)
-STUB_UI_HANDLER(cmd_rename_workspace)
-STUB_UI_HANDLER(cmd_skip_taskbar)
-STUB_UI_HANDLER(cmd_swap_windows)
-STUB_UI_HANDLER(cmd_toggle_monitor)
-STUB_UI_HANDLER(cmd_tile_window)
-STUB_UI_HANDLER(cmd_vertical_maximize)
+#define COMMAND_STUBS_EXCLUDE_UI 1
+#include "command_handler_stubs.c"
 
 void show_window(AppData *app) {
     (void)app;

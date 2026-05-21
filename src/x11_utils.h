@@ -62,6 +62,9 @@ void set_window_state(Display *display, Window window, const char *state_atom_na
 void toggle_window_state(Display *display, Window window, const char *state_atom_name);
 gboolean get_window_state(Display *display, Window window, const char *state_atom_name);
 
+// Force the window title (sets both _NET_WM_NAME/UTF8 and legacy WM_NAME)
+void set_window_name(Display *display, Window window, const char *name);
+
 // Window management functions
 void close_window(Display *display, Window window);
 void minimize_window(Display *display, Window window);

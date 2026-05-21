@@ -289,8 +289,8 @@ test_parse_shortcut: test/test_parse_shortcut.c src/utils.o
 	$(CC) $(CFLAGS) -o test/test_parse_shortcut test/test_parse_shortcut.c src/utils.o $(LDFLAGS)
 
 # Build command dispatch test
-test_command_dispatch: test/test_command_dispatch.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o
-	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o src/command_handlers.c $(LDFLAGS)
+test_command_dispatch: test/test_command_dispatch.c test/command_handler_stubs.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o
+	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c test/command_handler_stubs.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
 test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/log.o
@@ -371,8 +371,8 @@ test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o sr
 	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build command handlers split tests
-test_command_handlers_split: test/test_command_handlers_split.c src/core_commands.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c src/core_commands.o src/command_registry.o $(LDFLAGS)
+test_command_handlers_split: test/test_command_handlers_split.c test/command_handler_stubs.c src/core_commands.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c test/command_handler_stubs.c src/core_commands.o src/command_registry.o $(LDFLAGS)
 
 # Build command handler behavior regression tests
 test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/core_commands.o src/command_registry.o src/command_availability.o src/slot_store.o src/log.o

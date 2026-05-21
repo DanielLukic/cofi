@@ -242,6 +242,11 @@ void activate_window(Display *display, Window window) {
     g_activate_calls++;
     g_last_activate_window = window;
 }
+void set_window_name(Display *display, Window window, const char *name) {
+    (void)display;
+    (void)window;
+    (void)name;
+}
 gboolean get_window_state(Display *display, Window window, const char *state_name) {
     (void)display; (void)window; (void)state_name;
     return FALSE;

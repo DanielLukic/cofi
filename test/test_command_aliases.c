@@ -335,6 +335,9 @@ static void test_commands_without_compact_form(void) {
     check("an with arg", "an myname", "an", "myname");
     check("rw bare", "rw", "rw", "");
     check("rw with arg", "rw 3", "rw", "3");
+    check("rename with title", "rename my window", "rename", "my window");
+    check("rn alias with title", "rn cofi", "rn", "cofi");
+    check("rename bare", "rename", "rename", "");
     check("set with args", "set close_on_focus_loss true", "set", "close_on_focus_loss true");
     check("config bare", "config", "config", "");
     check("rules bare", "rules", "rules", "");

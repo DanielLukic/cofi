@@ -146,6 +146,14 @@ static const CommandSpec s_core_commands[] = {
         .activates = 1
     },
     {
+        .primary = "rename",
+        .aliases = {"rn", NULL},
+        .owner_provider_id = COMMAND_OWNER_CORE,
+        .handler = cmd_rename_window,
+        .description = "Force the selected window's title (sets _NET_WM_NAME/WM_NAME)",
+        .help_format = "rename, rn <title>"
+    },
+    {
         .primary = "rw",
         .aliases = {"rename-workspace", NULL},
         .owner_provider_id = COMMAND_OWNER_CORE,

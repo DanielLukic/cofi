@@ -192,6 +192,29 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args __at
     return FALSE;
 }
 
+gboolean cmd_rename_window(AppData *app, WindowInfo *window, const char *args) {
+    if (!window) {
+        log_warn("No window selected for rename");
+        return FALSE;
+    }
+
+    if (app->current_tab != TAB_WINDOWS) {
+        log_error("Rename only available from Windows tab");
+        return FALSE;
+    }
+
+    const char *title = args ? args : "";
+    while (*title == ' ') title++;
+    if (*title == '\0') {
+        log_warn("Rename requires a title argument");
+        return FALSE;
+    }
+
+    set_window_name(app->display, window->id, title);
+    log_info("USER: Renamed window 0x%lx to \"%s\"", window->id, title);
+    return TRUE;
+}
+
 typedef struct {
     Window id;
     int x;

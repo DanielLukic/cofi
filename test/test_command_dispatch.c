@@ -9,20 +9,7 @@
 #include "../src/command_parser.h"
 #include "../src/cofi_tab_provider.h"
 
-// Stub all command handlers — we only need the table metadata, not execution.
-#define STUB(name) gboolean name(AppData *a, WindowInfo *w, const char *s) { \
-    (void)a; (void)w; (void)s; return TRUE; }
-
-STUB(cmd_always_below) STUB(cmd_assign_name) STUB(cmd_assign_slots)
-STUB(cmd_always_on_top) STUB(cmd_close_window)
-STUB(cmd_change_workspace) STUB(cmd_every_workspace) STUB(cmd_horizontal_maximize)
-STUB(cmd_jump_workspace) STUB(cmd_jump_slot) STUB(cmd_move_all_to_workspace)
-STUB(cmd_minimize_window) STUB(cmd_mouse) STUB(cmd_maximize_window)
-STUB(cmd_pull_window) STUB(cmd_rename_workspace) STUB(cmd_show)
-STUB(cmd_set_config) STUB(cmd_skip_taskbar) STUB(cmd_swap_windows)
-STUB(cmd_toggle_monitor) STUB(cmd_tile_window) STUB(cmd_vertical_maximize)
-STUB(cmd_calc)
-STUB(cmd_run) STUB(cmd_help)
+gboolean cmd_run(AppData *app, WindowInfo *window, const char *args);
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -605,12 +592,12 @@ static void test_all_parse_defs_have_owner(void) {
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
-    // 24 core commands + 14 provider-owned commands.
-    if (table_count == 38) {
+    // 25 core commands + 14 provider-owned commands.
+    if (table_count == 39) {
         printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command registry has %d commands, test expects 38 - update test!\n", table_count);
+        printf("FAIL: command registry has %d commands, test expects 39 - update test!\n", table_count);
         tests_failed++;
     }
 }
