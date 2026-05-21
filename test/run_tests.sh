@@ -72,11 +72,11 @@ if [ -f test_fzf_algo ]; then
     fi
 fi
 
-# Run named window tests if they exist
-if [ -f test_named_window ]; then
+# Run match entry tests if they exist
+if [ -f test_match_entry ]; then
     echo ""
-    echo "Running named window tests..."
-    ./test_named_window
+    echo "Running match entry tests..."
+    ./test_match_entry
     if [ $? -ne 0 ]; then
         overall_exit=1
     fi

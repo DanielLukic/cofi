@@ -461,7 +461,7 @@ static void test_load_repairs_malformed_or_duplicate_match_ids(void) {
     fprintf(f,
             "{\n"
             "  \"next_match_id\": 1,\n"
-            "  \"named_windows\": [\n"
+            "  \"match_entries\": [\n"
             "    {\n"
             "      \"match_id\": 1,\n"
             "      \"bound_x11_id\": 100,\n"

@@ -174,11 +174,11 @@ static gboolean matching_command_handler(AppData *app,
 
 static const CommandSpec s_matching_command = {
     .primary = "matching",
-    .aliases = {"m", "names", "nm", NULL},
+    .aliases = {"names", "nm", NULL},
     .owner_provider_id = "matching",
     .handler = matching_command_handler,
     .description = "Switch to Matching tab",
-    .help_format = "matching, m, names, nm",
+    .help_format = "matching, names, nm",
     .keeps_open_on_hotkey_auto = 1
 };
 

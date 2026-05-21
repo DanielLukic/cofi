@@ -193,14 +193,12 @@ static void test_command_metadata(void) {
 
     ASSERT_TRUE("provider primary command is matching",
                 strcmp(s_matching_command.primary, "matching") == 0);
-    ASSERT_TRUE("provider alias m",
-                strcmp(s_matching_command.aliases[0], "m") == 0);
     ASSERT_TRUE("provider alias names",
-                strcmp(s_matching_command.aliases[1], "names") == 0);
+                strcmp(s_matching_command.aliases[0], "names") == 0);
     ASSERT_TRUE("provider alias nm",
-                strcmp(s_matching_command.aliases[2], "nm") == 0);
+                strcmp(s_matching_command.aliases[1], "nm") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_matching_command.help_format, "matching, m, names, nm") == 0);
+                strcmp(s_matching_command.help_format, "matching, names, nm") == 0);
     ASSERT_TRUE("provider command keeps open",
                 s_matching_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_matching_command.handler != NULL);
