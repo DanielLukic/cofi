@@ -189,19 +189,32 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
     return config_changed;
 }
 
+int match_entry_collect_labeled_ids(const MatchEntryManager *manager, int *out, int max) {
+    if (!manager || !out || max <= 0) return 0;
+
+    int count = 0;
+    for (int i = 0; i < manager->count && count < max; i++) {
+        if (manager->entries[i].custom_name[0] == '\0' || manager->entries[i].match_id <= 0) {
+            continue;
+        }
+        out[count++] = manager->entries[i].match_id;
+    }
+
+    return count;
+}
+
 int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int referenced_count) {
     if (!manager) return 0;
 
     int removed = 0;
     for (int i = 0; i < manager->count; ) {
         MatchEntry *entry = &manager->entries[i];
-        if (entry->custom_name[0] != '\0' ||
-            match_id_is_referenced(referenced_ids, referenced_count, entry->match_id)) {
+        if (match_id_is_referenced(referenced_ids, referenced_count, entry->match_id)) {
             i++;
             continue;
         }
 
-        log_info("GC removing unreferenced unlabeled match entry %d (match_id=%d)",
+        log_info("GC removing unreferenced match entry %d (match_id=%d)",
                  i, entry->match_id);
         match_entry_delete_custom_name(manager, i);
         removed++;

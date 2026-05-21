@@ -588,8 +588,61 @@ static void test_glob_pattern_persists_and_rebinds_changed_title(void) {
     ASSERT_INT("exact entry does not match changed title", 0, loaded.entries[0].assigned);
 }
 
-static void test_match_entry_gc_keeps_labeled_and_referenced_entries(void) {
-    printf("\n--- match_entry_gc keeps labeled and referenced entries ---\n");
+static void test_match_entry_collect_labeled_ids(void) {
+    printf("\n--- match_entry_collect_labeled_ids returns only labeled entries ---\n");
+
+    MatchEntryManager mgr;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    match_entry_manager_init(&mgr);
+
+    WindowInfo unlabeled = make_window(100, "Unlabeled", "ClassA", "instA", "Normal");
+    WindowInfo labeled_a = make_window(200, "Labeled A", "ClassB", "instB", "Normal");
+    WindowInfo labeled_b = make_window(300, "Labeled B", "ClassC", "instC", "Normal");
+    windows[0] = unlabeled;
+    windows[1] = labeled_a;
+    windows[2] = labeled_b;
+
+    matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    match_entry_assign_custom_name(&mgr, &labeled_a, "keep-a");
+    match_entry_assign_custom_name(&mgr, &labeled_b, "keep-b");
+
+    int referenced_ids[MAX_WINDOWS] = {0};
+    int count = match_entry_collect_labeled_ids(&mgr, referenced_ids, MAX_WINDOWS);
+
+    ASSERT_INT("two labeled ids collected", 2, count);
+    ASSERT_INT("first labeled id collected", mgr.entries[1].match_id, referenced_ids[0]);
+    ASSERT_INT("second labeled id collected", mgr.entries[2].match_id, referenced_ids[1]);
+}
+
+static void test_match_entry_gc_is_pure_reference_check(void) {
+    printf("\n--- match_entry_gc is pure reference check ---\n");
+
+    MatchEntryManager mgr;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    match_entry_manager_init(&mgr);
+
+    WindowInfo unlabeled = make_window(100, "Unlabeled", "ClassA", "instA", "Normal");
+    WindowInfo labeled = make_window(200, "Labeled", "ClassB", "instB", "Normal");
+    WindowInfo referenced = make_window(300, "Referenced", "ClassC", "instC", "Normal");
+    windows[0] = unlabeled;
+    windows[1] = labeled;
+    windows[2] = referenced;
+
+    int unlabeled_id = matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    match_entry_assign_custom_name(&mgr, &labeled, "labeled");
+    int referenced_id = matching_capture_or_get(&mgr, windows, 3, &referenced);
+
+    ASSERT_INT("three entries captured before gc", 3, mgr.count);
+    ASSERT_INT("gc removes every unreferenced entry", 3,
+               match_entry_gc(&mgr, NULL, 0));
+    ASSERT_INT("count after empty-reference gc", 0, mgr.count);
+    ASSERT_INT("unlabeled entry removed", -1, match_entry_find_index_by_match_id(&mgr, unlabeled_id));
+    ASSERT_INT("labeled entry removed", -1, match_entry_find_index_by_custom_name(&mgr, "labeled"));
+    ASSERT_INT("unreferenced captured entry removed", -1, match_entry_find_index_by_match_id(&mgr, referenced_id));
+}
+
+static void test_match_entry_gc_removes_only_unreferenced_ids(void) {
+    printf("\n--- match_entry_gc removes only unreferenced ids ---\n");
 
     MatchEntryManager mgr;
     WindowInfo windows[MAX_WINDOWS] = {0};
@@ -605,11 +658,11 @@ static void test_match_entry_gc_keeps_labeled_and_referenced_entries(void) {
     int unlabeled_id = matching_capture_or_get(&mgr, windows, 3, &unlabeled);
     match_entry_assign_custom_name(&mgr, &labeled, "keep");
     int referenced_id = matching_capture_or_get(&mgr, windows, 3, &referenced);
-    int referenced_ids[] = {referenced_id};
+    int referenced_ids[] = {mgr.entries[1].match_id, referenced_id};
 
     ASSERT_INT("three entries captured before gc", 3, mgr.count);
     ASSERT_INT("gc removes only unlabeled unreferenced entry", 1,
-               match_entry_gc(&mgr, referenced_ids, 1));
+               match_entry_gc(&mgr, referenced_ids, 2));
     ASSERT_INT("count after gc", 2, mgr.count);
     ASSERT_INT("unlabeled entry removed", -1, match_entry_find_index_by_match_id(&mgr, unlabeled_id));
     ASSERT_INT("labeled entry kept", 1, match_entry_find_index_by_custom_name(&mgr, "keep") >= 0);
@@ -640,7 +693,9 @@ int main(void) {
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
     test_glob_pattern_persists_and_rebinds_changed_title();
-    test_match_entry_gc_keeps_labeled_and_referenced_entries();
+    test_match_entry_collect_labeled_ids();
+    test_match_entry_gc_is_pure_reference_check();
+    test_match_entry_gc_removes_only_unreferenced_ids();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
