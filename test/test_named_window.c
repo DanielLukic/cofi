@@ -322,6 +322,65 @@ static void test_wildcard_in_title(void) {
     ASSERT_STR("asterisk replaced by dot", "test.file", mgr.entries[0].original_title);
 }
 
+static void test_reassign_title_wildcard_characterization(void) {
+    printf("\n--- check_and_reassign_names title wildcard characterization ---\n");
+
+    NamedWindowManager mgr;
+    init_named_window_manager(&mgr);
+
+    WindowInfo w = make_window(100, "term-1", "ClassA", "instA", "Normal");
+    assign_custom_name(&mgr, &w, "term");
+
+    mgr.entries[0].id = 999;
+    mgr.entries[0].assigned = 1;
+    safe_string_copy(mgr.entries[0].original_title, "term-*", MAX_TITLE_LEN);
+    WindowInfo star_candidate = make_window(200, "term-xyz", "ClassA", "instA", "Normal");
+    ASSERT_INT("star title wildcard reassigns", 1, (int)check_and_reassign_names(&mgr, &star_candidate, 1));
+    ASSERT_INT("star wildcard matched candidate id", 1, (mgr.entries[0].id == 200));
+
+    mgr.entries[0].id = 998;
+    mgr.entries[0].assigned = 1;
+    safe_string_copy(mgr.entries[0].original_title, "term-.", MAX_TITLE_LEN);
+    WindowInfo dot_candidate = make_window(300, "term-1", "ClassA", "instA", "Normal");
+    ASSERT_INT("dot title wildcard reassigns", 1, (int)check_and_reassign_names(&mgr, &dot_candidate, 1));
+    ASSERT_INT("dot wildcard matched one-char suffix", 1, (mgr.entries[0].id == 300));
+
+    mgr.entries[0].id = 997;
+    mgr.entries[0].assigned = 1;
+    safe_string_copy(mgr.entries[0].original_title, "term-..", MAX_TITLE_LEN);
+    ASSERT_INT("dot-dot does not match one-char suffix", 0, (int)check_and_reassign_names(&mgr, &dot_candidate, 1));
+    ASSERT_INT("entry orphaned when no title wildcard match", 0, mgr.entries[0].assigned);
+}
+
+static void test_reassign_requires_exact_class_instance_type(void) {
+    printf("\n--- check_and_reassign_names requires exact class/instance/type ---\n");
+
+    NamedWindowManager mgr;
+    init_named_window_manager(&mgr);
+
+    WindowInfo w = make_window(100, "term-1", "ClassA", "instA", "Normal");
+    assign_custom_name(&mgr, &w, "term");
+    mgr.entries[0].id = 999;
+    mgr.entries[0].assigned = 1;
+    safe_string_copy(mgr.entries[0].original_title, "term-*", MAX_TITLE_LEN);
+
+    WindowInfo wrong_class = make_window(200, "term-1", "ClassB", "instA", "Normal");
+    ASSERT_INT("wrong class does not reassign", 0, (int)check_and_reassign_names(&mgr, &wrong_class, 1));
+    ASSERT_INT("wrong class leaves entry orphaned", 0, mgr.entries[0].assigned);
+
+    mgr.entries[0].id = 998;
+    mgr.entries[0].assigned = 1;
+    WindowInfo wrong_instance = make_window(201, "term-1", "ClassA", "instB", "Normal");
+    ASSERT_INT("wrong instance does not reassign", 0, (int)check_and_reassign_names(&mgr, &wrong_instance, 1));
+    ASSERT_INT("wrong instance leaves entry orphaned", 0, mgr.entries[0].assigned);
+
+    mgr.entries[0].id = 997;
+    mgr.entries[0].assigned = 1;
+    WindowInfo wrong_type = make_window(202, "term-1", "ClassA", "instA", "Special");
+    ASSERT_INT("wrong type does not reassign", 0, (int)check_and_reassign_names(&mgr, &wrong_type, 1));
+    ASSERT_INT("wrong type leaves entry orphaned", 0, mgr.entries[0].assigned);
+}
+
 int main(void) {
     printf("Named Window Manager Tests\n");
     printf("==========================\n");
@@ -338,6 +397,8 @@ int main(void) {
     test_reassign_no_match();
     test_reassign_skip_already_named();
     test_wildcard_in_title();
+    test_reassign_title_wildcard_characterization();
+    test_reassign_requires_exact_class_instance_type();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

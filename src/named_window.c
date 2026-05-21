@@ -85,16 +85,12 @@ int is_window_already_named(const NamedWindowManager *manager, Window id) {
 // Helper function to check if a window matches a named window entry
 static int window_matches_named_entry(const WindowInfo *window, const NamedWindow *entry) {
     if (!window || !entry) return 0;
-    
-    // Class and instance must match exactly
-    if (strcmp(window->class_name, entry->class_name) != 0 ||
-        strcmp(window->instance, entry->instance) != 0 ||
-        strcmp(window->type, entry->type) != 0) {
-        return 0;
-    }
-    
-    // Title can use wildcard matching (using same logic as harpoon)
-    return wildcard_match(entry->original_title, window->title);
+
+    return window_matches_identity_and_title_pattern(window,
+                                                     entry->class_name,
+                                                     entry->instance,
+                                                     entry->type,
+                                                     entry->original_title);
 }
 
 bool check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, int window_count) {

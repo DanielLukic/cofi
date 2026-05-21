@@ -94,17 +94,58 @@ bool wildcard_match(const char *pattern, const char *str) {
     return !*pattern && !*str;
 }
 
+bool glob_match(const char *pattern, const char *str) {
+    if (!pattern || !str) return false;
+
+    while (*pattern && *str) {
+        if (*pattern == '*') {
+            while (*pattern == '*') pattern++;
+            if (!*pattern) return true;
+            while (*str) {
+                if (glob_match(pattern, str)) {
+                    return true;
+                }
+                str++;
+            }
+            return false;
+        } else if (*pattern == '?') {
+            pattern++;
+            str++;
+        } else if (*pattern == *str) {
+            pattern++;
+            str++;
+        } else {
+            return false;
+        }
+    }
+
+    while (*pattern == '*') pattern++;
+    return !*pattern && !*str;
+}
+
+bool window_matches_identity_and_title_pattern(const WindowInfo *window,
+                                               const char *class_name,
+                                               const char *instance,
+                                               const char *type,
+                                               const char *title_pattern) {
+    if (!window || !class_name || !instance || !type || !title_pattern) return false;
+
+    if (strcmp(window->class_name, class_name) != 0 ||
+        strcmp(window->instance, instance) != 0 ||
+        strcmp(window->type, type) != 0) {
+        return false;
+    }
+
+    return wildcard_match(title_pattern, window->title);
+}
+
 // Check if window matches harpoon slot with wildcard support
 bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot) {
     if (!window || !slot || !slot->assigned) return false;
-    
-    // Class and instance must match exactly
-    if (strcmp(window->class_name, slot->class_name) != 0 ||
-        strcmp(window->instance, slot->instance) != 0 ||
-        strcmp(window->type, slot->type) != 0) {
-        return false;
-    }
-    
-    // Title can use wildcard matching
-    return wildcard_match(slot->title, window->title);
+
+    return window_matches_identity_and_title_pattern(window,
+                                                     slot->class_name,
+                                                     slot->instance,
+                                                     slot->type,
+                                                     slot->title);
 }

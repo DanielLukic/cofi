@@ -92,6 +92,40 @@ static void test_real_world_titles(void) {
     ASSERT_TRUE("brackets", wildcard_match("[*] - *", "[5] - Slack"));
 }
 
+/* --- glob_match tests (dormant helper) --- */
+
+static void test_glob_match_exact_and_empty(void) {
+    printf("\n--- glob_match: exact and empty ---\n");
+    ASSERT_TRUE("glob exact", glob_match("hello", "hello"));
+    ASSERT_TRUE("glob mismatch", !glob_match("hello", "world"));
+    ASSERT_TRUE("glob empty-empty", glob_match("", ""));
+    ASSERT_TRUE("glob empty-nonempty", !glob_match("", "a"));
+}
+
+static void test_glob_match_question_mark(void) {
+    printf("\n--- glob_match: question mark ---\n");
+    ASSERT_TRUE("'?' matches one char", glob_match("h?llo", "hello"));
+    ASSERT_TRUE("'?' at end", glob_match("hell?", "hello"));
+    ASSERT_TRUE("'?' does not match empty", !glob_match("?", ""));
+    ASSERT_TRUE("multiple '?' count must match", !glob_match("??", "a"));
+}
+
+static void test_glob_match_star(void) {
+    printf("\n--- glob_match: star ---\n");
+    ASSERT_TRUE("'*' matches empty", glob_match("*", ""));
+    ASSERT_TRUE("'*' matches run", glob_match("a*", "abcdef"));
+    ASSERT_TRUE("leading '*' matches run", glob_match("*def", "abcdef"));
+    ASSERT_TRUE("middle '*' matches run", glob_match("a*f", "abcdef"));
+    ASSERT_TRUE("middle '*' matches empty", glob_match("ab*cd", "abcd"));
+}
+
+static void test_glob_match_leading_and_trailing_star(void) {
+    printf("\n--- glob_match: leading/trailing star ---\n");
+    ASSERT_TRUE("leading and trailing star", glob_match("*core*", "xxcoreyy"));
+    ASSERT_TRUE("trailing star no match", !glob_match("xyz*", "abc"));
+    ASSERT_TRUE("leading star no match", !glob_match("*xyz", "abc"));
+}
+
 /* --- window_matches_harpoon_slot tests --- */
 
 static void test_harpoon_slot_matching(void) {
@@ -138,6 +172,32 @@ static void test_harpoon_slot_matching(void) {
     ASSERT_TRUE("NULL slot", !window_matches_harpoon_slot(&w, NULL));
 }
 
+static void test_harpoon_title_wildcard_characterization(void) {
+    printf("\n--- window_matches_harpoon_slot title wildcard characterization ---\n");
+
+    WindowInfo w = {0};
+    w.id = 101;
+    strncpy(w.class_name, "ClassA", sizeof(w.class_name) - 1);
+    strncpy(w.instance, "instA", sizeof(w.instance) - 1);
+    strncpy(w.type, "Normal", sizeof(w.type) - 1);
+    strncpy(w.title, "term-1", sizeof(w.title) - 1);
+
+    HarpoonSlot slot = {0};
+    slot.assigned = 1;
+    strncpy(slot.class_name, "ClassA", sizeof(slot.class_name) - 1);
+    strncpy(slot.instance, "instA", sizeof(slot.instance) - 1);
+    strncpy(slot.type, "Normal", sizeof(slot.type) - 1);
+
+    strncpy(slot.title, "term-*", sizeof(slot.title) - 1);
+    ASSERT_TRUE("title '*' matches run", window_matches_harpoon_slot(&w, &slot));
+
+    strncpy(slot.title, "term-.", sizeof(slot.title) - 1);
+    ASSERT_TRUE("title '.' matches exactly one char", window_matches_harpoon_slot(&w, &slot));
+
+    strncpy(slot.title, "term-..", sizeof(slot.title) - 1);
+    ASSERT_TRUE("title '..' fails for one-char suffix", !window_matches_harpoon_slot(&w, &slot));
+}
+
 int main(void) {
     printf("Wildcard Match & Harpoon Slot Tests\n");
     printf("====================================\n");
@@ -148,7 +208,12 @@ int main(void) {
     test_combined_wildcards();
     test_null_safety();
     test_real_world_titles();
+    test_glob_match_exact_and_empty();
+    test_glob_match_question_mark();
+    test_glob_match_star();
+    test_glob_match_leading_and_trailing_star();
     test_harpoon_slot_matching();
+    test_harpoon_title_wildcard_characterization();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

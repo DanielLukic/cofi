@@ -19,8 +19,19 @@ bool titles_match_fuzzy(const char *title1, const char *title2);
 // '*' matches any sequence of characters, '.' matches any single character
 bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot);
 
+// Shared exact class/instance/type + wildcard title matcher core
+bool window_matches_identity_and_title_pattern(const WindowInfo *window,
+                                               const char *class_name,
+                                               const char *instance,
+                                               const char *type,
+                                               const char *title_pattern);
+
 // Wildcard matching function
 // '*' matches any sequence of characters, '.' matches any single character
 bool wildcard_match(const char *pattern, const char *str);
+
+// Glob matching function
+// '*' matches any sequence of characters, '?' matches any single character
+bool glob_match(const char *pattern, const char *str);
 
 #endif // WINDOW_MATCHER_H
