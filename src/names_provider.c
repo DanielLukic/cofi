@@ -69,8 +69,8 @@ static const char *names_row_identity(AppData *app, int raw_idx) {
     NamedWindow *entry = name_at_row(app, raw_idx);
     static char identity[256];
     if (!entry) return "";
-    g_snprintf(identity, sizeof(identity), "name:%s:%lx",
-             entry->custom_name, entry->bound_x11_id);
+    g_snprintf(identity, sizeof(identity), "name:%s:%d",
+               entry->custom_name, entry->match_id);
     return identity;
 }
 

@@ -118,6 +118,7 @@ bool check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
         
         log_trace("Checking named entry %d: bound 0x%lx (%s)",
                   i, entry->bound_x11_id, entry->custom_name);
+        Window old_id = entry->bound_x11_id;
 
         // Validate persisted binding by class/instance/type only (title can drift).
         int window_still_exists = 0;
@@ -145,12 +146,11 @@ bool check_and_reassign_names(NamedWindowManager *manager, WindowInfo *windows, 
         // If window doesn't exist anymore, try to find a matching window
         if (!window_still_exists) {
             log_trace("Window 0x%lx with name '%s' no longer exists, looking for replacement",
-                     entry->bound_x11_id, entry->custom_name);
+                     old_id, entry->custom_name);
             log_trace("Looking for: class='%s', instance='%s', type='%s', title='%s'",
                      entry->class_name, entry->instance, entry->type, entry->original_title);
             
             // Mark as orphaned first
-            Window old_id = entry->bound_x11_id;
             entry->assigned = 0;
             entry->bound_x11_id = 0;
             
