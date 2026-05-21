@@ -98,6 +98,7 @@ static void test_glob_match_exact_and_empty(void) {
     printf("\n--- glob_match: exact and empty ---\n");
     ASSERT_TRUE("glob exact", glob_match("hello", "hello"));
     ASSERT_TRUE("glob mismatch", !glob_match("hello", "world"));
+    ASSERT_TRUE("glob non-empty pattern empty string", !glob_match("abc", ""));
     ASSERT_TRUE("glob empty-empty", glob_match("", ""));
     ASSERT_TRUE("glob empty-nonempty", !glob_match("", "a"));
 }

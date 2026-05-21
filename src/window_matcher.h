@@ -15,8 +15,7 @@ int get_title_base_length(const char *title);
 // Check if two titles match with fuzzy logic
 bool titles_match_fuzzy(const char *title1, const char *title2);
 
-// Check if window matches harpoon slot with wildcard support
-// '*' matches any sequence of characters, '.' matches any single character
+// Check if window matches harpoon slot using shared identity+title pattern matching.
 bool window_matches_harpoon_slot(const WindowInfo *window, const HarpoonSlot *slot);
 
 // Shared exact class/instance/type + wildcard title matcher core

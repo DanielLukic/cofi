@@ -328,15 +328,15 @@ static void test_reassign_title_wildcard_characterization(void) {
     NamedWindowManager mgr;
     init_named_window_manager(&mgr);
 
-    WindowInfo w = make_window(100, "term-1", "ClassA", "instA", "Normal");
+    WindowInfo w = make_window(100, "term-*", "ClassA", "instA", "Normal");
     assign_custom_name(&mgr, &w, "term");
+    ASSERT_STR("capture converts '*' to '.' for stored title", "term-.", mgr.entries[0].original_title);
 
     mgr.entries[0].id = 999;
     mgr.entries[0].assigned = 1;
-    safe_string_copy(mgr.entries[0].original_title, "term-*", MAX_TITLE_LEN);
-    WindowInfo star_candidate = make_window(200, "term-xyz", "ClassA", "instA", "Normal");
-    ASSERT_INT("star title wildcard reassigns", 1, (int)check_and_reassign_names(&mgr, &star_candidate, 1));
-    ASSERT_INT("star wildcard matched candidate id", 1, (mgr.entries[0].id == 200));
+    WindowInfo dot_from_capture_candidate = make_window(200, "term-1", "ClassA", "instA", "Normal");
+    ASSERT_INT("captured '.' wildcard reassigns", 1, (int)check_and_reassign_names(&mgr, &dot_from_capture_candidate, 1));
+    ASSERT_INT("captured '.' wildcard matched candidate id", 1, (mgr.entries[0].id == 200));
 
     mgr.entries[0].id = 998;
     mgr.entries[0].assigned = 1;
