@@ -108,26 +108,24 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
     
     int config_changed = 0;
     
-    // Check each named window entry
+    // Every entry in [0, count) is live. assigned=0 means currently unbound.
     for (int i = 0; i < manager->count; i++) {
         MatchEntry *entry = &manager->entries[i];
-        
-        // Skip if not previously assigned (deleted entries)
-        if (!entry->assigned) continue;
-        
-        log_trace("Checking named entry %d: bound 0x%lx (%s)",
-                  i, entry->bound_x11_id, entry->custom_name);
+
+        log_trace("Checking named entry %d: bound 0x%lx (%s), assigned=%d",
+                  i, entry->bound_x11_id, entry->custom_name, entry->assigned);
         Window old_id = entry->bound_x11_id;
+        int has_valid_binding = 0;
 
         // Validate persisted binding by class/instance/type only (title can drift).
-        int window_still_exists = 0;
         if (entry->bound_x11_id != 0) {
             const WindowInfo *bound = find_live_window_by_id(windows, window_count, entry->bound_x11_id);
             if (bound &&
                 strcmp(bound->class_name, entry->class_name) == 0 &&
                 strcmp(bound->instance, entry->instance) == 0 &&
                 strcmp(bound->type, entry->type) == 0) {
-                window_still_exists = 1;
+                has_valid_binding = 1;
+                entry->assigned = 1;
                 log_trace("Named window binding 0x%lx validated by class/instance/type", entry->bound_x11_id);
             } else if (bound) {
                 log_trace("Named window binding 0x%lx failed validation; clearing binding", entry->bound_x11_id);
@@ -141,44 +139,38 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
                 config_changed = 1;
             }
         }
-        
-        // If window doesn't exist anymore, try to find a matching window
-        if (!window_still_exists) {
-            log_trace("Window 0x%lx with name '%s' no longer exists, looking for replacement",
-                     old_id, entry->custom_name);
+
+        if (!has_valid_binding) {
+            log_trace("Window 0x%lx with name '%s' is unbound or invalid, looking for replacement",
+                      old_id, entry->custom_name);
             log_trace("Looking for: class='%s', instance='%s', type='%s', title='%s'",
-                     entry->class_name, entry->instance, entry->type, entry->original_title);
-            
-            // Mark as orphaned first
+                      entry->class_name, entry->instance, entry->type, entry->original_title);
+
             entry->assigned = 0;
             entry->bound_x11_id = 0;
-            
-            // Look for a matching window
+
             for (int j = 0; j < window_count; j++) {
-                // CRITICAL: Skip if this window already has a custom name
                 if (match_entry_is_bound_window(manager, windows[j].id)) {
                     log_trace("Window 0x%lx already has a custom name, skipping", windows[j].id);
                     continue;
                 }
-                
+
                 log_trace("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
-                         j, windows[j].class_name, windows[j].instance, windows[j].type, windows[j].title);
-                
-                // Use wildcard matching
+                          j, windows[j].class_name, windows[j].instance, windows[j].type, windows[j].title);
+
                 if (window_matches_named_entry(&windows[j], entry)) {
-                    // Found a match! Reassign the name
                     entry->bound_x11_id = windows[j].id;
                     entry->assigned = 1;
                     config_changed = 1;
                     log_info("Automatically reassigned name '%s' from window 0x%lx to 0x%lx",
-                            entry->custom_name, old_id, windows[j].id);
+                             entry->custom_name, old_id, windows[j].id);
                     break;
                 }
             }
-            
+
             if (!entry->assigned) {
                 log_trace("Could not find matching window for name '%s', marked as orphaned",
-                        entry->custom_name);
+                          entry->custom_name);
             }
         }
     }

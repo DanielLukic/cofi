@@ -116,6 +116,48 @@ static void test_slot_rebinds_after_window_reopens_with_new_id(void) {
     ASSERT_TRUE("entry updated with reopened id", matching.entries[idx].bound_x11_id == 0x444);
 }
 
+static void test_slot_rebinds_after_orphaned_reopen_cycle(void) {
+    set_test_home("reopen-orphan");
+
+    MatchEntryManager matching;
+    HarpoonManager harpoon;
+    WindowInfo windows[MAX_WINDOWS] = {0};
+    int window_count = 1;
+
+    match_entry_manager_init(&matching);
+    init_harpoon_manager(&harpoon);
+    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
+
+    windows[0] = make_window(0x777, "cofi", "Kitty", "kitty", "Normal");
+    int match_id = matching_capture_or_get(&matching, windows, window_count, &windows[0]);
+    ASSERT_TRUE("orphan cycle captured match entry", match_id > 0);
+
+    int idx = match_entry_find_index_by_match_id(&matching, match_id);
+    ASSERT_TRUE("orphan cycle entry exists", idx >= 0);
+
+    safe_string_copy(matching.entries[idx].original_title, "cofi*",
+                     sizeof(matching.entries[idx].original_title));
+    matching.entries[idx].match_mode = TITLE_MATCH_MODE_GLOB;
+    matching.entries[idx].assigned = 1;
+
+    harpoon.slots[2].assigned = 1;
+    harpoon.slots[2].match_id = match_id;
+
+    window_count = 0;
+    ASSERT_TRUE("close pass reports change",
+                match_entry_reassign_live_windows(&matching, windows, window_count));
+    ASSERT_TRUE("entry orphaned after close", matching.entries[idx].assigned == 0);
+    ASSERT_TRUE("entry binding cleared after close", matching.entries[idx].bound_x11_id == 0);
+
+    window_count = 1;
+    windows[0] = make_window(0x888, "cofi reopened", "Kitty", "kitty", "Normal");
+    ASSERT_TRUE("reopen pass reports change",
+                match_entry_reassign_live_windows(&matching, windows, window_count));
+    ASSERT_TRUE("entry rebound after reopen", matching.entries[idx].assigned == 1);
+    ASSERT_TRUE("entry updated with reopened window id", matching.entries[idx].bound_x11_id == 0x888);
+    ASSERT_TRUE("harpoon slot resolves reopened window", get_slot_window(&harpoon, 2) == 0x888);
+}
+
 static void test_match_id_persists_and_reloads_with_rebind(void) {
     set_test_home("persist");
 
@@ -166,6 +208,7 @@ int main(void) {
 
     test_glob_slot_survives_title_drift_but_exact_does_not();
     test_slot_rebinds_after_window_reopens_with_new_id();
+    test_slot_rebinds_after_orphaned_reopen_cycle();
     test_match_id_persists_and_reloads_with_rebind();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
