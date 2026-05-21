@@ -28,7 +28,7 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 }
 
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
-    if (total_items <= visible_items || target_columns <= 0) return;
+    if (!text || text->len == 0 || total_items <= visible_items || target_columns <= 0) return;
     // Find max line width in display columns so scrollbar column is past all content
     int max_line_cols = 0;
     const char *scan = text->str;
@@ -48,8 +48,12 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
     generate_scrollbar(total_items, visible_items, scroll_offset, sb, visible_items);
     GString *result = g_string_new(NULL);
     const char *p = text->str;
-    int line = 0;
-    while (*p && line < visible_items) {
+    int source_lines = 1;
+    for (const char *scan = text->str; *scan; scan++) {
+        if (*scan == '\n') source_lines++;
+    }
+    int lines_to_overlay = source_lines < visible_items ? source_lines : visible_items;
+    for (int line = 0; line < lines_to_overlay; line++) {
         const char *nl = strchr(p, '\n');
         int line_len = nl ? (int)(nl - p) : (int)strlen(p);
         GString *line_text = g_string_new_len(p, line_len);
@@ -62,7 +66,6 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
         g_string_free(line_text, TRUE);
         g_string_append_c(result, sb[line]);
         g_string_append_c(result, '\n');
-        line++;
         p = nl ? nl + 1 : p + line_len;
     }
     if (*p) g_string_append(result, p);
@@ -291,6 +294,24 @@ static void test_overlay_utf8_does_not_split_clusters(void) {
     g_string_free(text, TRUE);
 }
 
+static void test_overlay_preserves_trailing_empty_line(void) {
+    printf("\n--- overlay: preserves trailing empty line ---\n");
+    GString *text = g_string_new("header\n\n");
+    overlay_scrollbar(text, 20, 2, 0, 10);
+
+    int newlines = 0;
+    for (const char *p = text->str; *p; p++) {
+        if (*p == '\n') {
+            newlines++;
+        }
+    }
+
+    ASSERT("two rendered rows preserved", newlines >= 2);
+    ASSERT("blank second row still has scrollbar width",
+           strlen(text->str) >= 22 && text->str[21] == '\n');
+    g_string_free(text, TRUE);
+}
+
 int main(void) {
     printf("Scrollbar overlay tests\n");
     printf("=======================\n");
@@ -306,6 +327,7 @@ int main(void) {
     test_overlay_preserves_content();
     test_overlay_utf8_aligns_scrollbar_columns();
     test_overlay_utf8_does_not_split_clusters();
+    test_overlay_preserves_trailing_empty_line();
 
     printf("\n=== Summary: %d/%d passed ===\n", pass, pass + fail);
     return fail > 0 ? 1 : 0;

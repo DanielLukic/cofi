@@ -146,6 +146,26 @@ Shell run entry triggered by typing `!` in the search field or via `show run`.
 - `extract_run_command()` remains backward-compatible and still tolerates legacy `!foo` input
 - Run mode never updates repeat-last-query state
 
+## Calc Tab
+
+Calculator modal triggered by typing `=` in the search field or via `:calc`.
+
+- Mode indicator changes from `>` to `=`
+- `=` is indicator-only; expression text is entered directly without a leading `=`
+- Enter evaluates the expression, copies the result to the clipboard, and keeps cofi open
+- Deleting back to empty exits calc mode cleanly
+- `:calc <expression>` evaluates an expression directly from command mode
+
+## Emoji Tab
+
+Emoji picker triggered via `:emoji` or `:show emoji`.
+
+- 1,870 emoji entries sourced from the gemoji dataset
+- Empty query shows all emoji in MRU-first order (recently picked appear at top)
+- Typing filters by name, aliases, and keywords using weighted fzf scoring: name matches rank highest, then aliases, then keywords
+- Enter copies the selected emoji glyph to the clipboard and closes cofi
+- Pick history persists across restarts
+
 ## Projects Tab
 
 Hidden Projects surface triggered via `:projects`, `:project`, `:tmux`, `:tx`, `:zj`, `:zellij`, `:show tmux`, or `:show projects`.
@@ -173,6 +193,18 @@ Hidden Projects surface triggered via `:projects`, `:project`, `:tmux`, `:tx`, `
 - Folder-derived session names use the folder basename with non `[A-Za-z0-9_-]` characters replaced by `_`
 - `:tmux <session>` attaches an existing session by exact name; it does not create a new tmux session
 - `:tmux <key>` recalls a Projects slot only when no exact session named `<key>` exists
+
+### Remote Sessions
+
+The Projects tab supports remote host sessions via `Ctrl+S`.
+
+- `Ctrl+S` — open the remote host overlay to enter a hostname or `user@host`
+- After confirming the host, cofi fetches the remote tmux session list asynchronously and merges the results into the project list
+- Remote sessions are marked `[REMOTE:host]` and saved to `~/.config/cofi/projects.json`; they reappear across restarts even when the host is unreachable
+- Enter on a saved remote session attaches the session via SSH, or creates a new one if it no longer exists
+- Additional overlay actions: new session, open sftp, open terminal in session directory
+- If the remote session is already open in a local window, cofi activates that window instead of launching a new terminal
+- `Ctrl+D` / `Delete` — shows a delete confirmation; removes the remote entry from the saved list
 
 ## Single Instance
 
@@ -278,6 +310,20 @@ Assign custom names to windows that override the displayed title.
 - Names tab (Ctrl+E to edit, Ctrl+D to delete — works on both active and orphaned entries)
 - Searchable — custom names are included in filter matching
 
+## Rules Tab
+
+Title-pattern automation rules triggered via `:rules` or `:rl`.
+
+- Rules map window-title glob patterns to cofi command sequences (e.g., auto-tile or workspace-assign windows matching a pattern)
+- Rules fire automatically on window-open and window-title-change events
+- `Ctrl+A` — add a new rule
+- `Ctrl+E` — edit the selected rule
+- `Ctrl+D` — delete the selected rule
+- `Ctrl+X` — replay the selected rule against all currently open matching windows (explicit, stateless)
+- `Ctrl+Shift+X` — replay all stored rules in stored order against all currently open windows
+
+Saving or editing a rule does not immediately replay it; changes apply only to subsequent window transitions. Use `Ctrl+X` / `Ctrl+Shift+X` for one-shot replay.
+
 ## Command Mode
 
 Vim-style command entry triggered by typing `:` in the search field.
@@ -341,7 +387,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `rules`, `apps`/`applications`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `names`, `config`, `rules`, `apps`/`applications`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
 - `:rules` (`:rl`) — switch to the interactive Rules tab
 
 ### Hotkey Management Commands
@@ -354,6 +400,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 ### Slot Commands
 
 - `:as` (`:assign-slots`) — assign workspace window slots by screen position
+- `:js N` (`:jump-slot`) — jump to the Nth visible window on the current workspace by screen position (1–9)
 
 ### Help
 
@@ -445,6 +492,45 @@ View and interact with workspaces via the Workspaces tab.
 - Rename workspaces with custom names (persistent)
 - Display as grid (configurable rows via `workspaces_per_row`, 0 = single row)
 - Directional navigation: HJKL and arrow keys in workspace overlays
+
+## Sessions Tab
+
+Claude and Codex coding-session browser triggered via `:sessions` or `:session`.
+
+- Indexes active and archived Claude/Codex project session directories on the local filesystem
+- Query syntax: `terms | refine` — the left side of `|` starts a live cancellable corpus search across session content; the right side refines the already-returned session rows
+- Enter resumes the selected session
+- `Ctrl+R` — rename the selected session (available for Claude/Codex source sessions)
+- `Ctrl+D` / `Delete` — delete the selected session with a confirmation prompt
+
+## Sinks Tab
+
+Audio output sink selector triggered via `:sinks` or `:sink`.
+
+- Lists all available PulseAudio/PipeWire output sinks
+- Enter activates the selected sink as the system default audio output and closes cofi
+- `Ctrl+[key]` — assign the selected sink to a per-Sinks slot
+- `Alt+[key]` — recall and activate a saved sink slot without opening the tab
+- `:sinks @SLOT` or `:sinks SINK` — activate a sink directly from command mode
+
+## Proc Tab
+
+Process manager triggered via `:proc` or `:ps`.
+
+- Lists running system processes, refreshed automatically every 1.5 seconds
+- Filtering narrows by process name or PID in real time
+- Enter signals the selected process
+
+## Profiles Tab
+
+Browser profile launcher triggered via `:profiles`, `:chrome`, or `:browser`.
+
+- Lists Chrome (and compatible) browser profiles read from the browser's local state file
+- Enter opens the selected profile in a dedicated browser window and closes cofi
+- `Ctrl+[key]` — assign the selected profile to a per-Profiles slot
+- `Alt+[key]` — recall and launch a saved profile slot without opening the tab
+- `:profiles @SLOT` or `:profiles PROFILE` — launch a profile directly from command mode
+- Browser executable resolved from `$PATH`; falls back to `google-chrome-stable`
 
 ## Tabs
 

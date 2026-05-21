@@ -209,49 +209,177 @@ static void append_wrapped_command_line(GString *out, const char *help_format,
     g_string_append_c(out, '\n');
 }
 
-char *generate_command_help_text(HelpFormat format, int width) {
-    size_t buffer_size = 1024;
-    for (int i = 0; i < cofi_command_count(); i++) {
-        const CommandSpec *spec = cofi_command_at(i);
-        if (!spec || !spec->help_format || !spec->description) continue;
-        buffer_size += strlen(spec->help_format);
-        buffer_size += strlen(spec->description);
-        buffer_size += 100;
+static gboolean command_in_group(const CommandSpec *spec, const char *const *members) {
+    if (!spec || !spec->primary || !members) return FALSE;
+    for (int i = 0; members[i]; i++) {
+        if (strcmp(spec->primary, members[i]) == 0) return TRUE;
+    }
+    return FALSE;
+}
+
+static void append_wrapped_line(GString *out, const char *label, const char *description, int width) {
+    append_wrapped_command_line(out, label, description, width);
+}
+
+static void append_wrapped_paragraph(GString *out, const char *text, int width) {
+    const char *indent = "  ";
+    int indent_width = 2;
+    if (width <= 0 || width <= indent_width) {
+        g_string_append_printf(out, "%s%s\n", indent, text);
+        return;
     }
 
-    char *help_text = malloc(buffer_size);
-    if (!help_text) {
-        return NULL;
-    }
-
-    if (format == HELP_FORMAT_CLI) {
-        strcpy(help_text, "COFI Command Mode Help\n");
-        strcat(help_text, "======================\n\n");
-    } else {
-        strcpy(help_text, "");
-    }
-
-    strcat(help_text, "Available commands:\n\n");
-    GString *commands = g_string_new(NULL);
-    for (int i = 0; i < cofi_command_count(); i++) {
-        const CommandSpec *spec = cofi_command_at(i);
-        if (!spec || !command_primary_is_available(spec->primary)) {
-            continue;
+    int content_width = width - indent_width;
+    const char *cursor = text;
+    while (*cursor) {
+        int chunk_len = 0;
+        int last_boundary = -1;
+        while (cursor[chunk_len] != '\0' && chunk_len < content_width) {
+            if (is_wrap_boundary_char(cursor[chunk_len])) {
+                last_boundary = chunk_len;
+            }
+            chunk_len++;
         }
-        append_wrapped_command_line(commands,
-                                    spec->help_format,
-                                    spec->description,
-                                    width);
+
+        g_string_append(out, indent);
+        if (cursor[chunk_len] == '\0') {
+            g_string_append_len(out, cursor, (gssize)chunk_len);
+            g_string_append_c(out, '\n');
+            break;
+        }
+
+        if (last_boundary >= 0) {
+            int emit_len = last_boundary + 1;
+            g_string_append_len(out, cursor, (gssize)emit_len);
+            cursor += emit_len;
+            while (*cursor == ' ') {
+                cursor++;
+            }
+        } else {
+            g_string_append_len(out, cursor, (gssize)chunk_len);
+            cursor += chunk_len;
+        }
+
+        g_string_append_c(out, '\n');
     }
-    strcat(help_text, commands->str);
-    g_string_free(commands, TRUE);
+}
 
-    strcat(help_text, "\nUsage:\n");
-    strcat(help_text, "  Press ':' to enter command mode. Press Escape to cancel.\n");
-    strcat(help_text, "  Type command and press Enter\n");
-    strcat(help_text, "  Commands with arguments can be typed without spaces (e.g., 'cw2', 'j5', 'tL')\n");
-    strcat(help_text, "  Chain multiple commands with commas (e.g., 'tc,vm' or 'cw2,tc')\n");
-    strcat(help_text, "  Direct tiling: 'tr4' (right 75%), 'tl2' (left 50%), 'tc1' (center 33%)");
+static void append_help_static_sections(GString *out, int width) {
+    g_string_append(out, "NAVIGATION\n\n");
+    append_wrapped_line(out, "Up / Ctrl+K", "Move selection up", width);
+    append_wrapped_line(out, "Down / Ctrl+J", "Move selection down", width);
+    append_wrapped_line(out, "Enter", "Activate selected row", width);
+    append_wrapped_line(out, "Escape", "Clear filter, close overlays, or hide cofi", width);
+    append_wrapped_line(out, "Tab / Shift+Tab", "Cycle visible tabs forward/backward", width);
 
-    return help_text;
+    g_string_append(out, "\nTABS\n\n");
+    append_wrapped_paragraph(out, "Reach a tab via the prefix or command shown. Windows and Apps are cycled with Tab; the rest surface on demand.", width);
+    g_string_append_c(out, '\n');
+    append_wrapped_line(out, "windows      >", "Window list", width);
+    append_wrapped_line(out, "apps         $ \\", "App launcher (default / all-apps)", width);
+    append_wrapped_line(out, "emoji        :emoji", "Emoji picker", width);
+    append_wrapped_line(out, "calc         = :calc", "Calculator", width);
+    append_wrapped_line(out, "run          ! :run", "Shell command launcher", width);
+    append_wrapped_line(out, "projects     :projects", "tmux/zellij sessions and folders", width);
+    append_wrapped_line(out, "profiles     :profiles", "Browser profiles", width);
+    append_wrapped_line(out, "sessions     :sessions", "Claude/Codex sessions", width);
+    append_wrapped_line(out, "workspaces   :workspaces", "Workspace management", width);
+    append_wrapped_line(out, "harpoon      :harpoon", "Window slots", width);
+    append_wrapped_line(out, "names        :names", "Custom window names", width);
+    append_wrapped_line(out, "config       :config", "Configuration values", width);
+    append_wrapped_line(out, "hotkeys      :hotkeys", "Global hotkey bindings", width);
+    append_wrapped_line(out, "rules        :rules", "Window auto-action rules", width);
+    append_wrapped_line(out, "sinks        :sinks", "Audio sink routing", width);
+    append_wrapped_line(out, "proc         :proc", "Process list", width);
+
+    g_string_append(out, "\nPREFIXES\n\n");
+    append_wrapped_line(out, ":", "Enter command mode (works even with active filter text)", width);
+    append_wrapped_line(out, "!", "Enter run mode", width);
+    append_wrapped_line(out, "=", "Enter calculator mode", width);
+    append_wrapped_line(out, "$", "Switch to Apps default mode", width);
+    append_wrapped_line(out, "\\", "Switch to Apps all-apps mode", width);
+    append_wrapped_line(out, ">", "Return to Windows tab", width);
+
+    g_string_append(out, "\nHARPOON SLOTS\n\n");
+    append_wrapped_line(out, "Ctrl+[key]", "Assign slot (J/K/U reserved for navigation unless Ctrl+Shift is used)", width);
+    append_wrapped_line(out, "Ctrl+Shift+[key]", "Force slot assign for reserved keys", width);
+    append_wrapped_line(out, "Alt+[letter]", "Recall letter slot target", width);
+    append_wrapped_line(out, "Alt+[digit]", "Recall digit slot target (based on digit_slot_mode)", width);
+
+    g_string_append(out, "\nWINDOWS-TAB KEYS\n\n");
+    append_wrapped_line(out, "Alt+Tab", "Cycle selection forward", width);
+    append_wrapped_line(out, "Shift+Alt+Tab", "Cycle selection backward", width);
+    append_wrapped_line(out, ".", "Repeat last action", width);
+
+    g_string_append(out, "\nPER-TAB KEYS\n\n");
+    append_wrapped_line(out, "Harpoon", "Ctrl+A assign current window, Ctrl+E edit slot, Ctrl+D delete slot", width);
+    append_wrapped_line(out, "Names", "Ctrl+A assign name, Ctrl+E edit name, Ctrl+D delete name", width);
+    append_wrapped_line(out, "Rules", "Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay", width);
+    append_wrapped_line(out, "Config", "Ctrl+E edit value, Ctrl+T toggle/cycle value", width);
+    append_wrapped_line(out, "Hotkeys", "Ctrl+A add binding, Ctrl+E edit command, Ctrl+D remove binding", width);
+    append_wrapped_line(out, "Projects", "Ctrl+S remote host, Ctrl+D/Delete delete, Ctrl+N/Insert new, Ctrl+R/F2 rename tmux, Ctrl+T terminal here", width);
+    append_wrapped_line(out, "Sessions", "Ctrl+R/F2 rename session, Delete remove session entry", width);
+
+    g_string_append(out, "\nCOMMAND MODE\n\n");
+    append_wrapped_line(out, "Entry", "Press ':' to open, Escape to cancel, Enter to execute", width);
+    append_wrapped_line(out, "History", "Up/Down cycle command history", width);
+    append_wrapped_line(out, "Compact syntax", "Examples: cw2, sb+, ew-", width);
+    append_wrapped_line(out, "Candidates", "Command completion strips compact suffix noise", width);
+}
+
+static void append_grouped_commands_section(GString *out, int width) {
+    static const char *const window_cmds[] = {"ab","aot","cl","miw","mw","pw","sw","vmw","hmw",NULL};
+    static const char *const tiling_cmds[] = {"tw",NULL};
+    static const char *const workspace_cmds[] = {"cw","jw","maw","rw",NULL};
+    static const char *const slot_cmds[] = {"as","jump-slot",NULL};
+    static const char *const window_props_cmds[] = {"ew","sb","mouse",NULL};
+    static const char *const monitor_cmds[] = {"tm",NULL};
+    static const char *const naming_cmds[] = {"an","rename",NULL};
+    static const char *const config_cmds[] = {"set",NULL};
+    static const char *const tabs_cmds[] = {"show",NULL};
+
+    struct {
+        const char *title;
+        const char *const *members;
+    } groups[] = {
+        {"Window", window_cmds},
+        {"Tiling", tiling_cmds},
+        {"Workspace", workspace_cmds},
+        {"Slots", slot_cmds},
+        {"Window-Props", window_props_cmds},
+        {"Monitor", monitor_cmds},
+        {"Naming", naming_cmds},
+        {"Config", config_cmds},
+        {"Tabs", tabs_cmds},
+    };
+
+    g_string_append(out, "\nCOMMANDS\n\n");
+    for (unsigned int g = 0; g < sizeof(groups) / sizeof(groups[0]); g++) {
+        g_string_append_printf(out, "%s\n\n", groups[g].title);
+        for (int i = 0; i < cofi_command_count(); i++) {
+            const CommandSpec *spec = cofi_command_at(i);
+            if (!spec || !command_primary_is_available(spec->primary) ||
+                !spec->help_format || !spec->description) {
+                continue;
+            }
+            if (!command_in_group(spec, groups[g].members)) continue;
+            append_wrapped_command_line(out, spec->help_format, spec->description, width);
+        }
+        g_string_append_c(out, '\n');
+    }
+}
+
+char *generate_command_help_text(HelpFormat format, int width) {
+    GString *help = g_string_new(NULL);
+    if (format == HELP_FORMAT_CLI) {
+        g_string_append(help, "COFI Command Mode Help\n");
+        g_string_append(help, "======================\n\n");
+    }
+
+    append_help_static_sections(help, width);
+    append_grouped_commands_section(help, width);
+    g_string_append(help, "HELP\n\n");
+    append_wrapped_line(help, "Navigation", "Up/Down/PgUp/PgDn/Home/End scroll help pages", width);
+
+    return g_string_free(help, FALSE);
 }

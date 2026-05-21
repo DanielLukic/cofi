@@ -22,6 +22,16 @@ char *generate_command_help_text(HelpFormat format, int width) {
     return strdup("help");
 }
 
+int cofi_command_count(void) {
+    return 1;
+}
+
+void cofi_command_registry_reset(void) {
+}
+
+void cofi_register_builtin_plugins(void) {
+}
+
 static int parse_args(AppData *app, int argc, char **argv) {
     char *log_file = NULL;
     int log_enabled = 1;

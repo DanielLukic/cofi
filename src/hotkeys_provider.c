@@ -242,8 +242,8 @@ static const CommandSpec s_hotkeys_command = {
     .aliases = {"hotkey", "hk", NULL},
     .owner_provider_id = "hotkeys",
     .handler = hotkeys_command_handler,
-    .description = "Manage system hotkey bindings",
-    .help_format = "hotkeys [key] [command]",
+    .description = "Bind or unbind global hotkeys (unbind: hotkeys <key>)",
+    .help_format = "hotkeys [<key> [command] | <key>]",
     .keeps_open_on_hotkey_auto = 1
 };
 

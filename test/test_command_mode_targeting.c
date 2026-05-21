@@ -15,6 +15,7 @@ static int fail = 0;
 } while (0)
 
 static int g_update_display_calls = 0;
+static const char *g_help_text_stub = NULL;
 
 void hide_window(AppData *app) { (void)app; }
 void update_display(AppData *app) {
@@ -31,7 +32,11 @@ int command_primary_is_available(const char *primary) { (void)primary; return 1;
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }
-char *generate_command_help_text(HelpFormat fmt, int width) { (void)fmt; (void)width; return NULL; }
+char *generate_command_help_text(HelpFormat fmt, int width) {
+    (void)fmt;
+    (void)width;
+    return g_help_text_stub ? strdup(g_help_text_stub) : NULL;
+}
 int get_display_columns(AppData *app) { (void)app; return 80; }
 int get_max_display_lines_dynamic(AppData *app) { (void)app; return 20; }
 void overlay_scrollbar(GString *s, int t, int v, int o, int c)
@@ -42,6 +47,15 @@ void overlay_scrollbar(GString *s, int t, int v, int o, int c)
 
 static GtkWidget *g_fake_entry = NULL;
 static GtkWidget *g_fake_label = NULL;
+
+static void read_textbuffer(GtkTextBuffer *buffer, char *out, size_t out_size) {
+    GtkTextIter start;
+    GtkTextIter end;
+    gtk_text_buffer_get_bounds(buffer, &start, &end);
+    char *text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+    g_strlcpy(out, text ? text : "", out_size);
+    g_free(text);
+}
 
 static AppData make_app_with_windows(int count) {
     AppData app = {0};
@@ -141,6 +155,24 @@ static void test_exit_command_mode_is_noop_when_already_normal(void) {
                 g_update_display_calls == 0);
 }
 
+static void test_help_paging_clamps_to_real_last_line(void) {
+    AppData app = make_app_with_windows(1);
+    GtkTextBuffer *buffer = gtk_text_buffer_new(NULL);
+    app.textbuffer = buffer;
+    g_help_text_stub = "line1\nline2\nline3\n";
+
+    render_help_page(&app, INT_MAX);
+
+    char rendered[256];
+    read_textbuffer(buffer, rendered, sizeof(rendered));
+    ASSERT_TRUE("help end paging includes last line", strstr(rendered, "line3") != NULL);
+    ASSERT_TRUE("help end paging does not render trailing blank page",
+                strstr(rendered, "line2\nline3\n\n") == NULL &&
+                strstr(rendered, "line3\n\n") == NULL);
+    g_object_unref(buffer);
+    g_help_text_stub = NULL;
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Command mode targeting tests\n");
@@ -156,6 +188,7 @@ int main(int argc, char **argv) {
     test_unmatched_command_target_id_leaves_selection_unchanged();
     test_exit_command_mode_resets_command_target_id();
     test_exit_command_mode_is_noop_when_already_normal();
+    test_help_paging_clamps_to_real_last_line();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

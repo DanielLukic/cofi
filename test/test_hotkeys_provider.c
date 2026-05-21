@@ -228,7 +228,8 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider second alias is hk",
                 strcmp(s_hotkeys_command.aliases[1], "hk") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_hotkeys_command.help_format, "hotkeys [key] [command]") == 0);
+                strcmp(s_hotkeys_command.help_format,
+                       "hotkeys [<key> [command] | <key>]") == 0);
     ASSERT_TRUE("provider command keeps open",
                 s_hotkeys_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_hotkeys_command.handler != NULL);

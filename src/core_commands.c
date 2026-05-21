@@ -167,7 +167,7 @@ static const CommandSpec s_core_commands[] = {
         .aliases = {"s", NULL},
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_show,
-        .description = "Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps)",
+        .description = "Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps/emoji/projects/calc/proc/sinks/sessions/profiles)",
         .help_format = "show [MODE]",
         .keeps_open_on_hotkey_auto = 1
     },

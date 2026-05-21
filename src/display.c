@@ -126,7 +126,7 @@ void generate_scrollbar(int total_items, int visible_items, int scroll_offset, c
 // Modifies text in place. For bottom-up (fzf-style) display, caller should
 // pass flipped offset: (total_items - visible_items) - scroll_offset.
 void overlay_scrollbar(GString *text, int total_items, int visible_items, int scroll_offset, int target_columns) {
-    if (total_items <= visible_items || target_columns <= 0) return;
+    if (!text || text->len == 0 || total_items <= visible_items || target_columns <= 0) return;
 
     // Keep the scrollbar within the fixed display width so the final
     // utf8_clip_lines_to_columns pass cannot clip it off.
@@ -136,9 +136,15 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
     // Rebuild text with each line padded/truncated to target_columns
     GString *result = g_string_new(NULL);
     const char *p = text->str;
-    int line = 0;
+    int source_lines = 1;
+    for (const char *scan = text->str; *scan; scan++) {
+        if (*scan == '\n') {
+            source_lines++;
+        }
+    }
 
-    while (*p && line < visible_items) {
+    int lines_to_overlay = (source_lines < visible_items) ? source_lines : visible_items;
+    for (int line = 0; line < lines_to_overlay; line++) {
         const char *nl = strchr(p, '\n');
         int line_len = nl ? (int)(nl - p) : (int)strlen(p);
         GString *line_text = g_string_new_len(p, line_len);
@@ -151,8 +157,6 @@ void overlay_scrollbar(GString *text, int total_items, int visible_items, int sc
         g_string_free(line_text, TRUE);
         g_string_append_c(result, sb[line]);
         g_string_append_c(result, '\n');
-
-        line++;
         p = nl ? nl + 1 : p + line_len;
     }
 

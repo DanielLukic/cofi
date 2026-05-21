@@ -245,7 +245,9 @@ static char *build_help_page_text(AppData *app, char **lines, int total_lines,
     GString *rendered = g_string_new(NULL);
     for (int i = start; i < end; i++) {
         g_string_append(rendered, lines[i]);
-        g_string_append_c(rendered, '\n');
+        if (i + 1 < end) {
+            g_string_append_c(rendered, '\n');
+        }
     }
 
     overlay_scrollbar(rendered, total_lines, visible_lines, start, get_display_columns(app));
@@ -262,24 +264,28 @@ static void render_help_page(AppData *app, int requested_offset) {
         return;
     }
 
-    int total_lines = count_lines_in_text(help_text);
-    int visible_lines = get_max_display_lines_dynamic(app);
-    if (visible_lines < 1) {
-        visible_lines = 1;
-    }
-
-    int max_offset = (total_lines > visible_lines) ? (total_lines - visible_lines) : 0;
-    int clamped_offset = clamp_int(requested_offset, 0, max_offset);
-    app->command_mode.help_scroll_offset = clamped_offset;
-
-    char **lines = malloc(sizeof(char *) * total_lines);
+    int alloc_lines = count_lines_in_text(help_text);
+    char **lines = malloc(sizeof(char *) * alloc_lines);
     if (!lines) {
         gtk_text_buffer_set_text(app->textbuffer, help_text, -1);
         free(help_text);
         return;
     }
 
-    int split_count = split_lines_in_place(help_text, lines, total_lines);
+    int split_count = split_lines_in_place(help_text, lines, alloc_lines);
+    if (split_count > 1 && lines[split_count - 1][0] == '\0') {
+        split_count--;
+    }
+
+    int visible_lines = get_max_display_lines_dynamic(app);
+    if (visible_lines < 1) {
+        visible_lines = 1;
+    }
+
+    int max_offset = (split_count > visible_lines) ? (split_count - visible_lines) : 0;
+    int clamped_offset = clamp_int(requested_offset, 0, max_offset);
+    app->command_mode.help_scroll_offset = clamped_offset;
+
     char *rendered = build_help_page_text(app, lines, split_count, visible_lines, clamped_offset);
     if (rendered) {
         gtk_text_buffer_set_text(app->textbuffer, rendered, -1);

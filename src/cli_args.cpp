@@ -13,7 +13,9 @@ extern "C" {
 #include "version.h"
 #include "utils.h"
 #include "command_api.h"
+#include "command_registry.h"
 #include "daemon_socket.h"
+#include "builtin_plugins.h"
 
 static void set_startup_delegate(AppData *app, uint8_t opcode) {
     if (!app) {
@@ -46,27 +48,39 @@ static void set_startup_delegate(AppData *app, uint8_t opcode) {
 
 void print_usage(const char *prog_name) {
     printf("Usage: %s [options]\n", prog_name);
-    printf("Options:\n");
-    printf("  --log-level LEVEL    Set log level (trace, debug, info, warn, error, fatal)\n");
-    printf("  --log-file FILE      Write logs to FILE\n");
-    printf("  --no-log             Disable logging\n");
-    printf("  --align ALIGNMENT    Set window alignment (center, top, top_left, top_right,\n");
-    printf("                       left, right, bottom, bottom_left, bottom_right)\n");
-    printf("  --no-auto-close      Don't close window when focus is lost\n");
-    printf("  --windows, -W        Delegate to Windows tab if daemon running\n");
+    printf("\nDisplay options:\n");
+    printf("  --align ALIGNMENT    Set alignment: center top bottom top_left top_right left right bottom_left bottom_right\n");
+    printf("  --no-auto-close      Keep cofi open when focus is lost\n");
+
+    printf("\nDelegate flags (starts daemon if none running):\n");
+    printf("  --windows, -W        Delegate to Windows tab\n");
     printf("  --workspaces         Delegate to Workspaces tab\n");
     printf("  --harpoon            Delegate to Harpoon tab\n");
     printf("  --names              Delegate to Names tab\n");
-    printf("  --command            Delegate to command mode (with ':' prompt)\n");
-    printf("  --run                Delegate to run mode (with '!' prompt)\n");
+    printf("  --command            Delegate to command mode (':' prompt)\n");
+    printf("  --run                Delegate to run mode ('!' prompt)\n");
     printf("  --applications       Delegate to Apps tab\n");
+    printf("  Other tabs: use --command, then :show <tab>\n");
+
+    printf("\nStandalone operations:\n");
     printf("  --assign-slots       Assign workspace window slots and exit\n");
     printf("  --version            Show version information\n");
+
+    printf("\nHelp:\n");
     printf("  --help               Show this help message\n");
-    printf("  --help-commands, -H  Show command mode help\n");
+    printf("  --help-commands, -H  Show in-app command help\n");
+
+    printf("\nLogging:\n");
+    printf("  --log-level LEVEL    Set log level (trace, debug, info, warn, error, fatal)\n");
+    printf("  --log-file FILE      Write logs to FILE\n");
+    printf("  --no-log             Disable logging\n");
 }
 
 void print_command_mode_help(void) {
+    if (cofi_command_count() == 0) {
+        cofi_command_registry_reset();
+        cofi_register_builtin_plugins();
+    }
     char *help_text = generate_command_help_text(HELP_FORMAT_CLI, 115);
     if (help_text) {
         printf("%s\n", help_text);

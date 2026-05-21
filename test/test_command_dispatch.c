@@ -37,7 +37,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = cmd_run, .description = "Switch to Names tab", .help_format = "names, nm", .keeps_open_on_hotkey_auto = 1},
     {.primary = "rules", .aliases = {"rl", NULL}, .owner_provider_id = "rules", .handler = cmd_run, .description = "Switch to Rules tab", .help_format = "rules, rl", .keeps_open_on_hotkey_auto = 1},
     {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = cmd_run, .description = "Show current configuration", .help_format = "config, conf", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = cmd_run, .description = "Manage system hotkey bindings", .help_format = "hotkeys [key] [command]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = cmd_run, .description = "Manage system hotkey bindings", .help_format = "hotkeys [<key> [command] | <key>]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = cmd_run, .description = "Switch to applications tab", .help_format = "apps, app, applications", .keeps_open_on_hotkey_auto = 1},
 };
 

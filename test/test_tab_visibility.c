@@ -845,10 +845,27 @@ static void test_command_help_width_zero_is_unwrapped(void) {
         return;
     }
 
-    ASSERT_TRUE("unwrapped show line remains single-line description",
-                strstr(help,
-                       "  show [MODE]                              - Show cofi in a specific mode (windows/command/run/workspaces/harpoon/names/config/rules/apps)\n")
-                    != NULL);
+    ASSERT_TRUE("help contains navigation section", strstr(help, "NAVIGATION\n") != NULL);
+    ASSERT_TRUE("help tabs use access column with prefix/command",
+                strstr(help, "  emoji        :emoji") != NULL &&
+                strstr(help, "  run          ! :run") != NULL &&
+                strstr(help, "  windows      >") != NULL);
+    ASSERT_TRUE("help tabs include intro paragraph",
+                strstr(help, "Reach a tab via the prefix or command shown. Windows and Apps are cycled with Tab; the rest surface on demand.") != NULL);
+    ASSERT_TRUE("help tabs do not mention pinned/hidden labels",
+                strstr(help, "Pinned:") == NULL &&
+                strstr(help, "Hidden:") == NULL);
+    ASSERT_TRUE("help contains grouped commands section", strstr(help, "COMMANDS\n") != NULL);
+    ASSERT_TRUE("show line includes all advertised modes",
+                strstr(help, "show [MODE]") != NULL &&
+                strstr(help, "emoji/projects/calc/proc/sinks/sessions/profiles") != NULL);
+    ASSERT_TRUE("window group includes concrete command entries",
+                strstr(help, "Window\n") != NULL &&
+                strstr(help, "  cl, close-window, c") != NULL &&
+                strstr(help, "  mw, max, maximize-window") != NULL);
+    ASSERT_TRUE("tabs group includes concrete command entries",
+                strstr(help, "Tabs\n") != NULL &&
+                strstr(help, "  show [MODE]") != NULL);
     free(help);
 }
 
