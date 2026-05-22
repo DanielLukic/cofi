@@ -111,6 +111,7 @@ void init_app_data(AppData *app) {
     load_rules_config(&app->rules_config);
     app->filtered_rules_count = 0;
     init_rule_state(&app->rule_state);
+    app->in_rule_dispatch = FALSE;
 
     // Initialize command mode
     init_command_mode(&app->command_mode);

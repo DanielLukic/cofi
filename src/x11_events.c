@@ -199,6 +199,10 @@ static void prune_subscribed_windows(AppData *app) {
 // Apply rules to all windows (checks state machine — only fires on transitions)
 static void apply_rules_to_windows(AppData *app) {
     if (app->rules_config.count == 0) return;
+    if (app->in_rule_dispatch) {
+        log_debug("RULE: apply_rules_to_windows skipped — re-entry during rule dispatch");
+        return;
+    }
 
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
@@ -208,7 +212,10 @@ static void apply_rules_to_windows(AppData *app) {
             if (match.should_fire) {
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
+                gboolean prev = app->in_rule_dispatch;
+                app->in_rule_dispatch = TRUE;
                 execute_command_background(match.commands, app, w);
+                app->in_rule_dispatch = prev;
             }
         }
     }
@@ -217,6 +224,10 @@ static void apply_rules_to_windows(AppData *app) {
 // Handle title change on a specific window
 static void handle_window_title_change(AppData *app, Window id) {
     if (app->rules_config.count == 0) return;
+    if (app->in_rule_dispatch) {
+        log_debug("RULE: handle_window_title_change skipped — re-entry during rule dispatch");
+        return;
+    }
 
     // Find the window in our list
     WindowInfo *w = NULL;
@@ -246,7 +257,10 @@ static void handle_window_title_change(AppData *app, Window id) {
             if (match.should_fire) {
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, id, w->title, match.commands);
+                gboolean prev = app->in_rule_dispatch;
+                app->in_rule_dispatch = TRUE;
                 execute_command_background(match.commands, app, w);
+                app->in_rule_dispatch = prev;
             }
         }
     }
