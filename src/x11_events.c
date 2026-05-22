@@ -206,6 +206,11 @@ static void apply_rules_to_windows(AppData *app) {
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
         for (int r = 0; r < app->rules_config.count; r++) {
+            if (!app->initial_window_population_done &&
+                !app->rules_config.rules[r].run_at_start) {
+                continue;
+            }
+
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, r, w->id, w->title);
             if (match.should_fire) {
@@ -296,6 +301,7 @@ void setup_x11_event_monitoring(AppData *app) {
     // Subscribe to property changes on existing windows (for title change rules)
     subscribe_to_window_properties(app);
     apply_rules_to_windows(app);
+    app->initial_window_population_done = TRUE;
 
     log_debug("X11 event monitoring setup complete");
 }

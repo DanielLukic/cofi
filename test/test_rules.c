@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include "../src/rules_config.h"
 #include "../src/rules.h"
 
@@ -63,6 +64,7 @@ static void test_add_rule(void) {
     ASSERT_INT("count after add", 1, config.count);
     ASSERT_STR("first pattern", "*htop*", config.rules[0].pattern);
     ASSERT_STR("first commands", "sb,ab,ew", config.rules[0].commands);
+    ASSERT_FALSE("run_at_start defaults false on add", config.rules[0].run_at_start);
 
     ASSERT_INT("add second", 1, add_rule(&config, "*Firefox*", "ew"));
     ASSERT_INT("count after second", 2, config.count);
@@ -99,6 +101,7 @@ static void test_save_load_roundtrip(void) {
     add_rule(&original, "*htop*Terminal", "sb,ab,ew");
     add_rule(&original, "*Firefox*", "ew");
     add_rule(&original, "Tsunami*Thunderbird*", "sb");
+    original.rules[1].run_at_start = 1;
 
     ASSERT_INT("save", 1, save_rules_config(&original));
 
@@ -109,8 +112,11 @@ static void test_save_load_roundtrip(void) {
     ASSERT_STR("loaded commands 0", "sb,ab,ew", loaded.rules[0].commands);
     ASSERT_STR("loaded pattern 1", "*Firefox*", loaded.rules[1].pattern);
     ASSERT_STR("loaded commands 1", "ew", loaded.rules[1].commands);
+    ASSERT_TRUE("loaded run_at_start 1", loaded.rules[1].run_at_start);
     ASSERT_STR("loaded pattern 2", "Tsunami*Thunderbird*", loaded.rules[2].pattern);
     ASSERT_STR("loaded commands 2", "sb", loaded.rules[2].commands);
+    ASSERT_FALSE("loaded run_at_start defaults false when saved false", loaded.rules[0].run_at_start);
+    ASSERT_FALSE("loaded run_at_start remains false on third rule", loaded.rules[2].run_at_start);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -131,6 +137,50 @@ static void test_load_missing_file(void) {
     // load should succeed (return 1) with 0 rules when file doesn't exist
     ASSERT_INT("load missing file", 1, load_rules_config(&config));
     ASSERT_INT("count is 0", 0, config.count);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_legacy_file_defaults_run_at_start_false(void) {
+    char tmpdir[] = "/tmp/cofi_rules_legacy_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open legacy rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\n"
+            "      \"pattern\": \"*term*\",\n"
+            "      \"commands\": \"sb on\"\n"
+            "    }\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_INT("load legacy file", 1, load_rules_config(&config));
+    ASSERT_INT("legacy count", 1, config.count);
+    ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -279,7 +329,7 @@ static void test_window_removed_resets_state(void) {
 static void test_prune_absent_removes_immediately(void) {
     RuleState state;
     init_rule_state(&state);
-    Rule rule = {"*htop*", "sb"};
+    Rule rule = {.pattern = "*htop*", .commands = "sb", .run_at_start = 0};
 
     check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_INT("state has one entry", 1, state.count);
@@ -292,7 +342,7 @@ static void test_prune_absent_removes_immediately(void) {
 static void test_prune_absent_present_window_kept(void) {
     RuleState state;
     init_rule_state(&state);
-    Rule rule = {"*htop*", "sb"};
+    Rule rule = {.pattern = "*htop*", .commands = "sb", .run_at_start = 0};
 
     check_rule_match(&rule, &state, 0, 0x1111, "htop A");
     check_rule_match(&rule, &state, 0, 0x2222, "htop B");
@@ -383,8 +433,8 @@ static void test_breaker_null_safe(void) {
 // execute the !matches&&matched→RESET branch, clearing R0's state and causing
 // R0 to re-fire on the next evaluation cycle (the root cause of the storm).
 static void test_two_rules_no_state_stomp(void) {
-    Rule r0 = {"*htop*",    "ew"};  // matches window W
-    Rule r1 = {"*Firefox*", "ew"};  // does NOT match window W
+    Rule r0 = {.pattern = "*htop*", .commands = "ew", .run_at_start = 0};        // matches window W
+    Rule r1 = {.pattern = "*Firefox*", .commands = "ew", .run_at_start = 0};     // does NOT match window W
 
     RuleState state;
     init_rule_state(&state);
@@ -435,6 +485,7 @@ int main(void) {
     test_remove_rule();
     test_save_load_roundtrip();
     test_load_missing_file();
+    test_load_legacy_file_defaults_run_at_start_false();
 
     // Matching state machine tests
     printf("\n--- Matching ---\n");

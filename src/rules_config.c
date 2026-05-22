@@ -33,6 +33,7 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     r->pattern[MAX_PATTERN_LEN - 1] = '\0';
     strncpy(r->commands, commands, MAX_COMMANDS_LEN - 1);
     r->commands[MAX_COMMANDS_LEN - 1] = '\0';
+    r->run_at_start = 0;
     config->count++;
     return 1;
 }
@@ -64,7 +65,9 @@ int save_rules_config(const RulesConfig *config) {
         if (i > 0) fprintf(file, ",\n");
         fprintf(file, "    {\n");
         fprintf(file, "      \"pattern\": \"%s\",\n", config->rules[i].pattern);
-        fprintf(file, "      \"commands\": \"%s\"\n", config->rules[i].commands);
+        fprintf(file, "      \"commands\": \"%s\",\n", config->rules[i].commands);
+        fprintf(file, "      \"run_at_start\": %s\n",
+                config->rules[i].run_at_start ? "true" : "false");
         fprintf(file, "    }");
     }
 
@@ -93,6 +96,7 @@ int load_rules_config(RulesConfig *config) {
     char line[1024];
     char pattern[MAX_PATTERN_LEN] = {0};
     char commands[MAX_COMMANDS_LEN] = {0};
+    int run_at_start = 0;
     int in_rules = 0;
 
     while (fgets(line, sizeof(line), file)) {
@@ -104,8 +108,10 @@ int load_rules_config(RulesConfig *config) {
         } else if (in_rules && strstr(p, "}")) {
             if (pattern[0] && commands[0]) {
                 add_rule(config, pattern, commands);
+                config->rules[config->count - 1].run_at_start = run_at_start;
                 pattern[0] = '\0';
                 commands[0] = '\0';
+                run_at_start = 0;
             }
         }
 
@@ -140,6 +146,8 @@ int load_rules_config(RulesConfig *config) {
                         }
                     }
                 }
+            } else if (strstr(p, "\"run_at_start\":")) {
+                run_at_start = strstr(p, "true") != NULL;
             }
         }
     }

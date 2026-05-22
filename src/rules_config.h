@@ -8,6 +8,7 @@
 typedef struct {
     char pattern[MAX_PATTERN_LEN];    // wildcard pattern for window title
     char commands[MAX_COMMANDS_LEN];  // comma-separated cofi commands
+    int run_at_start;                 // allow this rule to fire during startup scan
 } Rule;
 
 typedef struct {
