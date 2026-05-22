@@ -206,14 +206,14 @@ static void apply_rules_to_windows(AppData *app) {
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
         for (int r = 0; r < app->rules_config.count; r++) {
-            if (!app->initial_window_population_done &&
-                !app->rules_config.rules[r].run_at_start) {
-                continue;
-            }
-
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, r, w->id, w->title);
             if (match.should_fire) {
+                if (!app->initial_window_population_done &&
+                    !app->rules_config.rules[r].run_at_start) {
+                    continue;
+                }
+
                 if (!rule_breaker_should_fire(&app->rule_breaker, r, w->id,
                                               now_ms, app->rules_config.rules[r].pattern)) {
                     continue;

@@ -245,6 +245,26 @@ static void test_no_refire_same_title(void) {
     ASSERT_FALSE("same title does not refire", m2.should_fire);
 }
 
+static void test_startup_suppression_still_seeds_matched_state(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*htop*", "sb,ab,ew");
+
+    RuleState state;
+    init_rule_state(&state);
+
+    // Startup scan: the matcher sees a fire-once transition and seeds matched=true.
+    RuleMatch startup = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                         "root@~ htop — Terminal");
+    ASSERT_TRUE("startup match would fire before suppression", startup.should_fire);
+
+    // Post-startup event on the same still-present window must now suppress.
+    RuleMatch post_startup = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                              "root@~ htop — Terminal");
+    ASSERT_FALSE("post-startup recheck stays suppressed after startup seeding",
+                 post_startup.should_fire);
+}
+
 static void test_refire_after_title_changes_away_and_back(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -493,6 +513,7 @@ int main(void) {
     test_match_fires_on_matching_title();
     test_no_fire_on_non_matching_title();
     test_no_refire_same_title();
+    test_startup_suppression_still_seeds_matched_state();
     test_refire_after_title_changes_away_and_back();
     test_different_title_still_matching();
     test_multiple_windows_independent();
