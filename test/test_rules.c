@@ -274,6 +274,102 @@ static void test_window_removed_resets_state(void) {
     ASSERT_TRUE("fires again after window removed", m2.should_fire);
 }
 
+// ========== rule_state_prune_absent tests ==========
+
+static void test_prune_absent_one_cycle_preserves_state(void) {
+    RuleState state;
+    init_rule_state(&state);
+    Rule rule = {"*htop*", "sb"};
+
+    RuleMatch m1 = check_rule_match(&rule, &state, 0x1234, "htop");
+    ASSERT_TRUE("initial match fires", m1.should_fire);
+
+    // One cycle absent — pending_prune set, state NOT removed
+    Window empty[] = {};
+    rule_state_prune_absent(&state, empty, 0);
+
+    // Window reappears — matched is still true, so rule must NOT re-fire
+    RuleMatch m2 = check_rule_match(&rule, &state, 0x1234, "htop");
+    ASSERT_FALSE("fire-once survives one-cycle absence", m2.should_fire);
+}
+
+static void test_prune_absent_two_cycles_removes_state(void) {
+    RuleState state;
+    init_rule_state(&state);
+    Rule rule = {"*htop*", "sb"};
+
+    RuleMatch m1 = check_rule_match(&rule, &state, 0x1234, "htop");
+    ASSERT_TRUE("initial match fires", m1.should_fire);
+
+    Window empty[] = {};
+    rule_state_prune_absent(&state, empty, 0); // cycle 1: pending_prune set
+    rule_state_prune_absent(&state, empty, 0); // cycle 2: entry removed
+
+    // Window reappears — state was removed, so it fires again (fresh entry)
+    RuleMatch m2 = check_rule_match(&rule, &state, 0x1234, "htop");
+    ASSERT_TRUE("re-fires after two-cycle absence", m2.should_fire);
+}
+
+static void test_prune_absent_reappearance_clears_pending(void) {
+    RuleState state;
+    init_rule_state(&state);
+    Rule rule = {"*htop*", "sb"};
+
+    check_rule_match(&rule, &state, 0x1234, "htop");
+
+    // One cycle absent
+    Window empty[] = {};
+    rule_state_prune_absent(&state, empty, 0);
+
+    // Reappears — pending_prune must be cleared
+    Window live[] = {0x1234};
+    rule_state_prune_absent(&state, live, 1);
+
+    // Another absence cycle: since pending_prune was cleared, this is only
+    // the first absence again — state should NOT be removed
+    rule_state_prune_absent(&state, empty, 0);
+
+    // Window comes back: matched still true, so no re-fire
+    RuleMatch m = check_rule_match(&rule, &state, 0x1234, "htop");
+    ASSERT_FALSE("reappear clears pending_prune; next absence is again one-cycle only", m.should_fire);
+}
+
+static void test_prune_absent_unmatched_window_removed_cleanly(void) {
+    RuleState state;
+    init_rule_state(&state);
+    Rule rule = {"*htop*", "sb"};
+
+    // Window appears but doesn't match — it's added to state with matched=false
+    check_rule_match(&rule, &state, 0xAAAA, "bash");
+    ASSERT_INT("state has one entry", 1, state.count);
+
+    // Two cycles absent — should be removed
+    Window empty[] = {};
+    rule_state_prune_absent(&state, empty, 0);
+    rule_state_prune_absent(&state, empty, 0);
+    ASSERT_INT("state empty after two cycles", 0, state.count);
+}
+
+static void test_prune_absent_multiple_windows_independent(void) {
+    RuleState state;
+    init_rule_state(&state);
+    Rule rule = {"*htop*", "sb"};
+
+    check_rule_match(&rule, &state, 0x1111, "htop A");
+    check_rule_match(&rule, &state, 0x2222, "htop B");
+
+    // Only 0x1111 is absent
+    Window only2[] = {0x2222};
+    rule_state_prune_absent(&state, only2, 1);
+    rule_state_prune_absent(&state, only2, 1); // second cycle: 0x1111 removed
+
+    // 0x1111 fires again (state gone); 0x2222 still suppressed
+    RuleMatch m1 = check_rule_match(&rule, &state, 0x1111, "htop A");
+    ASSERT_TRUE("0x1111 fires again after two-cycle absence", m1.should_fire);
+    RuleMatch m2 = check_rule_match(&rule, &state, 0x2222, "htop B");
+    ASSERT_FALSE("0x2222 still suppressed (never absent)", m2.should_fire);
+}
+
 static void test_multiple_rules(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -319,6 +415,14 @@ int main(void) {
     test_multiple_windows_independent();
     test_window_removed_resets_state();
     test_multiple_rules();
+
+    // Transient-absence grace tests
+    printf("\n--- Prune absent (grace-count) ---\n");
+    test_prune_absent_one_cycle_preserves_state();
+    test_prune_absent_two_cycles_removes_state();
+    test_prune_absent_reappearance_clears_pending();
+    test_prune_absent_unmatched_window_removed_cleanly();
+    test_prune_absent_multiple_windows_independent();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

@@ -174,7 +174,9 @@ static void subscribe_to_window_properties(AppData *app) {
     }
 }
 
-// Prune subscribed windows that no longer exist in the window list
+// Prune subscribed windows that no longer exist in the window list.
+// Only removes X11 property subscriptions — rule state is managed separately
+// via rule_state_prune_absent to tolerate transient _NET_CLIENT_LIST churn.
 static void prune_subscribed_windows(AppData *app) {
     int write = 0;
     for (int i = 0; i < subscribed_count; i++) {
@@ -187,9 +189,9 @@ static void prune_subscribed_windows(AppData *app) {
         }
         if (found) {
             subscribed_windows[write++] = subscribed_windows[i];
-        } else {
-            rule_state_remove_window(&app->rule_state, subscribed_windows[i]);
         }
+        // Absent windows: drop X subscription silently. Rule state is handled
+        // by rule_state_prune_absent after apply_rules_to_windows.
     }
     subscribed_count = write;
 }
@@ -356,6 +358,14 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 prune_subscribed_windows(app);
                 subscribe_to_window_properties(app);
                 apply_rules_to_windows(app);
+
+                // Grace-count rule state pruning: tolerate one transient absence
+                // (e.g. WM unmap/remap during maximize toggle) before dropping state.
+                Window live_ids[MAX_WINDOWS];
+                for (int k = 0; k < app->window_count; k++) {
+                    live_ids[k] = app->windows[k].id;
+                }
+                rule_state_prune_absent(&app->rule_state, live_ids, app->window_count);
 
                 // Only process if window still exists and is valid
                 if (app->window && GTK_IS_WIDGET(app->window) &&
