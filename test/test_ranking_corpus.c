@@ -31,6 +31,11 @@ static int fail = 0;
     } \
 } while (0)
 
+#define ASSERT_TRUE(name, cond) do { \
+    if (cond) { printf("PASS: %s\n", name); pass++; } \
+    else       { printf("FAIL: %s\n", name); fail++; } \
+} while (0)
+
 #define ASSERT_IN_TOP2(name, app_ptr, id_a, id_b) do { \
     int found_a = 0, found_b = 0; \
     for (int _i = 0; _i < 2 && _i < (app_ptr)->filtered_count; _i++) { \
@@ -393,6 +398,94 @@ static void test_gcse_ranks_softeng(void) {
     ASSERT_RANK1("gcse → Software engineering YouTube #1", &app, WIN_YT_SOFTENG);
 }
 
+/* ------------------------------------------------------------------ */
+/* Bug 1: TIER invariant — indirect score must never reach TIER_DIRECT */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Pathological indirect case: instance/title/class filled with single-char
+ * words so that 323 filter chars each match at a word-start boundary.  The
+ * match is TIER_INDIRECT (chars separated by spaces, no contiguous run).
+ *
+ * Without the INDIRECT_SCORE_MAX clamp, fzf + Signal-B ≈ 7442 + 2576 =
+ * 10018 > TIER_DIRECT_BASE (10000).  With the clamp the score is capped at
+ * 9999 < TIER_DIRECT_BASE.
+ */
+static void test_tier_invariant(void) {
+    AppData app;
+    reset_app(&app);
+
+    char instance[MAX_CLASS_LEN];
+    char title[MAX_TITLE_LEN];
+    char class_nm[MAX_CLASS_LEN];
+    char filter[512];
+    int n = 0;
+
+    /* 63 single-char words in instance: "a b c ... k" (125 chars) */
+    int ipos = 0;
+    for (int i = 0; i < 63; i++) {
+        char c = (char)('a' + (i % 26));
+        if (i > 0 && ipos < (int)sizeof(instance) - 2) instance[ipos++] = ' ';
+        if (ipos < (int)sizeof(instance) - 1)           instance[ipos++] = c;
+        if (n  < (int)sizeof(filter) - 1)               filter[n++] = c;
+    }
+    instance[ipos] = '\0';
+
+    /* 197 single-char words in title: "A B C ... V" (393 chars) */
+    int tpos = 0;
+    for (int i = 0; i < 197; i++) {
+        char c = (char)('A' + (i % 26));
+        if (i > 0 && tpos < (int)sizeof(title) - 2) title[tpos++] = ' ';
+        if (tpos < (int)sizeof(title) - 1)           title[tpos++] = c;
+        if (n  < (int)sizeof(filter) - 1)            filter[n++] = (char)(c | 32);
+    }
+    title[tpos] = '\0';
+
+    /* 63 single-char words in class: "a b c ... k" (125 chars) */
+    int cpos = 0;
+    for (int i = 0; i < 63; i++) {
+        char c = (char)('a' + (i % 26));
+        if (i > 0 && cpos < (int)sizeof(class_nm) - 2) class_nm[cpos++] = ' ';
+        if (cpos < (int)sizeof(class_nm) - 1)           class_nm[cpos++] = c;
+        if (n  < (int)sizeof(filter) - 1)               filter[n++] = c;
+    }
+    class_nm[cpos] = '\0';
+    filter[n] = '\0';
+
+    add_win(&app, 0x100, 0, instance, title, class_nm);
+
+    score_t indirect = match_window(filter, &app.history[0]);
+    printf("  tier invariant: %d-char filter, indirect score=%.0f (tier_base=%d)\n",
+           n, indirect, TIER_DIRECT_BASE);
+
+    ASSERT_TRUE("tier invariant: indirect score < TIER_DIRECT_BASE",
+                indirect > SCORE_MIN && indirect < (score_t)TIER_DIRECT_BASE);
+}
+
+/* ------------------------------------------------------------------ */
+/* Bug 2: Signal B best-alignment (greedy undercounts repeated letters) */
+/* ------------------------------------------------------------------ */
+
+/*
+ * "aba" on display "[1] app X A B A app":
+ *   Greedy: a(pos4) → b(pos12) → a(pos14).  Adjacency: (4,12) NOT adjacent
+ *   (X at pos8 is a word-start between them) → 1 pair.
+ *   DP best: a(pos10) → b(pos12) → a(pos14).  Both pairs adjacent → 2 pairs.
+ */
+static void test_aba_best_alignment(void) {
+    AppData app;
+    reset_app(&app);
+
+    add_win(&app, 0x100, 0, "app", "X A B A", "app");
+
+    char display[1024];
+    compose_display_string(&app.history[0], display, sizeof(display));
+    int pairs = consecutive_word_start_pairs("aba", display);
+    printf("  aba on '%s': pairs=%d (want 2)\n", display, pairs);
+
+    ASSERT_TRUE("aba best-alignment: 2 adjacent word-start pairs", pairs == 2);
+}
+
 /* ---- Main ---- */
 
 int main(void) {
@@ -421,6 +514,10 @@ int main(void) {
 
     /* RULE 5 — consecutive word-start density */
     test_gcse_ranks_softeng();
+
+    /* Bug hardening — tier invariant + Signal B best-alignment */
+    test_tier_invariant();
+    test_aba_best_alignment();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return (fail == 0) ? 0 : 1;

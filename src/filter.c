@@ -96,10 +96,12 @@ static score_t early_title_bonus(const char *filter, const char *display,
     return 0;
 }
 
-// Signal B: count pairs of adjacent query characters where both are matched
-// at word-start positions with no other word-start between them.
-// Uses a greedy left-to-right word-start scan.  Returns 0 if not all query
-// characters can be matched at word-start positions.
+// Signal B: count the maximum number of adjacent-word-start pairs achievable
+// by aligning the query to word-start positions in the display.
+// "Adjacent" means consecutive in the word-start index list (no other
+// word-start exists between the two matched positions).
+// Uses DP over the word-start list to find the best alignment; greedy scan
+// undercounts for queries with repeated letters (e.g. "aba" on "A X A B A").
 static bool is_word_start(const char *s, int pos) {
     if (pos == 0) return true;
     char p = s[pos-1];
@@ -111,32 +113,50 @@ static int consecutive_word_start_pairs(const char *filter, const char *display)
     int flen = (int)strlen(filter);
     if (flen < 2) return 0;
 
-    int pos[MAX_TITLE_LEN];
-    int cur = 0;
-    for (int i = 0; i < flen && i < MAX_TITLE_LEN; i++) {
-        bool found = false;
-        while (display[cur]) {
-            if (is_word_start(display, cur) &&
-                tolower((unsigned char)display[cur]) == tolower((unsigned char)filter[i])) {
-                pos[i] = cur;
-                cur++;
-                found = true;
-                break;
-            }
-            cur++;
-        }
-        if (!found) return 0;
+    /* Build ws[]: all word-start positions in the display */
+    int ws[256];
+    int ws_count = 0;
+    for (int i = 0; display[i] && ws_count < 256; i++) {
+        if (is_word_start(display, i))
+            ws[ws_count++] = i;
+    }
+    if (ws_count == 0) return 0;
+
+    /* DP: dp[i][j] = max adjacent pairs when filter[i] is matched at ws[j].
+     * -1 = invalid (unreachable, or filter[i] != display[ws[j]]).
+     * Adjacency: k+1 == j means ws[k] and ws[j] are consecutive word-starts
+     * with no other word-start between them. */
+    enum { FLEN_CAP = 64, WS_CAP = 128 };
+    int eff_flen = flen     < FLEN_CAP ? flen     : FLEN_CAP;
+    int eff_ws   = ws_count < WS_CAP   ? ws_count : WS_CAP;
+
+    int dp[FLEN_CAP][WS_CAP];
+    for (int i = 0; i < eff_flen; i++)
+        for (int j = 0; j < eff_ws; j++)
+            dp[i][j] = -1;
+
+    for (int j = 0; j < eff_ws; j++) {
+        if (tolower((unsigned char)display[ws[j]]) == tolower((unsigned char)filter[0]))
+            dp[0][j] = 0;
     }
 
-    int pairs = 0;
-    for (int i = 0; i < flen - 1 && i < MAX_TITLE_LEN - 1; i++) {
-        bool adjacent = true;
-        for (int j = pos[i] + 1; j < pos[i+1]; j++) {
-            if (is_word_start(display, j)) { adjacent = false; break; }
+    for (int i = 1; i < eff_flen; i++) {
+        for (int j = 0; j < eff_ws; j++) {
+            if (tolower((unsigned char)display[ws[j]]) != tolower((unsigned char)filter[i]))
+                continue;
+            for (int k = 0; k < j; k++) {
+                if (dp[i-1][k] < 0) continue;
+                int candidate = dp[i-1][k] + (k + 1 == j ? 1 : 0);
+                if (candidate > dp[i][j]) dp[i][j] = candidate;
+            }
         }
-        if (adjacent) pairs++;
     }
-    return pairs;
+
+    int best = 0;
+    for (int j = 0; j < eff_ws; j++) {
+        if (dp[eff_flen-1][j] > best) best = dp[eff_flen-1][j];
+    }
+    return best;
 }
 
 // Returns true when the query appears as a contiguous case-insensitive
@@ -190,6 +210,12 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
         log_debug("WORD_START_PAIRS: '%s' -> '%s' pairs=%d (+%.0f)",
                   filter, display, pairs, (score_t)pairs * CONSECUTIVE_WORD_START_PAIR_BONUS);
     }
+
+    // Clamp the indirect contribution so TIER_INDIRECT scores can never reach
+    // TIER_DIRECT_BASE.  Long queries at dense word-starts accumulate enough
+    // fzf + Signal-B to breach the tier without this guard.
+    if (score > (score_t)INDIRECT_SCORE_MAX)
+        score = (score_t)INDIRECT_SCORE_MAX;
 
     if (is_direct_word_boundary_match(filter, display)) {
         score += TIER_DIRECT_BASE;

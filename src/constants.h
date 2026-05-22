@@ -19,10 +19,15 @@
 
 // Filter scoring constants
 // Added to fzf score when the query appears as a contiguous case-insensitive
-// run starting at a word boundary in the composite display string.  The gap
-// is wide enough that no amount of fzf score or bonus in a non-direct match
-// can reach the direct-match tier (max realistic indirect score << 10000).
+// run starting at a word boundary in the composite display string.
 #define TIER_DIRECT_BASE 10000
+
+// Maximum score achievable by a TIER_INDIRECT match.
+// Clamp fzf + Signal-B to this value before the TIER_DIRECT check so the
+// tier gap is inviolable: no indirect score can ever reach TIER_DIRECT_BASE.
+// Without the clamp, long queries at dense word-starts accumulate enough
+// fzf + Signal-B to breach the tier (verified at N≥323 in test_ranking_corpus).
+#define INDIRECT_SCORE_MAX (TIER_DIRECT_BASE - 1)
 
 // Signal A: maximum bonus awarded to a TIER_DIRECT match that lands at the
 // very start of the title field (title-relative offset 0).  Decays linearly
