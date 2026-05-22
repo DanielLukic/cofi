@@ -34,20 +34,30 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, Window id, const 
     RuleWindowState *ws = find_or_add_window(state, id);
     if (!ws) return result;
 
+    bool was_matched = ws->matched;
+    const char *branch;
+
     if (matches && !ws->matched) {
         // Transition: not-matched → matched: FIRE
         ws->matched = true;
         result.should_fire = true;
         result.commands = rule->commands;
+        branch = "FIRE";
     } else if (matches && ws->matched) {
         // Still matching: suppress
         result.should_fire = false;
+        branch = "SUPPRESS";
     } else if (!matches && ws->matched) {
         // Transition: matched → not-matched: reset
         ws->matched = false;
         result.should_fire = false;
+        branch = "RESET";
+    } else {
+        branch = "NOCHANGE";
     }
-    // !matches && !ws->matched: no change
+
+    log_info("CHKDBG: rule='%s' win=0x%lx title='%s' matches=%d was_matched=%d -> %s",
+             rule->pattern, id, title, (int)matches, (int)was_matched, branch);
 
     return result;
 }
