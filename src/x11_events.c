@@ -217,8 +217,6 @@ static void apply_rules_to_windows(AppData *app) {
                 }
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
-                log_info("LOOPDBG: rule-fire[apply] rule='%s' win=0x%lx title='%s'",
-                         app->rules_config.rules[r].pattern, w->id, w->title);
                 gboolean prev = app->in_rule_dispatch;
                 app->in_rule_dispatch = TRUE;
                 execute_command_background(match.commands, app, w);
@@ -269,8 +267,6 @@ static void handle_window_title_change(AppData *app, Window id) {
                 }
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, id, w->title, match.commands);
-                log_info("LOOPDBG: rule-fire[title] rule='%s' win=0x%lx title='%s'",
-                         app->rules_config.rules[r].pattern, id, w->title);
                 gboolean prev = app->in_rule_dispatch;
                 app->in_rule_dispatch = TRUE;
                 execute_command_background(match.commands, app, w);
@@ -365,35 +361,8 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 
                 // Get new window list
                 int old_count = app->window_count;
-                // Snapshot for LOOPDBG leave/re-enter detection (before update)
-                Window loopdbg_old_ids[MAX_WINDOWS];
-                char loopdbg_old_titles[MAX_WINDOWS][64];
-                for (int _i = 0; _i < old_count; _i++) {
-                    loopdbg_old_ids[_i] = app->windows[_i].id;
-                    snprintf(loopdbg_old_titles[_i], sizeof(loopdbg_old_titles[_i]),
-                             "%s", app->windows[_i].title);
-                }
                 get_window_list(app);
                 log_trace("Window count changed from %d to %d", old_count, app->window_count);
-                // LOOPDBG: log windows that left and windows that entered the list
-                for (int _i = 0; _i < old_count; _i++) {
-                    bool still = false;
-                    for (int _j = 0; _j < app->window_count; _j++) {
-                        if (app->windows[_j].id == loopdbg_old_ids[_i]) { still = true; break; }
-                    }
-                    if (!still)
-                        log_info("LOOPDBG: win LEFT  list 0x%lx '%s'",
-                                 loopdbg_old_ids[_i], loopdbg_old_titles[_i]);
-                }
-                for (int _i = 0; _i < app->window_count; _i++) {
-                    bool was = false;
-                    for (int _j = 0; _j < old_count; _j++) {
-                        if (loopdbg_old_ids[_j] == app->windows[_i].id) { was = true; break; }
-                    }
-                    if (!was)
-                        log_info("LOOPDBG: win ENTERED list 0x%lx '%s'",
-                                 app->windows[_i].id, app->windows[_i].title);
-                }
 
                 // Log current windows for debugging
                 for (int i = 0; i < app->window_count; i++) {

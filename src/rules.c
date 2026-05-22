@@ -34,30 +34,20 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
     RuleWindowState *ws = find_or_add_entry(state, rule_index, id);
     if (!ws) return result;
 
-    bool was_matched = ws->matched;
-    const char *branch;
-
     if (matches && !ws->matched) {
         // Transition: not-matched → matched: FIRE
         ws->matched = true;
         result.should_fire = true;
         result.commands = rule->commands;
-        branch = "FIRE";
     } else if (matches && ws->matched) {
         // Still matching: suppress
         result.should_fire = false;
-        branch = "SUPPRESS";
     } else if (!matches && ws->matched) {
         // Transition: matched → not-matched: reset
         ws->matched = false;
         result.should_fire = false;
-        branch = "RESET";
-    } else {
-        branch = "NOCHANGE";
     }
-
-    log_info("CHKDBG: rule='%s' win=0x%lx title='%s' matches=%d was_matched=%d -> %s",
-             rule->pattern, id, title, (int)matches, (int)was_matched, branch);
+    // !matches && !ws->matched: no change
 
     return result;
 }
@@ -148,18 +138,15 @@ void rule_state_prune_absent(RuleState *state, const Window *live_windows, int l
         }
         if (found) {
             if (state->windows[i].pending_prune) {
-                log_info("LOOPDBG: prune CLEARED (reappeared) win=0x%lx", id);
                 state->windows[i].pending_prune = false;
             }
             i++;
         } else if (state->windows[i].pending_prune) {
             // Absent for second consecutive cycle — genuinely gone
-            log_info("LOOPDBG: prune REMOVED (2nd absence) win=0x%lx", id);
             state->windows[i] = state->windows[state->count - 1];
             state->count--;
             // Do not increment i: re-check the slot now holding the swapped entry
         } else {
-            log_info("LOOPDBG: prune PENDING (1st absence) win=0x%lx", id);
             state->windows[i].pending_prune = true;
             i++;
         }
