@@ -25,7 +25,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = noop_handler},
     {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = noop_handler},
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = noop_handler},
-    {.primary = "rules", .aliases = {"rl", NULL}, .owner_provider_id = "rules", .handler = noop_handler},
+    {.primary = "rules", .aliases = {"rs", NULL}, .owner_provider_id = "rules", .handler = noop_handler},
     {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = noop_handler},
     {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = noop_handler},
     {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = noop_handler},
@@ -123,8 +123,8 @@ static void test_parse_command_for_execution_alias_resolution(void) {
                 parse_command_for_execution("nm", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "names") == 0 && strcmp(arg, "") == 0);
 
-    assert_true("provider alias rl resolves to rules",
-                parse_command_for_execution("rl", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+    assert_true("provider alias rs resolves to rules",
+                parse_command_for_execution("rs", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "rules") == 0 && strcmp(arg, "") == 0);
 
     assert_true("provider alias conf resolves to config",

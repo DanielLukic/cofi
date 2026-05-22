@@ -35,7 +35,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = cmd_run, .description = "Switch to Workspaces tab", .help_format = "workspaces, ws", .keeps_open_on_hotkey_auto = 1},
     {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = cmd_run, .description = "Switch to Harpoon tab", .help_format = "harpoon, hp", .keeps_open_on_hotkey_auto = 1},
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = cmd_run, .description = "Switch to Names tab", .help_format = "names, nm", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "rules", .aliases = {"rl", NULL}, .owner_provider_id = "rules", .handler = cmd_run, .description = "Switch to Rules tab", .help_format = "rules, rl", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "rules", .aliases = {"rs", NULL}, .owner_provider_id = "rules", .handler = cmd_run, .description = "Switch to Rules tab", .help_format = "rules, rs", .keeps_open_on_hotkey_auto = 1},
     {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = cmd_run, .description = "Show current configuration", .help_format = "config, conf", .keeps_open_on_hotkey_auto = 1},
     {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = cmd_run, .description = "Manage system hotkey bindings", .help_format = "hotkeys [<key> [command] | <key>]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = cmd_run, .description = "Switch to applications tab", .help_format = "apps, app, applications", .keeps_open_on_hotkey_auto = 1},
@@ -112,6 +112,9 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("maw",     0);   // move-all: moves multiple windows
     ASSERT_ACTIVATES("miw",     0);   // minimize: handles activation directly
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
+    ASSERT_ACTIVATES("save-layout", 1);    // save-layout: captures current placement
+    ASSERT_ACTIVATES("restore-layout", 1); // restore-layout: reapplies placement
+    ASSERT_ACTIVATES("clear-layout", 1);   // clear-layout: forgets saved placement
     ASSERT_ACTIVATES("rw",      0);   // rename-workspace: shows overlay
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("show",    0);   // show: switches view
@@ -130,6 +133,9 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("jw", 0);
     ASSERT_KEEP_OPEN("cw", 0);
     ASSERT_KEEP_OPEN("maw", 0);
+    ASSERT_KEEP_OPEN("save-layout", 0);
+    ASSERT_KEEP_OPEN("restore-layout", 0);
+    ASSERT_KEEP_OPEN("clear-layout", 0);
     ASSERT_KEEP_OPEN("tw", 0);
     ASSERT_KEEP_OPEN("mw", 0);
 }
@@ -210,7 +216,7 @@ static void test_should_keep_open_runtime_policy(void) {
     if (should_keep_open_on_hotkey_auto("rules")) { printf("PASS: rules provider command keeps open\n"); tests_passed++; }
     else { printf("FAIL: rules provider command should keep open\n"); tests_failed++; }
 
-    if (should_keep_open_on_hotkey_auto("rl")) { printf("PASS: rules provider alias keeps open\n"); tests_passed++; }
+    if (should_keep_open_on_hotkey_auto("rs")) { printf("PASS: rules provider alias keeps open\n"); tests_passed++; }
     else { printf("FAIL: rules provider alias should keep open\n"); tests_failed++; }
 
     if (should_keep_open_on_hotkey_auto("config")) { printf("PASS: config provider command keeps open\n"); tests_passed++; }
@@ -263,7 +269,7 @@ static void test_should_keep_open_runtime_policy(void) {
 
     int rules_id = cofi_get_provider_id("rules");
     cofi_set_provider_enabled(rules_id, 0);
-    if (!should_keep_open_on_hotkey_auto("rl")) { printf("PASS: disabled rules alias does not keep open\n"); tests_passed++; }
+    if (!should_keep_open_on_hotkey_auto("rs")) { printf("PASS: disabled rules alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled rules alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(rules_id, 1);
 
@@ -510,12 +516,12 @@ static void test_provider_command_alias_resolution(void) {
         tests_failed++;
     }
 
-    if (resolve_command_primary("rl", resolved, sizeof(resolved)) &&
+    if (resolve_command_primary("rs", resolved, sizeof(resolved)) &&
         strcmp(resolved, "rules") == 0) {
-        printf("PASS: provider alias rl resolves to rules\n");
+        printf("PASS: provider alias rs resolves to rules\n");
         tests_passed++;
     } else {
-        printf("FAIL: provider alias rl did not resolve to rules\n");
+        printf("FAIL: provider alias rs did not resolve to rules\n");
         tests_failed++;
     }
 
@@ -592,12 +598,12 @@ static void test_all_parse_defs_have_owner(void) {
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
-    // 25 core commands + 14 provider-owned commands.
-    if (table_count == 39) {
+    // 28 core commands + 14 provider-owned commands.
+    if (table_count == 42) {
         printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command registry has %d commands, test expects 39 - update test!\n", table_count);
+        printf("FAIL: command registry has %d commands, test expects 42 - update test!\n", table_count);
         tests_failed++;
     }
 }

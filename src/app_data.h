@@ -13,6 +13,7 @@
 #include "workspace_slots.h"
 #include "slot_overlay.h"
 #include "window_highlight.h"
+#include "layout_store.h"
 #include "hotkey_config.h"
 #include "hotkeys.h"
 #include "rules_config.h"
@@ -279,6 +280,7 @@ typedef struct AppData {
     AtomCache atoms;                        // Cached X11 atoms
     HarpoonManager harpoon;                 // Harpoon number assignments
     MatchEntryManager matching;            // Custom window matching registry
+    LayoutStore layouts;                    // Saved window layouts by stable match_id
     CofiConfig config;                      // Unified configuration settings
     WorkspaceSlotManager workspace_slots;   // Per-workspace window slot assignments
     SlotOverlayState slot_overlays;         // Active slot number overlays

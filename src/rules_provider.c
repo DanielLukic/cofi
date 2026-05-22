@@ -201,11 +201,11 @@ static gboolean rules_command_handler(AppData *app,
 
 static const CommandSpec s_rules_command = {
     .primary = "rules",
-    .aliases = {"rl", NULL},
+    .aliases = {"rs", NULL},
     .owner_provider_id = "rules",
     .handler = rules_command_handler,
     .description = "Switch to Rules tab",
-    .help_format = "rules, rl",
+    .help_format = "rules, rs",
     .keeps_open_on_hotkey_auto = 1
 };
 

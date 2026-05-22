@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "../src/layout_store.h"
 #include "../src/match_entry.h"
 #include "../src/match_entry_config.h"
 #include "../src/window_geometry_matching.h"
@@ -10,13 +11,25 @@
 #include "../src/utils.h"
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
+static int g_geom_x = 11;
+static int g_geom_y = 22;
+static int g_geom_w = 333;
+static int g_geom_h = 444;
+static int g_geom_desktop = 5;
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
-    (void)display; (void)window; (void)x; (void)y; (void)width; (void)height; return FALSE;
+    (void)display;
+    (void)window;
+    if (x) *x = g_geom_x;
+    if (y) *y = g_geom_y;
+    if (width) *width = g_geom_w;
+    if (height) *height = g_geom_h;
+    return TRUE;
 }
-int get_window_desktop(Display *display, Window window) { (void)display; (void)window; return 0; }
+int get_window_desktop(Display *display, Window window) { (void)display; (void)window; return g_geom_desktop; }
 void move_window_to_desktop(Display *display, Window window, int desktop_index) {
     (void)display; (void)window; (void)desktop_index;
 }
+int matching_run_gc(AppData *app) { (void)app; return 0; }
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -624,87 +637,60 @@ static void test_match_entry_collect_labeled_ids(void) {
     ASSERT_INT("second labeled id collected", mgr.entries[2].match_id, referenced_ids[1]);
 }
 
-static void test_geometry_persists_on_deduped_match_entry(void) {
-    printf("\n--- geometry persists on deduped match entry ---\n");
+static void test_layout_save_persists_on_deduped_match_id(void) {
+    printf("\n--- layout save persists on deduped match id ---\n");
 
-    set_test_home("geometry-persist");
+    set_test_home("layout-persist");
 
-    MatchEntryManager mgr;
-    match_entry_manager_init(&mgr);
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
+    layout_store_init(&app.layouts);
+    app.display = (Display *)0x1;
 
-    WindowInfo windows[1];
-    windows[0] = make_window(0x401, "Geom Window", "ClassGeom", "instGeom", "Normal");
+    app.windows[0] = make_window(0x401, "Geom Window", "ClassGeom", "instGeom", "Normal");
+    app.window_count = 1;
 
-    int match_id_a = matching_capture_or_get(&mgr, windows, 1, &windows[0]);
-    int match_id_b = matching_capture_or_get(&mgr, windows, 1, &windows[0]);
-    ASSERT_INT("deduped capture returns same match_id", match_id_a, match_id_b);
-    ASSERT_INT("deduped capture keeps one entry", 1, mgr.count);
+    ASSERT_INT("first layout save succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("second layout save succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("deduped capture keeps one match entry", 1, app.matching.count);
+    ASSERT_INT("deduped layout save keeps one layout", 1, app.layouts.count);
 
-    int idx = match_entry_find_index_by_match_id(&mgr, match_id_a);
-    ASSERT_INT("geometry entry exists", 0, idx);
-    mgr.entries[idx].geom_x = 11;
-    mgr.entries[idx].geom_y = 22;
-    mgr.entries[idx].geom_w = 333;
-    mgr.entries[idx].geom_h = 444;
-    mgr.entries[idx].geom_desktop = 5;
-    mgr.entries[idx].has_geom = 1;
+    MatchEntryManager loaded_matching;
+    LayoutStore loaded_layouts;
+    load_match_entries(&loaded_matching);
+    layout_store_init(&loaded_layouts);
+    layout_store_load(&loaded_layouts);
 
-    save_match_entries(&mgr);
-
-    MatchEntryManager loaded;
-    load_match_entries(&loaded);
-    ASSERT_INT("reloaded one entry", 1, loaded.count);
-    ASSERT_INT("reloaded geom x", 11, loaded.entries[0].geom_x);
-    ASSERT_INT("reloaded geom y", 22, loaded.entries[0].geom_y);
-    ASSERT_INT("reloaded geom w", 333, loaded.entries[0].geom_w);
-    ASSERT_INT("reloaded geom h", 444, loaded.entries[0].geom_h);
-    ASSERT_INT("reloaded geom desktop", 5, loaded.entries[0].geom_desktop);
-    ASSERT_INT("reloaded has_geom", 1, loaded.entries[0].has_geom);
+    ASSERT_INT("reloaded one match entry", 1, loaded_matching.count);
+    ASSERT_INT("reloaded one layout", 1, loaded_layouts.count);
+    ASSERT_INT("layout stored against deduped match_id",
+               loaded_matching.entries[0].match_id, loaded_layouts.records[0].match_id);
+    ASSERT_INT("layout x persisted", g_geom_x, loaded_layouts.records[0].x);
+    ASSERT_INT("layout y persisted", g_geom_y, loaded_layouts.records[0].y);
+    ASSERT_INT("layout width persisted", g_geom_w, loaded_layouts.records[0].width);
+    ASSERT_INT("layout height persisted", g_geom_h, loaded_layouts.records[0].height);
+    ASSERT_INT("layout desktop persisted", g_geom_desktop, loaded_layouts.records[0].desktop);
 }
 
-static void test_collect_geom_ids_returns_only_geometry_entries(void) {
-    printf("\n--- match_entry_collect_geom_ids returns only geometry entries ---\n");
+static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(void) {
+    printf("\n--- layout restore resolve ---\n");
 
     MatchEntryManager mgr;
+    LayoutStore store;
     match_entry_manager_init(&mgr);
-
-    WindowInfo windows[3];
-    windows[0] = make_window(0x411, "No Geom", "ClassA", "instA", "Normal");
-    windows[1] = make_window(0x422, "Geom A", "ClassB", "instB", "Normal");
-    windows[2] = make_window(0x433, "Geom B", "ClassC", "instC", "Normal");
-
-    matching_capture_or_get(&mgr, windows, 3, &windows[0]);
-    int geom_a = matching_capture_or_get(&mgr, windows, 3, &windows[1]);
-    int geom_b = matching_capture_or_get(&mgr, windows, 3, &windows[2]);
-    mgr.entries[1].has_geom = 1;
-    mgr.entries[2].has_geom = 1;
-
-    int ids[MAX_WINDOWS] = {0};
-    int count = match_entry_collect_geom_ids(&mgr, ids, MAX_WINDOWS);
-
-    ASSERT_INT("two geometry ids collected", 2, count);
-    ASSERT_INT("first geometry id collected", geom_a, ids[0]);
-    ASSERT_INT("second geometry id collected", geom_b, ids[1]);
-}
-
-static void test_geometry_restore_resolve_requires_live_geom_binding(void) {
-    printf("\n--- geometry restore resolve ---\n");
-
-    MatchEntryManager mgr;
-    match_entry_manager_init(&mgr);
+    layout_store_init(&store);
 
     WindowInfo w = make_window(0x444, "Restore Me", "ClassR", "instR", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "restore");
-    mgr.entries[0].geom_x = 70;
-    mgr.entries[0].geom_y = 80;
-    mgr.entries[0].geom_w = 900;
-    mgr.entries[0].geom_h = 700;
-    mgr.entries[0].geom_desktop = 2;
-    mgr.entries[0].has_geom = 1;
+    ASSERT_INT("layout record stored", TRUE,
+               layout_store_set(&store, mgr.entries[0].match_id, 70, 80, 900, 700, 2));
 
     WindowGeometryRestoreTarget target = {0};
-    ASSERT_INT("resolve succeeds for live bound geometry entry", TRUE,
-               resolve_window_geometry_restore_target(&mgr, mgr.entries[0].match_id, &target));
+    ASSERT_INT("resolve succeeds for live bound layout entry", TRUE,
+               resolve_window_geometry_restore_target(&mgr, &store, mgr.entries[0].match_id, &target));
     ASSERT_INT("resolve returns bound window", (int)w.id, (int)target.window);
     ASSERT_INT("resolve returns x", 70, target.x);
     ASSERT_INT("resolve returns y", 80, target.y);
@@ -714,12 +700,12 @@ static void test_geometry_restore_resolve_requires_live_geom_binding(void) {
 
     mgr.entries[0].assigned = 0;
     ASSERT_INT("resolve fails when entry is not live-bound", FALSE,
-               resolve_window_geometry_restore_target(&mgr, mgr.entries[0].match_id, &target));
+               resolve_window_geometry_restore_target(&mgr, &store, mgr.entries[0].match_id, &target));
 
     mgr.entries[0].assigned = 1;
-    mgr.entries[0].has_geom = 0;
-    ASSERT_INT("resolve fails without geometry consumer", FALSE,
-               resolve_window_geometry_restore_target(&mgr, mgr.entries[0].match_id, &target));
+    ASSERT_INT("layout cleared", TRUE, layout_store_clear(&store, mgr.entries[0].match_id));
+    ASSERT_INT("resolve fails without saved layout", FALSE,
+               resolve_window_geometry_restore_target(&mgr, &store, mgr.entries[0].match_id, &target));
 }
 
 static void test_match_entry_gc_is_pure_reference_check(void) {
@@ -802,9 +788,8 @@ int main(void) {
     test_startup_load_then_reassign_path();
     test_glob_pattern_persists_and_rebinds_changed_title();
     test_match_entry_collect_labeled_ids();
-    test_geometry_persists_on_deduped_match_entry();
-    test_collect_geom_ids_returns_only_geometry_entries();
-    test_geometry_restore_resolve_requires_live_geom_binding();
+    test_layout_save_persists_on_deduped_match_id();
+    test_layout_restore_resolve_requires_live_binding_and_saved_layout();
     test_match_entry_gc_is_pure_reference_check();
     test_match_entry_gc_removes_only_unreferenced_ids();
 

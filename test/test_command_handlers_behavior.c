@@ -42,6 +42,9 @@ static int g_highlight_calls = 0;
 static Window g_last_highlight_window = 0;
 static int g_activate_calls = 0;
 static Window g_last_activate_window = 0;
+static int g_save_layout_calls = 0;
+static int g_restore_layout_calls = 0;
+static int g_clear_layout_calls = 0;
 
 // --- shared stubs for handler dependencies ---
 void hide_window(AppData *app) {
@@ -82,7 +85,7 @@ static gboolean noop_provider_command(AppData *app, WindowInfo *window, const ch
 
 static const CommandSpec s_rules_command = {
     .primary = "rules",
-    .aliases = {"rl", NULL},
+    .aliases = {"rs", NULL},
     .owner_provider_id = "rules",
     .handler = noop_provider_command,
 };
@@ -259,6 +262,24 @@ gboolean get_window_geometry(Display *display, Window window, int *x, int *y, in
     if (h) *h = 100;
     return TRUE;
 }
+gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    (void)app;
+    (void)window;
+    g_save_layout_calls++;
+    return TRUE;
+}
+gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    (void)app;
+    (void)window;
+    g_restore_layout_calls++;
+    return TRUE;
+}
+gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    (void)app;
+    (void)window;
+    g_clear_layout_calls++;
+    return TRUE;
+}
 
 void save_config(const CofiConfig *config) { (void)config; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
@@ -367,6 +388,43 @@ static void test_window_state_handlers_behavior(void) {
     test_window_state_handler("ew", "_NET_WM_STATE_STICKY");
 }
 
+static void test_layout_command_behavior(void) {
+    AppData app;
+    WindowInfo window;
+    memset(&app, 0, sizeof(app));
+    memset(&window, 0, sizeof(window));
+    window.id = 0xBEEF;
+
+    const CommandSpec *save_cmd = cofi_command_by_primary("save-layout");
+    const CommandSpec *restore_cmd = cofi_command_by_primary("restore-layout");
+    const CommandSpec *clear_cmd = cofi_command_by_primary("clear-layout");
+
+    ASSERT_TRUE("save-layout command exists", save_cmd != NULL);
+    ASSERT_TRUE("restore-layout command exists", restore_cmd != NULL);
+    ASSERT_TRUE("clear-layout command exists", clear_cmd != NULL);
+    if (!save_cmd || !restore_cmd || !clear_cmd) return;
+
+    g_save_layout_calls = 0;
+    ASSERT_TRUE("save-layout rejects missing window", save_cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("save-layout missing window is no-op", g_save_layout_calls == 0);
+    ASSERT_TRUE("save-layout alias resolves", cofi_command_for_token("sl") == save_cmd);
+    ASSERT_TRUE("save-layout dispatches helper", save_cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("save-layout calls helper once", g_save_layout_calls == 1);
+
+    g_restore_layout_calls = 0;
+    ASSERT_TRUE("restore-layout rejects missing window", restore_cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("restore-layout missing window is no-op", g_restore_layout_calls == 0);
+    ASSERT_TRUE("restore-layout alias resolves", cofi_command_for_token("rl") == restore_cmd);
+    ASSERT_TRUE("restore-layout dispatches helper", restore_cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("restore-layout calls helper once", g_restore_layout_calls == 1);
+
+    g_clear_layout_calls = 0;
+    ASSERT_TRUE("clear-layout rejects missing window", clear_cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("clear-layout missing window is no-op", g_clear_layout_calls == 0);
+    ASSERT_TRUE("clear-layout dispatches helper", clear_cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("clear-layout calls helper once", g_clear_layout_calls == 1);
+}
+
 static void test_workspace_handler_behavior(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
@@ -464,6 +522,7 @@ int main(void) {
     init_stub_providers();
     test_window_handler_behavior();
     test_window_state_handlers_behavior();
+    test_layout_command_behavior();
     test_workspace_handler_behavior();
     test_jump_slot_handler_behavior();
     test_tiling_handler_behavior();

@@ -1,47 +1,33 @@
 #include "window_geometry_matching.h"
 
-#include <X11/Xatom.h>
-#include <string.h>
-
+#include "layout_store.h"
 #include "log.h"
+#include "matching_gc.h"
 #include "match_entry_config.h"
 #include "monitor_move.h"
-#include "selection.h"
 #include "x11_utils.h"
 
-static gboolean is_geometry_save_shortcut(const GdkEventKey *event) {
-    return event &&
-           (event->state & GDK_CONTROL_MASK) &&
-           !(event->state & (GDK_SHIFT_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK)) &&
-           event->keyval == GDK_KEY_semicolon;
-}
-
-static gboolean is_geometry_restore_shortcut(const GdkEventKey *event) {
-    return event &&
-           (event->state & GDK_CONTROL_MASK) &&
-           !(event->state & (GDK_SHIFT_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK)) &&
-           event->keyval == GDK_KEY_apostrophe;
-}
-
 gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager,
+                                                const LayoutStore *store,
                                                 int match_id,
                                                 WindowGeometryRestoreTarget *out) {
-    if (!manager || !out || match_id <= 0) return FALSE;
+    if (!manager || !store || !out || match_id <= 0) return FALSE;
 
     int idx = match_entry_find_index_by_match_id(manager, match_id);
     if (idx < 0) return FALSE;
 
     const MatchEntry *entry = &manager->entries[idx];
-    if (!entry->has_geom || !entry->assigned || entry->bound_x11_id == 0) {
+    const LayoutRecord *record = layout_store_get(store, match_id);
+    if (!record || !entry->assigned || entry->bound_x11_id == 0) {
         return FALSE;
     }
 
     out->window = entry->bound_x11_id;
-    out->x = entry->geom_x;
-    out->y = entry->geom_y;
-    out->width = entry->geom_w;
-    out->height = entry->geom_h;
-    out->desktop = entry->geom_desktop;
+    out->x = record->x;
+    out->y = record->y;
+    out->width = record->width;
+    out->height = record->height;
+    out->desktop = record->desktop;
     return TRUE;
 }
 
@@ -60,92 +46,108 @@ gboolean apply_window_geometry_restore(Display *display,
     return TRUE;
 }
 
-gboolean handle_window_geometry_save(GdkEventKey *event, AppData *app) {
-    if (!is_geometry_save_shortcut(event)) {
+static gboolean resolve_existing_match_id_for_window(AppData *app,
+                                                     const WindowInfo *window,
+                                                     int *match_id_out) {
+    if (!app || !window || !match_id_out) {
         return FALSE;
     }
 
-    if (!app || app->current_tab != TAB_WINDOWS) {
+    int idx = match_entry_find_index_by_window(&app->matching, window->id);
+    if (idx >= 0) {
+        *match_id_out = app->matching.entries[idx].match_id;
+        return *match_id_out > 0;
+    }
+
+    if (match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count)) {
+        save_match_entries(&app->matching);
+    }
+
+    idx = match_entry_find_index_by_window(&app->matching, window->id);
+    if (idx < 0) {
         return FALSE;
     }
 
-    WindowInfo *selected_window = get_selected_window(app);
-    if (!selected_window) {
-        return FALSE;
-    }
+    *match_id_out = app->matching.entries[idx].match_id;
+    return *match_id_out > 0;
+}
 
+gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    if (!app || !window) return FALSE;
     int x = 0, y = 0, width = 0, height = 0;
-    if (!get_window_geometry(app->display, selected_window->id, &x, &y, &width, &height)) {
-        log_warn("Failed to capture geometry for window 0x%lx", selected_window->id);
-        return TRUE;
+    if (!get_window_geometry(app->display, window->id, &x, &y, &width, &height)) {
+        log_warn("Failed to capture geometry for window 0x%lx", window->id);
+        return FALSE;
     }
 
-    int desktop = get_window_desktop(app->display, selected_window->id);
+    int desktop = get_window_desktop(app->display, window->id);
     int match_id = matching_capture_or_get(&app->matching, app->windows,
-                                           app->window_count, selected_window);
+                                           app->window_count, window);
     if (match_id <= 0) {
         log_warn("Failed to capture matching entry for geometry save on window 0x%lx",
-                 selected_window->id);
-        return TRUE;
+                 window->id);
+        return FALSE;
     }
 
-    int idx = match_entry_find_index_by_match_id(&app->matching, match_id);
-    if (idx < 0) {
-        log_warn("Captured match_id %d but could not resolve geometry entry", match_id);
-        return TRUE;
+    if (!layout_store_set(&app->layouts, match_id, x, y, width, height, desktop)) {
+        log_warn("Failed to store layout for window 0x%lx (match_id=%d)",
+                 window->id, match_id);
+        return FALSE;
     }
 
-    MatchEntry *entry = &app->matching.entries[idx];
-    entry->geom_x = x;
-    entry->geom_y = y;
-    entry->geom_w = width;
-    entry->geom_h = height;
-    entry->geom_desktop = desktop;
-    entry->has_geom = 1;
     save_match_entries(&app->matching);
+    layout_store_save(&app->layouts);
 
-    log_info("Saved geometry for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
-             selected_window->id, match_id, x, y, width, height, desktop);
+    log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
+             window->id, match_id, x, y, width, height, desktop);
     return TRUE;
 }
 
-gboolean handle_window_geometry_restore(GdkEventKey *event, AppData *app) {
-    if (!is_geometry_restore_shortcut(event)) {
-        return FALSE;
-    }
-
-    if (!app || app->current_tab != TAB_WINDOWS) {
-        return FALSE;
-    }
-
-    WindowInfo *selected_window = get_selected_window(app);
-    if (!selected_window) {
-        return FALSE;
-    }
-
-    int match_id = matching_capture_or_get(&app->matching, app->windows,
-                                           app->window_count, selected_window);
-    if (match_id <= 0) {
-        log_warn("Failed to capture matching entry for geometry restore on window 0x%lx",
-                 selected_window->id);
+gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    if (!app || !window) return FALSE;
+    int match_id = 0;
+    if (!resolve_existing_match_id_for_window(app, window, &match_id)) {
+        log_info("No saved layout binding for window 0x%lx", window->id);
         return TRUE;
     }
 
     WindowGeometryRestoreTarget target = {0};
-    if (!resolve_window_geometry_restore_target(&app->matching, match_id, &target)) {
-        log_info("No saved geometry for window 0x%lx (match_id=%d)",
-                 selected_window->id, match_id);
+    if (!resolve_window_geometry_restore_target(&app->matching, &app->layouts,
+                                                match_id, &target)) {
+        log_info("No saved layout for window 0x%lx (match_id=%d)",
+                 window->id, match_id);
         return TRUE;
     }
 
     if (!apply_window_geometry_restore(app->display, &target)) {
-        log_warn("Failed to apply saved geometry for window 0x%lx (match_id=%d)",
-                 selected_window->id, match_id);
+        log_warn("Failed to apply saved layout for window 0x%lx (match_id=%d)",
+                 window->id, match_id);
+        return FALSE;
+    }
+
+    log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
+             target.window, match_id, target.x, target.y,
+             target.width, target.height, target.desktop);
+    return TRUE;
+}
+
+gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window) {
+    if (!app || !window) return FALSE;
+
+    int match_id = 0;
+    if (!resolve_existing_match_id_for_window(app, window, &match_id)) {
+        log_info("No saved layout binding to clear for window 0x%lx", window->id);
         return TRUE;
     }
 
-    log_info("Restored geometry for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
-             target.window, match_id, target.x, target.y,
-             target.width, target.height, target.desktop);
+    if (!layout_store_clear(&app->layouts, match_id)) {
+        log_info("No saved layout to clear for window 0x%lx (match_id=%d)",
+                 window->id, match_id);
+        return TRUE;
+    }
+
+    layout_store_save(&app->layouts);
+    matching_run_gc(app);
+    log_info("Cleared saved layout for window 0x%lx (match_id=%d)", window->id, match_id);
     return TRUE;
 }

@@ -72,31 +72,6 @@ void unassign_slot(HarpoonManager *manager, int slot) {
     slot_clear(&manager->store, harpoon_tab_id(), slot_key_from_index(slot));
 }
 
-int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) {
-    if (!manager || !manager->matching) return 0;
-
-    // Compose consumer references here so more matching consumers can append ids
-    // without teaching match_entry.c about harpoon, geom, or any other owner.
-    int referenced_ids[MAX_HARPOON_SLOTS + (MAX_WINDOWS * 2)];
-    int referenced_count = 0;
-    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
-        if (!manager->slots[i].assigned || manager->slots[i].match_id <= 0) {
-            continue;
-        }
-        referenced_ids[referenced_count++] = manager->slots[i].match_id;
-    }
-
-    referenced_count += match_entry_collect_labeled_ids(manager->matching,
-                                                        referenced_ids + referenced_count,
-                                                        (int)(sizeof(referenced_ids) / sizeof(referenced_ids[0])) - referenced_count);
-
-    referenced_count += match_entry_collect_geom_ids(manager->matching,
-                                                     referenced_ids + referenced_count,
-                                                     (int)(sizeof(referenced_ids) / sizeof(referenced_ids[0])) - referenced_count);
-
-    return match_entry_gc(manager->matching, referenced_ids, referenced_count);
-}
-
 static MatchEntry *resolve_slot_entry(const HarpoonManager *manager, int slot) {
     if (!manager || slot < 0 || slot >= MAX_HARPOON_SLOTS) return NULL;
     if (!manager->matching) return NULL;

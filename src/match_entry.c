@@ -44,12 +44,6 @@ void match_entry_manager_init(MatchEntryManager *manager) {
         manager->entries[i].instance[0] = '\0';
         manager->entries[i].type[0] = '\0';
         manager->entries[i].match_mode = TITLE_MATCH_MODE_EXACT;
-        manager->entries[i].geom_x = 0;
-        manager->entries[i].geom_y = 0;
-        manager->entries[i].geom_w = 0;
-        manager->entries[i].geom_h = 0;
-        manager->entries[i].geom_desktop = 0;
-        manager->entries[i].has_geom = 0;
     }
 }
 
@@ -201,20 +195,6 @@ int match_entry_collect_labeled_ids(const MatchEntryManager *manager, int *out, 
     int count = 0;
     for (int i = 0; i < manager->count && count < max; i++) {
         if (manager->entries[i].custom_name[0] == '\0' || manager->entries[i].match_id <= 0) {
-            continue;
-        }
-        out[count++] = manager->entries[i].match_id;
-    }
-
-    return count;
-}
-
-int match_entry_collect_geom_ids(const MatchEntryManager *manager, int *out, int max) {
-    if (!manager || !out || max <= 0) return 0;
-
-    int count = 0;
-    for (int i = 0; i < manager->count && count < max; i++) {
-        if (!manager->entries[i].has_geom || manager->entries[i].match_id <= 0) {
             continue;
         }
         out[count++] = manager->entries[i].match_id;

@@ -7,6 +7,7 @@
 #include "harpoon.h"
 #include "match_entry.h"
 #include "match_entry_config.h"
+#include "layout_store.h"
 #include "filter.h"
 #include "log.h"
 #include "utils.h"
@@ -96,6 +97,7 @@ void init_app_data(AppData *app) {
 
     // Initialize named windows manager
     match_entry_manager_init(&app->matching);
+    layout_store_init(&app->layouts);
     app->filtered_matching_count = 0;
     app->harpoon.matching = &app->matching;
     app->harpoon.windows = app->windows;

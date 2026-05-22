@@ -3,10 +3,13 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include "../src/app_data.h"
 #include "../src/harpoon.h"
 #include "../src/harpoon_config.h"
+#include "../src/layout_store.h"
 #include "../src/match_entry.h"
 #include "../src/match_entry_config.h"
+#include "../src/matching_gc.h"
 #include "../src/utils.h"
 
 static int tests_run = 0;
@@ -56,6 +59,16 @@ static int load_saved_matching_count(void) {
     MatchEntryManager loaded;
     load_match_entries(&loaded);
     return loaded.count;
+}
+
+static void init_gc_app(AppData *app) {
+    memset(app, 0, sizeof(*app));
+    match_entry_manager_init(&app->matching);
+    init_harpoon_manager(&app->harpoon);
+    layout_store_init(&app->layouts);
+    app->harpoon.matching = &app->matching;
+    app->harpoon.windows = app->windows;
+    app->harpoon.window_count = &app->window_count;
 }
 
 static void test_glob_slot_survives_title_drift_but_exact_does_not(void) {
@@ -167,121 +180,87 @@ static void test_slot_rebinds_after_orphaned_reopen_cycle(void) {
 static void test_unassign_gc_removes_unlabeled_unreferenced_entry(void) {
     set_test_home("gc-unassign");
 
-    MatchEntryManager matching;
-    HarpoonManager harpoon;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    int window_count = 1;
+    AppData app;
+    init_gc_app(&app);
+    app.window_count = 1;
+    app.windows[0] = make_window(0x901, "Harpoon Me", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&app.harpoon, 1, &app.windows[0]);
+    ASSERT_TRUE("gc test created one match entry", app.matching.count == 1);
+    ASSERT_TRUE("gc test entry is unlabeled", app.matching.entries[0].custom_name[0] == '\0');
 
-    match_entry_manager_init(&matching);
-    init_harpoon_manager(&harpoon);
-    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
-
-    windows[0] = make_window(0x901, "Harpoon Me", "Kitty", "kitty", "Normal");
-    assign_window_to_slot(&harpoon, 1, &windows[0]);
-    ASSERT_TRUE("gc test created one match entry", matching.count == 1);
-    ASSERT_TRUE("gc test entry is unlabeled", matching.entries[0].custom_name[0] == '\0');
-
-    unassign_slot(&harpoon, 1);
+    unassign_slot(&app.harpoon, 1);
     ASSERT_TRUE("gc removes unlabeled unreferenced entry",
-                harpoon_gc_unreferenced_match_entries(&harpoon) == 1);
-    ASSERT_TRUE("manager count drops to zero", matching.count == 0);
+                matching_run_gc(&app) == 1);
+    ASSERT_TRUE("manager count drops to zero", app.matching.count == 0);
 
-    save_match_entries(&matching);
+    save_match_entries(&app.matching);
     ASSERT_TRUE("matching.json saved empty after gc", load_saved_matching_count() == 0);
 }
 
 static void test_gc_keeps_labeled_entry_without_harpoon_reference(void) {
     set_test_home("gc-labeled");
 
-    MatchEntryManager matching;
-    HarpoonManager harpoon;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    int window_count = 1;
+    AppData app;
+    init_gc_app(&app);
+    app.window_count = 1;
+    app.windows[0] = make_window(0x902, "Keep Me", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&app.harpoon, 2, &app.windows[0]);
+    safe_string_copy(app.matching.entries[0].custom_name, "named", sizeof(app.matching.entries[0].custom_name));
 
-    match_entry_manager_init(&matching);
-    init_harpoon_manager(&harpoon);
-    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
-
-    windows[0] = make_window(0x902, "Keep Me", "Kitty", "kitty", "Normal");
-    assign_window_to_slot(&harpoon, 2, &windows[0]);
-    safe_string_copy(matching.entries[0].custom_name, "named", sizeof(matching.entries[0].custom_name));
-
-    unassign_slot(&harpoon, 2);
-    ASSERT_TRUE("labeled entry survives gc", harpoon_gc_unreferenced_match_entries(&harpoon) == 0);
-    ASSERT_TRUE("labeled entry remains present", matching.count == 1);
-    ASSERT_TRUE("labeled entry name preserved", strcmp(matching.entries[0].custom_name, "named") == 0);
+    unassign_slot(&app.harpoon, 2);
+    ASSERT_TRUE("labeled entry survives gc", matching_run_gc(&app) == 0);
+    ASSERT_TRUE("labeled entry remains present", app.matching.count == 1);
+    ASSERT_TRUE("labeled entry name preserved", strcmp(app.matching.entries[0].custom_name, "named") == 0);
 }
 
-static void test_gc_keeps_geometry_only_entry_without_harpoon_reference(void) {
-    set_test_home("gc-geom");
+static void test_gc_keeps_layout_only_entry_without_harpoon_reference(void) {
+    set_test_home("gc-layout");
 
-    MatchEntryManager matching;
-    HarpoonManager harpoon;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    int window_count = 1;
+    AppData app;
+    init_gc_app(&app);
+    app.window_count = 1;
+    app.windows[0] = make_window(0x90A, "Keep Layout", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&app.harpoon, 2, &app.windows[0]);
+    ASSERT_TRUE("layout-only record stored", layout_store_set(&app.layouts,
+                app.harpoon.slots[2].match_id, 1, 2, 300, 200, 4) == true);
 
-    match_entry_manager_init(&matching);
-    init_harpoon_manager(&harpoon);
-    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
-
-    windows[0] = make_window(0x90A, "Keep Geom", "Kitty", "kitty", "Normal");
-    assign_window_to_slot(&harpoon, 2, &windows[0]);
-    matching.entries[0].has_geom = 1;
-    matching.entries[0].geom_x = 1;
-    matching.entries[0].geom_y = 2;
-    matching.entries[0].geom_w = 300;
-    matching.entries[0].geom_h = 200;
-    matching.entries[0].geom_desktop = 4;
-
-    unassign_slot(&harpoon, 2);
-    ASSERT_TRUE("geometry-only entry survives gc", harpoon_gc_unreferenced_match_entries(&harpoon) == 0);
-    ASSERT_TRUE("geometry-only entry remains present", matching.count == 1);
-    ASSERT_TRUE("geometry flag preserved", matching.entries[0].has_geom == 1);
+    unassign_slot(&app.harpoon, 2);
+    ASSERT_TRUE("layout-only entry survives gc", matching_run_gc(&app) == 0);
+    ASSERT_TRUE("layout-only entry remains present", app.matching.count == 1);
+    ASSERT_TRUE("layout id preserved", app.layouts.records[0].match_id == app.matching.entries[0].match_id);
 }
 
 static void test_gc_keeps_entry_referenced_by_live_harpoon_slot(void) {
     set_test_home("gc-referenced");
 
-    MatchEntryManager matching;
-    HarpoonManager harpoon;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    int window_count = 1;
+    AppData app;
+    init_gc_app(&app);
+    app.window_count = 1;
+    app.windows[0] = make_window(0x903, "Still Referenced", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&app.harpoon, 3, &app.windows[0]);
 
-    match_entry_manager_init(&matching);
-    init_harpoon_manager(&harpoon);
-    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
-
-    windows[0] = make_window(0x903, "Still Referenced", "Kitty", "kitty", "Normal");
-    assign_window_to_slot(&harpoon, 3, &windows[0]);
-
-    ASSERT_TRUE("referenced unlabeled entry survives gc", harpoon_gc_unreferenced_match_entries(&harpoon) == 0);
-    ASSERT_TRUE("referenced entry remains present", matching.count == 1);
-    ASSERT_TRUE("referenced slot still resolves", get_slot_window(&harpoon, 3) == 0x903);
+    ASSERT_TRUE("referenced unlabeled entry survives gc", matching_run_gc(&app) == 0);
+    ASSERT_TRUE("referenced entry remains present", app.matching.count == 1);
+    ASSERT_TRUE("referenced slot still resolves", get_slot_window(&app.harpoon, 3) == 0x903);
 }
 
 static void test_window_close_keeps_entry_while_slot_still_references_it(void) {
     set_test_home("gc-close");
 
-    MatchEntryManager matching;
-    HarpoonManager harpoon;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    int window_count = 1;
+    AppData app;
+    init_gc_app(&app);
+    app.window_count = 1;
+    app.windows[0] = make_window(0x904, "Close Me", "Kitty", "kitty", "Normal");
+    assign_window_to_slot(&app.harpoon, 4, &app.windows[0]);
+    ASSERT_TRUE("close test entry created", app.matching.count == 1);
 
-    match_entry_manager_init(&matching);
-    init_harpoon_manager(&harpoon);
-    wire_harpoon_context(&harpoon, &matching, windows, &window_count);
-
-    windows[0] = make_window(0x904, "Close Me", "Kitty", "kitty", "Normal");
-    assign_window_to_slot(&harpoon, 4, &windows[0]);
-    ASSERT_TRUE("close test entry created", matching.count == 1);
-
-    window_count = 0;
+    app.window_count = 0;
     ASSERT_TRUE("close orphaning pass reports change",
-                match_entry_reassign_live_windows(&matching, windows, window_count));
-    ASSERT_TRUE("close leaves slot assigned", harpoon.slots[4].assigned == 1);
-    ASSERT_TRUE("close clears live binding", matching.entries[0].bound_x11_id == 0);
-    ASSERT_TRUE("close keeps entry during gc", harpoon_gc_unreferenced_match_entries(&harpoon) == 0);
-    ASSERT_TRUE("close keeps entry in manager", matching.count == 1);
+                match_entry_reassign_live_windows(&app.matching, app.windows, app.window_count));
+    ASSERT_TRUE("close leaves slot assigned", app.harpoon.slots[4].assigned == 1);
+    ASSERT_TRUE("close clears live binding", app.matching.entries[0].bound_x11_id == 0);
+    ASSERT_TRUE("close keeps entry during gc", matching_run_gc(&app) == 0);
+    ASSERT_TRUE("close keeps entry in manager", app.matching.count == 1);
 }
 
 static void test_match_id_persists_and_reloads_with_rebind(void) {
@@ -337,7 +316,7 @@ int main(void) {
     test_slot_rebinds_after_orphaned_reopen_cycle();
     test_unassign_gc_removes_unlabeled_unreferenced_entry();
     test_gc_keeps_labeled_entry_without_harpoon_reference();
-    test_gc_keeps_geometry_only_entry_without_harpoon_reference();
+    test_gc_keeps_layout_only_entry_without_harpoon_reference();
     test_gc_keeps_entry_referenced_by_live_harpoon_slot();
     test_window_close_keeps_entry_while_slot_still_references_it();
     test_match_id_persists_and_reloads_with_rebind();

@@ -353,6 +353,7 @@ int run_cofi(int argc, char *argv[]) {
         app.current_tab = TAB_WINDOWS;
     }
     load_harpoon_slots(&app.harpoon);
+    layout_store_load(&app.layouts);
 
     if (!log_level_from_cli && app.config.log_level[0]) {
         int level = parse_log_level(app.config.log_level);

@@ -86,13 +86,7 @@ void save_match_entries(const MatchEntryManager *manager) {
         fprintf(file, "      \"type\": \"%s\",\n", entry->type);
         fprintf(file, "      \"match_mode\": \"%s\",\n",
                 entry->match_mode == TITLE_MATCH_MODE_GLOB ? "GLOB" : "EXACT");
-        fprintf(file, "      \"assigned\": %d,\n", entry->assigned);
-        fprintf(file, "      \"geom_x\": %d,\n", entry->geom_x);
-        fprintf(file, "      \"geom_y\": %d,\n", entry->geom_y);
-        fprintf(file, "      \"geom_w\": %d,\n", entry->geom_w);
-        fprintf(file, "      \"geom_h\": %d,\n", entry->geom_h);
-        fprintf(file, "      \"geom_desktop\": %d,\n", entry->geom_desktop);
-        fprintf(file, "      \"has_geom\": %d\n", entry->has_geom);
+        fprintf(file, "      \"assigned\": %d\n", entry->assigned);
         fprintf(file, "    }");
     }
     
@@ -193,21 +187,6 @@ static void parse_match_entry_line(const char *line, MatchEntry *temp_entry, int
         int assigned;
         if (sscanf(line, " \"assigned\": %d", &assigned) == 1) {
             temp_entry->assigned = assigned;
-        }
-    } else if (strstr(line, "\"geom_x\":")) {
-        sscanf(line, " \"geom_x\": %d", &temp_entry->geom_x);
-    } else if (strstr(line, "\"geom_y\":")) {
-        sscanf(line, " \"geom_y\": %d", &temp_entry->geom_y);
-    } else if (strstr(line, "\"geom_w\":")) {
-        sscanf(line, " \"geom_w\": %d", &temp_entry->geom_w);
-    } else if (strstr(line, "\"geom_h\":")) {
-        sscanf(line, " \"geom_h\": %d", &temp_entry->geom_h);
-    } else if (strstr(line, "\"geom_desktop\":")) {
-        sscanf(line, " \"geom_desktop\": %d", &temp_entry->geom_desktop);
-    } else if (strstr(line, "\"has_geom\":")) {
-        int has_geom;
-        if (sscanf(line, " \"has_geom\": %d", &has_geom) == 1) {
-            temp_entry->has_geom = has_geom;
         }
     }
 }

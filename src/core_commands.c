@@ -101,6 +101,33 @@ static const CommandSpec s_core_commands[] = {
         .help_format = "js, jump-slot N"
     },
     {
+        .primary = "save-layout",
+        .aliases = {"sl", NULL},
+        .owner_provider_id = COMMAND_OWNER_CORE,
+        .handler = cmd_save_layout,
+        .description = "Save the selected window's position, size and workspace",
+        .help_format = "save-layout, sl",
+        .activates = 1
+    },
+    {
+        .primary = "restore-layout",
+        .aliases = {"rl", NULL},
+        .owner_provider_id = COMMAND_OWNER_CORE,
+        .handler = cmd_restore_layout,
+        .description = "Restore the saved position, size and workspace",
+        .help_format = "restore-layout, rl",
+        .activates = 1
+    },
+    {
+        .primary = "clear-layout",
+        .aliases = {NULL},
+        .owner_provider_id = COMMAND_OWNER_CORE,
+        .handler = cmd_clear_layout,
+        .description = "Forget the saved layout for the selected window",
+        .help_format = "clear-layout",
+        .activates = 1
+    },
+    {
         .primary = "maw",
         .aliases = {"move-all-to-workspace", NULL},
         .compact_suffix = "0123456789hjkl",

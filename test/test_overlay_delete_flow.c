@@ -103,8 +103,8 @@ void unassign_slot(HarpoonManager *harpoon, int slot) {
     memset(&harpoon->slots[slot], 0, sizeof(harpoon->slots[slot]));
 }
 
-int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) {
-    (void)manager;
+int matching_run_gc(AppData *app) {
+    (void)app;
     return 0;
 }
 

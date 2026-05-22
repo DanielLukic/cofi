@@ -233,11 +233,11 @@ static const CommandSpec s_names_command = {
 
 static const CommandSpec s_tab_rules_command = {
     .primary = "rules",
-    .aliases = {"rl", NULL},
+    .aliases = {"rs", NULL},
     .owner_provider_id = "rules",
     .handler = noop_provider_command,
     .description = "Show rules",
-    .help_format = "rules, rl"
+    .help_format = "rules, rs"
 };
 
 static const CommandSpec s_workspaces_command = {

@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 
 #include "app_data.h"
+#include "layout_store.h"
 #include "match_entry.h"
 
 typedef struct {
@@ -17,13 +18,15 @@ typedef struct {
 } WindowGeometryRestoreTarget;
 
 gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager,
+                                                const LayoutStore *store,
                                                 int match_id,
                                                 WindowGeometryRestoreTarget *out);
 
 gboolean apply_window_geometry_restore(Display *display,
                                        const WindowGeometryRestoreTarget *target);
 
-gboolean handle_window_geometry_save(GdkEventKey *event, AppData *app);
-gboolean handle_window_geometry_restore(GdkEventKey *event, AppData *app);
+gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window);
+gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *window);
+gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window);
 
 #endif

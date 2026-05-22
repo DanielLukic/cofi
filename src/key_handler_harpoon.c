@@ -7,6 +7,7 @@
 #include "harpoon_config.h"
 #include "log.h"
 #include "match_entry_config.h"
+#include "matching_gc.h"
 #include "selection.h"
 #include "slot_store.h"
 #include "window_highlight.h"
@@ -97,7 +98,7 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
     gboolean matching_changed = FALSE;
     if (current_window == selected_window->id) {
         unassign_slot(&app->harpoon, slot);
-        gc_removed = harpoon_gc_unreferenced_match_entries(&app->harpoon);
+        gc_removed = matching_run_gc(app);
         matching_changed = gc_removed > 0;
         log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
     } else {
@@ -106,7 +107,7 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
             unassign_slot(&app->harpoon, old_slot);
         }
         assign_window_to_slot(&app->harpoon, slot, selected_window);
-        gc_removed = harpoon_gc_unreferenced_match_entries(&app->harpoon);
+        gc_removed = matching_run_gc(app);
         matching_changed = TRUE;
         log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
     }

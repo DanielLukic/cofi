@@ -183,10 +183,10 @@ static void test_command_metadata(void) {
 
     ASSERT_TRUE("provider primary command is rules",
                 strcmp(s_rules_command.primary, "rules") == 0);
-    ASSERT_TRUE("provider alias is rl",
-                strcmp(s_rules_command.aliases[0], "rl") == 0);
+    ASSERT_TRUE("provider alias is rs",
+                strcmp(s_rules_command.aliases[0], "rs") == 0);
     ASSERT_TRUE("provider command has help",
-                strcmp(s_rules_command.help_format, "rules, rl") == 0);
+                strcmp(s_rules_command.help_format, "rules, rs") == 0);
     ASSERT_TRUE("provider command keeps open",
                 s_rules_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("provider command handler set", s_rules_command.handler != NULL);

@@ -4,6 +4,7 @@
 #include "log.h"
 #include "monitor_move.h"
 #include "overlay_manager.h"
+#include "window_geometry_matching.h"
 #include "x11_utils.h"
 
 #include <X11/Xlib.h>
@@ -213,6 +214,33 @@ gboolean cmd_rename_window(AppData *app, WindowInfo *window, const char *args) {
     set_window_name(app->display, window->id, title);
     log_info("USER: Renamed window 0x%lx to \"%s\"", window->id, title);
     return TRUE;
+}
+
+gboolean cmd_save_layout(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for layout save");
+        return FALSE;
+    }
+
+    return save_window_geometry_for_window(app, window);
+}
+
+gboolean cmd_restore_layout(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for layout restore");
+        return FALSE;
+    }
+
+    return restore_window_geometry_for_window(app, window);
+}
+
+gboolean cmd_clear_layout(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+    if (!window) {
+        log_warn("No window selected for layout clear");
+        return FALSE;
+    }
+
+    return clear_window_geometry_for_window(app, window);
 }
 
 typedef struct {

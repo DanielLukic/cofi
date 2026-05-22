@@ -405,7 +405,7 @@ Window get_slot_window(const HarpoonManager *manager, int slot) { (void)manager;
 int get_window_slot(const HarpoonManager *manager, Window id) { (void)manager; (void)id; return -1; }
 void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slot; }
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
-int harpoon_gc_unreferenced_match_entries(HarpoonManager *manager) { (void)manager; return 0; }
+int matching_run_gc(AppData *app) { (void)app; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     (void)manager; (void)match_id; return -1;

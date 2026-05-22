@@ -341,6 +341,9 @@ Vim-style command entry triggered by typing `:` in the search field.
 - `:cw [N|dir]` (`:change-workspace`) — move selected window to workspace N or direction (h/j/k/l)
 - `:pw` (`:pull-window`, `:p`) — pull selected window to current workspace
 - `:cl` (`:close-window`, `:c`) — close selected window
+- `:save-layout` (`:sl`) — save the selected window's position, size and workspace
+- `:restore-layout` (`:rl`) — restore the saved position, size and workspace
+- `:clear-layout` — forget the saved layout for the selected window
 - `:sw` (`:swap-windows`) — swap two windows (positions and sizes)
 - `:maw [N|dir]` (`:move-all-to-workspace`) — move all windows from current workspace to target
 - `:mw` (`:max`, `:maximize-window`) — toggle maximize selected window
