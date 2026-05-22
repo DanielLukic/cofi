@@ -319,7 +319,6 @@ typedef struct AppData {
     
     // Window visibility state
     gboolean window_visible;                // Whether the window is currently visible
-    gboolean initial_window_population_done; // Skip auto-layout restore for startup's first window enumeration
 #ifdef COFI_DEBUG_PRINTSCR_CAPTURE
     gint64 debug_printscr_keep_visible_until_us; // Suppress focus reset/close after PrintScr
 #endif

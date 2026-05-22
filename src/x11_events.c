@@ -22,8 +22,6 @@
 #include "hotkeys.h"
 #include "command_api.h"
 #include "window_matcher.h"
-#include "window_appearance.h"
-#include "window_geometry_matching.h"
 #include "utils.h"
 
 static GIOChannel *x11_channel = NULL;
@@ -214,44 +212,6 @@ static void apply_rules_to_windows(AppData *app) {
     }
 }
 
-static int snapshot_window_ids(const AppData *app, Window *out_ids, int max_ids) {
-    if (!app || !out_ids || max_ids <= 0) {
-        return 0;
-    }
-
-    int count = app->window_count < max_ids ? app->window_count : max_ids;
-    for (int i = 0; i < count; i++) {
-        out_ids[i] = app->windows[i].id;
-    }
-    return count;
-}
-
-static void auto_restore_layouts_for_new_windows(AppData *app,
-                                                 const Window *old_ids,
-                                                 int old_count) {
-    Window new_ids[MAX_WINDOWS] = {0};
-    int new_count = collect_new_window_ids(old_ids, old_count,
-                                           app->windows, app->window_count,
-                                           new_ids, MAX_WINDOWS);
-    if (new_count <= 0) {
-        return;
-    }
-
-    for (int i = 0; i < app->window_count; i++) {
-        WindowInfo *window = &app->windows[i];
-        for (int j = 0; j < new_count; j++) {
-            if (window->id != new_ids[j]) {
-                continue;
-            }
-
-            // Per-entry auto-restore toggle is deferred to #36; for now any
-            // newly-appeared window with a saved layout is restored.
-            restore_window_geometry_for_window(app, window);
-            break;
-        }
-    }
-}
-
 // Handle title change on a specific window
 static void handle_window_title_change(AppData *app, Window id) {
     if (app->rules_config.count == 0) return;
@@ -372,10 +332,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
             // Check which root window property changed
             if (prop_event->atom == app->atoms.net_client_list) {
                 log_debug("_NET_CLIENT_LIST changed - updating window list");
-
-                Window old_ids[MAX_WINDOWS] = {0};
-                int old_id_count = snapshot_window_ids(app, old_ids, MAX_WINDOWS);
-
+                
                 // Get new window list
                 int old_count = app->window_count;
                 get_window_list(app);
@@ -393,13 +350,6 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 if (names_changed) {
                     save_match_entries(&app->matching);
                     log_debug("Saved reassigned matching entries after window list change");
-                }
-
-                if (app->initial_window_population_done) {
-                    auto_restore_layouts_for_new_windows(app, old_ids, old_id_count);
-                } else {
-                    log_trace("Skipping auto-layout restore during initial window population");
-                    app->initial_window_population_done = TRUE;
                 }
 
                 // Subscribe to per-window property changes and apply rules

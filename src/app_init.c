@@ -125,7 +125,6 @@ void init_app_data(AppData *app) {
     
     // Initialize window visibility state
     app->window_visible = FALSE;
-    app->initial_window_population_done = FALSE;
     app->hotkey_capture_active = FALSE;
 
     // Initialize fixed window sizing state
@@ -200,8 +199,6 @@ void init_window_list(AppData *app) {
     if (match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count)) {
         save_match_entries(&app->matching);
     }
-
-    app->initial_window_population_done = TRUE;
 }
 
 void init_history_from_windows(AppData *app) {
