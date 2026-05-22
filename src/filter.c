@@ -59,7 +59,14 @@ static void compose_display_string(const WindowInfo *win, char *out, size_t out_
              desktop_str, display_instance, win->title, display_class);
 }
 
-// Try initials match on the display string
+// Try initials match on the full composite display string.
+// Returns SCORE_INITIALS_BONUS when every query char hits a word-start
+// (space / dash / underscore / dot / paren / pipe boundary) in order,
+// or SCORE_MIN when the chars can't all be found that way.
+// The caller adds this as a BONUS on top of the fzf score — it never
+// replaces the fzf score.  Scattered matches (gaps between word-starts)
+// still fire and receive the same bonus; density is not gated here so
+// that full-composite acronyms spanning class+title continue to work.
 static score_t try_initials_on_display(const char *filter, const char *display) {
     int filter_len = strlen(filter);
     int filter_idx = 0;
@@ -74,33 +81,35 @@ static score_t try_initials_on_display(const char *filter, const char *display) 
     }
 
     if (filter_idx == filter_len) {
-        return SCORE_INITIALS_MATCH;
+        return SCORE_INITIALS_BONUS;
     }
     return SCORE_MIN;
 }
 
-// Match a window against filter and return best score
-// Uses fzy on the full display string (what the user sees), plus initials bonus
+// Match a window against filter and return best score.
+// Uses fzf on the full composite display string plus an additive initials
+// bonus.  A contiguous literal match (~114 for 4 chars) always beats an
+// initials-only match because the bonus (SCORE_INITIALS_BONUS = 25) is
+// much smaller than the fzf word-boundary score advantage.
 static score_t match_window(const char *filter, const WindowInfo *win) {
-    // Compose the same string the user sees
     char display[1024];
     compose_display_string(win, display, sizeof(display));
 
-    // Primary: fzf match on full display string
-    score_t best_score = SCORE_MIN;
-    if (fzf_has_match(filter, display)) {
-        best_score = fzf_fuzzy_match(filter, display);
-        log_debug("FZF: '%s' -> '%s' (score: %.0f)", filter, display, best_score);
+    if (!fzf_has_match(filter, display)) {
+        return SCORE_MIN;
     }
 
-    // Bonus: initials match (e.g., "ddl" -> "Diana Drew Lane")
+    score_t score = fzf_fuzzy_match(filter, display);
+    log_debug("FZF: '%s' -> '%s' (score: %.0f)", filter, display, score);
+
     score_t initials = try_initials_on_display(filter, display);
-    if (initials > best_score) {
-        best_score = initials;
-        log_debug("INITIALS: '%s' -> '%s' (score: %.0f)", filter, display, initials);
+    if (initials > SCORE_MIN) {
+        score += initials;
+        log_debug("INITIALS BONUS: '%s' -> '%s' (+%.0f, total: %.0f)",
+                  filter, display, initials, score);
     }
 
-    return best_score;
+    return score;
 }
 
 

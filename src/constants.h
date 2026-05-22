@@ -18,7 +18,10 @@
 #define MAX_DISPLAY_LINES 20
 
 // Filter scoring constants
-#define SCORE_INITIALS_MATCH 1900
+// Additive bonus awarded when query chars all hit word-starts in the
+// composite display string (instance + title + class).  Kept modest so a
+// contiguous fzf word-boundary match (~114 for 4 chars) always dominates.
+#define SCORE_INITIALS_BONUS 15
 
 // Desktop indicator
 #define DESKTOP_STICKY_INDICATOR "[S] "

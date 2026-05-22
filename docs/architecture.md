@@ -147,6 +147,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 These are the rules that don't live in any one file but must hold across the system. The full list of regressions to avoid is in [docs/gotchas.md](gotchas.md).
 
+- **Inverted-list render.** Index 0 is the visible *bottom* of the list; `render_display_pipeline` iterates `end−1 → start`. Any code that maps filter rank to display position must account for this reversal (see ADR-0007).
 - **MRU before display.** Filter/scoring runs against MRU-ordered candidates, not the native EWMH order. Reordering for display happens once, after scoring.
 - **Display order = search order.** Never reorder the match-target string vs the display columns — the search string is what scoring sees.
 - **Cache invalidation on show.** Pango/monitor/DPI state is sampled per show, not at startup, to survive `xrandr` and XSettings (`Xft/DPI`) changes mid-session.
