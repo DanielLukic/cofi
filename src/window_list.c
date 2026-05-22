@@ -45,7 +45,15 @@ void get_window_list(AppData *app) {
         if (window == 0) {
             continue;
         }
-        
+
+        // Skip cofi's own window — single source of truth so rules, matching,
+        // geom, display, and slots never see it.  Guard is no-op until the GTK
+        // window is realized (own_window_id == 0 before that).
+        if (app->own_window_id != 0 && window == app->own_window_id) {
+            log_trace("Skipping own window 0x%lx", window);
+            continue;
+        }
+
         // Validate window exists (like Go code's isValidWindow)
         XWindowAttributes attrs;
         if (XGetWindowAttributes(app->display, window, &attrs) == 0) {
