@@ -51,6 +51,21 @@ static int fail = 0;
     } \
 } while (0)
 
+#define ASSERT_NOT_IN_TOP2(name, app_ptr, excluded_id) do { \
+    int found = 0; \
+    for (int _i = 0; _i < 2 && _i < (app_ptr)->filtered_count; _i++) { \
+        if ((app_ptr)->filtered[_i].id == (excluded_id)) found = 1; \
+    } \
+    if (!found) { printf("PASS: %s\n", name); pass++; } \
+    else { \
+        printf("FAIL: %s  (0x%lx unexpectedly in top2: 0x%lx 0x%lx)\n", name, \
+               (unsigned long)(excluded_id), \
+               (app_ptr)->filtered_count >= 1 ? (unsigned long)(app_ptr)->filtered[0].id : 0, \
+               (app_ptr)->filtered_count >= 2 ? (unsigned long)(app_ptr)->filtered[1].id : 0); \
+        fail++; \
+    } \
+} while (0)
+
 /* ---- Stubs ---- */
 
 static int mock_desktop = 0;
@@ -553,6 +568,65 @@ static void test_aba_best_alignment(void) {
     ASSERT_TRUE("aba best-alignment: 2 adjacent word-start pairs", pairs == 2);
 }
 
+/* ------------------------------------------------------------------ */
+/* Negative / top-N guards — spurious promotion checks                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * "chat" has a genuine #1 winner (Teams: "Chat" at title offset 0).
+ * specdd title has "that enables" — 't','h' match, plus scattered 'a'.
+ * A weak scattered / cross-field match must not displace the real hits.
+ */
+static void test_chat_no_specdd_top2(void) {
+    AppData app;
+    load_fixture(&app);
+    mock_desktop = 0;
+    filter_windows(&app, "chat");
+    ASSERT_NOT_IN_TOP2("chat: specdd not in top 2", &app, WIN_SPECDD);
+}
+
+/*
+ * "tea" — Teams has "Tea" at the very start of "Teams" (title offset 0).
+ * specdd "that enables agents" has t-e-a scattered but should stay below
+ * the genuine word-boundary hit.
+ */
+static void test_tea_no_specdd_top2(void) {
+    AppData app;
+    load_fixture(&app);
+    mock_desktop = 0;
+    filter_windows(&app, "tea");
+    ASSERT_NOT_IN_TOP2("tea: specdd not in top 2", &app, WIN_SPECDD);
+}
+
+/*
+ * "ch" — winner is Teams ("Chat" at title offset 0).
+ * Kraken's display string "google-chrome ... Hyperliquid ... Kraken Pro"
+ * has 'c' (chrome) and 'H' (Hyperliquid) as adjacent word-starts, giving
+ * it a spurious Signal-B boost.  It must not jump into top 2 ahead of
+ * genuine word-boundary matches (Teams + Cofi Issues both have "Ch").
+ */
+static void test_ch_no_kraken_top2(void) {
+    AppData app;
+    load_fixture(&app);
+    mock_desktop = 0;
+    filter_windows(&app, "ch");
+    ASSERT_NOT_IN_TOP2("ch: Kraken not in top 2", &app, WIN_KRAKEN);
+}
+
+/*
+ * "gcse" — Software Engineering YouTube (#1) plus specdd as the second-best
+ * legitimate acronym match (g·c from google-chrome, s·e from Specification/
+ * Development).  Confirms that a genuine second-best acronym IS in top 2
+ * so future scoring tightening doesn't silently drop it.
+ */
+static void test_gcse_softeng_specdd_top2(void) {
+    AppData app;
+    load_fixture(&app);
+    mock_desktop = 0;
+    filter_windows(&app, "gcse");
+    ASSERT_IN_TOP2("gcse: softeng + specdd in top 2", &app, WIN_YT_SOFTENG, WIN_SPECDD);
+}
+
 /* ---- Main ---- */
 
 int main(void) {
@@ -581,6 +655,12 @@ int main(void) {
 
     /* RULE 5 — consecutive word-start density */
     test_gcse_ranks_softeng();
+
+    /* Negative guards — spurious top-2 promotions */
+    test_chat_no_specdd_top2();
+    test_tea_no_specdd_top2();
+    test_ch_no_kraken_top2();
+    test_gcse_softeng_specdd_top2();
 
     /* Bug hardening — tier invariant + Signal B best-alignment */
     test_tier_invariant();
