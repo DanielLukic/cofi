@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "../src/geometry_planner.h"
+#include "../src/frame_extents.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -11,6 +12,16 @@ static int tests_failed = 0;
 } while (0)
 
 #define ASSERT_FALSE(desc, cond) ASSERT_TRUE((desc), !(cond))
+
+#define ASSERT_INT(desc, expected, actual) do { \
+    if ((expected) != (actual)) { \
+        printf("FAIL: %s — expected %d, got %d\n", (desc), (expected), (actual)); \
+        tests_failed++; \
+    } else { \
+        printf("PASS: %s\n", (desc)); \
+        tests_passed++; \
+    } \
+} while (0)
 
 // --- helper: a baseline "normal window" state ---
 static GeometryState make_state(int x, int y, int w, int h, int desk,
@@ -284,6 +295,56 @@ static void test_null_inputs_return_empty_plan(void) {
     ASSERT_FALSE("both null    → no ops", p3.any);
 }
 
+// ------------------------------------------------------------------ //
+// frame_pos_to_client_pos: coordinate round-trip                      //
+//                                                                      //
+// get_window_geometry returns the frame's top-left in root coords.    //
+// XMoveResizeWindow (with a reparenting WM) places the CLIENT there,  //
+// so the frame lands at (client - extents). Adding frame extents      //
+// before the call ensures the frame returns to its original position  //
+// on the next save, making the round-trip stable.                     //
+// ------------------------------------------------------------------ //
+static void test_frame_pos_round_trip_typical(void) {
+    printf("\n--- frame→client round-trip: marco-style frame ---\n");
+
+    // Marco: 1px border on each side, 20px titlebar
+    FrameExtents fe = {.left=1, .right=1, .top=20, .bottom=1};
+    int frame_x = 100, frame_y = 200;
+    int client_x, client_y;
+    frame_pos_to_client_pos(frame_x, frame_y, &fe, &client_x, &client_y);
+
+    // Simulate: WM places client at (client_x, client_y) →
+    // frame ends up at (client_x − fe.left, client_y − fe.top)
+    int restored_frame_x = client_x - fe.left;
+    int restored_frame_y = client_y - fe.top;
+
+    ASSERT_INT("round-trip x stable", frame_x, restored_frame_x);
+    ASSERT_INT("round-trip y stable", frame_y, restored_frame_y);
+}
+
+static void test_frame_pos_round_trip_zero_extents(void) {
+    printf("\n--- frame→client round-trip: undecorated window ---\n");
+
+    FrameExtents fe = {0};
+    int frame_x = 50, frame_y = 80;
+    int client_x, client_y;
+    frame_pos_to_client_pos(frame_x, frame_y, &fe, &client_x, &client_y);
+
+    ASSERT_INT("zero extents: client_x == frame_x", frame_x, client_x);
+    ASSERT_INT("zero extents: client_y == frame_y", frame_y, client_y);
+}
+
+static void test_frame_pos_null_extents_is_identity(void) {
+    printf("\n--- frame→client: NULL extents → identity ---\n");
+
+    int frame_x = 100, frame_y = 200;
+    int client_x, client_y;
+    frame_pos_to_client_pos(frame_x, frame_y, NULL, &client_x, &client_y);
+
+    ASSERT_INT("null extents: x unchanged", frame_x, client_x);
+    ASSERT_INT("null extents: y unchanged", frame_y, client_y);
+}
+
 int main(void) {
     printf("Geometry planner tests\n");
     printf("======================\n");
@@ -312,6 +373,10 @@ int main(void) {
     test_no_switch_active_desktop_when_target_invalid();
 
     test_null_inputs_return_empty_plan();
+
+    test_frame_pos_round_trip_typical();
+    test_frame_pos_round_trip_zero_extents();
+    test_frame_pos_null_extents_is_identity();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

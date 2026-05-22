@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "../src/frame_extents.h"
 #include "../src/layout_store.h"
 #include "../src/match_entry.h"
 #include "../src/match_entry_config.h"
@@ -45,6 +46,11 @@ void set_window_state(Display *display, Window window, const char *state_atom_na
 }
 int get_current_desktop(Display *display) { (void)display; return 0; }
 void switch_to_desktop(Display *display, int desktop) { (void)display; (void)desktop; }
+int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
+    (void)display; (void)window;
+    if (extents) memset(extents, 0, sizeof(*extents));
+    return 0;
+}
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 
 static int tests_passed = 0;
