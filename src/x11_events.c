@@ -176,7 +176,7 @@ static void subscribe_to_window_properties(AppData *app) {
 
 // Prune subscribed windows that no longer exist in the window list.
 // Only removes X11 property subscriptions — rule state is managed separately
-// via rule_state_prune_absent to tolerate transient _NET_CLIENT_LIST churn.
+// via rule_state_prune_absent.
 static void prune_subscribed_windows(AppData *app) {
     int write = 0;
     for (int i = 0; i < subscribed_count; i++) {
@@ -190,8 +190,6 @@ static void prune_subscribed_windows(AppData *app) {
         if (found) {
             subscribed_windows[write++] = subscribed_windows[i];
         }
-        // Absent windows: drop X subscription silently. Rule state is handled
-        // by rule_state_prune_absent after apply_rules_to_windows.
     }
     subscribed_count = write;
 }

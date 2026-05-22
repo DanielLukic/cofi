@@ -20,7 +20,6 @@ static RuleWindowState* find_or_add_entry(RuleState *state, int rule_index, Wind
     ws->rule_index    = rule_index;
     ws->id            = id;
     ws->matched       = false;
-    ws->pending_prune = false;
     state->count++;
     return ws;
 }
@@ -137,18 +136,10 @@ void rule_state_prune_absent(RuleState *state, const Window *live_windows, int l
             if (live_windows[j] == id) { found = true; break; }
         }
         if (found) {
-            if (state->windows[i].pending_prune) {
-                state->windows[i].pending_prune = false;
-            }
             i++;
-        } else if (state->windows[i].pending_prune) {
-            // Absent for second consecutive cycle — genuinely gone
+        } else {
             state->windows[i] = state->windows[state->count - 1];
             state->count--;
-            // Do not increment i: re-check the slot now holding the swapped entry
-        } else {
-            state->windows[i].pending_prune = true;
-            i++;
         }
     }
 }
