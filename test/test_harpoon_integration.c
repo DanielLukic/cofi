@@ -221,8 +221,10 @@ static void test_gc_keeps_layout_only_entry_without_harpoon_reference(void) {
     app.window_count = 1;
     app.windows[0] = make_window(0x90A, "Keep Layout", "Kitty", "kitty", "Normal");
     assign_window_to_slot(&app.harpoon, 2, &app.windows[0]);
-    ASSERT_TRUE("layout-only record stored", layout_store_set(&app.layouts,
-                app.harpoon.slots[2].match_id, 1, 2, 300, 200, 4) == true);
+    ASSERT_TRUE("layout-only record stored",
+                layout_store_set(&app.layouts, app.harpoon.slots[2].match_id,
+                                 1, 2, 300, 200, 4,
+                                 false, false, false) == true);
 
     unassign_slot(&app.harpoon, 2);
     ASSERT_TRUE("layout-only entry survives gc", matching_run_gc(&app) == 0);

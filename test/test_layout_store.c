@@ -33,9 +33,11 @@ static void test_layout_store_crud_and_persist(void) {
     layout_store_init(&store);
 
     ASSERT_TRUE("first layout insert succeeds",
-                layout_store_set(&store, 7, 10, 20, 300, 400, 2));
+                layout_store_set(&store, 7, 10, 20, 300, 400, 2,
+                                 true, false, true));
     ASSERT_TRUE("second layout insert succeeds",
-                layout_store_set(&store, 9, 30, 40, 500, 600, 4));
+                layout_store_set(&store, 9, 30, 40, 500, 600, 4,
+                                 false, true, false));
     ASSERT_TRUE("two records stored", store.count == 2);
 
     const LayoutRecord *first = layout_store_get(&store, 7);
@@ -43,16 +45,23 @@ static void test_layout_store_crud_and_persist(void) {
     ASSERT_TRUE("first layout fields stored",
                 first && first->x == 10 && first->y == 20 &&
                 first->width == 300 && first->height == 400 &&
-                first->desktop == 2);
+                first->desktop == 2 &&
+                first->maximized_vert == true &&
+                first->maximized_horz == false &&
+                first->fullscreen == true);
 
     ASSERT_TRUE("upsert updates existing layout",
-                layout_store_set(&store, 7, 11, 22, 333, 444, 5));
+                layout_store_set(&store, 7, 11, 22, 333, 444, 5,
+                                 true, true, false));
     ASSERT_TRUE("upsert keeps record count stable", store.count == 2);
     first = layout_store_get(&store, 7);
     ASSERT_TRUE("updated layout fields replaced",
                 first && first->x == 11 && first->y == 22 &&
                 first->width == 333 && first->height == 444 &&
-                first->desktop == 5);
+                first->desktop == 5 &&
+                first->maximized_vert == true &&
+                first->maximized_horz == true &&
+                first->fullscreen == false);
 
     ASSERT_TRUE("store persists to layouts.json", layout_store_save(&store));
 
@@ -63,7 +72,10 @@ static void test_layout_store_crud_and_persist(void) {
     ASSERT_TRUE("reloaded updated record preserved",
                 loaded.records[0].match_id == 7 &&
                 loaded.records[0].x == 11 &&
-                loaded.records[0].desktop == 5);
+                loaded.records[0].desktop == 5 &&
+                loaded.records[0].maximized_vert == true &&
+                loaded.records[0].maximized_horz == true &&
+                loaded.records[0].fullscreen == false);
 
     int ids[MAX_WINDOWS] = {0};
     int count = layout_store_collect_ids(&loaded, ids, MAX_WINDOWS);
@@ -75,11 +87,44 @@ static void test_layout_store_crud_and_persist(void) {
     ASSERT_TRUE("remaining record shifts down", loaded.count == 1 && loaded.records[0].match_id == 9);
 }
 
+static void test_layout_store_load_defaults_missing_state_keys_to_false(void) {
+    set_test_home("back-compat");
+
+    LayoutStore store;
+    layout_store_init(&store);
+
+    FILE *file = fopen(store.path, "w");
+    ASSERT_TRUE("legacy layouts.json opens for writing", file != NULL);
+    if (!file) {
+        return;
+    }
+
+    fprintf(file,
+            "{\n"
+            "  \"layouts\": [\n"
+            "    { \"match_id\": 3, \"x\": 1, \"y\": 2, \"w\": 800, \"h\": 600, \"desktop\": 7 }\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    ASSERT_TRUE("legacy layouts.json loads", layout_store_load(&store));
+    ASSERT_TRUE("legacy record count matches", store.count == 1);
+
+    const LayoutRecord *record = layout_store_get(&store, 3);
+    ASSERT_TRUE("legacy record resolves", record != NULL);
+    ASSERT_TRUE("legacy state keys default false",
+                record &&
+                !record->maximized_vert &&
+                !record->maximized_horz &&
+                !record->fullscreen);
+}
+
 int main(void) {
     printf("Layout store tests\n");
     printf("==================\n\n");
 
     test_layout_store_crud_and_persist();
+    test_layout_store_load_defaults_missing_state_keys_to_false();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

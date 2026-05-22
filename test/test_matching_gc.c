@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -10,6 +11,7 @@
 #include "../src/match_entry_config.h"
 #include "../src/matching_gc.h"
 #include "../src/window_geometry_matching.h"
+#include "../src/x11_utils.h"
 #include "../src/utils.h"
 
 static int tests_run = 0;
@@ -45,6 +47,21 @@ void move_window_to_desktop(Display *display, Window window, int desktop_index) 
     (void)display;
     (void)window;
     (void)desktop_index;
+}
+
+gboolean get_window_state(Display *display, Window window, const char *state_atom_name) {
+    (void)display;
+    (void)window;
+    (void)state_atom_name;
+    return FALSE;
+}
+
+void set_window_state(Display *display, Window window, const char *state_atom_name,
+                      WindowStateAction action) {
+    (void)display;
+    (void)window;
+    (void)state_atom_name;
+    (void)action;
 }
 
 static void set_test_home(const char *suffix) {
@@ -93,7 +110,8 @@ static void test_clear_layout_removes_record_and_gcs_orphaned_entry(void) {
     app.windows[0] = make_window(0x501, "Clear Layout", "Kitty", "kitty", "Normal");
     int match_id = matching_capture_or_get(&app.matching, app.windows, app.window_count, &app.windows[0]);
     ASSERT_TRUE("captured match entry for clear test", match_id > 0);
-    ASSERT_TRUE("seeded layout record", layout_store_set(&app.layouts, match_id, 1, 2, 300, 200, 4));
+    ASSERT_TRUE("seeded layout record", layout_store_set(&app.layouts, match_id, 1, 2, 300, 200, 4,
+                                                         false, false, false));
     save_match_entries(&app.matching);
     ASSERT_TRUE("initial matching persisted", 1);
     ASSERT_TRUE("persisted initial layouts", layout_store_save(&app.layouts));
@@ -131,7 +149,8 @@ static void test_matching_gc_composes_label_harpoon_and_layout_consumers(void) {
 
     ASSERT_TRUE("layout-only entry captured", layout_match_id > 0);
     ASSERT_TRUE("bare entry captured", bare_match_id > 0);
-    ASSERT_TRUE("layout-only record stored", layout_store_set(&app.layouts, layout_match_id, 7, 8, 640, 480, 2));
+    ASSERT_TRUE("layout-only record stored", layout_store_set(&app.layouts, layout_match_id, 7, 8, 640, 480, 2,
+                                                              false, false, false));
     ASSERT_TRUE("four matching entries created", app.matching.count == 4);
 
     ASSERT_TRUE("gc removes only bare entry", matching_run_gc(&app) == 1);

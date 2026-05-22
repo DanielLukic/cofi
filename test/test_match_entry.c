@@ -8,6 +8,7 @@
 #include "../src/match_entry_config.h"
 #include "../src/window_geometry_matching.h"
 #include "../src/window_matcher.h"
+#include "../src/x11_utils.h"
 #include "../src/utils.h"
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
@@ -28,6 +29,19 @@ gboolean get_window_geometry(Display *display, Window window, int *x, int *y, in
 int get_window_desktop(Display *display, Window window) { (void)display; (void)window; return g_geom_desktop; }
 void move_window_to_desktop(Display *display, Window window, int desktop_index) {
     (void)display; (void)window; (void)desktop_index;
+}
+gboolean get_window_state(Display *display, Window window, const char *state_atom_name) {
+    (void)display;
+    (void)window;
+    (void)state_atom_name;
+    return FALSE;
+}
+void set_window_state(Display *display, Window window, const char *state_atom_name,
+                      WindowStateAction action) {
+    (void)display;
+    (void)window;
+    (void)state_atom_name;
+    (void)action;
 }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 
@@ -673,6 +687,9 @@ static void test_layout_save_persists_on_deduped_match_id(void) {
     ASSERT_INT("layout width persisted", g_geom_w, loaded_layouts.records[0].width);
     ASSERT_INT("layout height persisted", g_geom_h, loaded_layouts.records[0].height);
     ASSERT_INT("layout desktop persisted", g_geom_desktop, loaded_layouts.records[0].desktop);
+    ASSERT_INT("layout max vert persisted", 0, loaded_layouts.records[0].maximized_vert);
+    ASSERT_INT("layout max horz persisted", 0, loaded_layouts.records[0].maximized_horz);
+    ASSERT_INT("layout fullscreen persisted", 0, loaded_layouts.records[0].fullscreen);
 }
 
 static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(void) {
@@ -686,7 +703,8 @@ static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(v
     WindowInfo w = make_window(0x444, "Restore Me", "ClassR", "instR", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "restore");
     ASSERT_INT("layout record stored", TRUE,
-               layout_store_set(&store, mgr.entries[0].match_id, 70, 80, 900, 700, 2));
+               layout_store_set(&store, mgr.entries[0].match_id, 70, 80, 900, 700, 2,
+                                true, false, true));
 
     WindowGeometryRestoreTarget target = {0};
     ASSERT_INT("resolve succeeds for live bound layout entry", TRUE,
@@ -697,6 +715,9 @@ static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(v
     ASSERT_INT("resolve returns width", 900, target.width);
     ASSERT_INT("resolve returns height", 700, target.height);
     ASSERT_INT("resolve returns desktop", 2, target.desktop);
+    ASSERT_INT("resolve returns max vert", 1, target.maximized_vert);
+    ASSERT_INT("resolve returns max horz", 0, target.maximized_horz);
+    ASSERT_INT("resolve returns fullscreen", 1, target.fullscreen);
 
     mgr.entries[0].assigned = 0;
     ASSERT_INT("resolve fails when entry is not live-bound", FALSE,

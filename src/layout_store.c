@@ -55,7 +55,8 @@ static int layout_store_find_index(const LayoutStore *store, int match_id) {
 }
 
 bool layout_store_set(LayoutStore *store, int match_id,
-                      int x, int y, int width, int height, int desktop) {
+                      int x, int y, int width, int height, int desktop,
+                      bool maximized_vert, bool maximized_horz, bool fullscreen) {
     if (!store || match_id <= 0 || width <= 0 || height <= 0) {
         return false;
     }
@@ -76,6 +77,9 @@ bool layout_store_set(LayoutStore *store, int match_id,
     store->records[idx].width = width;
     store->records[idx].height = height;
     store->records[idx].desktop = desktop;
+    store->records[idx].maximized_vert = maximized_vert;
+    store->records[idx].maximized_horz = maximized_horz;
+    store->records[idx].fullscreen = fullscreen;
     return true;
 }
 
@@ -118,9 +122,12 @@ bool layout_store_save(const LayoutStore *store) {
     for (int i = 0; i < store->count; i++) {
         const LayoutRecord *record = &store->records[i];
         fprintf(file,
-                "    { \"match_id\": %d, \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"desktop\": %d }%s\n",
+                "    { \"match_id\": %d, \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"desktop\": %d, \"maximized_vert\": %s, \"maximized_horz\": %s, \"fullscreen\": %s }%s\n",
                 record->match_id, record->x, record->y, record->width,
                 record->height, record->desktop,
+                record->maximized_vert ? "true" : "false",
+                record->maximized_horz ? "true" : "false",
+                record->fullscreen ? "true" : "false",
                 (i + 1 < store->count) ? "," : "");
     }
     fprintf(file, "  ]\n}\n");
@@ -152,6 +159,9 @@ static bool parse_layout_line(const char *line, LayoutRecord *record) {
     record->width = width;
     record->height = height;
     record->desktop = desktop;
+    record->maximized_vert = strstr(line, "\"maximized_vert\": true") != NULL;
+    record->maximized_horz = strstr(line, "\"maximized_horz\": true") != NULL;
+    record->fullscreen = strstr(line, "\"fullscreen\": true") != NULL;
     return true;
 }
 
@@ -180,7 +190,9 @@ bool layout_store_load(LayoutStore *store) {
             continue;
         }
         layout_store_set(store, record.match_id, record.x, record.y,
-                         record.width, record.height, record.desktop);
+                         record.width, record.height, record.desktop,
+                         record.maximized_vert, record.maximized_horz,
+                         record.fullscreen);
     }
 
     fclose(file);

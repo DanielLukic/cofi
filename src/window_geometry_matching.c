@@ -28,6 +28,9 @@ gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager
     out->width = record->width;
     out->height = record->height;
     out->desktop = record->desktop;
+    out->maximized_vert = record->maximized_vert;
+    out->maximized_horz = record->maximized_horz;
+    out->fullscreen = record->fullscreen;
     return TRUE;
 }
 
@@ -36,12 +39,33 @@ gboolean apply_window_geometry_restore(Display *display,
     if (!display || !target || target->window == 0) return FALSE;
     if (target->width <= 0 || target->height <= 0) return FALSE;
 
+    set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
+                     WINDOW_STATE_UNSET);
+    set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
+                     WINDOW_STATE_UNSET);
+    set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
+                     WINDOW_STATE_UNSET);
+
     XMoveResizeWindow(display, target->window, target->x, target->y,
                       (unsigned int)target->width, (unsigned int)target->height);
 
     // A per-restore workspace toggle is deferred; restoring desktop is part of
     // the current explicit geometry restore prototype.
     move_window_to_desktop(display, target->window, target->desktop);
+
+    if (target->fullscreen) {
+        set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
+                         WINDOW_STATE_SET);
+    }
+    if (target->maximized_vert) {
+        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
+                         WINDOW_STATE_SET);
+    }
+    if (target->maximized_horz) {
+        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
+                         WINDOW_STATE_SET);
+    }
+
     XFlush(display);
     return TRUE;
 }
@@ -81,6 +105,12 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     int desktop = get_window_desktop(app->display, window->id);
+    gboolean maximized_vert = get_window_state(app->display, window->id,
+                                               "_NET_WM_STATE_MAXIMIZED_VERT");
+    gboolean maximized_horz = get_window_state(app->display, window->id,
+                                               "_NET_WM_STATE_MAXIMIZED_HORZ");
+    gboolean fullscreen = get_window_state(app->display, window->id,
+                                           "_NET_WM_STATE_FULLSCREEN");
     int match_id = matching_capture_or_get(&app->matching, app->windows,
                                            app->window_count, window);
     if (match_id <= 0) {
@@ -89,7 +119,8 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
         return FALSE;
     }
 
-    if (!layout_store_set(&app->layouts, match_id, x, y, width, height, desktop)) {
+    if (!layout_store_set(&app->layouts, match_id, x, y, width, height, desktop,
+                          maximized_vert, maximized_horz, fullscreen)) {
         log_warn("Failed to store layout for window 0x%lx (match_id=%d)",
                  window->id, match_id);
         return FALSE;
@@ -98,8 +129,9 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     save_match_entries(&app->matching);
     layout_store_save(&app->layouts);
 
-    log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
-             window->id, match_id, x, y, width, height, desktop);
+    log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d]",
+             window->id, match_id, x, y, width, height, desktop,
+             maximized_vert, maximized_horz, fullscreen);
     return TRUE;
 }
 
@@ -125,9 +157,10 @@ gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *wind
         return FALSE;
     }
 
-    log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d",
+    log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d]",
              target.window, match_id, target.x, target.y,
-             target.width, target.height, target.desktop);
+             target.width, target.height, target.desktop,
+             target.maximized_vert, target.maximized_horz, target.fullscreen);
     return TRUE;
 }
 
