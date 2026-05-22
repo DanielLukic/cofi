@@ -8,30 +8,30 @@ void init_rule_state(RuleState *state) {
     memset(state, 0, sizeof(*state));
 }
 
-// Find or create a window entry in the state
-static RuleWindowState* find_or_add_window(RuleState *state, Window id) {
-    // Find existing
+// Find or create the entry for a (rule_index, window_id) pair
+static RuleWindowState* find_or_add_entry(RuleState *state, int rule_index, Window id) {
     for (int i = 0; i < state->count; i++) {
-        if (state->windows[i].id == id) {
+        if (state->windows[i].rule_index == rule_index && state->windows[i].id == id) {
             return &state->windows[i];
         }
     }
-    // Add new
-    if (state->count >= MAX_RULE_TRACKED_WINDOWS) return NULL;
+    if (state->count >= MAX_RULE_STATE_ENTRIES) return NULL;
     RuleWindowState *ws = &state->windows[state->count];
-    ws->id = id;
-    ws->matched = false;
+    ws->rule_index    = rule_index;
+    ws->id            = id;
+    ws->matched       = false;
     ws->pending_prune = false;
     state->count++;
     return ws;
 }
 
-RuleMatch check_rule_match(const Rule *rule, RuleState *state, Window id, const char *title) {
+RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
+                            Window id, const char *title) {
     RuleMatch result = {false, NULL};
     if (!rule || !state || !title) return result;
 
     bool matches = wildcard_match(rule->pattern, title);
-    RuleWindowState *ws = find_or_add_window(state, id);
+    RuleWindowState *ws = find_or_add_entry(state, rule_index, id);
     if (!ws) return result;
 
     bool was_matched = ws->matched;
@@ -64,13 +64,14 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, Window id, const 
 
 void rule_state_remove_window(RuleState *state, Window id) {
     if (!state) return;
+    // Remove all (*, id) entries — there is one per rule that checked this window.
+    int write = 0;
     for (int i = 0; i < state->count; i++) {
-        if (state->windows[i].id == id) {
-            state->windows[i] = state->windows[state->count - 1];
-            state->count--;
-            return;
+        if (state->windows[i].id != id) {
+            state->windows[write++] = state->windows[i];
         }
     }
+    state->count = write;
 }
 
 void init_rule_breaker(RuleBreakerState *breaker) {

@@ -5,9 +5,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "rules_config.h"
+#include "types.h"
 
-// Max windows to track state for
-#define MAX_RULE_TRACKED_WINDOWS 256
+// One entry per (rule_index, window_id) pair.
+// Worst case: MAX_RULES rules each monitoring MAX_WINDOWS windows.
+#define MAX_RULE_STATE_ENTRIES (MAX_RULES * MAX_WINDOWS)
 
 // Circuit-breaker constants
 #define RULE_BREAKER_MAX_ENTRIES   512
@@ -15,16 +17,17 @@
 #define RULE_BREAKER_BURST_WINDOW_MS 1000LL
 #define RULE_BREAKER_QUIET_RESET_MS  2000LL
 
-// Per-window match state for a single rule
+// Per-(rule_index, window_id) match state
 typedef struct {
+    int    rule_index;
     Window id;
-    bool matched;       // true = last check was a match (suppress re-fire)
-    bool pending_prune; // true = absent from _NET_CLIENT_LIST for one cycle
+    bool   matched;       // true = last check was a match (suppress re-fire)
+    bool   pending_prune; // true = absent from _NET_CLIENT_LIST for one cycle
 } RuleWindowState;
 
 // State for all rules across all windows
 typedef struct {
-    RuleWindowState windows[MAX_RULE_TRACKED_WINDOWS];
+    RuleWindowState windows[MAX_RULE_STATE_ENTRIES];
     int count;
 } RuleState;
 
@@ -52,7 +55,11 @@ typedef struct {
 } RuleMatch;
 
 void init_rule_state(RuleState *state);
-RuleMatch check_rule_match(const Rule *rule, RuleState *state, Window id, const char *title);
+// rule_index must be the index into RulesConfig.rules[] so each rule has
+// independent fire-once state per window (prevents cross-rule state stomping).
+RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
+                            Window id, const char *title);
+// Remove all (*, id) entries — one per rule that has ever checked this window.
 void rule_state_remove_window(RuleState *state, Window id);
 
 void init_rule_breaker(RuleBreakerState *breaker);

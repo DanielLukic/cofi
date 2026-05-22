@@ -147,7 +147,7 @@ static void test_match_fires_with_explicit_state_args(void) {
     RuleState state;
     init_rule_state(&state);
 
-    RuleMatch match = check_rule_match(&config.rules[0], &state, 0x3344, "root@host htop - Terminal");
+    RuleMatch match = check_rule_match(&config.rules[0], &state, 0, 0x3344, "root@host htop - Terminal");
     ASSERT_TRUE("matching title with explicit state args fires", match.should_fire);
     ASSERT_STR("explicit state args preserved", "sb on,ab on,ew off,aot on", match.commands);
 }
@@ -161,7 +161,7 @@ static void test_match_fires_on_matching_title(void) {
     init_rule_state(&state);
 
     // Window appears with matching title
-    RuleMatch match = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch match = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_TRUE("matching title fires", match.should_fire);
     ASSERT_STR("commands to fire", "sb,ab,ew", match.commands);
 }
@@ -174,7 +174,7 @@ static void test_no_fire_on_non_matching_title(void) {
     RuleState state;
     init_rule_state(&state);
 
-    RuleMatch match = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ — Terminal");
+    RuleMatch match = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ — Terminal");
     ASSERT_FALSE("non-matching title does not fire", match.should_fire);
 }
 
@@ -187,11 +187,11 @@ static void test_no_refire_same_title(void) {
     init_rule_state(&state);
 
     // First match fires
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_TRUE("first match fires", m1.should_fire);
 
     // Same title again — should NOT fire
-    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_FALSE("same title does not refire", m2.should_fire);
 }
 
@@ -204,15 +204,15 @@ static void test_refire_after_title_changes_away_and_back(void) {
     init_rule_state(&state);
 
     // First match fires
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_TRUE("first match fires", m1.should_fire);
 
     // Title changes to non-matching — resets state
-    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ — Terminal");
+    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ — Terminal");
     ASSERT_FALSE("non-matching does not fire", m2.should_fire);
 
     // Title changes back to matching — should fire again
-    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_TRUE("re-match fires again", m3.should_fire);
 }
 
@@ -225,11 +225,11 @@ static void test_different_title_still_matching(void) {
     init_rule_state(&state);
 
     // First match
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1234, "root@~ htop — Terminal");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
     ASSERT_TRUE("first match fires", m1.should_fire);
 
     // Different title but still matches pattern — should NOT fire (still matching)
-    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0x1234, "user@host htop — Terminal");
+    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "user@host htop — Terminal");
     ASSERT_FALSE("still-matching title does not refire", m2.should_fire);
 }
 
@@ -242,15 +242,15 @@ static void test_multiple_windows_independent(void) {
     init_rule_state(&state);
 
     // Window A matches
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1111, "htop — Terminal A");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1111, "htop — Terminal A");
     ASSERT_TRUE("window A fires", m1.should_fire);
 
     // Window B matches — independent, should also fire
-    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0x2222, "htop — Terminal B");
+    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x2222, "htop — Terminal B");
     ASSERT_TRUE("window B fires independently", m2.should_fire);
 
     // Window A again — should NOT fire
-    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0x1111, "htop — Terminal A");
+    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0, 0x1111, "htop — Terminal A");
     ASSERT_FALSE("window A does not refire", m3.should_fire);
 }
 
@@ -263,14 +263,14 @@ static void test_window_removed_resets_state(void) {
     init_rule_state(&state);
 
     // Window matches
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1234, "htop — Terminal");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "htop — Terminal");
     ASSERT_TRUE("first match fires", m1.should_fire);
 
     // Window closes — clear its state
     rule_state_remove_window(&state, 0x1234);
 
     // Same window ID reopens (X11 may reuse IDs) — should fire again
-    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0x1234, "htop — Terminal");
+    RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "htop — Terminal");
     ASSERT_TRUE("fires again after window removed", m2.should_fire);
 }
 
@@ -281,7 +281,7 @@ static void test_prune_absent_one_cycle_preserves_state(void) {
     init_rule_state(&state);
     Rule rule = {"*htop*", "sb"};
 
-    RuleMatch m1 = check_rule_match(&rule, &state, 0x1234, "htop");
+    RuleMatch m1 = check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_TRUE("initial match fires", m1.should_fire);
 
     // One cycle absent — pending_prune set, state NOT removed
@@ -289,7 +289,7 @@ static void test_prune_absent_one_cycle_preserves_state(void) {
     rule_state_prune_absent(&state, empty, 0);
 
     // Window reappears — matched is still true, so rule must NOT re-fire
-    RuleMatch m2 = check_rule_match(&rule, &state, 0x1234, "htop");
+    RuleMatch m2 = check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_FALSE("fire-once survives one-cycle absence", m2.should_fire);
 }
 
@@ -298,7 +298,7 @@ static void test_prune_absent_two_cycles_removes_state(void) {
     init_rule_state(&state);
     Rule rule = {"*htop*", "sb"};
 
-    RuleMatch m1 = check_rule_match(&rule, &state, 0x1234, "htop");
+    RuleMatch m1 = check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_TRUE("initial match fires", m1.should_fire);
 
     Window empty[] = {};
@@ -306,7 +306,7 @@ static void test_prune_absent_two_cycles_removes_state(void) {
     rule_state_prune_absent(&state, empty, 0); // cycle 2: entry removed
 
     // Window reappears — state was removed, so it fires again (fresh entry)
-    RuleMatch m2 = check_rule_match(&rule, &state, 0x1234, "htop");
+    RuleMatch m2 = check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_TRUE("re-fires after two-cycle absence", m2.should_fire);
 }
 
@@ -315,7 +315,7 @@ static void test_prune_absent_reappearance_clears_pending(void) {
     init_rule_state(&state);
     Rule rule = {"*htop*", "sb"};
 
-    check_rule_match(&rule, &state, 0x1234, "htop");
+    check_rule_match(&rule, &state, 0, 0x1234, "htop");
 
     // One cycle absent
     Window empty[] = {};
@@ -330,7 +330,7 @@ static void test_prune_absent_reappearance_clears_pending(void) {
     rule_state_prune_absent(&state, empty, 0);
 
     // Window comes back: matched still true, so no re-fire
-    RuleMatch m = check_rule_match(&rule, &state, 0x1234, "htop");
+    RuleMatch m = check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_FALSE("reappear clears pending_prune; next absence is again one-cycle only", m.should_fire);
 }
 
@@ -340,7 +340,7 @@ static void test_prune_absent_unmatched_window_removed_cleanly(void) {
     Rule rule = {"*htop*", "sb"};
 
     // Window appears but doesn't match — it's added to state with matched=false
-    check_rule_match(&rule, &state, 0xAAAA, "bash");
+    check_rule_match(&rule, &state, 0, 0xAAAA, "bash");
     ASSERT_INT("state has one entry", 1, state.count);
 
     // Two cycles absent — should be removed
@@ -355,8 +355,8 @@ static void test_prune_absent_multiple_windows_independent(void) {
     init_rule_state(&state);
     Rule rule = {"*htop*", "sb"};
 
-    check_rule_match(&rule, &state, 0x1111, "htop A");
-    check_rule_match(&rule, &state, 0x2222, "htop B");
+    check_rule_match(&rule, &state, 0, 0x1111, "htop A");
+    check_rule_match(&rule, &state, 0, 0x2222, "htop B");
 
     // Only 0x1111 is absent
     Window only2[] = {0x2222};
@@ -364,9 +364,9 @@ static void test_prune_absent_multiple_windows_independent(void) {
     rule_state_prune_absent(&state, only2, 1); // second cycle: 0x1111 removed
 
     // 0x1111 fires again (state gone); 0x2222 still suppressed
-    RuleMatch m1 = check_rule_match(&rule, &state, 0x1111, "htop A");
+    RuleMatch m1 = check_rule_match(&rule, &state, 0, 0x1111, "htop A");
     ASSERT_TRUE("0x1111 fires again after two-cycle absence", m1.should_fire);
-    RuleMatch m2 = check_rule_match(&rule, &state, 0x2222, "htop B");
+    RuleMatch m2 = check_rule_match(&rule, &state, 0, 0x2222, "htop B");
     ASSERT_FALSE("0x2222 still suppressed (never absent)", m2.should_fire);
 }
 
@@ -441,6 +441,30 @@ static void test_breaker_null_safe(void) {
         rule_breaker_should_fire(NULL, 0, 0x1234, 0, "*htop*"));
 }
 
+// Regression: two rules must not stomp each other's matched flag.
+// With old window-id-only keying, R1 checking a window set matched by R0 would
+// execute the !matches&&matched→RESET branch, clearing R0's state and causing
+// R0 to re-fire on the next evaluation cycle (the root cause of the storm).
+static void test_two_rules_no_state_stomp(void) {
+    Rule r0 = {"*htop*",    "ew"};  // matches window W
+    Rule r1 = {"*Firefox*", "ew"};  // does NOT match window W
+
+    RuleState state;
+    init_rule_state(&state);
+
+    // R0 fires on W
+    RuleMatch m0_first = check_rule_match(&r0, &state, 0, 0xAAAA, "htop");
+    ASSERT_TRUE("R0 fires on first match", m0_first.should_fire);
+
+    // R1 evaluates same window — must not touch R0's state
+    RuleMatch m1 = check_rule_match(&r1, &state, 1, 0xAAAA, "htop");
+    ASSERT_FALSE("R1 does not fire (no match)", m1.should_fire);
+
+    // R0 must suppress — not re-fire because R1 stomped its flag
+    RuleMatch m0_second = check_rule_match(&r0, &state, 0, 0xAAAA, "htop");
+    ASSERT_FALSE("R0 suppressed: R1 did not stomp R0 state", m0_second.should_fire);
+}
+
 static void test_multiple_rules(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -451,15 +475,15 @@ static void test_multiple_rules(void) {
     init_rule_state(&state);
 
     // Window matches first rule only
-    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0x1234, "htop — Terminal");
+    RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "htop — Terminal");
     ASSERT_TRUE("htop matches rule 0", m1.should_fire);
-    RuleMatch m2 = check_rule_match(&config.rules[1], &state, 0x1234, "htop — Terminal");
+    RuleMatch m2 = check_rule_match(&config.rules[1], &state, 1, 0x1234, "htop — Terminal");
     ASSERT_FALSE("htop does not match rule 1", m2.should_fire);
 
     // Another window matches second rule only
-    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0x5678, "Firefox");
+    RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0, 0x5678, "Firefox");
     ASSERT_FALSE("Firefox does not match rule 0", m3.should_fire);
-    RuleMatch m4 = check_rule_match(&config.rules[1], &state, 0x5678, "Firefox");
+    RuleMatch m4 = check_rule_match(&config.rules[1], &state, 1, 0x5678, "Firefox");
     ASSERT_TRUE("Firefox matches rule 1", m4.should_fire);
 }
 
@@ -485,6 +509,7 @@ int main(void) {
     test_different_title_still_matching();
     test_multiple_windows_independent();
     test_window_removed_resets_state();
+    test_two_rules_no_state_stomp();
     test_multiple_rules();
 
     // Transient-absence grace tests
