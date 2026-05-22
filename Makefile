@@ -459,6 +459,9 @@ test_slot_store: test/test_slot_store.c src/slot_store.o src/log.o
 test_layout_store: test/test_layout_store.c src/layout_store.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_layout_store test/test_layout_store.c src/layout_store.o src/log.o $(LDFLAGS)
 
+test_window_appearance: test/test_window_appearance.c src/window_appearance.o
+	$(CC) $(CFLAGS) -o test/test_window_appearance test/test_window_appearance.c src/window_appearance.o $(LDFLAGS)
+
 test_window_matcher: test/test_window_matcher.c src/window_matcher.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_window_matcher test/test_window_matcher.c src/window_matcher.o src/log.o $(LDFLAGS)
 
