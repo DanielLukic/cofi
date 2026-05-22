@@ -289,6 +289,7 @@ typedef struct AppData {
     HotkeyGrabState hotkey_grab_state;      // Runtime XGrabKey registration state
     RulesConfig rules_config;               // Window title rules
     RuleState rule_state;                   // Per-rule per-window match state
+    RuleBreakerState rule_breaker;          // Per-(rule,window) fire-rate circuit breaker
     gboolean in_rule_dispatch;              // Guard: set while a rule command is executing
     CommandMode command_mode;               // Command mode state
     RunMode run_mode;                       // Run mode state

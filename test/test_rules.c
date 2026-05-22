@@ -370,6 +370,77 @@ static void test_prune_absent_multiple_windows_independent(void) {
     ASSERT_FALSE("0x2222 still suppressed (never absent)", m2.should_fire);
 }
 
+// ========== Circuit breaker tests ==========
+
+static void test_breaker_allows_up_to_limit(void) {
+    RuleBreakerState breaker;
+    init_rule_breaker(&breaker);
+    // 10 fires within 1000ms — all must be allowed
+    for (int i = 0; i < 10; i++) {
+        ASSERT_TRUE("fire within limit allowed",
+            rule_breaker_should_fire(&breaker, 0, 0x1234, (int64_t)i * 50, "*htop*"));
+    }
+    // 11th fire in same window — must be suppressed
+    ASSERT_FALSE("11th fire suppressed",
+        rule_breaker_should_fire(&breaker, 0, 0x1234, 500, "*htop*"));
+}
+
+static void test_breaker_quiet_period_rearms(void) {
+    RuleBreakerState breaker;
+    init_rule_breaker(&breaker);
+    // exhaust: fires at t=0,50,...,500 — 10th allowed, 11th triggers suppression
+    for (int i = 0; i <= 10; i++) {
+        rule_breaker_should_fire(&breaker, 0, 0x1234, (int64_t)i * 50, "*htop*");
+    }
+    // last_fire_ms=500; quiet for >2000ms → re-arm
+    ASSERT_TRUE("re-armed after quiet period",
+        rule_breaker_should_fire(&breaker, 0, 0x1234, 500 + 2001, "*htop*"));
+    // Immediately after re-arm a second fire still allowed (new burst, count=2)
+    ASSERT_TRUE("second fire after re-arm allowed",
+        rule_breaker_should_fire(&breaker, 0, 0x1234, 500 + 2002, "*htop*"));
+}
+
+static void test_breaker_burst_window_resets(void) {
+    RuleBreakerState breaker;
+    init_rule_breaker(&breaker);
+    // 5 fires within burst window (t=0..200)
+    for (int i = 0; i < 5; i++) {
+        ASSERT_TRUE("early fire allowed",
+            rule_breaker_should_fire(&breaker, 0, 0x1234, (int64_t)i * 50, "*htop*"));
+    }
+    // Fire at t=1100 — burst window expired; count resets to 1
+    ASSERT_TRUE("fire after burst window reset allowed",
+        rule_breaker_should_fire(&breaker, 0, 0x1234, 1100, "*htop*"));
+    // 4 more fires in new window (total 5 in this window, well below limit)
+    for (int i = 1; i <= 4; i++) {
+        ASSERT_TRUE("fires in second window allowed",
+            rule_breaker_should_fire(&breaker, 0, 0x1234, 1100 + (int64_t)i * 10, "*htop*"));
+    }
+    // Still under limit — no suppression
+    ASSERT_TRUE("6th fire in second window still allowed",
+        rule_breaker_should_fire(&breaker, 0, 0x1234, 1155, "*htop*"));
+}
+
+static void test_breaker_different_pairs_independent(void) {
+    RuleBreakerState breaker;
+    init_rule_breaker(&breaker);
+    // Trigger suppression for rule 0 / window 0x1234
+    for (int i = 0; i <= 10; i++) {
+        rule_breaker_should_fire(&breaker, 0, 0x1234, (int64_t)i * 10, "*htop*");
+    }
+    // Different rule index: independent — must not be suppressed
+    ASSERT_TRUE("different rule_index not suppressed",
+        rule_breaker_should_fire(&breaker, 1, 0x1234, 0, "*htop*"));
+    // Same rule, different window: independent
+    ASSERT_TRUE("different window_id not suppressed",
+        rule_breaker_should_fire(&breaker, 0, 0x5678, 0, "*htop*"));
+}
+
+static void test_breaker_null_safe(void) {
+    ASSERT_TRUE("null breaker → fail open",
+        rule_breaker_should_fire(NULL, 0, 0x1234, 0, "*htop*"));
+}
+
 static void test_multiple_rules(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -423,6 +494,14 @@ int main(void) {
     test_prune_absent_reappearance_clears_pending();
     test_prune_absent_unmatched_window_removed_cleanly();
     test_prune_absent_multiple_windows_independent();
+
+    // Circuit breaker tests
+    printf("\n--- Circuit breaker ---\n");
+    test_breaker_allows_up_to_limit();
+    test_breaker_quiet_period_rearms();
+    test_breaker_burst_window_resets();
+    test_breaker_different_pairs_independent();
+    test_breaker_null_safe();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

@@ -204,12 +204,17 @@ static void apply_rules_to_windows(AppData *app) {
         return;
     }
 
+    gint64 now_ms = g_get_monotonic_time() / 1000;
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
         for (int r = 0; r < app->rules_config.count; r++) {
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, w->id, w->title);
             if (match.should_fire) {
+                if (!rule_breaker_should_fire(&app->rule_breaker, r, w->id,
+                                              now_ms, app->rules_config.rules[r].pattern)) {
+                    continue;
+                }
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
                 gboolean prev = app->in_rule_dispatch;
@@ -251,10 +256,15 @@ static void handle_window_title_change(AppData *app, Window id) {
         safe_string_copy(w->title, new_title, MAX_TITLE_LEN);
 
         // Check rules against updated title
+        gint64 now_ms = g_get_monotonic_time() / 1000;
         for (int r = 0; r < app->rules_config.count; r++) {
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, id, w->title);
             if (match.should_fire) {
+                if (!rule_breaker_should_fire(&app->rule_breaker, r, id,
+                                              now_ms, app->rules_config.rules[r].pattern)) {
+                    continue;
+                }
                 log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
                          app->rules_config.rules[r].pattern, id, w->title, match.commands);
                 gboolean prev = app->in_rule_dispatch;

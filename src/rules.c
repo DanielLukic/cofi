@@ -1,5 +1,6 @@
 #include "rules.h"
 #include "window_matcher.h"
+#include "log.h"
 #include <string.h>
 
 void init_rule_state(RuleState *state) {
@@ -60,6 +61,69 @@ void rule_state_remove_window(RuleState *state, Window id) {
             return;
         }
     }
+}
+
+void init_rule_breaker(RuleBreakerState *breaker) {
+    if (!breaker) return;
+    memset(breaker, 0, sizeof(*breaker));
+}
+
+bool rule_breaker_should_fire(RuleBreakerState *breaker, int rule_index,
+                               Window window_id, int64_t now_ms, const char *pattern) {
+    if (!breaker) return true;
+
+    RuleBreakerEntry *entry = NULL;
+    for (int i = 0; i < breaker->count; i++) {
+        if (breaker->entries[i].rule_index == rule_index &&
+            breaker->entries[i].window_id == window_id) {
+            entry = &breaker->entries[i];
+            break;
+        }
+    }
+
+    if (!entry) {
+        if (breaker->count >= RULE_BREAKER_MAX_ENTRIES) return true; // full: fail open
+        entry = &breaker->entries[breaker->count++];
+        entry->rule_index    = rule_index;
+        entry->window_id     = window_id;
+        entry->burst_start_ms = now_ms;
+        entry->burst_count   = 0;
+        entry->last_fire_ms  = 0;
+        entry->suppressed    = false;
+        entry->logged        = false;
+    }
+
+    if (entry->suppressed) {
+        if (now_ms - entry->last_fire_ms > RULE_BREAKER_QUIET_RESET_MS) {
+            entry->suppressed    = false;
+            entry->logged        = false;
+            entry->burst_count   = 0;
+            entry->burst_start_ms = now_ms;
+        } else {
+            return false;
+        }
+    }
+
+    if (now_ms - entry->burst_start_ms > RULE_BREAKER_BURST_WINDOW_MS) {
+        entry->burst_count    = 0;
+        entry->burst_start_ms = now_ms;
+    }
+
+    entry->burst_count++;
+    entry->last_fire_ms = now_ms;
+
+    if (entry->burst_count > RULE_BREAKER_BURST_LIMIT) {
+        entry->suppressed = true;
+        if (!entry->logged) {
+            log_error("RULE BREAKER: '%s' on 0x%lx exceeded %d fires/s — suppressing"
+                      " (likely feedback loop)",
+                      pattern ? pattern : "?", window_id, RULE_BREAKER_BURST_LIMIT);
+            entry->logged = true;
+        }
+        return false;
+    }
+
+    return true;
 }
 
 void rule_state_prune_absent(RuleState *state, const Window *live_windows, int live_count) {
