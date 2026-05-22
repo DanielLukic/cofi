@@ -1,5 +1,6 @@
 #include "window_geometry_matching.h"
 
+#include "geometry_planner.h"
 #include "layout_store.h"
 #include "log.h"
 #include "matching_gc.h"
@@ -39,34 +40,62 @@ gboolean apply_window_geometry_restore(Display *display,
     if (!display || !target || target->window == 0) return FALSE;
     if (target->width <= 0 || target->height <= 0) return FALSE;
 
-    set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
-                     WINDOW_STATE_UNSET);
-    set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
-                     WINDOW_STATE_UNSET);
-    set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
-                     WINDOW_STATE_UNSET);
+    // Read current window state so we emit only the delta.
+    GeometryState current = {0};
+    current.fullscreen     = get_window_state(display, target->window,
+                                              "_NET_WM_STATE_FULLSCREEN");
+    current.maximized_vert = get_window_state(display, target->window,
+                                              "_NET_WM_STATE_MAXIMIZED_VERT");
+    current.maximized_horz = get_window_state(display, target->window,
+                                              "_NET_WM_STATE_MAXIMIZED_HORZ");
+    current.desktop        = get_window_desktop(display, target->window);
+    if (!get_window_geometry(display, target->window,
+                             &current.x, &current.y,
+                             &current.width, &current.height)) {
+        // Unreadable geometry: assume differs so all geometry ops run.
+        current.x = current.y = current.width = current.height = 0;
+    }
 
-    XMoveResizeWindow(display, target->window, target->x, target->y,
-                      (unsigned int)target->width, (unsigned int)target->height);
+    GeometryState wanted = {
+        .x             = target->x,
+        .y             = target->y,
+        .width         = target->width,
+        .height        = target->height,
+        .desktop       = target->desktop,
+        .maximized_vert = (bool)target->maximized_vert,
+        .maximized_horz = (bool)target->maximized_horz,
+        .fullscreen    = (bool)target->fullscreen,
+    };
 
-    // A per-restore workspace toggle is deferred; restoring desktop is part of
-    // the current explicit geometry restore prototype.
-    move_window_to_desktop(display, target->window, target->desktop);
+    GeometryRestorePlan plan = geometry_restore_plan(&current, &wanted);
 
-    if (target->fullscreen) {
+    if (plan.unset_fullscreen)
+        set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
+                         WINDOW_STATE_UNSET);
+    if (plan.unset_max_vert)
+        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
+                         WINDOW_STATE_UNSET);
+    if (plan.unset_max_horz)
+        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
+                         WINDOW_STATE_UNSET);
+    if (plan.do_move)
+        XMoveResizeWindow(display, target->window, target->x, target->y,
+                          (unsigned int)target->width, (unsigned int)target->height);
+    if (plan.do_desktop)
+        move_window_to_desktop(display, target->window, target->desktop);
+    if (plan.set_fullscreen)
         set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
                          WINDOW_STATE_SET);
-    }
-    if (target->maximized_vert) {
+    if (plan.set_max_vert)
         set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
                          WINDOW_STATE_SET);
-    }
-    if (target->maximized_horz) {
+    if (plan.set_max_horz)
         set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
                          WINDOW_STATE_SET);
-    }
 
-    XFlush(display);
+    if (plan.any)
+        XFlush(display);
+
     return TRUE;
 }
 
