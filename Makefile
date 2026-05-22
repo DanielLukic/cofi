@@ -27,133 +27,8 @@ CFLAGS += $(XI_DEBUG_CFLAGS)
 LDFLAGS += $(XI_DEBUG_LDFLAGS)
 endif
 
-# Source files
-SOURCES = src/main.c \
-          src/x11_utils.c \
-          src/window_list.c \
-          src/history.c \
-          src/display.c \
-          src/emoji_data.c \
-          src/utf8_columns.c \
-          src/filter.c \
-          src/log.c \
-          src/x11_events.c \
-          src/harpoon.c \
-          src/slot_store.c \
-          src/layout_store.c \
-          src/config.c \
-          src/harpoon_config.c \
-          src/window_matcher.c \
-          src/match_entry.c \
-          src/match_entry_config.c \
-          src/filter_matching.c \
-          src/match.c \
-          src/utils.c \
-          src/cli_args.cpp \
-          src/gtk_window.c \
-          src/app_init.c \
-          src/app_setup.c \
-          src/tab_switching.c \
-          src/tab_metadata.c \
-          src/tab_header.c \
-          src/key_handler.c \
-          src/nav_keys.c \
-          src/prefix_tabs.c \
-          src/key_handler_harpoon.c \
-          src/matching_gc.c \
-          src/window_geometry_matching.c \
-          src/harpoon_provider.c \
-          src/workspaces_provider.c \
-          src/window_lifecycle.c \
-          src/hotkey_dispatch.c \
-          src/command_mode.c \
-          src/run_mode.c \
-          src/apps.c \
-          src/sinks.c \
-          src/proc.c \
-          src/process_windows.c \
-          src/projects.c \
-          src/projects_exec.c \
-          src/projects_refresh.c \
-          src/projects_remote_store.c \
-          src/projects_remote_scope.c \
-          src/projects_remote_windows.c \
-          src/projects_parse.c \
-          src/projects_commands.c \
-          src/projects_folder_windows.c \
-          src/projects_window_env.c \
-          src/projects_tmux_windows.c \
-          src/projects_zellij_windows.c \
-          src/system_actions.c \
-          src/path_binaries.c \
-          src/detach_launch.c \
-          src/command_handlers.c \
-          src/command_handlers_window.c \
-          src/command_handlers_workspace.c \
-          src/command_handlers_tiling.c \
-          src/command_handlers_ui.c \
-          src/builtin_plugins.c \
-          src/core_commands.c \
-          src/command_registry.c \
-          src/command_availability.c \
-          src/command_parser.c \
-          src/monitor_move.c \
-          src/selection.c \
-          src/workarea.c \
-          src/size_hints.c \
-          src/overlay_manager.c \
-          src/overlay_dispatch.c \
-          src/overlay_hotkey_add.c \
-          src/overlay_hotkey_add_policy.c \
-          src/overlay_hotkey_edit.c \
-          src/overlay_harpoon.c \
-          src/overlay_name.c \
-          src/overlay_rules.c \
-          src/overlay_sessions.c \
-          src/overlay_projects.c \
-          src/overlay_config.c \
-          src/overlay_workspace.c \
-          src/tiling_overlay.c \
-          src/workspace_overlay.c \
-          src/tiling.c \
-          src/atom_cache.c \
-          src/dynamic_display.c \
-          src/frame_extents.c \
-          src/workspace_utils.c \
-          src/gtk_utils.c \
-          src/workspace_slots.c \
-          src/slot_overlay.c \
-          src/fzf_algo.c \
-          src/window_highlight.c \
-          src/hotkeys.c \
-          src/hotkey_grab_state.c \
-          src/hotkey_config.c \
-          src/rules_config.c \
-          src/rules.c \
-          src/rules_replay.c \
-          src/display_pipeline.c \
-          src/repeat_action.c \
-          src/daemon_socket.c \
-          src/daemon_socket_runtime.c \
-          src/sessions.c \
-          src/sessions_provider.c \
-          src/browser_profiles.c \
-          src/calc.c \
-          src/calc_provider.c \
-          src/config_provider.c \
-          src/apps_provider.c \
-          src/hotkeys_provider.c \
-          src/matching_provider.c \
-          src/rules_provider.c \
-          src/sinks_provider.c \
-          src/run_provider.c \
-          src/proc_provider.c \
-          src/projects_provider.c \
-          src/profiles_provider.c \
-          src/emoji_provider.c \
-          src/cofi_modal.c \
-          src/tinyexpr.c \
-          src/cofi_tab_provider.c
+# Source files — globbed; add a new src/*.c or src/*.cpp and it is picked up automatically
+SOURCES = $(wildcard src/*.c) $(wildcard src/*.cpp)
 
 # Separate C and C++ sources
 C_SOURCES = $(filter %.c,$(SOURCES))
@@ -246,38 +121,9 @@ debug: clean $(TARGET)
 run: $(TARGET)
 	./$(TARGET)
 
-# Test targets
-TEST_TARGETS = \
-	test_window_matcher test_command_parsing test_command_parser_execution \
-	test_config_roundtrip test_config_set test_hotkey_config test_hotkey_dispatch \
-	test_fzf_algo test_match_entry test_match_scoring test_command_aliases \
-	test_wildcard_match test_parse_shortcut test_scrollbar test_utf8_columns \
-	test_emoji_data test_emoji_provider test_emoji_ranking test_emoji_history \
-	test_provider_selection test_rules test_rules_replay test_command_dispatch \
-	test_dynamic_display_fixed test_display_pipeline test_overlay_dispatch \
-	test_overlay_delete_flow test_overlay_rules test_hotkey_grab_state \
-	test_hotkey_rebind_flow test_command_handlers_split \
-	test_command_handlers_behavior test_main_split_regression \
-	test_key_handler_core test_key_handler_harpoon test_key_handler_tabs \
-	test_nav_keys test_workspace_slots_cap test_workspace_slots_occlusion \
-	test_window_lifecycle_fixed_reset test_initial_slot_overlays \
-	test_harpoon_integration test_event_sequence test_repeat_action \
-	test_run_mode test_cli_args_run test_filter_ranking test_initials_ranking \
-	test_ranking_corpus test_apps \
-	test_apps_provider test_config_provider test_harpoon_provider \
-	test_workspaces_provider test_hotkeys_provider test_matching_provider \
-	test_rules_provider test_sessions test_sessions_provider \
-	test_browser_profiles test_profiles_provider test_sinks \
-	test_sinks_provider test_proc test_proc_provider test_projects \
-	test_projects_provider test_projects_remote_store \
-	test_projects_remote_scope test_slot_store test_system_actions \
-	test_layout_store test_matching_gc \
-	test_path_binaries test_command_mode_targeting test_daemon_socket \
-	test_daemon_socket_dispatch test_cli_args_delegate test_tab_visibility \
-	test_tab_header test_tab_metadata test_command_candidates \
-	test_detach_launch test/test_detach_survival_bin test_calc \
-	test_calc_provider test_cofi_tab_provider test_plugin_boundaries \
-	test_cofi_modal test_run_provider
+# Test targets — derived from rule names in this file; add a test_xxx: rule and it is picked up automatically.
+# Excludes test_quick (dev-only scratch target) and test/test_plugin_boundaries.o (object rule, not binary).
+TEST_TARGETS = $(shell grep -Eo '^test[_/][a-z0-9_.]+:' Makefile | tr -d ':' | grep -vxF 'test_quick' | grep -vxF 'test/test_plugin_boundaries.o')
 
 TEST_BINARIES = $(filter-out test_detach_survival_bin,$(TEST_TARGETS:test/%=%)) test_detach_survival.sh
 
