@@ -106,7 +106,7 @@ void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
     GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(parent_container), separator2, FALSE, FALSE, 10);
 
-    GtkWidget *instructions = gtk_label_new("Press Enter to save, Escape to cancel");
+    GtkWidget *instructions = gtk_label_new("Pattern (* wildcard, . single-char) — Enter to save, Esc to cancel");
     gtk_widget_set_halign(instructions, GTK_ALIGN_CENTER);
     gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
 }

@@ -94,34 +94,6 @@ bool wildcard_match(const char *pattern, const char *str) {
     return !*pattern && !*str;
 }
 
-bool glob_match(const char *pattern, const char *str) {
-    if (!pattern || !str) return false;
-
-    while (*pattern && *str) {
-        if (*pattern == '*') {
-            while (*pattern == '*') pattern++;
-            if (!*pattern) return true;
-            while (*str) {
-                if (glob_match(pattern, str)) {
-                    return true;
-                }
-                str++;
-            }
-            return false;
-        } else if (*pattern == '?') {
-            pattern++;
-            str++;
-        } else if (*pattern == *str) {
-            pattern++;
-            str++;
-        } else {
-            return false;
-        }
-    }
-
-    while (*pattern == '*') pattern++;
-    return !*pattern && !*str;
-}
 
 bool window_matches_identity_and_title_pattern(const WindowInfo *window,
                                                const char *class_name,
@@ -139,9 +111,6 @@ bool window_matches_identity_and_title_pattern(const WindowInfo *window,
 
     if (title_mode == TITLE_MATCH_MODE_EXACT) {
         return strcmp(title_pattern, window->title) == 0;
-    }
-    if (title_mode == TITLE_MATCH_MODE_GLOB) {
-        return glob_match(title_pattern, window->title);
     }
     return wildcard_match(title_pattern, window->title);
 }

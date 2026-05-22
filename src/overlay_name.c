@@ -147,7 +147,7 @@ void create_name_pattern_edit_overlay_content(GtkWidget *parent_container, AppDa
 
     g_object_set_data(G_OBJECT(parent_container), "name_entry", name_entry);
 
-    GtkWidget *inst_label = gtk_label_new("Press Enter to save pattern, Escape to cancel");
+    GtkWidget *inst_label = gtk_label_new("Pattern (* wildcard, . single-char) — Enter to save, Esc to cancel");
     gtk_widget_set_opacity(inst_label, 0.7);
     gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
 

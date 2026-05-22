@@ -92,39 +92,27 @@ static void test_real_world_titles(void) {
     ASSERT_TRUE("brackets", wildcard_match("[*] - *", "[5] - Slack"));
 }
 
-/* --- glob_match tests (dormant helper) --- */
+/* --- GLOB-mode patterns (* only — real stored values use no '?') --- */
 
-static void test_glob_match_exact_and_empty(void) {
-    printf("\n--- glob_match: exact and empty ---\n");
-    ASSERT_TRUE("glob exact", glob_match("hello", "hello"));
-    ASSERT_TRUE("glob mismatch", !glob_match("hello", "world"));
-    ASSERT_TRUE("glob non-empty pattern empty string", !glob_match("abc", ""));
-    ASSERT_TRUE("glob empty-empty", glob_match("", ""));
-    ASSERT_TRUE("glob empty-nonempty", !glob_match("", "a"));
-}
+static void test_glob_mode_star_patterns(void) {
+    printf("\n--- GLOB-mode: star patterns (semantics via wildcard_match) ---\n");
 
-static void test_glob_match_question_mark(void) {
-    printf("\n--- glob_match: question mark ---\n");
-    ASSERT_TRUE("'?' matches one char", glob_match("h?llo", "hello"));
-    ASSERT_TRUE("'?' at end", glob_match("hell?", "hello"));
-    ASSERT_TRUE("'?' does not match empty", !glob_match("?", ""));
-    ASSERT_TRUE("multiple '?' count must match", !glob_match("??", "a"));
-}
+    /* Patterns representative of what users store via the overlay */
+    ASSERT_TRUE("cofi* matches 'cofi | main'",    wildcard_match("cofi*", "cofi | main"));
+    ASSERT_TRUE("cofi* matches 'cofi'",           wildcard_match("cofi*", "cofi"));
+    ASSERT_TRUE("cofi* does not match 'terminal'",!wildcard_match("cofi*", "terminal"));
+    ASSERT_TRUE("brew* matches 'brew | dl'",      wildcard_match("brew*", "brew | dl"));
+    ASSERT_TRUE("Tsunami* matches title",         wildcard_match("Tsunami*", "Tsunami IMAP - Mozilla Thunderbird"));
+    ASSERT_TRUE("*Teams matches end",             wildcard_match("*Teams", "Chat | Microsoft Teams"));
+    ASSERT_TRUE("*Teams does not match middle",   !wildcard_match("*Teams", "Chat | Teams | Extra"));
 
-static void test_glob_match_star(void) {
-    printf("\n--- glob_match: star ---\n");
-    ASSERT_TRUE("'*' matches empty", glob_match("*", ""));
-    ASSERT_TRUE("'*' matches run", glob_match("a*", "abcdef"));
-    ASSERT_TRUE("leading '*' matches run", glob_match("*def", "abcdef"));
-    ASSERT_TRUE("middle '*' matches run", glob_match("a*f", "abcdef"));
-    ASSERT_TRUE("middle '*' matches empty", glob_match("ab*cd", "abcd"));
-}
+    /* Dot is single-char — GLOB and rules use the same semantics */
+    ASSERT_TRUE("cofi. matches 'cofiz'",          wildcard_match("cofi.", "cofiz"));
+    ASSERT_TRUE("cofi. does not match 'cofi'",    !wildcard_match("cofi.", "cofi"));
 
-static void test_glob_match_leading_and_trailing_star(void) {
-    printf("\n--- glob_match: leading/trailing star ---\n");
-    ASSERT_TRUE("leading and trailing star", glob_match("*core*", "xxcoreyy"));
-    ASSERT_TRUE("trailing star no match", !glob_match("xyz*", "abc"));
-    ASSERT_TRUE("leading star no match", !glob_match("*xyz", "abc"));
+    /* '?' is NOT a wildcard in this system — must match literally */
+    ASSERT_TRUE("'?' is literal in pattern",      wildcard_match("what?", "what?"));
+    ASSERT_TRUE("'?' does not act as single-char",!wildcard_match("what?", "whats"));
 }
 
 int main(void) {
@@ -137,10 +125,7 @@ int main(void) {
     test_combined_wildcards();
     test_null_safety();
     test_real_world_titles();
-    test_glob_match_exact_and_empty();
-    test_glob_match_question_mark();
-    test_glob_match_star();
-    test_glob_match_leading_and_trailing_star();
+    test_glob_mode_star_patterns();
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
 

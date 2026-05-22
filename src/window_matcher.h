@@ -5,9 +5,9 @@
 #include "window_info.h"
 
 typedef enum {
-    TITLE_MATCH_MODE_LEGACY_WILDCARD = 0,  // '*' + '.' semantics via wildcard_match
+    TITLE_MATCH_MODE_LEGACY_WILDCARD = 0,  // '*' + '.' semantics via wildcard_match (same as GLOB)
     TITLE_MATCH_MODE_EXACT = 1,            // strcmp
-    TITLE_MATCH_MODE_GLOB = 2              // '*' + '?' semantics via glob_match
+    TITLE_MATCH_MODE_GLOB = 2              // '*' + '.' semantics via wildcard_match
 } TitleMatchMode;
 
 // Check if two windows match with fuzzy title matching (same class, instance, type, but title can differ)
@@ -28,12 +28,8 @@ bool window_matches_identity_and_title_pattern(const WindowInfo *window,
                                                const char *title_pattern,
                                                TitleMatchMode title_mode);
 
-// Wildcard matching function
-// '*' matches any sequence of characters, '.' matches any single character
+// Wildcard matching: '*' matches any run of characters, '.' matches any single character.
+// Used by both the rules engine and GLOB-mode matching entries.
 bool wildcard_match(const char *pattern, const char *str);
-
-// Glob matching function
-// '*' matches any sequence of characters, '?' matches any single character
-bool glob_match(const char *pattern, const char *str);
 
 #endif // WINDOW_MATCHER_H
