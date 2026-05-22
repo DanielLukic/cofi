@@ -59,6 +59,86 @@ static void compose_display_string(const WindowInfo *win, char *out, size_t out_
              desktop_str, display_instance, win->title, display_class);
 }
 
+// Return byte offset in 'display' where the TITLE field starts.
+// Format: "[N] instance title class" — title is after "[N] instance ".
+static int title_start_offset(const WindowInfo *win) {
+    int desktop_len = (win->desktop < 0 || win->desktop > 99) ? 3 :
+                      (win->desktop + 1 < 10) ? 3 : 4;
+    const char *inst = (win->instance[0] >= 'A' && win->instance[0] <= 'Z')
+                       ? win->class_name : win->instance;
+    return desktop_len + 1 + (int)strlen(inst) + 1;
+}
+
+// Signal A: title-relative position bonus for TIER_DIRECT matches.
+// Finds the earliest word-boundary contiguous match of filter within the
+// title portion of display (starting at title_start) and returns
+// max(0, MATCH_EARLY_BONUS_MAX - title_relative_offset).
+// Returns 0 if no such match exists in the title portion.
+static score_t early_title_bonus(const char *filter, const char *display,
+                                  int title_start) {
+    int flen = (int)strlen(filter);
+    if (flen == 0) return 0;
+    for (int i = title_start; display[i]; i++) {
+        bool at_boundary = (i == title_start) ||
+            (display[i-1] == ' ' || display[i-1] == '-' || display[i-1] == '_' ||
+             display[i-1] == '.' || display[i-1] == '(' || display[i-1] == '|' ||
+             display[i-1] == '/');
+        if (!at_boundary) continue;
+        int j = 0;
+        while (j < flen && display[i+j] &&
+               tolower((unsigned char)display[i+j]) == tolower((unsigned char)filter[j]))
+            j++;
+        if (j == flen) {
+            int offset = i - title_start;
+            return (offset < MATCH_EARLY_BONUS_MAX) ? (score_t)(MATCH_EARLY_BONUS_MAX - offset) : 0;
+        }
+    }
+    return 0;
+}
+
+// Signal B: count pairs of adjacent query characters where both are matched
+// at word-start positions with no other word-start between them.
+// Uses a greedy left-to-right word-start scan.  Returns 0 if not all query
+// characters can be matched at word-start positions.
+static bool is_word_start(const char *s, int pos) {
+    if (pos == 0) return true;
+    char p = s[pos-1];
+    return p == ' ' || p == '-' || p == '_' || p == '.' ||
+           p == '(' || p == '|' || p == '/';
+}
+
+static int consecutive_word_start_pairs(const char *filter, const char *display) {
+    int flen = (int)strlen(filter);
+    if (flen < 2) return 0;
+
+    int pos[MAX_TITLE_LEN];
+    int cur = 0;
+    for (int i = 0; i < flen && i < MAX_TITLE_LEN; i++) {
+        bool found = false;
+        while (display[cur]) {
+            if (is_word_start(display, cur) &&
+                tolower((unsigned char)display[cur]) == tolower((unsigned char)filter[i])) {
+                pos[i] = cur;
+                cur++;
+                found = true;
+                break;
+            }
+            cur++;
+        }
+        if (!found) return 0;
+    }
+
+    int pairs = 0;
+    for (int i = 0; i < flen - 1 && i < MAX_TITLE_LEN - 1; i++) {
+        bool adjacent = true;
+        for (int j = pos[i] + 1; j < pos[i+1]; j++) {
+            if (is_word_start(display, j)) { adjacent = false; break; }
+        }
+        if (adjacent) pairs++;
+    }
+    return pairs;
+}
+
 // Returns true when the query appears as a contiguous case-insensitive
 // sequence of characters starting at a word-boundary position in display.
 // Word-boundary: start of string or previous char is space/-/_/./(/|//.
@@ -100,9 +180,27 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
     }
 
     score_t score = fzf_fuzzy_match(filter, display);
+
+    // Signal B: consecutive word-start pair bonus (applies to all matches).
+    // Rewards acronym-style queries where matched chars are at adjacent
+    // word-starts (e.g. "gcse" → google·chrome·Software·engineering).
+    int pairs = consecutive_word_start_pairs(filter, display);
+    if (pairs > 0) {
+        score += pairs * CONSECUTIVE_WORD_START_PAIR_BONUS;
+        log_debug("WORD_START_PAIRS: '%s' -> '%s' pairs=%d (+%.0f)",
+                  filter, display, pairs, (score_t)pairs * CONSECUTIVE_WORD_START_PAIR_BONUS);
+    }
+
     if (is_direct_word_boundary_match(filter, display)) {
         score += TIER_DIRECT_BASE;
-        log_debug("TIER_DIRECT: '%s' -> '%s' (%.0f)", filter, display, score);
+        // Signal A: title-relative position bonus (TIER_DIRECT only).
+        // Boosts matches that land early in the title over boilerplate
+        // "Google Chrome" matches near the end of the title.
+        int ts = title_start_offset(win);
+        score_t pos_bonus = early_title_bonus(filter, display, ts);
+        score += pos_bonus;
+        log_debug("TIER_DIRECT: '%s' -> '%s' pos_bonus=%.0f (%.0f)",
+                  filter, display, pos_bonus, score);
     } else {
         log_debug("TIER_INDIRECT: '%s' -> '%s' (%.0f)", filter, display, score);
     }
