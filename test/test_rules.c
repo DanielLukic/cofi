@@ -494,6 +494,42 @@ static void test_multiple_rules(void) {
     ASSERT_TRUE("Firefox matches rule 1", m4.should_fire);
 }
 
+// ========== rules_needs_restore_rule tests ==========
+
+static void test_needs_restore_rule_empty_config(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_TRUE("empty config always needs rule", rules_needs_restore_rule(&config, "My App"));
+}
+
+static void test_needs_restore_rule_matching_rl_rule_skips(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "My App", "rl");
+    ASSERT_FALSE("exact match with rl skips creation", rules_needs_restore_rule(&config, "My App"));
+}
+
+static void test_needs_restore_rule_non_rl_commands_needs_rule(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "My App", "sb,ew");
+    ASSERT_TRUE("rule without rl still needs restore rule", rules_needs_restore_rule(&config, "My App"));
+}
+
+static void test_needs_restore_rule_glob_covers_exact_title(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "cofi*", "rl");
+    ASSERT_FALSE("glob with rl covers matching title", rules_needs_restore_rule(&config, "cofi | main"));
+}
+
+static void test_needs_restore_rule_non_matching_rl_needs_rule(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "Firefox*", "rl");
+    ASSERT_TRUE("rl rule for different pattern needs new rule", rules_needs_restore_rule(&config, "My App"));
+}
+
 int main(void) {
     printf("Rules tests\n");
     printf("===========\n\n");
@@ -525,6 +561,14 @@ int main(void) {
     printf("\n--- Prune absent ---\n");
     test_prune_absent_removes_immediately();
     test_prune_absent_present_window_kept();
+
+    // Restore rule dedup tests
+    printf("\n--- Restore rule dedup ---\n");
+    test_needs_restore_rule_empty_config();
+    test_needs_restore_rule_matching_rl_rule_skips();
+    test_needs_restore_rule_non_rl_commands_needs_rule();
+    test_needs_restore_rule_glob_covers_exact_title();
+    test_needs_restore_rule_non_matching_rl_needs_rule();
 
     // Circuit breaker tests
     printf("\n--- Circuit breaker ---\n");

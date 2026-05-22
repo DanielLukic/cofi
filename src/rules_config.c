@@ -1,5 +1,6 @@
 #include "rules_config.h"
 #include "log.h"
+#include "window_matcher.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -155,4 +156,25 @@ int load_rules_config(RulesConfig *config) {
     fclose(file);
     log_info("Loaded %d rules from %s", config->count, path);
     return 1;
+}
+
+static bool commands_contain_rl(const char *commands) {
+    const char *p = commands;
+    while (*p) {
+        while (*p == ' ' || *p == ',') p++;
+        if (p[0] == 'r' && p[1] == 'l' && (p[2] == '\0' || p[2] == ','))
+            return true;
+        while (*p && *p != ',') p++;
+    }
+    return false;
+}
+
+bool rules_needs_restore_rule(const RulesConfig *config, const char *window_title) {
+    if (!config || !window_title) return false;
+    for (int i = 0; i < config->count; i++) {
+        if (commands_contain_rl(config->rules[i].commands) &&
+            wildcard_match(config->rules[i].pattern, window_title))
+            return false;
+    }
+    return true;
 }

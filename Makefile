@@ -268,8 +268,8 @@ test_command_handlers_split: test/test_command_handlers_split.c test/command_han
 	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c test/command_handler_stubs.c src/core_commands.o src/command_registry.o $(LDFLAGS)
 
 # Build command handler behavior regression tests
-test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/core_commands.o src/command_registry.o src/command_availability.o src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/core_commands.o src/command_registry.o src/command_availability.o src/slot_store.o src/log.o $(LDFLAGS)
+test_command_handlers_behavior: test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/core_commands.o src/command_registry.o src/command_availability.o src/slot_store.o src/match_entry.o src/rules_config.o src/window_matcher.o src/utils.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c src/command_handlers_window.o src/command_handlers_workspace.o src/command_handlers_tiling.o src/command_handlers_ui.o src/core_commands.o src/command_registry.o src/command_availability.o src/slot_store.o src/match_entry.o src/rules_config.o src/window_matcher.o src/utils.o src/log.o $(LDFLAGS)
 
 # Build proc parser/behavior tests
 test_proc: test/test_proc.c
