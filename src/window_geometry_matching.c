@@ -67,7 +67,8 @@ gboolean apply_window_geometry_restore(Display *display,
         .fullscreen    = (bool)target->fullscreen,
     };
 
-    GeometryRestorePlan plan = geometry_restore_plan(&current, &wanted);
+    int active_desktop = get_current_desktop(display);
+    GeometryRestorePlan plan = geometry_restore_plan(&current, &wanted, active_desktop);
 
     if (plan.unset_fullscreen)
         set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
@@ -83,6 +84,8 @@ gboolean apply_window_geometry_restore(Display *display,
                           (unsigned int)target->width, (unsigned int)target->height);
     if (plan.do_desktop)
         move_window_to_desktop(display, target->window, target->desktop);
+    if (plan.do_switch_active_desktop)
+        switch_to_desktop(display, target->desktop);
     if (plan.set_fullscreen)
         set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
                          WINDOW_STATE_SET);

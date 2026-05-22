@@ -1,7 +1,8 @@
 #include "geometry_planner.h"
 
 GeometryRestorePlan geometry_restore_plan(const GeometryState *current,
-                                          const GeometryState *target) {
+                                          const GeometryState *target,
+                                          int current_active_desktop) {
     GeometryRestorePlan plan = {0};
     if (!current || !target) return plan;
 
@@ -23,13 +24,17 @@ GeometryRestorePlan geometry_restore_plan(const GeometryState *current,
     // Step 3: Desktop move only if target differs and is a valid desktop index.
     plan.do_desktop = (target->desktop >= 0) && (target->desktop != current->desktop);
 
-    // Step 4: SET states that are wanted but not currently set.
+    // Step 4: Switch the active (viewed) desktop to follow the restored window.
+    plan.do_switch_active_desktop = (target->desktop >= 0) &&
+                                    (target->desktop != current_active_desktop);
+
+    // Step 5: SET states that are wanted but not currently set.
     plan.set_fullscreen = !current->fullscreen  && target->fullscreen;
     plan.set_max_vert   = !current->maximized_vert && target->maximized_vert;
     plan.set_max_horz   = !current->maximized_horz && target->maximized_horz;
 
     plan.any = plan.unset_fullscreen || plan.unset_max_vert   || plan.unset_max_horz ||
-               plan.do_move          || plan.do_desktop        ||
+               plan.do_move          || plan.do_desktop        || plan.do_switch_active_desktop ||
                plan.set_fullscreen   || plan.set_max_vert      || plan.set_max_horz;
 
     return plan;

@@ -63,6 +63,8 @@ void set_window_state(Display *display, Window window, const char *state_atom_na
     (void)state_atom_name;
     (void)action;
 }
+int get_current_desktop(Display *display) { (void)display; return 0; }
+void switch_to_desktop(Display *display, int desktop) { (void)display; (void)desktop; }
 
 static void set_test_home(const char *suffix) {
     char path[256];

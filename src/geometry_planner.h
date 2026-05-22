@@ -18,17 +18,21 @@ typedef struct {
     bool unset_fullscreen;
     bool unset_max_vert;
     bool unset_max_horz;
-    bool do_move;          // XMoveResizeWindow
-    bool do_desktop;       // move_window_to_desktop
+    bool do_move;                  // XMoveResizeWindow
+    bool do_desktop;               // move_window_to_desktop
+    bool do_switch_active_desktop; // switch_to_desktop (active view follows)
     bool set_fullscreen;
     bool set_max_vert;
     bool set_max_horz;
-    bool any;              // OR of the above — gate XFlush on this
+    bool any;                      // OR of the above — gate XFlush on this
 } GeometryRestorePlan;
 
 // Pure decision function: compute the delta from current to target.
+// current_active_desktop: the desktop the user is currently viewing
+//   (distinct from the window's current desktop).
 // Contains no X11 calls; safe to unit-test without a display.
 GeometryRestorePlan geometry_restore_plan(const GeometryState *current,
-                                          const GeometryState *target);
+                                          const GeometryState *target,
+                                          int current_active_desktop);
 
 #endif // GEOMETRY_PLANNER_H
