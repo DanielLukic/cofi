@@ -10,6 +10,13 @@ LDFLAGS = $(shell pkg-config --libs gtk+-3.0 x11 gio-2.0 json-glib-1.0) -lm -lXr
 BUILD_NUMBER ?= 0
 CFLAGS += -DBUILD_NUMBER=$(BUILD_NUMBER)
 
+# Git short hash for dev/local builds; empty string in environments with no git
+GIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null)
+GIT_DIRTY := $(if $(shell git status --porcelain 2>/dev/null),-dirty)
+ifneq ($(GIT_HASH),)
+CFLAGS += -DCOFI_GIT_HASH='"$(GIT_HASH)$(GIT_DIRTY)"'
+endif
+
 # Debug-only PrintScr observer. Lets debug builds notice PrintScr even when a
 # desktop screenshot tool owns the normal key grab.
 XI_DEBUG_CFLAGS = -DCOFI_DEBUG_PRINTSCR_CAPTURE $(shell pkg-config --cflags xi)

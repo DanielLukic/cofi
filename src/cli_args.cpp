@@ -170,7 +170,11 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     }
     
     if (version_opt->is_set()) {
+#ifdef COFI_GIT_HASH
+        printf("cofi version %s (%s)\n", VERSION_STRING, COFI_GIT_HASH);
+#else
         printf("cofi version %s\n", VERSION_STRING);
+#endif
         return 2;
     }
     
