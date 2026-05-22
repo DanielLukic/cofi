@@ -18,10 +18,11 @@
 #define MAX_DISPLAY_LINES 20
 
 // Filter scoring constants
-// Additive bonus awarded when query chars all hit word-starts in the
-// composite display string (instance + title + class).  Kept modest so a
-// contiguous fzf word-boundary match (~114 for 4 chars) always dominates.
-#define SCORE_INITIALS_BONUS 15
+// Added to fzf score when the query appears as a contiguous case-insensitive
+// run starting at a word boundary in the composite display string.  The gap
+// is wide enough that no amount of fzf score or bonus in a non-direct match
+// can reach the direct-match tier (max realistic indirect score << 10000).
+#define TIER_DIRECT_BASE 10000
 
 // Desktop indicator
 #define DESKTOP_STICKY_INDICATOR "[S] "

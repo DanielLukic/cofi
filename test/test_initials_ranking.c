@@ -1,30 +1,28 @@
 /*
- * Behavioral ranking tests for the initials-bonus model.
+ * Behavioral ranking tests for the tiered scoring model.
  *
- * Two tests verify the bug fix (FAIL before fix, PASS after):
+ * The model has two tiers:
+ *   TIER_DIRECT   — query appears as a contiguous run at a word boundary
+ *                   in the composite display string.  Score += TIER_DIRECT_BASE.
+ *   TIER_INDIRECT — everything else that fzf_has_match passes.
  *
- *   test_brew_ranking  — "brew" on a Chrome window whose title has
- *                         consecutive B-R-E-W initials must NOT outrank
- *                         the literal "brew | dl" terminal (old max()
- *                         model gave Chrome score 1900 > terminal ~114).
+ * workspace_bonus is 1 (pure tiebreaker, never overrides a real score gap).
  *
- *   test_chat_ranking  — "chat" on a Chrome window with consecutive
- *                         C-H-A-T initials must NOT outrank the Teams
- *                         window where "Chat" is a literal word.
+ * Must-pass ranking invariants (real usage bar):
+ *   test_brew_ranking        — "brew" → "brew | dl" #1 over Chrome word-starts
+ *   test_chat_ranking        — "chat" → "Chat | ... Teams" #1 over Chrome word-starts
+ *   test_ch_ranking          — "ch" → "Chat | ... Teams" #1 even when it is on a
+ *                               different desktop than the google-chrome windows
  *
- * Three regression guards (PASS both before and after fix):
+ * Adversarial cases (sam's single-char-word titles):
+ *   test_chat_adversarial    — "chat" → "Chat | ... Teams" beats "C H A T" Chrome
+ *   test_brew_adversarial    — "brew" → "brew | dl" beats "B R E W" Chrome
  *
- *   test_composite_acronym_matches   — "gcsnty" spanning class + title
- *                                       still fires initials and appears.
+ * Inclusion guards (scattered initials must still appear):
+ *   test_gyt_included        — "gyt" matches a YouTube window (TIER_INDIRECT)
  *
- *   test_scattered_initials_included — scattered (non-consecutive)
- *                                       initials still produce a match
- *                                       and the window appears in results;
- *                                       the fix must not gate on density.
- *
- *   test_short_acronym_ranks_above_scattered — "fd" on "Foo Document"
- *                                       still beats a scattered-fzf-only
- *                                       window.
+ * Regression:
+ *   test_fd_ranking          — "fd" on "Foo Document" beats mid-word scatter
  */
 
 #include <stdio.h>
@@ -88,23 +86,19 @@ static void print_scores(AppData *app, const char *query) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Bug-fix tests: FAIL under the old max() model, PASS after fix.     */
+/* Must-pass ranking invariants                                         */
 /* ------------------------------------------------------------------ */
 
 /*
- * Chrome title "Big Red Every Window" has consecutive B-R-E-W word-starts —
- * the initials bonus fires.  Short (3-char) words push Chrome's fzf score
- * to ~97 (harder case than longer words ~93).  Under the old max(fzf, 1900)
- * model Chrome scores 1900 and beats the terminal (fzf=114).  Under the
- * additive model: 97+bonus=112 < 114, so terminal ranks first.
+ * "brew" on a Chrome window with B-R-E-W word-starts must NOT outrank
+ * the literal "brew | dl" terminal.  The terminal has a direct
+ * word-boundary contiguous match → TIER_DIRECT; Chrome only has
+ * scattered initials → TIER_INDIRECT.
  */
 static void test_brew_ranking(void) {
     AppData app;
     reset_app(&app);
 
-    /* Chrome: initials B(ig) R(ed) E(very) W(indow) fires for "brew".
-     * Shorter words → higher fzf score (~97) — a harder test than
-     * longer-word titles (~93).  Still loses to terminal's ~114. */
     add_win(&app, 0x100, 0, "google-chrome",
             "Big Red Every Window - GitHub", "Google-chrome");
     add_win(&app, 0x200, 0, "kitty", "brew | dl", "kitty");
@@ -114,15 +108,13 @@ static void test_brew_ranking(void) {
 
     ASSERT_TRUE("brew: terminal ranks #1 (not Chrome)",
                 app.filtered_count >= 1 && app.filtered[0].id == 0x200);
-    ASSERT_TRUE("brew: Chrome still in results (acronym match preserved)",
+    ASSERT_TRUE("brew: Chrome still in results (TIER_INDIRECT match preserved)",
                 app.filtered_count >= 2 && app.filtered[1].id == 0x100);
 }
 
 /*
- * Chrome title "Create Here About Them" has consecutive C-H-A-T
- * word-starts — initials fires for "chat".  Old model scores Chrome 1900
- * above Teams' literal "Chat" fzf score.  New additive model keeps
- * Teams on top.
+ * "chat" on a Chrome window with C-H-A-T word-starts must NOT outrank
+ * the Teams window where "Chat" is a literal word at a word boundary.
  */
 static void test_chat_ranking(void) {
     AppData app;
@@ -140,65 +132,133 @@ static void test_chat_ranking(void) {
                 app.filtered_count >= 1 && app.filtered[0].id == 0x100);
 }
 
+/*
+ * "ch" on a list where every window is google-chrome EXCEPT one Teams
+ * window whose title starts "Chat".  The Teams window is on desktop 1
+ * (non-current); Chrome windows are on desktop 0 (current).
+ *
+ * Both match "ch" as a contiguous word-boundary run (TIER_DIRECT):
+ *   Teams:  'C' in "Chat" after space  → fzf uses BONUS_BOUNDARY_WHITE
+ *   Chrome: 'c' in "chrome" after '-' → fzf uses BONUS_BOUNDARY_DELIMITER
+ *
+ * BONUS_BOUNDARY_WHITE(10) > BONUS_BOUNDARY_DELIMITER(9), so Teams has
+ * ~2pt higher fzf.  workspace_bonus must be ≤ 1 so it cannot override
+ * that gap.  FAIL if workspace_bonus = 5 (old value).
+ */
+static void test_ch_ranking(void) {
+    AppData app;
+    reset_app(&app);
+    mock_desktop = 0;
+
+    /* Teams on desktop 1 (not current) */
+    add_win(&app, 0x100, 1, "msteams",
+            "Chat | Claudio | Microsoft Teams", "msteams");
+    /* Chrome windows on desktop 0 (current) */
+    add_win(&app, 0x200, 0, "google-chrome",
+            "specdd/cofi - GitHub - Google Chrome", "Google-chrome");
+    add_win(&app, 0x300, 0, "google-chrome",
+            "some other page - Google Chrome", "Google-chrome");
+
+    print_scores(&app, "ch");
+    filter_windows(&app, "ch");
+
+    ASSERT_TRUE("ch: Teams Chat ranks #1 even though on different desktop",
+                app.filtered_count >= 1 && app.filtered[0].id == 0x100);
+}
+
 /* ------------------------------------------------------------------ */
-/* Regression guards: PASS both before and after fix.                  */
+/* Adversarial cases: sam's single-char-word titles                    */
 /* ------------------------------------------------------------------ */
 
 /*
- * Full-composite acronym "gcsnty" spans g(oogle-chrome), c(hrome),
- * s(ome), n(ice), t(itle), y(outube) — class + title — and must still
- * match and appear in results.
+ * "C H A T" (each char a separate word) gives fzf ~105 because each
+ * char hits a word-start with BONUS_BOUNDARY_WHITE.  It also fires the
+ * old initials bonus.  Under the old model (fzf+15 = 120 > 114) Teams
+ * lost.  Under the tier model "C H A T" is TIER_INDIRECT (no contiguous
+ * run) and Teams is TIER_DIRECT → Teams wins by construction.
  */
-static void test_composite_acronym_matches(void) {
+static void test_chat_adversarial(void) {
     AppData app;
     reset_app(&app);
 
-    add_win(&app, 0x100, 0, "google-chrome",
-            "Some Nice Title - YouTube", "Google-chrome");
+    add_win(&app, 0x100, 0, "msteams",
+            "Chat | Claudio | Microsoft Teams", "msteams");
+    add_win(&app, 0x200, 0, "google-chrome",
+            "C H A T - GitHub", "Google-chrome");
 
-    print_scores(&app, "gcsnty");
-    filter_windows(&app, "gcsnty");
+    print_scores(&app, "chat");
+    filter_windows(&app, "chat");
 
-    ASSERT_TRUE("gcsnty: full-composite acronym window is in results",
+    ASSERT_TRUE("chat adversarial: Teams ranks #1 over 'C H A T' Chrome",
                 app.filtered_count >= 1 && app.filtered[0].id == 0x100);
 }
 
 /*
- * Scattered initials "gyt": g(oogle), y(outube), t(ribute) with several
- * word-starts between consecutive matches.  The fix must not gate on
- * density — this window must still appear in results.
+ * "B R E W" single-char-word title — same adversarial structure as
+ * "C H A T".  fzf(brew, "B R E W ...") ~105 + old initials bonus = 120
+ * beats terminal 114.  Tier model: terminal is TIER_DIRECT, Chrome
+ * TIER_INDIRECT → terminal wins by construction.
  */
-static void test_scattered_initials_included(void) {
+static void test_brew_adversarial(void) {
     AppData app;
     reset_app(&app);
 
+    add_win(&app, 0x100, 0, "kitty", "brew | dl", "kitty");
+    add_win(&app, 0x200, 0, "google-chrome",
+            "B R E W - GitHub", "Google-chrome");
+
+    print_scores(&app, "brew");
+    filter_windows(&app, "brew");
+
+    ASSERT_TRUE("brew adversarial: terminal ranks #1 over 'B R E W' Chrome",
+                app.filtered_count >= 1 && app.filtered[0].id == 0x100);
+}
+
+/* ------------------------------------------------------------------ */
+/* Inclusion guard: scattered initials must still appear               */
+/* ------------------------------------------------------------------ */
+
+/*
+ * "gyt" — g(oogle), y(ouTube), t(ribute) — scattered word-starts with
+ * gaps.  The tier model must not gate on density: this window must
+ * appear in results as TIER_INDIRECT via fzf_has_match.
+ */
+static void test_gyt_included(void) {
+    AppData app;
+    reset_app(&app);
+
+    /* Realistic YouTube window title */
     add_win(&app, 0x100, 0, "google-chrome",
-            "Some YouTube tribute", "Google-chrome");
+            "Synthwave Mix - YouTube - Google Chrome", "Google-chrome");
 
     print_scores(&app, "gyt");
     filter_windows(&app, "gyt");
 
-    ASSERT_TRUE("gyt: scattered-initials window appears in results (not gated)",
+    ASSERT_TRUE("gyt: YouTube window appears in results (TIER_INDIRECT, not gated)",
                 app.filtered_count >= 1);
 }
 
+/* ------------------------------------------------------------------ */
+/* Regression: "fd" acronym over mid-word scatter                      */
+/* ------------------------------------------------------------------ */
+
 /*
- * Short genuine acronym "fd" = F(oo) D(ocument) (consecutive word-starts)
- * must rank above a window with only a scattered fzf hit and no initials.
+ * "fd" = F(oo) D(ocument) — both chars at word-starts (TIER_INDIRECT
+ * but high fzf).  Must rank above a window where 'f' and 'd' only
+ * appear mid-word (lower fzf, TIER_INDIRECT).
  */
-static void test_short_acronym_ranks_above_scattered(void) {
+static void test_fd_ranking(void) {
     AppData app;
     reset_app(&app);
 
     add_win(&app, 0x100, 0, "app", "Foo Document", "app");
-    /* 'f' buried in "scaffolding", 'd' in "documentation" — initials fail */
     add_win(&app, 0x200, 0, "code",
             "scaffolding and documentation tools", "Code");
 
     print_scores(&app, "fd");
     filter_windows(&app, "fd");
 
-    ASSERT_TRUE("fd: Foo Document ranks #1 (acronym over scattered fzf)",
+    ASSERT_TRUE("fd: Foo Document ranks #1 (word-starts over mid-word scatter)",
                 app.filtered_count >= 1 && app.filtered[0].id == 0x100);
 }
 
@@ -209,9 +269,11 @@ int main(void) {
 
     test_brew_ranking();
     test_chat_ranking();
-    test_composite_acronym_matches();
-    test_scattered_initials_included();
-    test_short_acronym_ranks_above_scattered();
+    test_ch_ranking();
+    test_chat_adversarial();
+    test_brew_adversarial();
+    test_gyt_included();
+    test_fd_ranking();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return (fail == 0) ? 0 : 1;

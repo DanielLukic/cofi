@@ -59,38 +59,38 @@ static void compose_display_string(const WindowInfo *win, char *out, size_t out_
              desktop_str, display_instance, win->title, display_class);
 }
 
-// Try initials match on the full composite display string.
-// Returns SCORE_INITIALS_BONUS when every query char hits a word-start
-// (space / dash / underscore / dot / paren / pipe boundary) in order,
-// or SCORE_MIN when the chars can't all be found that way.
-// The caller adds this as a BONUS on top of the fzf score — it never
-// replaces the fzf score.  Scattered matches (gaps between word-starts)
-// still fire and receive the same bonus; density is not gated here so
-// that full-composite acronyms spanning class+title continue to work.
-static score_t try_initials_on_display(const char *filter, const char *display) {
-    int filter_len = strlen(filter);
-    int filter_idx = 0;
-
-    for (int i = 0; display[i] && filter_idx < filter_len; i++) {
-        int at_word_start = (i == 0 || display[i-1] == ' ' || display[i-1] == '-' ||
-                            display[i-1] == '_' || display[i-1] == '.' ||
-                            display[i-1] == '(' || display[i-1] == '|');
-        if (at_word_start && tolower(display[i]) == tolower(filter[filter_idx])) {
-            filter_idx++;
+// Returns true when the query appears as a contiguous case-insensitive
+// sequence of characters starting at a word-boundary position in display.
+// Word-boundary: start of string or previous char is space/-/_/./(/|//.
+// This is the TIER_DIRECT gate: a contiguous word-boundary match scores
+// fzf + TIER_DIRECT_BASE, placing it in a tier no indirect match can reach.
+static bool is_direct_word_boundary_match(const char *filter, const char *display) {
+    int flen = strlen(filter);
+    if (flen == 0) return false;
+    for (int i = 0; display[i]; i++) {
+        if (i > 0) {
+            char p = display[i-1];
+            if (p != ' ' && p != '-' && p != '_' && p != '.' &&
+                p != '(' && p != '|' && p != '/') continue;
         }
+        int j = 0;
+        while (j < flen && display[i+j] &&
+               tolower((unsigned char)display[i+j]) == tolower((unsigned char)filter[j]))
+            j++;
+        if (j == flen) return true;
     }
-
-    if (filter_idx == filter_len) {
-        return SCORE_INITIALS_BONUS;
-    }
-    return SCORE_MIN;
+    return false;
 }
 
 // Match a window against filter and return best score.
-// Uses fzf on the full composite display string plus an additive initials
-// bonus.  A contiguous literal match (~114 for 4 chars) always beats an
-// initials-only match because the bonus (SCORE_INITIALS_BONUS = 25) is
-// much smaller than the fzf word-boundary score advantage.
+// Scores are partitioned into two tiers by construction:
+//   TIER_DIRECT   fzf + TIER_DIRECT_BASE — query found as a contiguous run
+//                 at a word boundary.  Covers "brew" in "brew | dl",
+//                 "Chat" in "Chat | ...", "ch" in "chrome" or "Chat".
+//   TIER_INDIRECT fzf only              — all other fzf matches (scattered
+//                 word-start initials, mid-word fzf, etc.)
+// The gap between tiers (TIER_DIRECT_BASE = 10000) is wide enough that no
+// fzf score or workspace bonus on an indirect match can reach a direct one.
 static score_t match_window(const char *filter, const WindowInfo *win) {
     char display[1024];
     compose_display_string(win, display, sizeof(display));
@@ -100,13 +100,11 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
     }
 
     score_t score = fzf_fuzzy_match(filter, display);
-    log_debug("FZF: '%s' -> '%s' (score: %.0f)", filter, display, score);
-
-    score_t initials = try_initials_on_display(filter, display);
-    if (initials > SCORE_MIN) {
-        score += initials;
-        log_debug("INITIALS BONUS: '%s' -> '%s' (+%.0f, total: %.0f)",
-                  filter, display, initials, score);
+    if (is_direct_word_boundary_match(filter, display)) {
+        score += TIER_DIRECT_BASE;
+        log_debug("TIER_DIRECT: '%s' -> '%s' (%.0f)", filter, display, score);
+    } else {
+        log_debug("TIER_INDIRECT: '%s' -> '%s' (%.0f)", filter, display, score);
     }
 
     return score;
@@ -212,11 +210,13 @@ static int score_and_filter_windows(AppData *app, const char *filter,
             
             // Add workspace bonus if window is on current workspace
             if (best_score > SCORE_MIN && win->desktop == current_desktop && win->desktop != -1) {
-                // Small bonus for current workspace windows — enough to break ties
-                // without overriding a clearly better cross-workspace match
-                score_t workspace_bonus = 5;
+                // Workspace is a pure tiebreaker: +1 is enough to prefer the
+                // current desktop when two windows have identical scores, but
+                // cannot override even a 2-point fzf advantage (e.g. BOUNDARY_WHITE
+                // vs BOUNDARY_DELIMITER for the same 2-char query).
+                score_t workspace_bonus = 1;
                 best_score += workspace_bonus;
-                log_debug("Window '%s' on current workspace %d - added bonus %.0f (new score: %.0f)", 
+                log_debug("Window '%s' on current workspace %d - added bonus %.0f (new score: %.0f)",
                          win->title, current_desktop, workspace_bonus, best_score);
             }
             
