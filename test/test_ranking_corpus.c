@@ -454,12 +454,79 @@ static void test_tier_invariant(void) {
 
     add_win(&app, 0x100, 0, instance, title, class_nm);
 
-    score_t indirect = match_window(filter, &app.history[0]);
-    printf("  tier invariant: %d-char filter, indirect score=%.0f (tier_base=%d)\n",
-           n, indirect, TIER_DIRECT_BASE);
+    score_t raw = match_window(filter, &app.history[0]);
+    printf("  tier invariant: %d-char filter, raw indirect=%.0f (tier_base=%d indirect_max=%d)\n",
+           n, raw, TIER_DIRECT_BASE, INDIRECT_SCORE_MAX);
 
-    ASSERT_TRUE("tier invariant: indirect score < TIER_DIRECT_BASE",
-                indirect > SCORE_MIN && indirect < (score_t)TIER_DIRECT_BASE);
+    ASSERT_TRUE("tier invariant: raw indirect score < TIER_DIRECT_BASE",
+                raw > SCORE_MIN && raw < (score_t)TIER_DIRECT_BASE);
+
+    /* workspace_bonus=1 is added after match_window in score_and_filter_windows;
+     * INDIRECT_SCORE_MAX must leave room for it so the final score stays strictly
+     * below the tier boundary.  INDIRECT_SCORE_MAX must be <= TIER_DIRECT_BASE - 2. */
+    ASSERT_TRUE("tier invariant: final indirect score (raw + workspace_bonus) < TIER_DIRECT_BASE",
+                raw > SCORE_MIN && raw + 1 < (score_t)TIER_DIRECT_BASE);
+}
+
+/* ------------------------------------------------------------------ */
+/* Bug 1: direct matches must NOT be clamped to INDIRECT_SCORE_MAX    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A 500-char direct match has fzf ≈ 36 + 499*20 = 10016 > INDIRECT_SCORE_MAX.
+ * With the clamp wrongly placed BEFORE the TIER_DIRECT check, the direct score
+ * is silently capped before +TIER_DIRECT_BASE, causing two long direct matches
+ * to collapse to the same total.  With the clamp correctly placed on the INDIRECT
+ * path only, the direct match keeps its full fzf and scores above
+ * TIER_DIRECT_BASE + INDIRECT_SCORE_MAX.
+ */
+static void test_direct_match_not_clamped(void) {
+    AppData app;
+    reset_app(&app);
+
+    char filter[502];
+    char title[MAX_TITLE_LEN];
+    for (int i = 0; i < 500; i++) {
+        filter[i] = (char)('a' + (i % 26));
+        title[i]  = (char)('a' + (i % 26));
+    }
+    filter[500] = '\0';
+    title[500]  = '\0';
+
+    add_win(&app, 0x100, 0, "app", title, "app");
+    score_t s = match_window(filter, &app.history[0]);
+    printf("  500-char direct match score: %.0f  (tier_base=%d indirect_max=%d)\n",
+           s, TIER_DIRECT_BASE, INDIRECT_SCORE_MAX);
+
+    /* If the clamp were applied to this direct match the score would be exactly
+     * TIER_DIRECT_BASE + INDIRECT_SCORE_MAX (the clamp cap + the tier offset).
+     * With the clamp correctly restricted to the indirect path, the score is
+     * strictly higher (full fzf ≈ 10016, not capped). */
+    /* The title starts with the filter at offset 0, so Signal A = MATCH_EARLY_BONUS_MAX.
+     * With the wrong clamp placement the score is exactly:
+     *   INDIRECT_SCORE_MAX + TIER_DIRECT_BASE + MATCH_EARLY_BONUS_MAX
+     * With the clamp correctly on the indirect path, fzf is unclamped (≈10016)
+     * and the score is strictly higher than that ceiling. */
+    ASSERT_TRUE("direct not clamped: score > INDIRECT_SCORE_MAX + TIER_DIRECT_BASE + MATCH_EARLY_BONUS_MAX",
+                s > (score_t)(INDIRECT_SCORE_MAX + TIER_DIRECT_BASE + MATCH_EARLY_BONUS_MAX));
+}
+
+/*
+ * Two TIER_DIRECT matches for the same short query with different Signal A
+ * (title-relative position) bonuses.  Guards that direct-vs-direct ordering
+ * is never collapsed by the clamp (even when fzf is identical, Signal A
+ * differentiates them).
+ */
+static void test_direct_match_ordering(void) {
+    AppData app;
+    reset_app(&app);
+    mock_desktop = 0;
+
+    add_win(&app, 0x100, 0, "app", "brew | direct-a", "app"); /* "brew" at title offset 0 */
+    add_win(&app, 0x200, 0, "app", "xxx brew direct-b", "app"); /* "brew" at title offset 4 */
+
+    filter_windows(&app, "brew");
+    ASSERT_RANK1("direct ordering: earlier title position ranks first", &app, 0x100);
 }
 
 /* ------------------------------------------------------------------ */
@@ -518,6 +585,8 @@ int main(void) {
     /* Bug hardening — tier invariant + Signal B best-alignment */
     test_tier_invariant();
     test_aba_best_alignment();
+    test_direct_match_not_clamped();
+    test_direct_match_ordering();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return (fail == 0) ? 0 : 1;

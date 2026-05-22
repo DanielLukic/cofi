@@ -96,12 +96,14 @@ static score_t early_title_bonus(const char *filter, const char *display,
     return 0;
 }
 
-// Signal B: count the maximum number of adjacent-word-start pairs achievable
-// by aligning the query to word-start positions in the display.
+// Signal B: count adjacent-word-start pairs for the best alignment of the
+// query against the display's word-start positions.
 // "Adjacent" means consecutive in the word-start index list (no other
-// word-start exists between the two matched positions).
-// Uses DP over the word-start list to find the best alignment; greedy scan
-// undercounts for queries with repeated letters (e.g. "aba" on "A X A B A").
+// word-start between the two matched positions).
+// Uses DP capped at FLEN_CAP query chars and WS_CAP word-starts.  The caps
+// are well above any realistic query or title length, so the result is exact
+// in practice; for pathological inputs (N > FLEN_CAP or WS_CAP word-starts)
+// it is an approximation of the true maximum.
 static bool is_word_start(const char *s, int pos) {
     if (pos == 0) return true;
     char p = s[pos-1];
@@ -183,14 +185,13 @@ static bool is_direct_word_boundary_match(const char *filter, const char *displa
 }
 
 // Match a window against filter and return best score.
-// Scores are partitioned into two tiers by construction:
-//   TIER_DIRECT   fzf + TIER_DIRECT_BASE — query found as a contiguous run
-//                 at a word boundary.  Covers "brew" in "brew | dl",
-//                 "Chat" in "Chat | ...", "ch" in "chrome" or "Chat".
-//   TIER_INDIRECT fzf only              — all other fzf matches (scattered
-//                 word-start initials, mid-word fzf, etc.)
-// The gap between tiers (TIER_DIRECT_BASE = 10000) is wide enough that no
-// fzf score or workspace bonus on an indirect match can reach a direct one.
+// Scores are partitioned into two tiers:
+//   TIER_DIRECT   fzf + Signal-B + TIER_DIRECT_BASE + Signal-A — query is a
+//                 contiguous word-boundary run.  Score ≥ TIER_DIRECT_BASE.
+//   TIER_INDIRECT fzf + Signal-B, clamped to INDIRECT_SCORE_MAX — all other
+//                 fzf matches.  INDIRECT_SCORE_MAX + workspace_bonus (added by
+//                 the caller) < TIER_DIRECT_BASE by construction, so indirect
+//                 matches can never beat a direct one.
 static score_t match_window(const char *filter, const WindowInfo *win) {
     char display[1024];
     compose_display_string(win, display, sizeof(display));
@@ -211,13 +212,9 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
                   filter, display, pairs, (score_t)pairs * CONSECUTIVE_WORD_START_PAIR_BONUS);
     }
 
-    // Clamp the indirect contribution so TIER_INDIRECT scores can never reach
-    // TIER_DIRECT_BASE.  Long queries at dense word-starts accumulate enough
-    // fzf + Signal-B to breach the tier without this guard.
-    if (score > (score_t)INDIRECT_SCORE_MAX)
-        score = (score_t)INDIRECT_SCORE_MAX;
-
     if (is_direct_word_boundary_match(filter, display)) {
+        // Direct matches keep their full fzf + Signal-B score; the clamp
+        // is NOT applied here so long direct matches retain distinct ordering.
         score += TIER_DIRECT_BASE;
         // Signal A: title-relative position bonus (TIER_DIRECT only).
         // Boosts matches that land early in the title over boilerplate
@@ -228,6 +225,13 @@ static score_t match_window(const char *filter, const WindowInfo *win) {
         log_debug("TIER_DIRECT: '%s' -> '%s' pos_bonus=%.0f (%.0f)",
                   filter, display, pos_bonus, score);
     } else {
+        // Clamp indirect score so no TIER_INDIRECT match (plus workspace_bonus
+        // added later) can reach TIER_DIRECT_BASE.  The cap is defensive:
+        // with current buffer limits the max reachable indirect score is well
+        // below INDIRECT_SCORE_MAX, but long queries at dense word-starts can
+        // theoretically breach the tier without this guard.
+        if (score > (score_t)INDIRECT_SCORE_MAX)
+            score = (score_t)INDIRECT_SCORE_MAX;
         log_debug("TIER_INDIRECT: '%s' -> '%s' (%.0f)", filter, display, score);
     }
 

@@ -22,12 +22,14 @@
 // run starting at a word boundary in the composite display string.
 #define TIER_DIRECT_BASE 10000
 
-// Maximum score achievable by a TIER_INDIRECT match.
-// Clamp fzf + Signal-B to this value before the TIER_DIRECT check so the
-// tier gap is inviolable: no indirect score can ever reach TIER_DIRECT_BASE.
-// Without the clamp, long queries at dense word-starts accumulate enough
-// fzf + Signal-B to breach the tier (verified at N≥323 in test_ranking_corpus).
-#define INDIRECT_SCORE_MAX (TIER_DIRECT_BASE - 1)
+// Maximum score a TIER_INDIRECT match may return from match_window.
+// score_and_filter_windows adds workspace_bonus (= 1) AFTER match_window,
+// so the final indirect score can reach INDIRECT_SCORE_MAX + 1.  Setting
+// this to TIER_DIRECT_BASE - 2 ensures the final score stays strictly below
+// TIER_DIRECT_BASE regardless of workspace bonus.
+// The clamp is applied ONLY on the indirect path; direct matches are never
+// capped and keep their full fzf + TIER_DIRECT_BASE + bonuses.
+#define INDIRECT_SCORE_MAX (TIER_DIRECT_BASE - 2)
 
 // Signal A: maximum bonus awarded to a TIER_DIRECT match that lands at the
 // very start of the title field (title-relative offset 0).  Decays linearly
