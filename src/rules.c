@@ -136,14 +136,19 @@ void rule_state_prune_absent(RuleState *state, const Window *live_windows, int l
             if (live_windows[j] == id) { found = true; break; }
         }
         if (found) {
-            state->windows[i].pending_prune = false;
+            if (state->windows[i].pending_prune) {
+                log_info("LOOPDBG: prune CLEARED (reappeared) win=0x%lx", id);
+                state->windows[i].pending_prune = false;
+            }
             i++;
         } else if (state->windows[i].pending_prune) {
             // Absent for second consecutive cycle — genuinely gone
+            log_info("LOOPDBG: prune REMOVED (2nd absence) win=0x%lx", id);
             state->windows[i] = state->windows[state->count - 1];
             state->count--;
             // Do not increment i: re-check the slot now holding the swapped entry
         } else {
+            log_info("LOOPDBG: prune PENDING (1st absence) win=0x%lx", id);
             state->windows[i].pending_prune = true;
             i++;
         }
