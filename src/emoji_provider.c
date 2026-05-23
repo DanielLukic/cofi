@@ -545,6 +545,11 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
 
     for (int i = 0; i < app->filtered_emoji_count; i++)
         app->filtered_emoji[i] = matched_idx[i];
+
+    // Scored results reorder on every keystroke.  Clearing the saved identity
+    // makes restore_selection fall back to initial_index=0 (best match) instead
+    // of chasing the prior selection to its new — potentially far — rank.
+    app->selection.selected_provider_id[0] = '\0';
 }
 
 static void emoji_on_enter(AppData *app) {
