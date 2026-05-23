@@ -162,8 +162,8 @@ test_fzf_algo: test/test_fzf_algo.c src/fzf_algo.o
 	$(CC) $(CFLAGS) -o test/test_fzf_algo test/test_fzf_algo.c src/fzf_algo.o $(LDFLAGS)
 
 # Build named window test
-test_match_entry: test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/layout_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/layout_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_match_entry: test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/layout_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c src/match_entry.o src/match_entry_config.o src/layout_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build match scoring test (fzy algorithm)
 test_match_scoring: test/test_match_scoring.c src/match.o
@@ -260,8 +260,8 @@ test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/o
 	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build hotkey grab state tests
-test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o
-	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/tinyexpr.o $(LDFLAGS)
+test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/cofi_json_io.o src/tinyexpr.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/cofi_json_io.o src/tinyexpr.o $(LDFLAGS)
 
 # Build command handlers split tests
 test_command_handlers_split: test/test_command_handlers_split.c test/command_handler_stubs.c src/core_commands.o src/command_registry.o
@@ -281,14 +281,14 @@ test_main_split_regression: test/test_main_split_regression.c $(filter-out src/m
 
 # Build key-handler behavioral safety-net tests (TFD-270)
 # (tests include key_handler.c; split modules linked explicitly)
-test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
+test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_core test/test_key_handler_core.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
+test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)
@@ -456,8 +456,11 @@ test_quick: src/match.o
 test_slot_store: test/test_slot_store.c src/slot_store.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_slot_store test/test_slot_store.c src/slot_store.o src/log.o $(LDFLAGS)
 
-test_layout_store: test/test_layout_store.c src/layout_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_layout_store test/test_layout_store.c src/layout_store.o src/log.o $(LDFLAGS)
+test_layout_store: test/test_layout_store.c src/layout_store.o src/cofi_json_io.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_layout_store test/test_layout_store.c src/layout_store.o src/cofi_json_io.o src/log.o $(LDFLAGS)
+
+test_cofi_json_io: test/test_cofi_json_io.c src/cofi_json_io.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_cofi_json_io test/test_cofi_json_io.c src/cofi_json_io.o src/log.o $(LDFLAGS)
 
 test_geometry_planner: test/test_geometry_planner.c src/geometry_planner.o
 	$(CC) $(CFLAGS) -o test/test_geometry_planner test/test_geometry_planner.c src/geometry_planner.o $(LDFLAGS)
@@ -465,20 +468,20 @@ test_geometry_planner: test/test_geometry_planner.c src/geometry_planner.o
 test_window_matcher: test/test_window_matcher.c src/window_matcher.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_window_matcher test/test_window_matcher.c src/window_matcher.o src/log.o $(LDFLAGS)
 
-test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
-test_matching_gc: test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_matching_gc: test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 test_event_sequence: test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
 	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
 
-test_calc: test/test_calc.c src/tinyexpr.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_calc test/test_calc.c src/tinyexpr.o src/log.o $(LDFLAGS)
+test_calc: test/test_calc.c src/cofi_json_io.o src/tinyexpr.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_calc test/test_calc.c src/cofi_json_io.o src/tinyexpr.o src/log.o $(LDFLAGS)
 
-test_calc_provider: test/test_calc_provider.c src/calc.o src/tinyexpr.o src/cofi_tab_provider.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_calc_provider test/test_calc_provider.c src/calc.o src/tinyexpr.o src/cofi_tab_provider.o src/log.o $(LDFLAGS)
+test_calc_provider: test/test_calc_provider.c src/calc.o src/cofi_json_io.o src/tinyexpr.o src/cofi_tab_provider.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_calc_provider test/test_calc_provider.c src/calc.o src/cofi_json_io.o src/tinyexpr.o src/cofi_tab_provider.o src/log.o $(LDFLAGS)
 
 test_cofi_tab_provider: test/test_cofi_tab_provider.c src/cofi_tab_provider.c
 	$(CC) $(CFLAGS) -o test/test_cofi_tab_provider test/test_cofi_tab_provider.c src/cofi_tab_provider.c $(LDFLAGS)

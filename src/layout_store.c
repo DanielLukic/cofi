@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "cofi_json_io.h"
 #include "log.h"
 
 static const char *default_layout_store_path(void) {
@@ -112,57 +113,41 @@ bool layout_store_save(const LayoutStore *store) {
         return false;
     }
 
-    FILE *file = fopen(store->path, "w");
-    if (!file) {
-        log_error("Failed to open layout store for writing: %s", store->path);
-        return false;
-    }
-
-    fprintf(file, "{\n  \"layouts\": [\n");
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "layouts");
+    json_builder_begin_array(builder);
     for (int i = 0; i < store->count; i++) {
         const LayoutRecord *record = &store->records[i];
-        fprintf(file,
-                "    { \"match_id\": %d, \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"desktop\": %d, \"maximized_vert\": %s, \"maximized_horz\": %s, \"fullscreen\": %s }%s\n",
-                record->match_id, record->x, record->y, record->width,
-                record->height, record->desktop,
-                record->maximized_vert ? "true" : "false",
-                record->maximized_horz ? "true" : "false",
-                record->fullscreen ? "true" : "false",
-                (i + 1 < store->count) ? "," : "");
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "match_id");
+        json_builder_add_int_value(builder, record->match_id);
+        json_builder_set_member_name(builder, "x");
+        json_builder_add_int_value(builder, record->x);
+        json_builder_set_member_name(builder, "y");
+        json_builder_add_int_value(builder, record->y);
+        json_builder_set_member_name(builder, "w");
+        json_builder_add_int_value(builder, record->width);
+        json_builder_set_member_name(builder, "h");
+        json_builder_add_int_value(builder, record->height);
+        json_builder_set_member_name(builder, "desktop");
+        json_builder_add_int_value(builder, record->desktop);
+        json_builder_set_member_name(builder, "maximized_vert");
+        json_builder_add_boolean_value(builder, record->maximized_vert);
+        json_builder_set_member_name(builder, "maximized_horz");
+        json_builder_add_boolean_value(builder, record->maximized_horz);
+        json_builder_set_member_name(builder, "fullscreen");
+        json_builder_add_boolean_value(builder, record->fullscreen);
+        json_builder_end_object(builder);
     }
-    fprintf(file, "  ]\n}\n");
-    fclose(file);
-    return true;
-}
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
 
-static bool parse_layout_line(const char *line, LayoutRecord *record) {
-    if (!line || !record) {
-        return false;
-    }
-
-    int match_id = 0;
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
-    int desktop = 0;
-    int parsed = sscanf(line,
-                        " { \"match_id\": %d, \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"desktop\": %d }",
-                        &match_id, &x, &y, &width, &height, &desktop);
-    if (parsed != 6 || match_id <= 0 || width <= 0 || height <= 0) {
-        return false;
-    }
-
-    record->match_id = match_id;
-    record->x = x;
-    record->y = y;
-    record->width = width;
-    record->height = height;
-    record->desktop = desktop;
-    record->maximized_vert = strstr(line, "\"maximized_vert\": true") != NULL;
-    record->maximized_horz = strstr(line, "\"maximized_horz\": true") != NULL;
-    record->fullscreen = strstr(line, "\"fullscreen\": true") != NULL;
-    return true;
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(store->path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+    return ok;
 }
 
 bool layout_store_load(LayoutStore *store) {
@@ -175,27 +160,50 @@ bool layout_store_load(LayoutStore *store) {
     layout_store_init(store);
     g_strlcpy(store->path, path, sizeof(store->path));
 
-    FILE *file = fopen(store->path, "r");
-    if (!file) {
-        if (errno != ENOENT) {
-            log_error("Failed to open layout store for reading: %s", store->path);
-        }
+    JsonParser *parser = cofi_json_load_object_file(store->path);
+    if (!parser) {
         return false;
     }
 
-    char line[512];
-    while (fgets(line, sizeof(line), file)) {
-        LayoutRecord record = {0};
-        if (!parse_layout_line(line, &record)) {
-            continue;
-        }
-        layout_store_set(store, record.match_id, record.x, record.y,
-                         record.width, record.height, record.desktop,
-                         record.maximized_vert, record.maximized_horz,
-                         record.fullscreen);
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *layouts = cofi_json_obj_array(root, "layouts");
+    if (!layouts) {
+        g_object_unref(parser);
+        return false;
     }
 
-    fclose(file);
+    guint n = json_array_get_length(layouts);
+    for (guint i = 0; i < n; i++) {
+        JsonNode *element = json_array_get_element(layouts, i);
+        if (!element || !JSON_NODE_HOLDS_OBJECT(element)) {
+            continue;
+        }
+        JsonObject *layout = json_node_get_object(element);
+        gboolean has_match_id = FALSE;
+        int match_id = cofi_json_obj_int_or(layout, "match_id", 0, &has_match_id);
+        if (!has_match_id || match_id <= 0) {
+            log_warn("layout_store: skipping record with missing/invalid match_id");
+            continue;
+        }
+        int width = cofi_json_obj_int_or(layout, "w", 0, NULL);
+        int height = cofi_json_obj_int_or(layout, "h", 0, NULL);
+        if (width <= 0 || height <= 0) {
+            log_warn("layout_store: skipping match_id=%d with invalid size", match_id);
+            continue;
+        }
+
+        layout_store_set(store, match_id,
+                         cofi_json_obj_int_or(layout, "x", 0, NULL),
+                         cofi_json_obj_int_or(layout, "y", 0, NULL),
+                         width,
+                         height,
+                         cofi_json_obj_int_or(layout, "desktop", 0, NULL),
+                         cofi_json_obj_bool_or(layout, "maximized_vert", FALSE, NULL),
+                         cofi_json_obj_bool_or(layout, "maximized_horz", FALSE, NULL),
+                         cofi_json_obj_bool_or(layout, "fullscreen", FALSE, NULL));
+    }
+
+    g_object_unref(parser);
     return store->count > 0;
 }
 

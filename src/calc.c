@@ -1,4 +1,5 @@
 #include "calc.h"
+#include "cofi_json_io.h"
 #include "tinyexpr.h"
 #include "log.h"
 
@@ -237,42 +238,32 @@ void calc_history_load(CalcMode *calc) {
         return;
     }
 
-    JsonParser *parser = json_parser_new();
-    GError *error = NULL;
-    if (!json_parser_load_from_file(parser, calc_history_path(), &error)) {
-        log_warn("calc: failed to parse history file: %s", error ? error->message : "unknown");
-        g_clear_error(&error);
-        g_object_unref(parser);
+    JsonParser *parser = cofi_json_load_object_file(calc_history_path());
+    if (!parser) {
         return;
     }
 
-    JsonNode *root = json_parser_get_root(parser);
-    if (!root || json_node_get_node_type(root) != JSON_NODE_OBJECT) {
-        g_object_unref(parser);
-        return;
-    }
-
-    JsonObject *obj = json_node_get_object(root);
-    if (json_object_has_member(obj, "entries")) {
-        JsonArray *entries = json_object_get_array_member(obj, "entries");
+    JsonObject *obj = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *entries = cofi_json_obj_array(obj, "entries");
+    if (entries) {
         guint len = json_array_get_length(entries);
         if (len > CALC_HISTORY_CAP) len = CALC_HISTORY_CAP;
         for (guint i = 0; i < len; i++) {
-            JsonObject *entry = json_array_get_object_element(entries, i);
-            const char *expr = json_object_has_member(entry, "expr")
-                ? json_object_get_string_member(entry, "expr") : "";
-            const char *result = json_object_has_member(entry, "result")
-                ? json_object_get_string_member(entry, "result") : "";
+            JsonNode *entry_node = json_array_get_element(entries, i);
+            if (!entry_node || !JSON_NODE_HOLDS_OBJECT(entry_node)) {
+                continue;
+            }
+            JsonObject *entry = json_node_get_object(entry_node);
+            const char *expr = cofi_json_obj_str_or(entry, "expr", "", NULL);
+            const char *result = cofi_json_obj_str_or(entry, "result", "", NULL);
             g_strlcpy(calc->entries[i].expr, expr ? expr : "", CALC_EXPR_LEN);
             g_strlcpy(calc->entries[i].result, result ? result : "", CALC_RESULT_LEN);
             calc->count++;
         }
     }
 
-    if (json_object_has_member(obj, "last_result")) {
-        const char *last = json_object_get_string_member(obj, "last_result");
-        g_strlcpy(calc->last_result, last ? last : "", CALC_RESULT_LEN);
-    }
+    const char *last = cofi_json_obj_str_or(obj, "last_result", "", NULL);
+    g_strlcpy(calc->last_result, last ? last : "", CALC_RESULT_LEN);
 
     g_object_unref(parser);
 }
