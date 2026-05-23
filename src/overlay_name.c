@@ -9,7 +9,11 @@
 #include "matching_provider.h"
 #include "match_entry.h"
 #include "match_entry_config.h"
+#include "overlay_confirm.h"
 #include "overlay_manager.h"
+
+static int s_name_delete_manager_index = -1;
+static char s_name_delete_custom_name[MAX_TITLE_LEN] = {0};
 
 static gboolean focus_name_entry_timeout(gpointer user_data) {
     AppData *app = (AppData *)user_data;
@@ -155,39 +159,9 @@ void create_name_pattern_edit_overlay_content(GtkWidget *parent_container, AppDa
     log_info("Match pattern edit overlay created for entry: %s", selected->custom_name);
 }
 
-void create_name_delete_overlay_content(GtkWidget *parent_container, AppData *app) {
-    log_info("Name delete overlay content created (pending=%d, mgr_idx=%d, name='%s')",
-             app->name_delete.pending_delete,
-             app->name_delete.manager_index,
-             app->name_delete.custom_name);
-
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_margin_left(vbox, 20);
-    gtk_widget_set_margin_right(vbox, 20);
-    gtk_widget_set_margin_top(vbox, 20);
-    gtk_widget_set_margin_bottom(vbox, 20);
-
-    GtkWidget *title_label = gtk_label_new("Delete Custom Name?");
-    gtk_widget_set_name(title_label, "overlay-title");
-    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
-
-    char info[512];
-    snprintf(info, sizeof(info), "Name: %s", app->name_delete.custom_name);
-    GtkWidget *info_label = gtk_label_new(info);
-    gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
-    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
-
-    GtkWidget *inst_label = gtk_label_new("Press Y or Ctrl+D to confirm, N or Esc to cancel");
-    gtk_widget_set_opacity(inst_label, 0.7);
-    gtk_box_pack_start(GTK_BOX(vbox), inst_label, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
-}
-
-static void clear_name_delete_state(AppData *app) {
-    app->name_delete.pending_delete = FALSE;
-    app->name_delete.manager_index = -1;
-    app->name_delete.custom_name[0] = '\0';
+static void clear_name_delete_state(void) {
+    s_name_delete_manager_index = -1;
+    s_name_delete_custom_name[0] = '\0';
 }
 
 gboolean handle_name_assign_key_press(AppData *app, GdkEventKey *event) {
@@ -310,49 +284,40 @@ gboolean handle_name_pattern_edit_key_press(AppData *app, GdkEventKey *event) {
     return TRUE;
 }
 
-gboolean handle_name_delete_key_press(AppData *app, GdkEventKey *event) {
-    gboolean is_confirm =
-        event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
-        ((event->state & GDK_CONTROL_MASK) &&
-         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
-
-    if (is_confirm) {
-        int manager_index = app->name_delete.manager_index;
-        if (manager_index < 0 || manager_index >= app->matching.count) {
-            manager_index = match_entry_find_index_by_custom_name(
-                &app->matching, app->name_delete.custom_name);
-        }
-
-        if (manager_index < 0 || manager_index >= app->matching.count) {
-            log_warn("Delete target unresolved for '%s'", app->name_delete.custom_name);
-        } else {
-            match_entry_delete_custom_name(&app->matching, manager_index);
-            save_match_entries(&app->matching);
-            log_info("USER: Deleted custom name '%s'", app->name_delete.custom_name);
-        }
-
-        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        filter_matching(app, current_filter);
-        if (app->selection.provider_index >= app->filtered_matching_count && app->filtered_matching_count > 0) {
-            app->selection.provider_index = app->filtered_matching_count - 1;
-        }
-        clear_name_delete_state(app);
-        hide_overlay(app);
-        update_display(app);
-        return TRUE;
+static void perform_name_delete(AppData *app) {
+    int manager_index = s_name_delete_manager_index;
+    if (manager_index < 0 || manager_index >= app->matching.count) {
+        manager_index = match_entry_find_index_by_custom_name(&app->matching, s_name_delete_custom_name);
     }
 
-    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
-        filter_matching(app, current_filter);
-        if (app->selection.provider_index >= app->filtered_matching_count && app->filtered_matching_count > 0) {
-            app->selection.provider_index = app->filtered_matching_count - 1;
-        }
-        clear_name_delete_state(app);
-        hide_overlay(app);
-        update_display(app);
-        return TRUE;
+    if (manager_index < 0 || manager_index >= app->matching.count) {
+        log_warn("Delete target unresolved for '%s'", s_name_delete_custom_name);
+    } else {
+        match_entry_delete_custom_name(&app->matching, manager_index);
+        save_match_entries(&app->matching);
+        log_info("USER: Deleted custom name '%s'", s_name_delete_custom_name);
     }
 
-    return FALSE;
+    const char *current_filter = gtk_entry_get_text(GTK_ENTRY(app->entry));
+    filter_matching(app, current_filter);
+    if (app->selection.provider_index >= app->filtered_matching_count && app->filtered_matching_count > 0) {
+        app->selection.provider_index = app->filtered_matching_count - 1;
+    }
+
+    clear_name_delete_state();
+    update_display(app);
+}
+
+void show_name_delete_confirm(AppData *app, const char *custom_name, int manager_index) {
+    s_name_delete_manager_index = manager_index;
+    g_strlcpy(s_name_delete_custom_name,
+              custom_name ? custom_name : "",
+              sizeof(s_name_delete_custom_name));
+
+    char *escaped_name = g_markup_escape_text(s_name_delete_custom_name, -1);
+    char info[1024];
+    g_snprintf(info, sizeof(info), "<b>Name:</b> %s", escaped_name);
+    g_free(escaped_name);
+
+    show_confirm_overlay(app, "Delete Custom Name?", info, perform_name_delete);
 }

@@ -4,6 +4,7 @@
 
 #include "hotkeys.h"
 #include "overlay_dispatch.h"
+#include "overlay_confirm.h"
 #include "overlay_harpoon.h"
 #include "overlay_name.h"
 extern void show_window(AppData *app);
@@ -27,16 +28,8 @@ static void set_main_focusability(AppData *app, gboolean can_focus) {
 }
 
 static void clear_overlay_state(AppData *app, OverlayType type) {
-    if (type == OVERLAY_HARPOON_DELETE) {
-        app->harpoon_delete.pending_delete = FALSE;
-        app->harpoon_delete.delete_slot = -1;
-        return;
-    }
-
-    if (type == OVERLAY_NAME_DELETE) {
-        app->name_delete.pending_delete = FALSE;
-        app->name_delete.manager_index = -1;
-        app->name_delete.custom_name[0] = '\0';
+    if (type == OVERLAY_CONFIRM) {
+        clear_confirm_overlay_state(app);
         return;
     }
 
@@ -45,10 +38,6 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         return;
     }
 
-    if (type == OVERLAY_RULE_DELETE) {
-        app->rules_delete.pending_delete = FALSE;
-        app->rules_delete.rule_index = -1;
-    }
 
     if (type == OVERLAY_PROJECT_KILL) {
         app->project_kill.pending_kill = FALSE;
@@ -74,12 +63,6 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
 
     if (type == OVERLAY_PROJECT_REMOTE_HOST) {
         app->project_remote.host[0] = '\0';
-    }
-
-    if (type == OVERLAY_SESSION_DELETE) {
-        app->session_delete.source[0] = '\0';
-        app->session_delete.session_id[0] = '\0';
-        app->session_delete.path[0] = '\0';
     }
 
     if (type == OVERLAY_SESSION_RENAME) {

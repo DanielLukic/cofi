@@ -454,6 +454,11 @@ void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
 }
 
+void show_rule_delete_overlay(AppData *app, int rule_index) {
+    (void)app;
+    (void)rule_index;
+}
+
 int replay_all_rules_against_open_windows(AppData *app) {
     (void)app;
     return 0;

@@ -163,9 +163,7 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         if (rule_index < 0) {
             return FALSE;
         }
-        app->rules_delete.pending_delete = TRUE;
-        app->rules_delete.rule_index = rule_index;
-        show_overlay(app, OVERLAY_RULE_DELETE, NULL);
+        show_rule_delete_overlay(app, rule_index);
         return TRUE;
     }
 

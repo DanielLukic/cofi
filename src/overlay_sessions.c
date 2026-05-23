@@ -4,6 +4,7 @@
 #include "display.h"
 #include "gtk_utils.h"
 #include "log.h"
+#include "overlay_confirm.h"
 #include "overlay_manager.h"
 
 static GtkWidget *create_left_label(const char *text) {
@@ -13,33 +14,9 @@ static GtkWidget *create_left_label(const char *text) {
     return label;
 }
 
-void create_session_delete_overlay_content(GtkWidget *parent_container,
-                                                 AppData *app) {
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_margin_left(vbox, 20);
-    gtk_widget_set_margin_right(vbox, 20);
-    gtk_widget_set_margin_top(vbox, 20);
-    gtk_widget_set_margin_bottom(vbox, 20);
-
-    GtkWidget *title = gtk_label_new("Delete Session?");
-    gtk_widget_set_name(title, "overlay-title");
-    gtk_box_pack_start(GTK_BOX(vbox), title, FALSE, FALSE, 0);
-
-    char info[1024];
-    g_snprintf(info, sizeof(info),
-               "Source: %s\nSession: %s\nFile: %s",
-               app->session_delete.source,
-               app->session_delete.session_id,
-               app->session_delete.path);
-    GtkWidget *info_label = create_left_label(info);
-    gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
-
-    GtkWidget *inst = create_centered_label("Y, Ctrl+D, or Delete = delete  N or Esc = cancel");
-    gtk_widget_set_opacity(inst, 0.7);
-    gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
-}
+static char s_delete_source[16];
+static char s_delete_session_id[SESSION_ID_LEN];
+static char s_delete_path[SESSION_PATH_LEN];
 
 void create_session_rename_overlay_content(GtkWidget *parent_container,
                                                  AppData *app) {
@@ -74,34 +51,41 @@ void create_session_rename_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
 }
 
-gboolean handle_session_delete_key_press(AppData *app, GdkEventKey *event) {
-    gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
-                       event->keyval == GDK_KEY_Delete ||
-                       event->keyval == GDK_KEY_KP_Delete ||
-                       ((event->state & GDK_CONTROL_MASK) &&
-                        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
-    if (confirm) {
-        char path[SESSION_PATH_LEN];
-        g_strlcpy(path, app->session_delete.path, sizeof(path));
+static void perform_session_delete(AppData *app) {
+    char path[SESSION_PATH_LEN];
+    g_strlcpy(path, s_delete_path, sizeof(path));
 
-        gboolean deleted = sessions_delete_path(path);
-        hide_overlay(app);
-        if (deleted) {
-            sessions_provider_remove_path(app, path);
-        } else {
-            log_warn("Session delete failed for '%s'", path);
-            update_display(app);
-        }
-        return TRUE;
-    }
-
-    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        hide_overlay(app);
+    gboolean deleted = sessions_delete_path(path);
+    if (deleted) {
+        sessions_provider_remove_path(app, path);
+    } else {
+        log_warn("Session delete failed for '%s'", path);
         update_display(app);
-        return TRUE;
     }
+}
 
-    return FALSE;
+void show_session_delete_confirm(AppData *app,
+                                 const char *source,
+                                 const char *session_id,
+                                 const char *path) {
+    g_strlcpy(s_delete_source, source ? source : "", sizeof(s_delete_source));
+    g_strlcpy(s_delete_session_id, session_id ? session_id : "", sizeof(s_delete_session_id));
+    g_strlcpy(s_delete_path, path ? path : "", sizeof(s_delete_path));
+
+    char *escaped_source = g_markup_escape_text(s_delete_source, -1);
+    char *escaped_session = g_markup_escape_text(s_delete_session_id, -1);
+    char *escaped_path = g_markup_escape_text(s_delete_path, -1);
+
+    char info[2048];
+    g_snprintf(info, sizeof(info),
+               "<b>Source:</b> %s\n<b>Session:</b> %s\n<b>File:</b> %s",
+               escaped_source, escaped_session, escaped_path);
+
+    g_free(escaped_source);
+    g_free(escaped_session);
+    g_free(escaped_path);
+
+    show_confirm_overlay(app, "Delete Session?", info, perform_session_delete);
 }
 
 gboolean handle_session_rename_key_press(AppData *app, GdkEventKey *event) {

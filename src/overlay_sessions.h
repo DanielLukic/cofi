@@ -5,11 +5,12 @@
 
 #include "app_data.h"
 
-void create_session_delete_overlay_content(GtkWidget *parent_container,
-                                                 AppData *app);
 void create_session_rename_overlay_content(GtkWidget *parent_container,
                                                  AppData *app);
-gboolean handle_session_delete_key_press(AppData *app, GdkEventKey *event);
 gboolean handle_session_rename_key_press(AppData *app, GdkEventKey *event);
+void show_session_delete_confirm(AppData *app,
+                                 const char *source,
+                                 const char *session_id,
+                                 const char *path);
 
 #endif /* OVERLAY_SESSIONS_H */

@@ -50,6 +50,8 @@ static int g_save_match_entries_calls;
 static int g_cleanup_hotkeys_calls;
 static int g_replay_selected_rule_calls;
 static int g_replay_all_rules_calls;
+static int g_show_rule_delete_calls;
+static int g_last_rule_delete_index;
 static int g_show_project_kill_calls;
 static int g_show_project_rename_calls;
 static int g_show_project_new_calls;
@@ -306,6 +308,12 @@ void show_harpoon_edit_overlay(AppData *app, int slot) {
     g_last_harpoon_edit_slot = slot;
 }
 
+void show_rule_delete_overlay(AppData *app, int rule_index) {
+    (void)app;
+    g_show_rule_delete_calls++;
+    g_last_rule_delete_index = rule_index;
+}
+
 const char *get_next_enum_value(const char *key, const char *current_value) {
     g_get_next_enum_calls++;
     strncpy(g_last_get_next_enum_key, key ? key : "", sizeof(g_last_get_next_enum_key) - 1);
@@ -551,6 +559,8 @@ static void reset_captures(void) {
     g_cleanup_hotkeys_calls = 0;
     g_replay_selected_rule_calls = 0;
     g_replay_all_rules_calls = 0;
+    g_show_rule_delete_calls = 0;
+    g_last_rule_delete_index = -1;
     g_show_project_kill_calls = 0;
     g_show_project_rename_calls = 0;
     g_show_project_new_calls = 0;
@@ -931,9 +941,8 @@ static void test_rules_tab_shortcuts_crud_and_replay(void) {
     GdkEventKey del_ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean del_handled = on_key_press(NULL, &del_ev, &app);
     ASSERT_TRUE("Ctrl+d on Rules handled", del_handled == TRUE);
-    ASSERT_TRUE("Ctrl+d on Rules opens delete overlay",
-                g_show_overlay_calls == 3 && g_last_overlay_type == OVERLAY_RULE_DELETE);
-    ASSERT_TRUE("Ctrl+d on Rules stores selected rule index", app.rules_delete.rule_index == 7);
+    ASSERT_TRUE("Ctrl+d on Rules opens delete confirm",
+                g_show_rule_delete_calls == 1 && g_last_rule_delete_index == 7);
 
     GdkEventKey replay_sel = make_key(GDK_KEY_x, GDK_CONTROL_MASK);
     gboolean replay_sel_handled = on_key_press(NULL, &replay_sel, &app);

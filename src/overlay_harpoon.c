@@ -8,6 +8,7 @@
 #include "match_entry.h"
 #include "match_entry_config.h"
 #include "matching_gc.h"
+#include "overlay_confirm.h"
 #include "overlay_manager.h"
 #include "utils.h"
 
@@ -23,6 +24,8 @@ static MatchEntry *slot_entry(AppData *app, int slot_index) {
     return &app->matching.entries[idx];
 }
 
+static int s_pending_delete_slot = -1;
+
 static gboolean focus_harpoon_edit_entry(gpointer user_data) {
     AppData *app = (AppData *)user_data;
 
@@ -36,44 +39,6 @@ static gboolean focus_harpoon_edit_entry(gpointer user_data) {
     }
 
     return G_SOURCE_REMOVE;
-}
-
-void create_harpoon_delete_overlay_content(GtkWidget *parent_container,
-                                           AppData *app,
-                                           int slot_index) {
-    char *header_markup = g_strdup_printf("<b>Delete Harpoon Assignment?</b>");
-    GtkWidget *header_label = create_markup_label(header_markup, TRUE);
-    g_free(header_markup);
-    gtk_box_pack_start(GTK_BOX(parent_container), header_label, FALSE, FALSE, 10);
-
-    add_horizontal_separator(parent_container);
-
-    char slot_name[4];
-    if (slot_index < 10) {
-        snprintf(slot_name, sizeof(slot_name), "%d", slot_index);
-    } else {
-        snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_index - 10));
-    }
-
-    MatchEntry *entry = slot_entry(app, slot_index);
-    const char *title = entry ? entry->original_title : "(missing)";
-    const char *class_name = entry ? entry->class_name : "(missing)";
-    char *escaped_title = g_markup_escape_text(title, -1);
-    char *slot_info = g_strdup_printf(
-        "<b>Slot:</b> %s\n"
-        "<b>Window:</b> %s\n"
-        "<b>Class:</b> %s",
-        slot_name, escaped_title, class_name);
-
-    GtkWidget *info_label = create_markup_label(slot_info, TRUE);
-    g_free(escaped_title);
-    g_free(slot_info);
-    gtk_box_pack_start(GTK_BOX(parent_container), info_label, FALSE, FALSE, 10);
-
-    add_horizontal_separator(parent_container);
-
-    GtkWidget *instructions = create_centered_label("[Press Y or Ctrl+D to confirm, N or Esc to cancel]");
-    gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
 }
 
 void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
@@ -111,37 +76,47 @@ void create_harpoon_edit_overlay_content(GtkWidget *parent_container,
     gtk_box_pack_start(GTK_BOX(parent_container), instructions, FALSE, FALSE, 10);
 }
 
-static void clear_harpoon_delete_state(AppData *app) {
-    app->harpoon_delete.pending_delete = FALSE;
-    app->harpoon_delete.delete_slot = -1;
+static void perform_harpoon_delete(AppData *app) {
+    int slot_index = s_pending_delete_slot;
+    s_pending_delete_slot = -1;
+    if (slot_index < 0 || slot_index >= MAX_HARPOON_SLOTS) {
+        return;
+    }
+
+    unassign_slot(&app->harpoon, slot_index);
+    matching_run_gc(app);
+    save_harpoon_slots(&app->harpoon);
+    log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
+    update_display(app);
 }
 
-gboolean handle_harpoon_delete_key_press(AppData *app, GdkEventKey *event) {
-    if (event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
-        ((event->state & GDK_CONTROL_MASK) &&
-         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D))) {
-        int slot_index = app->harpoon_delete.delete_slot;
+void show_harpoon_delete_confirm(AppData *app, int slot_index) {
+    s_pending_delete_slot = slot_index;
 
-        unassign_slot(&app->harpoon, slot_index);
-        matching_run_gc(app);
-        save_harpoon_slots(&app->harpoon);
-
-        log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
-
-        clear_harpoon_delete_state(app);
-        hide_overlay(app);
-        update_display(app);
-        return TRUE;
+    char slot_name[4];
+    if (slot_index < 10) {
+        g_snprintf(slot_name, sizeof(slot_name), "%d", slot_index);
+    } else {
+        g_snprintf(slot_name, sizeof(slot_name), "%c", 'a' + (slot_index - 10));
     }
 
-    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        clear_harpoon_delete_state(app);
-        hide_overlay(app);
-        update_display(app);
-        return TRUE;
-    }
+    MatchEntry *entry = slot_entry(app, slot_index);
+    const char *title = entry ? entry->original_title : "(missing)";
+    const char *class_name = entry ? entry->class_name : "(missing)";
+    char *escaped_title = g_markup_escape_text(title, -1);
+    char *escaped_class = g_markup_escape_text(class_name, -1);
 
-    return FALSE;
+    char info[1024];
+    g_snprintf(info, sizeof(info),
+               "<b>Slot:</b> %s\n"
+               "<b>Window:</b> %s\n"
+               "<b>Class:</b> %s",
+               slot_name, escaped_title, escaped_class);
+
+    g_free(escaped_title);
+    g_free(escaped_class);
+
+    show_confirm_overlay(app, "Delete Harpoon Assignment?", info, perform_harpoon_delete);
 }
 
 gboolean handle_harpoon_edit_key_press(AppData *app, GdkEventKey *event) {

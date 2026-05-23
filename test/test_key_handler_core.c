@@ -655,21 +655,6 @@ static void test_escape_provider_tab_hides(void) {
     ASSERT_TRUE("Escape on provider tab does not switch origin", g_switch_calls == 0);
 }
 
-static void test_escape_harpoon_pending_delete_cancels_only(void) {
-    AppData app;
-    init_app(&app);
-    reset_captures();
-    app.current_tab = TEST_HARPOON_TAB;
-    app.harpoon_delete.pending_delete = TRUE;
-
-    GdkEventKey ev = make_key(GDK_KEY_Escape, 0);
-    gboolean handled = on_key_press(NULL, &ev, &app);
-
-    ASSERT_TRUE("Escape on Harpoon pending-delete handled", handled == TRUE);
-    ASSERT_TRUE("Escape on Harpoon clears pending_delete", app.harpoon_delete.pending_delete == FALSE);
-    ASSERT_TRUE("Escape on Harpoon pending-delete does not hide", g_hide_calls == 0 && app.window_visible == TRUE);
-}
-
 static void test_return_windows_activates_selected_and_hides(void) {
     AppData app;
     init_app(&app);
@@ -1346,7 +1331,6 @@ int main(int argc, char **argv) {
 
     test_escape_windows_hides();
     test_escape_provider_tab_hides();
-    test_escape_harpoon_pending_delete_cancels_only();
     test_return_windows_activates_selected_and_hides();
     test_return_apps_launches_selected_and_hides();
     test_return_workspaces_switches_desktop_and_hides();

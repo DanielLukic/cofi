@@ -50,24 +50,21 @@ typedef enum {
     OVERLAY_WORKSPACE_JUMP,
     OVERLAY_WORKSPACE_RENAME,
     OVERLAY_WORKSPACE_MOVE_ALL,
-    OVERLAY_HARPOON_DELETE,
+    OVERLAY_CONFIRM,
     OVERLAY_HARPOON_EDIT,
     OVERLAY_NAME_ASSIGN,
     OVERLAY_NAME_EDIT,
     OVERLAY_MATCH_PATTERN_EDIT,
-    OVERLAY_NAME_DELETE,
     OVERLAY_CONFIG_EDIT,
     OVERLAY_HOTKEY_ADD,
     OVERLAY_HOTKEY_EDIT,
     OVERLAY_HOTKEY_REBIND,
     OVERLAY_RULE_ADD,
     OVERLAY_RULE_EDIT,
-    OVERLAY_RULE_DELETE,
     OVERLAY_PROJECT_KILL,
     OVERLAY_PROJECT_RENAME,
     OVERLAY_PROJECT_NEW,
     OVERLAY_PROJECT_REMOTE_HOST,
-    OVERLAY_SESSION_DELETE,
     OVERLAY_SESSION_RENAME,
     OVERLAY_PROVIDER_ENABLEMENT
 } OverlayType;
@@ -205,24 +202,13 @@ typedef struct AppData {
         char edit_buffer[MAX_TITLE_LEN];
     } harpoon_edit;
 
-    // Delete confirmation state (Harpoon tab)
+    // Shared confirm overlay state
     struct {
-        gboolean pending_delete;
-        int delete_slot;
-    } harpoon_delete;
-
-    // Delete confirmation state (Names tab)
-    struct {
-        gboolean pending_delete;
-        int manager_index;
-        char custom_name[MAX_TITLE_LEN];
-    } name_delete;
-
-    // Delete confirmation state (Rules tab)
-    struct {
-        gboolean pending_delete;
-        int rule_index;
-    } rules_delete;
+        gboolean active;
+        char *title;
+        char *info;
+        void (*on_confirm)(struct AppData *);
+    } confirm_overlay;
 
     // Projects tab overlay state
     struct {
@@ -250,13 +236,6 @@ typedef struct AppData {
     struct {
         char host[128];
     } project_remote;
-
-    // Sessions tab overlay state
-    struct {
-        char source[16];
-        char session_id[SESSION_ID_LEN];
-        char path[SESSION_PATH_LEN];
-    } session_delete;
 
     struct {
         char source[16];

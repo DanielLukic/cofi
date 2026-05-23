@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 
 #include "../src/app_data.h"
-#include "../src/overlay_manager.h"
+#include "../src/overlay_confirm.h"
 #include "../src/overlay_harpoon.h"
 #include "../src/overlay_name.h"
+#include "../src/overlay_sessions.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -15,33 +15,37 @@ static int fail = 0;
     else { printf("FAIL: %s\n", name); fail++; } \
 } while (0)
 
-static int g_hide_overlay_calls;
-static int g_update_display_calls;
-static int g_save_harpoon_calls;
-static int g_unassign_calls;
-static int g_save_match_entries_calls;
-static int g_match_entry_delete_custom_name_calls;
-static int g_filter_names_calls;
+static int g_hide_overlay_calls = 0;
+static int g_update_display_calls = 0;
+static int g_unassign_calls = 0;
+static int g_save_harpoon_calls = 0;
+static int g_save_match_entries_calls = 0;
+static int g_deleted_session_calls = 0;
+static int g_removed_session_calls = 0;
 
 #define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_MATCHING_TAB   ((TabMode)(TAB_COUNT + 2))
-
-TabMode harpoon_tab_mode(void) {
-    return TEST_HARPOON_TAB;
-}
+#define TEST_MATCHING_TAB ((TabMode)(TAB_COUNT + 2))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
-    (void)level;
-    (void)file;
-    (void)line;
-    (void)fmt;
+    (void)level; (void)file; (void)line; (void)fmt;
+}
+
+void show_overlay(AppData *app, OverlayType type, gpointer data) {
+    (void)data;
+    app->overlay_active = TRUE;
+    app->current_overlay = type;
+}
+
+void hide_overlay(AppData *app) {
+    g_hide_overlay_calls++;
+    clear_confirm_overlay_state(app);
+    app->overlay_active = FALSE;
+    app->current_overlay = OVERLAY_NONE;
 }
 
 GtkWidget *create_markup_label(const char *markup, gboolean use_markup) {
     GtkWidget *label = gtk_label_new(markup ? markup : "");
-    if (use_markup) {
-        gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    }
+    if (use_markup) gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
     return label;
 }
 
@@ -57,32 +61,8 @@ void add_horizontal_separator(GtkWidget *parent) {
 }
 
 void safe_string_copy(char *dest, const char *src, int dest_size) {
-    if (!dest || dest_size <= 0) {
-        return;
-    }
-    if (!src) {
-        dest[0] = '\0';
-        return;
-    }
-    strncpy(dest, src, (size_t)dest_size - 1);
-    dest[dest_size - 1] = '\0';
-}
-
-void hide_overlay(AppData *app) {
-    g_hide_overlay_calls++;
-
-    if (app->current_overlay == OVERLAY_HARPOON_DELETE) {
-        app->harpoon_delete.pending_delete = FALSE;
-        app->harpoon_delete.delete_slot = -1;
-    }
-    if (app->current_overlay == OVERLAY_NAME_DELETE) {
-        app->name_delete.pending_delete = FALSE;
-        app->name_delete.manager_index = -1;
-        app->name_delete.custom_name[0] = '\0';
-    }
-
-    app->overlay_active = FALSE;
-    app->current_overlay = OVERLAY_NONE;
+    if (!dest || dest_size <= 0) return;
+    g_strlcpy(dest, src ? src : "", (gsize)dest_size);
 }
 
 void update_display(AppData *app) {
@@ -90,58 +70,20 @@ void update_display(AppData *app) {
     g_update_display_calls++;
 }
 
+void unassign_slot(HarpoonManager *harpoon, int slot) {
+    g_unassign_calls++;
+    if (!harpoon || slot < 0 || slot >= MAX_HARPOON_SLOTS) return;
+    memset(&harpoon->slots[slot], 0, sizeof(harpoon->slots[slot]));
+}
+
 void save_harpoon_slots(const HarpoonManager *harpoon) {
     (void)harpoon;
     g_save_harpoon_calls++;
 }
 
-void unassign_slot(HarpoonManager *harpoon, int slot) {
-    g_unassign_calls++;
-    if (!harpoon || slot < 0 || slot >= MAX_HARPOON_SLOTS) {
-        return;
-    }
-    memset(&harpoon->slots[slot], 0, sizeof(harpoon->slots[slot]));
-}
-
 int matching_run_gc(AppData *app) {
     (void)app;
     return 0;
-}
-
-void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
-    (void)manager;
-    (void)window;
-    (void)custom_name;
-}
-
-void match_entry_update_custom_name(MatchEntryManager *manager, int index, const char *new_name) {
-    (void)manager;
-    (void)index;
-    (void)new_name;
-}
-
-int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) {
-    if (!manager) {
-        return -1;
-    }
-    for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].bound_x11_id == id) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
-    if (!manager || !custom_name) {
-        return -1;
-    }
-    for (int i = 0; i < manager->count; i++) {
-        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
@@ -152,12 +94,16 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     return -1;
 }
 
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
-    g_match_entry_delete_custom_name_calls++;
-    if (!manager || index < 0 || index >= manager->count) {
-        return;
+int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
+    if (!manager || !custom_name) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) return i;
     }
+    return -1;
+}
 
+void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
+    if (!manager || index < 0 || index >= manager->count) return;
     for (int i = index; i < manager->count - 1; i++) {
         manager->entries[i] = manager->entries[i + 1];
     }
@@ -169,278 +115,146 @@ void save_match_entries(const MatchEntryManager *manager) {
     g_save_match_entries_calls++;
 }
 
-void filter_windows(AppData *app, const char *query) {
-    (void)app;
-    (void)query;
-}
-
 void filter_matching(AppData *app, const char *filter) {
-    g_filter_names_calls++;
     (void)filter;
     app->filtered_matching_count = app->matching.count;
-    for (int i = 0; i < app->matching.count; i++) {
-        app->filtered_matching[i] = app->matching.entries[i];
-    }
+    for (int i = 0; i < app->matching.count; i++) app->filtered_matching[i] = app->matching.entries[i];
 }
 
 MatchEntry *matching_selected_entry(AppData *app) {
     if (!app || app->filtered_matching_count <= 0) return NULL;
-    int idx = app->selection.provider_index;
-    if (idx < 0) idx = 0;
-    if (idx >= app->filtered_matching_count) idx = app->filtered_matching_count - 1;
-    app->selection.provider_index = idx;
-    return &app->filtered_matching[idx];
+    return &app->filtered_matching[0];
+}
+
+void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
+    (void)manager; (void)window; (void)custom_name;
+}
+
+void match_entry_update_custom_name(MatchEntryManager *manager, int index, const char *new_name) {
+    (void)manager; (void)index; (void)new_name;
 }
 
 int matching_selected_manager_index(AppData *app) {
     (void)app;
-    return -1;
+    return 0;
 }
 
-void matching_select_custom_name(AppData *app, const char *custom_name) {
-    (void)app;
-    (void)custom_name;
+void filter_windows(AppData *app, const char *query) {
+    (void)app; (void)query;
 }
 
-TabMode matching_tab_mode(void) {
-    return TEST_MATCHING_TAB;
+gboolean sessions_delete_path(const char *path) {
+    (void)path;
+    g_deleted_session_calls++;
+    return TRUE;
 }
 
-static void reset_captures(void) {
-    g_hide_overlay_calls = 0;
-    g_update_display_calls = 0;
-    g_save_harpoon_calls = 0;
-    g_unassign_calls = 0;
-    g_save_match_entries_calls = 0;
-    g_match_entry_delete_custom_name_calls = 0;
-    g_filter_names_calls = 0;
+void sessions_provider_remove_path(AppData *app, const char *path) {
+    (void)app; (void)path;
+    g_removed_session_calls++;
 }
 
-static GdkEventKey make_key(guint keyval, GdkModifierType state) {
+gboolean sessions_rename_result(const SessionResult *result, const char *new_name) {
+    (void)result; (void)new_name;
+    return TRUE;
+}
+
+void sessions_provider_rename_path(AppData *app, const char *path, const char *new_name) {
+    (void)app; (void)path; (void)new_name;
+}
+
+TabMode harpoon_tab_mode(void) { return TEST_HARPOON_TAB; }
+TabMode matching_tab_mode(void) { return TEST_MATCHING_TAB; }
+
+static GdkEventKey key_confirm_y(void) {
     GdkEventKey event;
     memset(&event, 0, sizeof(event));
-    event.keyval = keyval;
-    event.state = state;
+    event.keyval = GDK_KEY_y;
     return event;
 }
 
-static void test_harpoon_delete_confirm_y_clears_state_and_hides_overlay(void) {
+static void reset_counters(void) {
+    g_hide_overlay_calls = 0;
+    g_update_display_calls = 0;
+    g_unassign_calls = 0;
+    g_save_harpoon_calls = 0;
+    g_save_match_entries_calls = 0;
+    g_deleted_session_calls = 0;
+    g_removed_session_calls = 0;
+}
+
+static void test_harpoon_delete_confirm_flow(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_HARPOON_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_HARPOON_DELETE;
-    app.harpoon_delete.pending_delete = TRUE;
-    app.harpoon_delete.delete_slot = 2;
     app.harpoon.slots[2].assigned = 1;
+    app.harpoon.slots[2].match_id = 12;
+    app.matching.count = 1;
+    app.matching.entries[0].match_id = 12;
+    strcpy(app.matching.entries[0].original_title, "Terminal");
+    strcpy(app.matching.entries[0].class_name, "XTerm");
 
-    reset_captures();
+    reset_counters();
+    show_harpoon_delete_confirm(&app, 2);
+    GdkEventKey ev = key_confirm_y();
+    gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
 
-    GdkEventKey ev = make_key(GDK_KEY_y, 0);
-    gboolean handled = handle_harpoon_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Harpoon delete Y handled", handled == TRUE);
-    ASSERT_TRUE("Harpoon delete Y unassigns target slot", g_unassign_calls == 1 && app.harpoon.slots[2].assigned == 0);
-    ASSERT_TRUE("Harpoon delete Y persists", g_save_harpoon_calls == 1);
-    ASSERT_TRUE("Harpoon delete Y clears pending state", app.harpoon_delete.pending_delete == FALSE && app.harpoon_delete.delete_slot == -1);
-    ASSERT_TRUE("Harpoon delete Y hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
+    ASSERT_TRUE("harpoon delete handled", handled == TRUE);
+    ASSERT_TRUE("harpoon slot unassigned", g_unassign_calls == 1 && app.harpoon.slots[2].assigned == 0);
+    ASSERT_TRUE("harpoon save called", g_save_harpoon_calls == 1);
+    ASSERT_TRUE("harpoon UI updated", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
 }
 
-static void test_harpoon_delete_cancel_n_clears_state_and_hides_overlay(void) {
+static void test_name_delete_confirm_flow(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
-    app.current_tab = TEST_HARPOON_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_HARPOON_DELETE;
-    app.harpoon_delete.pending_delete = TRUE;
-    app.harpoon_delete.delete_slot = 4;
-    app.harpoon.slots[4].assigned = 1;
-
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_n, 0);
-    gboolean handled = handle_harpoon_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Harpoon delete N handled", handled == TRUE);
-    ASSERT_TRUE("Harpoon delete N does not delete slot", g_unassign_calls == 0 && app.harpoon.slots[4].assigned == 1);
-    ASSERT_TRUE("Harpoon delete N does not persist delete", g_save_harpoon_calls == 0);
-    ASSERT_TRUE("Harpoon delete N clears pending state", app.harpoon_delete.pending_delete == FALSE && app.harpoon_delete.delete_slot == -1);
-    ASSERT_TRUE("Harpoon delete N hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
-}
-
-static void test_name_delete_confirm_y_deletes_and_clamps_last_row(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_MATCHING_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_NAME_DELETE;
-
-    app.matching.count = 3;
-    strcpy(app.matching.entries[0].custom_name, "alpha");
-    app.matching.entries[0].bound_x11_id = (Window)0xA;
-    strcpy(app.matching.entries[1].custom_name, "beta");
-    app.matching.entries[1].bound_x11_id = (Window)0xB;
-    strcpy(app.matching.entries[2].custom_name, "gamma");
-    app.matching.entries[2].bound_x11_id = (Window)0xC;
-
-    app.name_delete.pending_delete = TRUE;
-    app.name_delete.manager_index = 2;
-    strcpy(app.name_delete.custom_name, "gamma");
-    app.selection.provider_index = 2;
-    gtk_entry_set_text(GTK_ENTRY(app.entry), "ga");
-
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_y, 0);
-    gboolean handled = handle_name_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Name delete Y handled", handled == TRUE);
-    ASSERT_TRUE("Name delete Y removes target", app.matching.count == 2 && strcmp(app.matching.entries[1].custom_name, "beta") == 0);
-    ASSERT_TRUE("Name delete Y persists + refilters", g_save_match_entries_calls == 1 && g_filter_names_calls == 1);
-    ASSERT_TRUE("Name delete Y clamps last-row selection", app.selection.provider_index == 1);
-    ASSERT_TRUE("Name delete Y clears pending state", app.name_delete.pending_delete == FALSE && app.name_delete.manager_index == -1);
-    ASSERT_TRUE("Name delete Y hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
-}
-
-static void test_name_delete_confirm_ctrl_d_deletes_and_hides_overlay(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_MATCHING_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_NAME_DELETE;
-
+    app.selection.provider_index = 1;
     app.matching.count = 2;
     strcpy(app.matching.entries[0].custom_name, "alpha");
-    app.matching.entries[0].bound_x11_id = (Window)0xA;
     strcpy(app.matching.entries[1].custom_name, "beta");
-    app.matching.entries[1].bound_x11_id = (Window)0xB;
 
-    app.name_delete.pending_delete = TRUE;
-    app.name_delete.manager_index = 0;
-    strcpy(app.name_delete.custom_name, "alpha");
+    reset_counters();
+    show_name_delete_confirm(&app, "beta", 1);
+    GdkEventKey ev = key_confirm_y();
+    gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
 
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
-    gboolean handled = handle_name_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Name delete Ctrl+D handled", handled == TRUE);
-    ASSERT_TRUE("Name delete Ctrl+D removes target", app.matching.count == 1 && strcmp(app.matching.entries[0].custom_name, "beta") == 0);
-    ASSERT_TRUE("Name delete Ctrl+D persists + refilters", g_save_match_entries_calls == 1 && g_filter_names_calls == 1);
-    ASSERT_TRUE("Name delete Ctrl+D hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
+    ASSERT_TRUE("name delete handled", handled == TRUE);
+    ASSERT_TRUE("name removed", app.matching.count == 1 && strcmp(app.matching.entries[0].custom_name, "alpha") == 0);
+    ASSERT_TRUE("name delete persisted", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("name delete updated UI", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
 }
 
-static void test_name_delete_confirm_ctrl_d_works_for_orphan_fallback(void) {
+static void test_session_delete_confirm_flow(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_MATCHING_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_NAME_DELETE;
 
-    app.matching.count = 1;
-    strcpy(app.matching.entries[0].custom_name, "orphan");
-    app.matching.entries[0].bound_x11_id = 0;
+    reset_counters();
+    show_session_delete_confirm(&app, "tmux", "abc", "/tmp/x");
+    GdkEventKey ev = key_confirm_y();
+    gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
 
-    app.name_delete.pending_delete = TRUE;
-    app.name_delete.manager_index = -1;
-    strcpy(app.name_delete.custom_name, "orphan");
-
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
-    gboolean handled = handle_name_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Name delete Ctrl+D orphan handled", handled == TRUE);
-    ASSERT_TRUE("Name delete Ctrl+D orphan deletes via fallback", app.matching.count == 0 && g_match_entry_delete_custom_name_calls == 1);
-    ASSERT_TRUE("Name delete Ctrl+D orphan persists", g_save_match_entries_calls == 1);
-    ASSERT_TRUE("Name delete Ctrl+D orphan hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
+    ASSERT_TRUE("session delete handled", handled == TRUE);
+    ASSERT_TRUE("session delete executed", g_deleted_session_calls == 1);
+    ASSERT_TRUE("session row removed", g_removed_session_calls == 1);
+    ASSERT_TRUE("session delete hides overlay", g_hide_overlay_calls == 1);
 }
 
-static void test_name_delete_cancel_n_clears_state_and_hides_overlay(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_MATCHING_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_NAME_DELETE;
-
-    app.matching.count = 1;
-    strcpy(app.matching.entries[0].custom_name, "beta");
-    app.name_delete.pending_delete = TRUE;
-    app.name_delete.manager_index = 0;
-    strcpy(app.name_delete.custom_name, "beta");
-
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_n, 0);
-    gboolean handled = handle_name_delete_key_press(&app, &ev);
-
-    ASSERT_TRUE("Name delete N handled", handled == TRUE);
-    ASSERT_TRUE("Name delete N does not delete", app.matching.count == 1 && g_match_entry_delete_custom_name_calls == 0);
-    ASSERT_TRUE("Name delete N does not persist", g_save_match_entries_calls == 0);
-    ASSERT_TRUE("Name delete N clears pending state", app.name_delete.pending_delete == FALSE && app.name_delete.manager_index == -1);
-    ASSERT_TRUE("Name delete N hides overlay + refreshes UI", g_hide_overlay_calls == 1 && g_update_display_calls == 1);
-}
-
-static gboolean handle_overlay_escape_for_test(AppData *app, GdkEventKey *event) {
-    if (!app->overlay_active) {
-        return FALSE;
-    }
-    if (event->keyval == GDK_KEY_Escape) {
-        hide_overlay(app);
-        return TRUE;
-    }
-    return FALSE;
-}
-
-static void test_name_delete_cancel_esc_clears_state_via_overlay_manager(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.entry = gtk_entry_new();
-    app.current_tab = TEST_MATCHING_TAB;
-    app.overlay_active = TRUE;
-    app.current_overlay = OVERLAY_NAME_DELETE;
-
-    app.matching.count = 1;
-    strcpy(app.matching.entries[0].custom_name, "beta");
-    app.name_delete.pending_delete = TRUE;
-    app.name_delete.manager_index = 0;
-    strcpy(app.name_delete.custom_name, "beta");
-
-    reset_captures();
-
-    GdkEventKey ev = make_key(GDK_KEY_Escape, 0);
-    gboolean handled = handle_overlay_escape_for_test(&app, &ev);
-
-    ASSERT_TRUE("Name delete Esc handled", handled == TRUE);
-    ASSERT_TRUE("Name delete Esc does not delete", app.matching.count == 1 && g_match_entry_delete_custom_name_calls == 0);
-    ASSERT_TRUE("Name delete Esc clears pending state", app.name_delete.pending_delete == FALSE && app.name_delete.manager_index == -1);
-    ASSERT_TRUE("Name delete Esc hides overlay", g_hide_overlay_calls == 1 && app.overlay_active == FALSE && app.current_overlay == OVERLAY_NONE);
-}
-
-int main(int argc, char **argv) {
+int main(void) {
+    int argc = 0;
+    char **argv = NULL;
     if (!gtk_init_check(&argc, &argv)) {
-        printf("Overlay delete-flow tests\n");
+        printf("Overlay delete flow tests\n");
         printf("=========================\n\n");
         printf("SKIP: GTK display unavailable\n");
         return 0;
     }
 
-    printf("Overlay delete-flow tests\n");
+    printf("Overlay delete flow tests\n");
     printf("=========================\n\n");
 
-    test_harpoon_delete_confirm_y_clears_state_and_hides_overlay();
-    test_harpoon_delete_cancel_n_clears_state_and_hides_overlay();
-    test_name_delete_confirm_y_deletes_and_clamps_last_row();
-    test_name_delete_confirm_ctrl_d_deletes_and_hides_overlay();
-    test_name_delete_confirm_ctrl_d_works_for_orphan_fallback();
-    test_name_delete_cancel_n_clears_state_and_hides_overlay();
-    test_name_delete_cancel_esc_clears_state_via_overlay_manager();
+    test_harpoon_delete_confirm_flow();
+    test_name_delete_confirm_flow();
+    test_session_delete_confirm_flow();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

@@ -3,6 +3,7 @@
 
 #include "../src/app_data.h"
 #include "../src/command_registry.h"
+#include "../src/overlay_confirm.h"
 #include "../src/core_commands.h"
 #include "../src/overlay_rules.h"
 
@@ -20,13 +21,17 @@ static int g_update_display_calls;
 
 #define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 1))
 
-void log_log(int level, const char *file, int line, const char *fmt, ...) {
-    (void)level; (void)file; (void)line; (void)fmt;
+void hide_overlay(AppData *app) {
+    clear_confirm_overlay_state(app);
+    app->overlay_active = FALSE;
+    app->current_overlay = OVERLAY_NONE;
+    g_hide_overlay_calls++;
 }
 
-void hide_overlay(AppData *app) {
-    (void)app;
-    g_hide_overlay_calls++;
+void show_overlay(AppData *app, OverlayType type, gpointer data) {
+    (void)data;
+    app->overlay_active = TRUE;
+    app->current_overlay = type;
 }
 
 int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
@@ -196,12 +201,10 @@ static void test_delete_rule_clamps_selection(void) {
     app.filtered_rule_indices[0] = 0;
     app.filtered_rule_indices[1] = 1;
     app.selection.provider_index = 1;
-    app.rules_delete.rule_index = 1;
-
-    create_rule_delete_overlay_content(app.dialog_container, &app);
+    show_rule_delete_confirm(&app, 1);
 
     GdkEventKey ev = confirm_event();
-    gboolean handled = handle_rule_delete_key_press(&app, &ev);
+    gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
 
     ASSERT_TRUE("rule delete handled", handled == TRUE);
     ASSERT_TRUE("rule delete reduced count", app.rules_config.count == 1);

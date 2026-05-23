@@ -230,8 +230,12 @@ test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_polic
 
 # Build overlay delete-flow behavior tests
 # (tests harpoon delete confirm/cancel lifecycle with stubs)
-test_overlay_delete_flow: test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o
-	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o $(LDFLAGS)
+test_overlay_delete_flow: test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o src/overlay_sessions.o src/overlay_confirm.o
+	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c src/overlay_harpoon.o src/overlay_name.o src/overlay_sessions.o src/overlay_confirm.o $(LDFLAGS)
+
+# Build shared confirm overlay tests
+test_overlay_confirm: test/test_overlay_confirm.c src/overlay_confirm.o src/gtk_utils.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_overlay_confirm test/test_overlay_confirm.c src/overlay_confirm.o src/gtk_utils.o src/log.o $(LDFLAGS)
 
 # Build hotkey rebind flow behavioral tests
 # Calls production rebind helpers (apply_rebind, show_rebind_conflict,
@@ -256,8 +260,8 @@ test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o
 
 # Build rules overlay behavior tests
 # (tests rules CRUD persistence-only behavior and clamp)
-test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o
-	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
+test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/overlay_confirm.o src/gtk_utils.o src/log.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o
+	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/overlay_confirm.o src/gtk_utils.o src/log.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/cofi_json_io.o src/tinyexpr.o

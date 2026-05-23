@@ -27,12 +27,6 @@
 gboolean handle_navigation_keys(GdkEventKey *event, AppData *app) {
     switch (event->keyval) {
         case GDK_KEY_Escape:
-            if (app->current_tab == harpoon_tab_mode() && app->harpoon_delete.pending_delete) {
-                app->harpoon_delete.pending_delete = FALSE;
-                log_info("Cancelled harpoon delete");
-                update_display(app);
-                return TRUE;
-            }
             log_debug("USER: ESCAPE pressed -> Closing cofi");
             hide_window(app);
             return TRUE;

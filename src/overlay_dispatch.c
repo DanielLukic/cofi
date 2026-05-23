@@ -3,6 +3,7 @@
 #include "log.h"
 #include "overlay_sessions.h"
 #include "overlay_config.h"
+#include "overlay_confirm.h"
 #include "overlay_harpoon.h"
 #include "overlay_hotkey_add.h"
 #include "overlay_hotkey_edit.h"
@@ -32,9 +33,8 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
             create_workspace_rename_overlay_content(
                 app->dialog_container, app, GPOINTER_TO_INT(data));
             return;
-        case OVERLAY_HARPOON_DELETE:
-            create_harpoon_delete_overlay_content(
-                app->dialog_container, app, app->harpoon_delete.delete_slot);
+        case OVERLAY_CONFIRM:
+            create_confirm_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_HARPOON_EDIT:
             create_harpoon_edit_overlay_content(
@@ -48,9 +48,6 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
             return;
         case OVERLAY_MATCH_PATTERN_EDIT:
             create_name_pattern_edit_overlay_content(app->dialog_container, app);
-            return;
-        case OVERLAY_NAME_DELETE:
-            create_name_delete_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_CONFIG_EDIT:
             create_config_edit_overlay_content(app->dialog_container, app);
@@ -73,9 +70,6 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_RULE_EDIT:
             create_rule_edit_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_RULE_DELETE:
-            create_rule_delete_overlay_content(app->dialog_container, app);
-            return;
         case OVERLAY_PROJECT_KILL:
             create_project_kill_overlay_content(app->dialog_container, app);
             return;
@@ -87,9 +81,6 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
             return;
         case OVERLAY_PROJECT_REMOTE_HOST:
             create_project_remote_host_overlay_content(app->dialog_container, app);
-            return;
-        case OVERLAY_SESSION_DELETE:
-            create_session_delete_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_SESSION_RENAME:
             create_session_rename_overlay_content(app->dialog_container, app);
@@ -113,8 +104,8 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_move_all_key_press(app, event);
         case OVERLAY_WORKSPACE_RENAME:
             return handle_workspace_rename_key_press(app, event->keyval);
-        case OVERLAY_HARPOON_DELETE:
-            return handle_harpoon_delete_key_press(app, event);
+        case OVERLAY_CONFIRM:
+            return handle_confirm_overlay_key_press(app, event);
         case OVERLAY_HARPOON_EDIT:
             return handle_harpoon_edit_key_press(app, event);
         case OVERLAY_NAME_ASSIGN:
@@ -123,8 +114,6 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_name_edit_key_press(app, event);
         case OVERLAY_MATCH_PATTERN_EDIT:
             return handle_name_pattern_edit_key_press(app, event);
-        case OVERLAY_NAME_DELETE:
-            return handle_name_delete_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
             return handle_config_edit_key_press(app, event);
         case OVERLAY_PROVIDER_ENABLEMENT:
@@ -139,8 +128,6 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_rule_add_key_press(app, event);
         case OVERLAY_RULE_EDIT:
             return handle_rule_edit_key_press(app, event);
-        case OVERLAY_RULE_DELETE:
-            return handle_rule_delete_key_press(app, event);
         case OVERLAY_PROJECT_KILL:
             return handle_project_kill_key_press(app, event);
         case OVERLAY_PROJECT_RENAME:
@@ -149,8 +136,6 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_project_new_key_press(app, event);
         case OVERLAY_PROJECT_REMOTE_HOST:
             return handle_project_remote_host_key_press(app, event);
-        case OVERLAY_SESSION_DELETE:
-            return handle_session_delete_key_press(app, event);
         case OVERLAY_SESSION_RENAME:
             return handle_session_rename_key_press(app, event);
         case OVERLAY_NONE:
@@ -180,9 +165,7 @@ void show_workspace_rename_overlay(AppData *app, int workspace_index) {
 }
 
 void show_harpoon_delete_overlay(AppData *app, int slot_index) {
-    app->harpoon_delete.pending_delete = TRUE;
-    app->harpoon_delete.delete_slot = slot_index;
-    show_overlay(app, OVERLAY_HARPOON_DELETE, NULL);
+    show_harpoon_delete_confirm(app, slot_index);
 }
 
 void show_harpoon_edit_overlay(AppData *app, int slot_index) {
@@ -204,14 +187,7 @@ void show_name_pattern_edit_overlay(AppData *app) {
 }
 
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
-    app->name_delete.pending_delete = TRUE;
-    app->name_delete.manager_index = manager_index;
-    g_strlcpy(app->name_delete.custom_name,
-              custom_name ? custom_name : "",
-              sizeof(app->name_delete.custom_name));
-    log_info("Name delete overlay: pending '%s' (mgr_idx=%d)",
-             app->name_delete.custom_name, app->name_delete.manager_index);
-    show_overlay(app, OVERLAY_NAME_DELETE, NULL);
+    show_name_delete_confirm(app, custom_name, manager_index);
 }
 
 void show_rule_add_overlay(AppData *app) {
@@ -223,9 +199,7 @@ void show_rule_edit_overlay(AppData *app) {
 }
 
 void show_rule_delete_overlay(AppData *app, int rule_index) {
-    app->rules_delete.pending_delete = TRUE;
-    app->rules_delete.rule_index = rule_index;
-    show_overlay(app, OVERLAY_RULE_DELETE, NULL);
+    show_rule_delete_confirm(app, rule_index);
 }
 
 void show_project_kill_overlay(AppData *app, const char *session_name, ProjectBackend backend) {
@@ -264,13 +238,7 @@ void show_session_delete_overlay(AppData *app,
                                        const char *source,
                                        const char *session_id,
                                        const char *path) {
-    g_strlcpy(app->session_delete.source, source ? source : "",
-              sizeof(app->session_delete.source));
-    g_strlcpy(app->session_delete.session_id, session_id ? session_id : "",
-              sizeof(app->session_delete.session_id));
-    g_strlcpy(app->session_delete.path, path ? path : "",
-              sizeof(app->session_delete.path));
-    show_overlay(app, OVERLAY_SESSION_DELETE, NULL);
+    show_session_delete_confirm(app, source, session_id, path);
 }
 
 void show_session_rename_overlay(AppData *app,

@@ -87,13 +87,10 @@ void init_app_data(AppData *app) {
     app->harpoon_edit.editing = FALSE;
     app->harpoon_edit.editing_slot = 0;
     app->harpoon_edit.edit_buffer[0] = '\0';
-    app->harpoon_delete.pending_delete = FALSE;
-    app->harpoon_delete.delete_slot = -1;
-    app->name_delete.pending_delete = FALSE;
-    app->name_delete.manager_index = -1;
-    app->name_delete.custom_name[0] = '\0';
-    app->rules_delete.pending_delete = FALSE;
-    app->rules_delete.rule_index = -1;
+    app->confirm_overlay.active = FALSE;
+    app->confirm_overlay.title = NULL;
+    app->confirm_overlay.info = NULL;
+    app->confirm_overlay.on_confirm = NULL;
 
     // Initialize named windows manager
     match_entry_manager_init(&app->matching);

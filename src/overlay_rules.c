@@ -5,6 +5,7 @@
 #include "command_parser.h"
 #include "display.h"
 #include "log.h"
+#include "overlay_confirm.h"
 #include "overlay_manager.h"
 #include "rules_provider.h"
 #include "selection.h"
@@ -15,6 +16,8 @@ static GtkWidget *create_message_label(const char *text) {
     gtk_widget_set_opacity(label, 0.8);
     return label;
 }
+
+static int s_pending_rule_delete_index = -1;
 
 static gboolean validate_rule_commands(const char *commands, char *err, size_t err_size) {
     if (!commands || commands[0] == '\0') {
@@ -158,32 +161,6 @@ void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app)
                              rule->pattern, rule->commands, config_index);
 }
 
-void create_rule_delete_overlay_content(GtkWidget *parent_container, AppData *app) {
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_margin_left(vbox, 20);
-    gtk_widget_set_margin_right(vbox, 20);
-    gtk_widget_set_margin_top(vbox, 20);
-    gtk_widget_set_margin_bottom(vbox, 20);
-
-    GtkWidget *title_label = gtk_label_new("Delete Rule?");
-    gtk_widget_set_name(title_label, "overlay-title");
-    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
-
-    if (app->rules_delete.rule_index >= 0 && app->rules_delete.rule_index < app->rules_config.count) {
-        Rule *rule = &app->rules_config.rules[app->rules_delete.rule_index];
-        char info[512];
-        g_snprintf(info, sizeof(info), "Pattern: %s\nCommands: %s", rule->pattern, rule->commands);
-        GtkWidget *info_label = gtk_label_new(info);
-        gtk_label_set_line_wrap(GTK_LABEL(info_label), TRUE);
-        gtk_box_pack_start(GTK_BOX(vbox), info_label, FALSE, FALSE, 0);
-    }
-
-    GtkWidget *inst = create_message_label("Y or Ctrl+D = delete, N or Esc = cancel");
-    gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
-}
-
 static gboolean handle_rule_form_key_press(AppData *app, GdkEventKey *event) {
     if (event->keyval == GDK_KEY_Tab) {
         GtkWidget *pattern_entry = g_object_get_data(G_OBJECT(app->dialog_container), "rule_pattern_entry");
@@ -230,28 +207,31 @@ gboolean handle_rule_edit_key_press(AppData *app, GdkEventKey *event) {
     return handle_rule_form_key_press(app, event);
 }
 
-gboolean handle_rule_delete_key_press(AppData *app, GdkEventKey *event) {
-    gboolean confirm = event->keyval == GDK_KEY_y || event->keyval == GDK_KEY_Y ||
-                       ((event->state & GDK_CONTROL_MASK) &&
-                        (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D));
-    if (confirm) {
-        if (app->rules_delete.rule_index >= 0 && app->rules_delete.rule_index < app->rules_config.count) {
-            remove_rule(&app->rules_config, app->rules_delete.rule_index);
-            save_rules_config(&app->rules_config);
-        }
-        app->rules_delete.pending_delete = FALSE;
-        app->rules_delete.rule_index = -1;
-        hide_overlay(app);
-        refresh_rules_tab(app);
-        return TRUE;
+static void perform_rule_delete(AppData *app) {
+    if (s_pending_rule_delete_index >= 0 && s_pending_rule_delete_index < app->rules_config.count) {
+        remove_rule(&app->rules_config, s_pending_rule_delete_index);
+        save_rules_config(&app->rules_config);
+    }
+    s_pending_rule_delete_index = -1;
+    refresh_rules_tab(app);
+}
+
+void show_rule_delete_confirm(AppData *app, int rule_index) {
+    s_pending_rule_delete_index = rule_index;
+
+    char info[2048];
+    if (rule_index >= 0 && rule_index < app->rules_config.count) {
+        Rule *rule = &app->rules_config.rules[rule_index];
+        char *escaped_pattern = g_markup_escape_text(rule->pattern, -1);
+        char *escaped_commands = g_markup_escape_text(rule->commands, -1);
+        g_snprintf(info, sizeof(info),
+                   "<b>Pattern:</b> %s\n<b>Commands:</b> %s",
+                   escaped_pattern, escaped_commands);
+        g_free(escaped_pattern);
+        g_free(escaped_commands);
+    } else {
+        g_snprintf(info, sizeof(info), "<b>Rule:</b> (missing)");
     }
 
-    if (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N) {
-        app->rules_delete.pending_delete = FALSE;
-        app->rules_delete.rule_index = -1;
-        hide_overlay(app);
-        return TRUE;
-    }
-
-    return FALSE;
+    show_confirm_overlay(app, "Delete Rule?", info, perform_rule_delete);
 }

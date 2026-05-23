@@ -41,9 +41,8 @@ static void test_overlay_should_focus_name_entry(void) {
     ASSERT_TRUE("tiling does not focus entry", !overlay_should_focus_name_entry(OVERLAY_TILING));
     ASSERT_TRUE("harpoon edit does not focus entry", !overlay_should_focus_name_entry(OVERLAY_HARPOON_EDIT));
     ASSERT_TRUE("workspace rename does not focus entry", !overlay_should_focus_name_entry(OVERLAY_WORKSPACE_RENAME));
-    ASSERT_TRUE("rule delete does not focus entry", !overlay_should_focus_name_entry(OVERLAY_RULE_DELETE));
+    ASSERT_TRUE("confirm does not focus entry", !overlay_should_focus_name_entry(OVERLAY_CONFIRM));
     ASSERT_TRUE("session kill does not focus entry", !overlay_should_focus_name_entry(OVERLAY_PROJECT_KILL));
-    ASSERT_TRUE("session delete does not focus entry", !overlay_should_focus_name_entry(OVERLAY_SESSION_DELETE));
 }
 
 static void test_hotkey_add_capture_policy(void) {
