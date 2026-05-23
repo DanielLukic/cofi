@@ -86,8 +86,14 @@ gboolean apply_window_geometry_restore(Display *display,
         // back at the stored position — otherwise each restore shifts by (-left,-top).
         int move_x = target->x, move_y = target->y;
         FrameExtents fe = {0};
-        if (get_frame_extents(display, target->window, &fe))
+        if (get_frame_extents(display, target->window, &fe)) {
             frame_pos_to_client_pos(target->x, target->y, &fe, &move_x, &move_y);
+        } else {
+            fe.left = 0; fe.right = 0; fe.top = 20; fe.bottom = 0;
+            log_warn("TEMP fallback extents (top=20) — _NET_FRAME_EXTENTS missing on 0x%lx",
+                     target->window);
+            frame_pos_to_client_pos(target->x, target->y, &fe, &move_x, &move_y);
+        }
         XMoveResizeWindow(display, target->window, move_x, move_y,
                           (unsigned int)target->width, (unsigned int)target->height);
     }
