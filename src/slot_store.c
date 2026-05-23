@@ -2,12 +2,14 @@
 
 #include <errno.h>
 #include <glib.h>
+#include <json-glib/json-glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 #include "log.h"
+#include "cofi_json_io.h"
 
 static const char *default_slot_path(void) {
     static char path[512];
@@ -203,102 +205,40 @@ char slot_for_payload(const SlotStore *store,
     return '\0';
 }
 
-static char *json_escape(const char *text) {
-    GString *out = g_string_new(NULL);
-    for (const char *p = text ? text : ""; *p; p++) {
-        switch (*p) {
-            case '\\': g_string_append(out, "\\\\"); break;
-            case '"': g_string_append(out, "\\\""); break;
-            case '\n': g_string_append(out, "\\n"); break;
-            case '\t': g_string_append(out, "\\t"); break;
-            default: g_string_append_c(out, *p); break;
-        }
-    }
-    return g_string_free(out, FALSE);
-}
-
 bool slot_save(const SlotStore *store) {
     if (!store || store->path[0] == '\0') {
         return false;
     }
 
-    FILE *file = fopen(store->path, "w");
-    if (!file) {
-        log_error("Failed to open slot store for writing: %s", store->path);
-        return false;
-    }
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "slots");
+    json_builder_begin_array(builder);
 
-    fprintf(file, "{\n  \"slots\": [\n");
-    int first = 1;
     for (size_t i = 0; i < store->count; i++) {
         const SlotEntry *entry = &store->entries[i];
         if (!entry->assigned) {
             continue;
         }
 
-        char *tab = json_escape(entry->tab_id);
-        char *payload = json_escape(entry->payload);
-        if (!first) {
-            fprintf(file, ",\n");
-        }
-        first = 0;
-        fprintf(file,
-                "    { \"slot\": \"%c\", \"tab\": \"%s\", \"payload\": \"%s\" }",
-                entry->slot_key, tab, payload);
-        g_free(tab);
-        g_free(payload);
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "slot");
+        char slot[2] = {entry->slot_key, '\0'};
+        json_builder_add_string_value(builder, slot);
+        json_builder_set_member_name(builder, "tab");
+        json_builder_add_string_value(builder, entry->tab_id);
+        json_builder_set_member_name(builder, "payload");
+        json_builder_add_string_value(builder, entry->payload);
+        json_builder_end_object(builder);
     }
-    fprintf(file, "\n  ]\n}\n");
-    fclose(file);
-    return true;
-}
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
 
-static gboolean extract_json_string(const char *line,
-                                    const char *field,
-                                    char *out,
-                                    size_t out_size) {
-    if (!line || !field || !out || out_size == 0) {
-        return FALSE;
-    }
-
-    char pattern[64];
-    g_snprintf(pattern, sizeof(pattern), "\"%s\"", field);
-    char *p = strstr((char *)line, pattern);
-    if (!p) {
-        return FALSE;
-    }
-    p = strchr(p + strlen(pattern), ':');
-    if (!p) {
-        return FALSE;
-    }
-    p = strchr(p, '"');
-    if (!p) {
-        return FALSE;
-    }
-    p++;
-
-    size_t pos = 0;
-    while (*p && pos + 1 < out_size) {
-        if (*p == '"') {
-            out[pos] = '\0';
-            return TRUE;
-        }
-        if (*p == '\\' && p[1]) {
-            p++;
-            if (*p == 'n') {
-                out[pos++] = '\n';
-            } else if (*p == 't') {
-                out[pos++] = '\t';
-            } else {
-                out[pos++] = *p;
-            }
-            p++;
-            continue;
-        }
-        out[pos++] = *p++;
-    }
-    out[pos] = '\0';
-    return TRUE;
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(store->path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+    return ok;
 }
 
 bool slot_load(SlotStore *store) {
@@ -306,37 +246,47 @@ bool slot_load(SlotStore *store) {
         return false;
     }
 
-    FILE *file = fopen(store->path, "r");
-    if (!file) {
-        if (errno != ENOENT) {
-            log_error("Failed to open slot store for reading: %s", store->path);
-        }
+    char path[512];
+    g_strlcpy(path, store->path, sizeof(path));
+    slot_store_free(store);
+    g_strlcpy(store->path, path, sizeof(store->path));
+
+    JsonParser *parser = cofi_json_load_object_file(store->path);
+    if (!parser) {
         return false;
     }
 
-    slot_store_free(store);
-
-    char line[2048];
-    bool loaded = false;
-    while (fgets(line, sizeof(line), file)) {
-        char slot_text[8] = {0};
-        char tab[SLOT_STORE_TAB_ID_LEN] = {0};
-        char payload[SLOT_STORE_PAYLOAD_LEN] = {0};
-
-        if (!strstr(line, "\"slot\"") || !strstr(line, "\"tab\"") ||
-            !strstr(line, "\"payload\"")) {
-            continue;
-        }
-        if (!extract_json_string(line, "slot", slot_text, sizeof(slot_text)) ||
-            !extract_json_string(line, "tab", tab, sizeof(tab)) ||
-            !extract_json_string(line, "payload", payload, sizeof(payload))) {
-            continue;
-        }
-
-        slot_assign(store, slot_text[0], tab, payload);
-        loaded = true;
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *slots = cofi_json_obj_array(root, "slots");
+    if (!slots) {
+        g_object_unref(parser);
+        return false;
     }
 
-    fclose(file);
+    bool loaded = false;
+    guint n = json_array_get_length(slots);
+    for (guint i = 0; i < n; i++) {
+        JsonNode *node = json_array_get_element(slots, i);
+        if (!node || !JSON_NODE_HOLDS_OBJECT(node)) {
+            continue;
+        }
+
+        JsonObject *entry = json_node_get_object(node);
+        const char *slot = cofi_json_obj_str_or(entry, "slot", "", NULL);
+        const char *tab = cofi_json_obj_str_or(entry, "tab", "", NULL);
+        const char *payload = cofi_json_obj_str_or(entry, "payload", "", NULL);
+        if (!slot || slot[0] == '\0' || slot[1] != '\0' ||
+            !tab || tab[0] == '\0' ||
+            !payload || payload[0] == '\0') {
+            continue;
+        }
+
+        slot_assign(store, slot[0], tab, payload);
+        if (slot_lookup(store, tab, slot[0])) {
+            loaded = true;
+        }
+    }
+
+    g_object_unref(parser);
     return loaded;
 }
