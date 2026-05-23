@@ -222,7 +222,7 @@ void harpoon_provider_register(void) {
     s_harpoon_provider.on_query_changed = harpoon_on_query_changed;
     s_harpoon_provider.handle_key = handle_harpoon_tab_keys;
     s_harpoon_provider.shortcut_hint =
-        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, ? = single char)";
+        "Shortcuts: Ctrl+E=Edit pattern  Ctrl+D=Delete  (patterns: * = any, . = single char)";
     s_harpoon_provider_id = cofi_register_tab_provider(&s_harpoon_provider);
     if (s_harpoon_provider_id >= 0) {
         cofi_register_command(&s_harpoon_command);
