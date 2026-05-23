@@ -1,252 +1,76 @@
 #include "match_entry_config.h"
-#include "log.h"
-#include "utils.h"
-#include <stdio.h>
+
+#include <json-glib/json-glib.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/stat.h>
 
-// Helper function to get match entries config file path
-static const char* get_match_entries_config_path() {
+#include "cofi_json_io.h"
+#include "log.h"
+#include "utils.h"
+
+static const char *get_match_entries_config_path(void) {
     static char path[512];
     const char *home = getenv("HOME");
     if (!home) {
         home = ".";
     }
-    
-    // Create .config directory if it doesn't exist
+
     snprintf(path, sizeof(path), "%s/.config", home);
     mkdir(path, 0755);
-    
-    // Create .config/cofi directory if it doesn't exist
     snprintf(path, sizeof(path), "%s/.config/cofi", home);
     mkdir(path, 0755);
-    
-    // Return full path to matching.json
     snprintf(path, sizeof(path), "%s/.config/cofi/matching.json", home);
     return path;
 }
 
-// Helper function to escape quotes in strings for JSON
-static void escape_json_string(const char *input, char *output, size_t output_size) {
-    size_t j = 0;
-    for (size_t i = 0; input[i] && j < output_size - 2; i++) {
-        if (input[i] == '"' || input[i] == '\\') {
-            if (j < output_size - 3) {
-                output[j++] = '\\';
-                output[j++] = input[i];
-            }
-        } else {
-            output[j++] = input[i];
-        }
-    }
-    output[j] = '\0';
+static const char *match_mode_to_string(TitleMatchMode mode) {
+    return mode == TITLE_MATCH_MODE_GLOB ? "GLOB" : "EXACT";
 }
 
-void save_match_entries(const MatchEntryManager *manager) {
-    if (!manager) return;
-    
-    const char *path = get_match_entries_config_path();
-    FILE *file = fopen(path, "w");
-    if (!file) {
-        log_error("Failed to open matching config file for writing: %s", path);
-        return;
+static TitleMatchMode parse_match_mode(JsonObject *entry_obj) {
+    JsonNode *node = json_object_get_member(entry_obj, "match_mode");
+    if (!node) {
+        return TITLE_MATCH_MODE_EXACT;
     }
-    
-    fprintf(file, "{\n");
-    fprintf(file, "  \"next_match_id\": %d,\n", manager->next_match_id > 0 ? manager->next_match_id : 1);
-    fprintf(file, "  \"match_entries\": [\n");
-    
-    int first = 1;
-    for (int i = 0; i < manager->count; i++) {
-        const MatchEntry *entry = &manager->entries[i];
-        
-        if (!first) fprintf(file, ",\n");
-        first = 0;
-        
-        // Escape strings for JSON
-        char escaped_name[MAX_TITLE_LEN * 2];
-        char escaped_title[MAX_TITLE_LEN * 2];
-        char escaped_class[MAX_CLASS_LEN * 2];
-        char escaped_instance[MAX_CLASS_LEN * 2];
-        
-        escape_json_string(entry->custom_name, escaped_name, sizeof(escaped_name));
-        escape_json_string(entry->original_title, escaped_title, sizeof(escaped_title));
-        escape_json_string(entry->class_name, escaped_class, sizeof(escaped_class));
-        escape_json_string(entry->instance, escaped_instance, sizeof(escaped_instance));
-        
-        fprintf(file, "    {\n");
-        fprintf(file, "      \"match_id\": %d,\n", entry->match_id);
-        fprintf(file, "      \"bound_x11_id\": %lu,\n", entry->bound_x11_id);
-        fprintf(file, "      \"custom_name\": \"%s\",\n", escaped_name);
-        fprintf(file, "      \"original_title\": \"%s\",\n", escaped_title);
-        fprintf(file, "      \"class_name\": \"%s\",\n", escaped_class);
-        fprintf(file, "      \"instance\": \"%s\",\n", escaped_instance);
-        fprintf(file, "      \"type\": \"%s\",\n", entry->type);
-        fprintf(file, "      \"match_mode\": \"%s\",\n",
-                entry->match_mode == TITLE_MATCH_MODE_GLOB ? "GLOB" : "EXACT");
-        fprintf(file, "      \"assigned\": %d\n", entry->assigned);
-        fprintf(file, "    }");
+
+    if (JSON_NODE_HOLDS_VALUE(node)) {
+        GType value_type = json_node_get_value_type(node);
+        if (value_type == G_TYPE_STRING) {
+            const char *mode_str = json_node_get_string(node);
+            return g_strcmp0(mode_str, "GLOB") == 0 ? TITLE_MATCH_MODE_GLOB : TITLE_MATCH_MODE_EXACT;
+        }
+        if (value_type == G_TYPE_INT64 || value_type == G_TYPE_INT) {
+            int mode_int = (int)json_node_get_int(node);
+            return mode_int == TITLE_MATCH_MODE_GLOB ? TITLE_MATCH_MODE_GLOB : TITLE_MATCH_MODE_EXACT;
+        }
     }
-    
-    fprintf(file, "\n  ]\n");
-    fprintf(file, "}\n");
-    
-    fclose(file);
-    log_debug("Saved %d match entries to %s", manager->count, path);
+
+    return TITLE_MATCH_MODE_EXACT;
 }
 
-// Helper function to parse match entry data from a line
-static void parse_match_entry_line(const char *line, MatchEntry *temp_entry, int *in_entry) {
-    if (strstr(line, "{")) {
-        *in_entry = 1;
-        memset(temp_entry, 0, sizeof(MatchEntry));
-        temp_entry->match_mode = TITLE_MATCH_MODE_EXACT;
-    } else if (strstr(line, "\"bound_x11_id\":")) {
-        sscanf(line, " \"bound_x11_id\": %lu", &temp_entry->bound_x11_id);
-    } else if (strstr(line, "\"match_id\":")) {
-        sscanf(line, " \"match_id\": %d", &temp_entry->match_id);
-    } else if (strstr(line, "\"custom_name\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strrchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= (int)sizeof(temp_entry->custom_name)) len = sizeof(temp_entry->custom_name) - 1;
-                    safe_string_copy(temp_entry->custom_name, start, len + 1);
-                }
-            }
-        }
-    } else if (strstr(line, "\"original_title\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strrchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= (int)sizeof(temp_entry->original_title)) len = sizeof(temp_entry->original_title) - 1;
-                    safe_string_copy(temp_entry->original_title, start, len + 1);
-                }
-            }
-        }
-    } else if (strstr(line, "\"class_name\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strrchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= (int)sizeof(temp_entry->class_name)) len = sizeof(temp_entry->class_name) - 1;
-                    safe_string_copy(temp_entry->class_name, start, len + 1);
-                }
-            }
-        }
-    } else if (strstr(line, "\"instance\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strrchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= (int)sizeof(temp_entry->instance)) len = sizeof(temp_entry->instance) - 1;
-                    safe_string_copy(temp_entry->instance, start, len + 1);
-                }
-            }
-        }
-    } else if (strstr(line, "\"type\":")) {
-        char *colon = strchr(line, ':');
-        if (colon) {
-            char *start = strchr(colon + 1, '"');
-            if (start) {
-                start++;  // Move past the opening quote
-                char *end = strrchr(start, '"');
-                if (end) {
-                    int len = end - start;
-                    if (len >= (int)sizeof(temp_entry->type)) len = sizeof(temp_entry->type) - 1;
-                    safe_string_copy(temp_entry->type, start, len + 1);
-                }
-            }
-        }
-    } else if (strstr(line, "\"match_mode\":")) {
-        if (strstr(line, "GLOB")) {
-            temp_entry->match_mode = TITLE_MATCH_MODE_GLOB;
-        } else {
-            temp_entry->match_mode = TITLE_MATCH_MODE_EXACT;
-        }
-    } else if (strstr(line, "\"assigned\":")) {
-        int assigned;
-        if (sscanf(line, " \"assigned\": %d", &assigned) == 1) {
-            temp_entry->assigned = assigned;
-        }
+static int parse_assigned(JsonObject *entry_obj) {
+    JsonNode *node = json_object_get_member(entry_obj, "assigned");
+    if (!node || !JSON_NODE_HOLDS_VALUE(node)) {
+        return 0;
     }
+
+    GType value_type = json_node_get_value_type(node);
+    if (value_type == G_TYPE_BOOLEAN) {
+        return json_node_get_boolean(node) ? 1 : 0;
+    }
+    if (value_type == G_TYPE_INT64 || value_type == G_TYPE_INT) {
+        return json_node_get_int(node) != 0 ? 1 : 0;
+    }
+    return 0;
 }
 
-void load_match_entries(MatchEntryManager *manager) {
-    if (!manager) return;
-    
-    // Initialize manager first
-    match_entry_manager_init(manager);
-    
-    const char *path = get_match_entries_config_path();
-    FILE *file = fopen(path, "r");
-    if (!file) {
-        if (errno != ENOENT) {
-            log_error("Failed to open matching config file for reading: %s", path);
-        }
-        return;
-    }
-    
-    // Parse the JSON file line by line (simple parser)
-    char line[1024];
-    int in_array = 0;
-    int in_entry = 0;
-    MatchEntry temp_entry = {0};
-    
-    while (fgets(line, sizeof(line), file)) {
-        // Trim whitespace
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        
-        // Check for section markers
-        if (strstr(p, "\"next_match_id\":")) {
-            int next = 0;
-            if (sscanf(p, "\"next_match_id\": %d", &next) == 1 && next > 0) {
-                manager->next_match_id = next;
-            }
-        } else if (strstr(p, "\"match_entries\":")) {
-            in_array = 1;
-        } else if (in_array && strstr(p, "}")) {
-            if (in_entry) {
-                // End of entry, save it
-                if (manager->count < MAX_WINDOWS) {
-                    manager->entries[manager->count] = temp_entry;
-                    manager->count++;
-                }
-                in_entry = 0;
-                memset(&temp_entry, 0, sizeof(temp_entry));
-            }
-        }
-        
-        // Parse content if in array
-        if (in_array) {
-            parse_match_entry_line(p, &temp_entry, &in_entry);
-        }
-    }
-
-    // Normalize match IDs: repair malformed/duplicate ids and keep next_match_id monotonic.
+static void normalize_loaded_match_entries(MatchEntryManager *manager) {
     if (manager->next_match_id <= 0) {
         manager->next_match_id = 1;
     }
+
     int seen_ids[MAX_WINDOWS];
     int seen_count = 0;
     for (int i = 0; i < manager->count; i++) {
@@ -258,20 +82,131 @@ void load_match_entries(MatchEntryManager *manager) {
                 break;
             }
         }
+
         if (id <= 0 || duplicate) {
             id = manager->next_match_id++;
             manager->entries[i].match_id = id;
         } else if (id >= manager->next_match_id) {
             manager->next_match_id = id + 1;
         }
+
         if (seen_count < MAX_WINDOWS) {
             seen_ids[seen_count++] = id;
         }
+
         if (manager->entries[i].match_mode != TITLE_MATCH_MODE_GLOB) {
             manager->entries[i].match_mode = TITLE_MATCH_MODE_EXACT;
         }
     }
-    
-    fclose(file);
+}
+
+void save_match_entries(const MatchEntryManager *manager) {
+    if (!manager) {
+        return;
+    }
+
+    const char *path = get_match_entries_config_path();
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+
+    json_builder_set_member_name(builder, "next_match_id");
+    json_builder_add_int_value(builder, manager->next_match_id > 0 ? manager->next_match_id : 1);
+
+    json_builder_set_member_name(builder, "match_entries");
+    json_builder_begin_array(builder);
+    for (int i = 0; i < manager->count; i++) {
+        const MatchEntry *entry = &manager->entries[i];
+        json_builder_begin_object(builder);
+
+        json_builder_set_member_name(builder, "match_id");
+        json_builder_add_int_value(builder, entry->match_id);
+        json_builder_set_member_name(builder, "bound_x11_id");
+        json_builder_add_int_value(builder, (gint64)entry->bound_x11_id);
+        json_builder_set_member_name(builder, "custom_name");
+        json_builder_add_string_value(builder, entry->custom_name);
+        json_builder_set_member_name(builder, "original_title");
+        json_builder_add_string_value(builder, entry->original_title);
+        json_builder_set_member_name(builder, "class_name");
+        json_builder_add_string_value(builder, entry->class_name);
+        json_builder_set_member_name(builder, "instance");
+        json_builder_add_string_value(builder, entry->instance);
+        json_builder_set_member_name(builder, "type");
+        json_builder_add_string_value(builder, entry->type);
+        json_builder_set_member_name(builder, "match_mode");
+        json_builder_add_string_value(builder, match_mode_to_string(entry->match_mode));
+        json_builder_set_member_name(builder, "assigned");
+        json_builder_add_boolean_value(builder, entry->assigned != 0);
+
+        json_builder_end_object(builder);
+    }
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
+
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+
+    if (ok) {
+        log_debug("Saved %d match entries to %s", manager->count, path);
+    }
+}
+
+void load_match_entries(MatchEntryManager *manager) {
+    if (!manager) {
+        return;
+    }
+
+    match_entry_manager_init(manager);
+
+    const char *path = get_match_entries_config_path();
+    JsonParser *parser = cofi_json_load_object_file(path);
+    if (!parser) {
+        return;
+    }
+
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    manager->next_match_id = cofi_json_obj_int_or(root, "next_match_id", 1, NULL);
+
+    JsonArray *entries = cofi_json_obj_array(root, "match_entries");
+    if (entries) {
+        guint n = json_array_get_length(entries);
+        for (guint i = 0; i < n && manager->count < MAX_WINDOWS; i++) {
+            JsonNode *node = json_array_get_element(entries, i);
+            if (!node || !JSON_NODE_HOLDS_OBJECT(node)) {
+                continue;
+            }
+
+            JsonObject *entry_obj = json_node_get_object(node);
+            MatchEntry entry;
+            memset(&entry, 0, sizeof(entry));
+            entry.match_mode = TITLE_MATCH_MODE_EXACT;
+
+            entry.match_id = cofi_json_obj_int_or(entry_obj, "match_id", 0, NULL);
+            entry.bound_x11_id = (Window)cofi_json_obj_int_or(entry_obj, "bound_x11_id", 0, NULL);
+            g_strlcpy(entry.custom_name,
+                      cofi_json_obj_str_or(entry_obj, "custom_name", "", NULL),
+                      sizeof(entry.custom_name));
+            g_strlcpy(entry.original_title,
+                      cofi_json_obj_str_or(entry_obj, "original_title", "", NULL),
+                      sizeof(entry.original_title));
+            g_strlcpy(entry.class_name,
+                      cofi_json_obj_str_or(entry_obj, "class_name", "", NULL),
+                      sizeof(entry.class_name));
+            g_strlcpy(entry.instance,
+                      cofi_json_obj_str_or(entry_obj, "instance", "", NULL),
+                      sizeof(entry.instance));
+            g_strlcpy(entry.type,
+                      cofi_json_obj_str_or(entry_obj, "type", "", NULL),
+                      sizeof(entry.type));
+            entry.match_mode = parse_match_mode(entry_obj);
+            entry.assigned = parse_assigned(entry_obj);
+
+            manager->entries[manager->count++] = entry;
+        }
+    }
+
+    normalize_loaded_match_entries(manager);
+    g_object_unref(parser);
     log_info("Loaded %d match entries from %s", manager->count, path);
 }

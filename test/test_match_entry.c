@@ -559,6 +559,87 @@ static void test_load_repairs_malformed_or_duplicate_match_ids(void) {
     ASSERT_INT("next_match_id monotonic", 1, loaded.next_match_id > loaded.entries[2].match_id);
 }
 
+static void test_load_missing_required_fields_and_missing_match_id(void) {
+    printf("\n--- load handles missing required fields and missing match_id ---\n");
+
+    set_test_home("missing-required");
+    const char *home = getenv("HOME");
+    char config_root[512];
+    char config_dir[512];
+    char config_path[512];
+    snprintf(config_root, sizeof(config_root), "%s/.config", home);
+    snprintf(config_dir, sizeof(config_dir), "%s/.config/cofi", home);
+    snprintf(config_path, sizeof(config_path), "%s/.config/cofi/matching.json", home);
+    mkdir(config_root, 0755);
+    mkdir(config_dir, 0755);
+
+    FILE *f = fopen(config_path, "w");
+    ASSERT_NOT_NULL("missing-required fixture opened", f);
+    if (!f) return;
+    fprintf(f,
+            "{\n"
+            "  \"next_match_id\": 5,\n"
+            "  \"match_entries\": [\n"
+            "    {\n"
+            "      \"custom_name\": \"missing-fields\",\n"
+            "      \"original_title\": \"Only title\",\n"
+            "      \"assigned\": 1\n"
+            "    },\n"
+            "    {\n"
+            "      \"match_id\": 7,\n"
+            "      \"bound_x11_id\": 333,\n"
+            "      \"custom_name\": \"has-id\",\n"
+            "      \"original_title\": \"Has id\",\n"
+            "      \"class_name\": \"ClassA\",\n"
+            "      \"instance\": \"instA\",\n"
+            "      \"type\": \"Normal\",\n"
+            "      \"match_mode\": \"GLOB\",\n"
+            "      \"assigned\": 1\n"
+            "    }\n"
+            "  ]\n"
+            "}\n");
+    fclose(f);
+
+    MatchEntryManager loaded;
+    load_match_entries(&loaded);
+    ASSERT_INT("two entries loaded even with missing fields", 2, loaded.count);
+    ASSERT_INT("missing match_id repaired to positive", 1, loaded.entries[0].match_id > 0);
+    ASSERT_STR("missing class defaults empty", "", loaded.entries[0].class_name);
+    ASSERT_STR("missing instance defaults empty", "", loaded.entries[0].instance);
+    ASSERT_STR("missing type defaults empty", "", loaded.entries[0].type);
+    ASSERT_INT("missing match_mode defaults EXACT", TITLE_MATCH_MODE_EXACT, loaded.entries[0].match_mode);
+    ASSERT_INT("second entry id preserved", 7, loaded.entries[1].match_id);
+    ASSERT_INT("next_match_id remains monotonic", 1, loaded.next_match_id > 7);
+}
+
+static void test_save_load_roundtrip_special_chars(void) {
+    printf("\n--- save/load roundtrip preserves special chars ---\n");
+
+    set_test_home("special-chars");
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo w = make_window(501, "Title", "Class", "inst", "Normal");
+    match_entry_assign_custom_name(&mgr, &w, "name + extras !@#$%^&*()");
+    safe_string_copy(mgr.entries[0].original_title, "Orig [brackets] / path", MAX_TITLE_LEN);
+    safe_string_copy(mgr.entries[0].class_name, "Class-Q_01", MAX_CLASS_LEN);
+    safe_string_copy(mgr.entries[0].instance, "inst-x.y", MAX_CLASS_LEN);
+    safe_string_copy(mgr.entries[0].type, "Normal", sizeof(mgr.entries[0].type));
+    mgr.entries[0].match_mode = TITLE_MATCH_MODE_GLOB;
+    mgr.entries[0].assigned = 1;
+
+    save_match_entries(&mgr);
+
+    MatchEntryManager loaded;
+    load_match_entries(&loaded);
+    ASSERT_INT("roundtrip loads one entry", 1, loaded.count);
+    ASSERT_STR("custom_name roundtrip", "name + extras !@#$%^&*()", loaded.entries[0].custom_name);
+    ASSERT_STR("original_title roundtrip", "Orig [brackets] / path", loaded.entries[0].original_title);
+    ASSERT_STR("class_name roundtrip", "Class-Q_01", loaded.entries[0].class_name);
+    ASSERT_STR("instance roundtrip", "inst-x.y", loaded.entries[0].instance);
+    ASSERT_INT("match_mode roundtrip", TITLE_MATCH_MODE_GLOB, loaded.entries[0].match_mode);
+}
+
 static void test_bound_x11_id_validation_and_rebind(void) {
     printf("\n--- bound_x11_id validation and rebind ---\n");
 
@@ -818,6 +899,8 @@ int main(void) {
     test_matching_capture_or_get_dedups_same_window();
     test_match_id_persist_and_non_reuse();
     test_load_repairs_malformed_or_duplicate_match_ids();
+    test_load_missing_required_fields_and_missing_match_id();
+    test_save_load_roundtrip_special_chars();
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
     test_glob_pattern_persists_and_rebinds_changed_title();
