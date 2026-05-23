@@ -143,12 +143,12 @@ test_command_parser_execution: test/test_command_parser_execution.c test/command
 	$(CC) $(CFLAGS) -o test/test_command_parser_execution test/test_command_parser_execution.c test/command_handler_stubs.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
 # Build config round-trip test
-test_config_roundtrip: test/test_config_roundtrip.c src/config.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_config_roundtrip test/test_config_roundtrip.c src/config.o src/log.o src/utils.o $(LDFLAGS)
+test_config_roundtrip: test/test_config_roundtrip.c src/config.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_config_roundtrip test/test_config_roundtrip.c src/config.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build config set/display test
-test_config_set: test/test_config_set.c src/config.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_config_set test/test_config_set.c src/config.o src/log.o src/utils.o $(LDFLAGS)
+test_config_set: test/test_config_set.c src/config.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_config_set test/test_config_set.c src/config.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build hotkey config test
 test_hotkey_config: test/test_hotkey_config.c src/hotkey_config.o src/log.o
@@ -330,12 +330,12 @@ test_command_mode_targeting: test/test_command_mode_targeting.c test/command_han
 	$(CC) $(CFLAGS) -o test/test_command_mode_targeting test/test_command_mode_targeting.c test/command_handler_stubs.c src/command_registry.o src/log.o src/nav_keys.o $(LDFLAGS)
 
 # Build CLI run-flag parsing tests
-test_cli_args_run: test/test_cli_args_run.c src/cli_args.o src/config.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_cli_args_run test/test_cli_args_run.c src/cli_args.o src/config.o src/log.o src/utils.o $(LDFLAGS)
+test_cli_args_run: test/test_cli_args_run.c src/cli_args.o src/config.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_cli_args_run test/test_cli_args_run.c src/cli_args.o src/config.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build CLI delegate-flag parsing tests
-test_cli_args_delegate: test/test_cli_args_delegate.c src/cli_args.o src/config.o src/log.o src/utils.o src/daemon_socket.o
-	$(CC) $(CFLAGS) -o test/test_cli_args_delegate test/test_cli_args_delegate.c src/cli_args.o src/config.o src/log.o src/utils.o src/daemon_socket.o $(LDFLAGS)
+test_cli_args_delegate: test/test_cli_args_delegate.c src/cli_args.o src/config.o src/cofi_json_io.o src/log.o src/utils.o src/daemon_socket.o
+	$(CC) $(CFLAGS) -o test/test_cli_args_delegate test/test_cli_args_delegate.c src/cli_args.o src/config.o src/cofi_json_io.o src/log.o src/utils.o src/daemon_socket.o $(LDFLAGS)
 
 # Build daemon socket protocol/lifecycle tests
 test_daemon_socket: test/test_daemon_socket.c src/daemon_socket.o src/log.o

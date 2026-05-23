@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "../src/config.h"
 
 static int tests_passed = 0;
@@ -33,6 +34,21 @@ static void register_test_config_entry(void) {
     };
     cofi_config_registry_reset();
     cofi_register_config_entry(&spec);
+}
+
+static void write_options_fixture(const char *json_body) {
+    const char *home = getenv("HOME");
+    char config_dir[512];
+    char config_path[512];
+    snprintf(config_dir, sizeof(config_dir), "%s/.config", home);
+    mkdir(config_dir, 0755);
+    snprintf(config_dir, sizeof(config_dir), "%s/.config/cofi", home);
+    mkdir(config_dir, 0755);
+    snprintf(config_path, sizeof(config_path), "%s/.config/cofi/options.json", home);
+    FILE *f = fopen(config_path, "w");
+    if (!f) return;
+    fputs(json_body, f);
+    fclose(f);
 }
 
 #define ASSERT_INT(name, expected, actual) do { \
@@ -149,6 +165,72 @@ static void test_all_digit_modes(void) {
     }
 }
 
+static void test_load_fixture_multiple_sections_and_enums(void) {
+    CofiConfig loaded;
+    write_options_fixture(
+        "{\n"
+        "  \"meta\": {\"ignored\": true},\n"
+        "  \"options\": {\n"
+        "    \"close_on_focus_loss\": false,\n"
+        "    \"align\": \"bottom_left\",\n"
+        "    \"workspaces_per_row\": 7,\n"
+        "    \"tile_columns\": 3,\n"
+        "    \"digit_slot_mode\": \"workspaces\",\n"
+        "    \"slot_overlay_duration_ms\": 1900,\n"
+        "    \"ripple_enabled\": false,\n"
+        "    \"slot_sort_order\": \"column\",\n"
+        "    \"log_level\": \"warn\",\n"
+        "    \"window_order_mode\": \"native\",\n"
+        "    \"show_all_tabs\": true,\n"
+        "    \"disabled_providers\": \"emoji,sinks\",\n"
+        "    \"slot_occlusion_threshold\": 0.05,\n"
+        "    \"projects.tmux_path\": \"/usr/bin/tmux\",\n"
+        "    \"unknown_field\": \"ignored\"\n"
+        "  },\n"
+        "  \"tail\": 123\n"
+        "}\n");
+
+    load_config(&loaded);
+    ASSERT_INT("fixture: close_on_focus_loss", 0, loaded.close_on_focus_loss);
+    ASSERT_INT("fixture: alignment", ALIGN_BOTTOM_LEFT, loaded.alignment);
+    ASSERT_INT("fixture: workspaces_per_row", 7, loaded.workspaces_per_row);
+    ASSERT_INT("fixture: tile_columns", 3, loaded.tile_columns);
+    ASSERT_INT("fixture: digit_slot_mode", DIGIT_MODE_WORKSPACES, loaded.digit_slot_mode);
+    ASSERT_INT("fixture: slot_overlay_duration_ms", 1900, loaded.slot_overlay_duration_ms);
+    ASSERT_INT("fixture: ripple_enabled", 0, loaded.ripple_enabled);
+    ASSERT_INT("fixture: slot_sort_order", SLOT_SORT_COLUMN_FIRST, loaded.slot_sort_order);
+    ASSERT_STR("fixture: log_level", "warn", loaded.log_level);
+    ASSERT_INT("fixture: window_order_mode", WINDOW_ORDER_NATIVE, loaded.window_order_mode);
+    ASSERT_INT("fixture: show_all_tabs", 1, loaded.show_all_tabs);
+    ASSERT_STR("fixture: disabled_providers", "emoji,sinks", loaded.disabled_providers);
+    ASSERT_INT("fixture: legacy float threshold 0.05 => 5", 5, loaded.slot_occlusion_threshold_pct);
+    ASSERT_STR("fixture: registered entry", "/usr/bin/tmux", loaded.projects_tmux_path);
+}
+
+static void test_missing_optional_key_keeps_default(void) {
+    CofiConfig loaded;
+    write_options_fixture(
+        "{\n"
+        "  \"options\": {\n"
+        "    \"close_on_focus_loss\": true,\n"
+        "    \"align\": \"center\",\n"
+        "    \"workspaces_per_row\": 0,\n"
+        "    \"tile_columns\": 2,\n"
+        "    \"digit_slot_mode\": \"default\",\n"
+        "    \"slot_overlay_duration_ms\": 750,\n"
+        "    \"ripple_enabled\": true,\n"
+        "    \"slot_sort_order\": \"row\",\n"
+        "    \"window_order_mode\": \"cofi\",\n"
+        "    \"show_all_tabs\": false,\n"
+        "    \"disabled_providers\": \"\",\n"
+        "    \"slot_occlusion_threshold\": 5\n"
+        "  }\n"
+        "}\n");
+
+    load_config(&loaded);
+    ASSERT_STR("missing optional key keeps default log_level", "debug", loaded.log_level);
+}
+
 int main(void) {
     // Use temp dir so we don't clobber real config
     char tmpdir[] = "/tmp/cofi_test_XXXXXX";
@@ -166,6 +248,8 @@ int main(void) {
     test_nondefault_roundtrip();
     test_all_alignments();
     test_all_digit_modes();
+    test_load_fixture_multiple_sections_and_enums();
+    test_missing_optional_key_keeps_default();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

@@ -1,6 +1,9 @@
 #include "config.h"
+#include "cofi_json_io.h"
 #include "log.h"
 #include "utils.h"
+#include <glib/gstdio.h>
+#include <json-glib/json-glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,19 +14,6 @@
 
 static CofiConfigSpec s_config_specs[MAX_REGISTERED_CONFIG_ENTRIES];
 static int s_config_spec_count = 0;
-
-static void write_json_string(FILE *file, const char *value) {
-    fputc('"', file);
-    if (value) {
-        for (const char *p = value; *p; p++) {
-            if (*p == '"' || *p == '\\') {
-                fputc('\\', file);
-            }
-            fputc(*p, file);
-        }
-    }
-    fputc('"', file);
-}
 
 int cofi_register_config_entry(const CofiConfigSpec *spec) {
     if (!spec || !spec->key || spec->key[0] == '\0' ||
@@ -149,33 +139,46 @@ WindowOrderMode string_to_window_order_mode(const char *str) {
     return WINDOW_ORDER_COFI;
 }
 
-static void save_options_section(FILE *file, const CofiConfig *config) {
+static void save_options_section(JsonBuilder *builder, const CofiConfig *config) {
     int registered_count = cofi_config_entry_count();
-    fprintf(file, "  \"options\": {\n");
-    fprintf(file, "    \"close_on_focus_loss\": %s,\n", config->close_on_focus_loss ? "true" : "false");
-    fprintf(file, "    \"align\": \"%s\",\n", alignment_to_string(config->alignment));
-    fprintf(file, "    \"workspaces_per_row\": %d,\n", config->workspaces_per_row);
-    fprintf(file, "    \"tile_columns\": %d,\n", config->tile_columns);
-    fprintf(file, "    \"digit_slot_mode\": \"%s\",\n", digit_slot_mode_to_string(config->digit_slot_mode));
-    fprintf(file, "    \"slot_overlay_duration_ms\": %d,\n", config->slot_overlay_duration_ms);
-    fprintf(file, "    \"ripple_enabled\": %s,\n", config->ripple_enabled ? "true" : "false");
-    fprintf(file, "    \"slot_sort_order\": \"%s\",\n", slot_sort_order_to_string(config->slot_sort_order));
-    fprintf(file, "    \"log_level\": \"%s\",\n", config->log_level);
-    fprintf(file, "    \"window_order_mode\": \"%s\",\n", window_order_mode_to_string(config->window_order_mode));
-    fprintf(file, "    \"show_all_tabs\": %s,\n", config->show_all_tabs ? "true" : "false");
-    fprintf(file, "    \"disabled_providers\": \"%s\",\n", config->disabled_providers);
-    fprintf(file, "    \"slot_occlusion_threshold\": %d%s\n",
-            config->slot_occlusion_threshold_pct,
-            registered_count > 0 ? "," : "");
+    json_builder_set_member_name(builder, "options");
+    json_builder_begin_object(builder);
+
+    json_builder_set_member_name(builder, "close_on_focus_loss");
+    json_builder_add_boolean_value(builder, config->close_on_focus_loss ? TRUE : FALSE);
+    json_builder_set_member_name(builder, "align");
+    json_builder_add_string_value(builder, alignment_to_string(config->alignment));
+    json_builder_set_member_name(builder, "workspaces_per_row");
+    json_builder_add_int_value(builder, config->workspaces_per_row);
+    json_builder_set_member_name(builder, "tile_columns");
+    json_builder_add_int_value(builder, config->tile_columns);
+    json_builder_set_member_name(builder, "digit_slot_mode");
+    json_builder_add_string_value(builder, digit_slot_mode_to_string(config->digit_slot_mode));
+    json_builder_set_member_name(builder, "slot_overlay_duration_ms");
+    json_builder_add_int_value(builder, config->slot_overlay_duration_ms);
+    json_builder_set_member_name(builder, "ripple_enabled");
+    json_builder_add_boolean_value(builder, config->ripple_enabled ? TRUE : FALSE);
+    json_builder_set_member_name(builder, "slot_sort_order");
+    json_builder_add_string_value(builder, slot_sort_order_to_string(config->slot_sort_order));
+    json_builder_set_member_name(builder, "log_level");
+    json_builder_add_string_value(builder, config->log_level);
+    json_builder_set_member_name(builder, "window_order_mode");
+    json_builder_add_string_value(builder, window_order_mode_to_string(config->window_order_mode));
+    json_builder_set_member_name(builder, "show_all_tabs");
+    json_builder_add_boolean_value(builder, config->show_all_tabs ? TRUE : FALSE);
+    json_builder_set_member_name(builder, "disabled_providers");
+    json_builder_add_string_value(builder, config->disabled_providers);
+    json_builder_set_member_name(builder, "slot_occlusion_threshold");
+    json_builder_add_int_value(builder, config->slot_occlusion_threshold_pct);
+
     for (int i = 0; i < registered_count; i++) {
         const CofiConfigSpec *spec = cofi_config_entry_at(i);
         char value[CONFIG_VALUE_LEN] = {0};
         if (!spec || !spec->get_value(config, value, sizeof(value))) continue;
-        fprintf(file, "    \"%s\": ", spec->key);
-        write_json_string(file, value);
-        fprintf(file, "%s\n", i == registered_count - 1 ? "" : ",");
+        json_builder_set_member_name(builder, spec->key);
+        json_builder_add_string_value(builder, value);
     }
-    fprintf(file, "  }");
+    json_builder_end_object(builder);
 }
 
 void init_config_defaults(CofiConfig *config) {
@@ -204,123 +207,15 @@ void save_config(const CofiConfig *config) {
     if (!config) return;
 
     const char *path = get_config_path();
-    FILE *file = fopen(path, "w");
-    if (!file) {
-        log_error("Failed to open config file for writing: %s", path);
-        return;
-    }
-
-    fprintf(file, "{\n");
-
-    // Save options section only
-    save_options_section(file, config);
-
-    fprintf(file, "\n}\n");
-
-    fclose(file);
-    log_debug("Saved config options to %s", path);
-}
-
-// Extract a quoted JSON string value after the colon on a line.
-// Returns 1 on success, 0 on failure.
-static int extract_json_string(const char *line, char *out, size_t out_size) {
-    char *colon = strchr(line, ':');
-    if (!colon) return 0;
-    char *start = strchr(colon + 1, '"');
-    if (!start) return 0;
-    start++;
-    char *end = strchr(start, '"');
-    if (!end) return 0;
-    size_t len = (size_t)(end - start);
-    if (len >= out_size) len = out_size - 1;
-    memcpy(out, start, len);
-    out[len] = '\0';
-    return 1;
-}
-
-static void parse_options_line(const char *line, CofiConfig *config) {
-    if (strstr(line, "\"close_on_focus_loss\":")) {
-        if (strstr(line, "true")) config->close_on_focus_loss = 1;
-        else if (strstr(line, "false")) config->close_on_focus_loss = 0;
-    } else if (strstr(line, "\"align\":")) {
-        char val[32] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            config->alignment = string_to_alignment(val);
-    } else if (strstr(line, "\"workspaces_per_row\":")) {
-        sscanf(line, " \"workspaces_per_row\": %d", &config->workspaces_per_row);
-    } else if (strstr(line, "\"tile_columns\":")) {
-        int columns;
-        if (sscanf(line, " \"tile_columns\": %d", &columns) == 1) {
-            if (columns == 2 || columns == 3)
-                config->tile_columns = columns;
-            else {
-                log_warn("Invalid tile_columns value %d, using default 3", columns);
-                config->tile_columns = 3;
-            }
-        }
-    } else if (strstr(line, "\"digit_slot_mode\":")) {
-        char val[16] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            config->digit_slot_mode = string_to_digit_slot_mode(val);
-    } else if (strstr(line, "\"slot_overlay_duration_ms\":")) {
-        sscanf(line, " \"slot_overlay_duration_ms\": %d", &config->slot_overlay_duration_ms);
-    } else if (strstr(line, "\"slot_occlusion_threshold\":")) {
-        double raw = 0.0;
-        if (sscanf(line, " \"slot_occlusion_threshold\": %lf", &raw) == 1) {
-            int pct = 0;
-            if (raw >= 0.0 && raw < 1.0) {
-                // Legacy format: fraction (e.g. 0.05). Strict < 1.0 so that
-                // the new integer value 1 (= 1%) is not misread as 100%.
-                pct = (int)(raw * 100.0 + 0.5);
-            } else {
-                // New format: integer percent (e.g. 5)
-                pct = (int)(raw + 0.5);
-            }
-            if (pct >= 1 && pct <= 100) {
-                config->slot_occlusion_threshold_pct = pct;
-            }
-        }
-    } else if (strstr(line, "\"ripple_enabled\":")) {
-        config->ripple_enabled = strstr(line, "true") ? 1 : 0;
-    } else if (strstr(line, "\"show_all_tabs\":")) {
-        config->show_all_tabs = strstr(line, "true") ? 1 : 0;
-    } else if (strstr(line, "\"disabled_providers\":")) {
-        char val[CONFIG_DISABLED_PROVIDERS_LEN] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            strncpy(config->disabled_providers, val, sizeof(config->disabled_providers) - 1);
-    } else if (strstr(line, "\"slot_sort_order\":")) {
-        char val[16] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            config->slot_sort_order = string_to_slot_sort_order(val);
-    } else if (strstr(line, "\"log_level\":")) {
-        char val[16] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            strncpy(config->log_level, val, sizeof(config->log_level) - 1);
-    } else if (strstr(line, "\"window_order_mode\":")) {
-        char val[16] = {0};
-        if (extract_json_string(line, val, sizeof(val)))
-            config->window_order_mode = string_to_window_order_mode(val);
-    } else if (strstr(line, "\"quick_workspace_slots\":")) {
-        if (strstr(line, "true"))
-            config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
-    } else {
-        for (int i = 0; i < cofi_config_entry_count(); i++) {
-            const CofiConfigSpec *spec = cofi_config_entry_at(i);
-            if (!spec || !spec->key) continue;
-            char needle[CONFIG_KEY_LEN + 4];
-            snprintf(needle, sizeof(needle), "\"%s\":", spec->key);
-            if (strstr(line, needle)) {
-                char val[CONFIG_VALUE_LEN] = {0};
-                char err[128] = {0};
-                if (extract_json_string(line, val, sizeof(val)) &&
-                    !spec->set_value(config, val, err, sizeof(err))) {
-                    log_warn("Ignoring invalid config value for %s: %s",
-                             spec->key, err[0] ? err : "invalid value");
-                }
-                return;
-            }
-        }
-    }
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    save_options_section(builder, config);
+    json_builder_end_object(builder);
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+    if (ok) log_debug("Saved config options to %s", path);
 }
 
 void load_config(CofiConfig *config) {
@@ -329,30 +224,126 @@ void load_config(CofiConfig *config) {
     init_config_defaults(config);
 
     const char *path = get_config_path();
-    FILE *file = fopen(path, "r");
-    if (!file) {
-        if (errno != ENOENT)
+    GStatBuf st;
+    if (g_stat(path, &st) != 0) {
+        if (errno == ENOENT) {
+            save_config(config);
+        } else {
             log_error("Failed to open config file for reading: %s", path);
+        }
         return;
     }
 
-    char line[1024];
-    int in_options = 0;
-
-    while (fgets(line, sizeof(line), file)) {
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-
-        if (strstr(p, "\"options\":"))
-            in_options = 1;
-        else if (strstr(p, "}"))
-            in_options = 0;
-
-        if (in_options)
-            parse_options_line(p, config);
+    JsonParser *parser = cofi_json_load_object_file(path);
+    if (!parser) {
+        log_error("Failed to load config file, using defaults: %s", path);
+        return;
     }
 
-    fclose(file);
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonObject *options = cofi_json_obj_object(root, "options");
+    if (!options) {
+        log_warn("Config missing required object: options");
+        g_object_unref(parser);
+        return;
+    }
+
+    gboolean present = FALSE;
+    config->close_on_focus_loss = cofi_json_obj_bool_or(
+        options, "close_on_focus_loss", config->close_on_focus_loss, &present) ? 1 : 0;
+    if (!present) log_warn("Config missing required key: close_on_focus_loss");
+
+    const char *s = cofi_json_obj_str_or(options, "align", "", &present);
+    if (present) config->alignment = string_to_alignment(s);
+    else log_warn("Config missing required key: align");
+
+    config->workspaces_per_row = cofi_json_obj_int_or(
+        options, "workspaces_per_row", config->workspaces_per_row, &present);
+    if (!present) log_warn("Config missing required key: workspaces_per_row");
+
+    int columns = cofi_json_obj_int_or(options, "tile_columns", config->tile_columns, &present);
+    if (!present) {
+        log_warn("Config missing required key: tile_columns");
+    } else if (columns == 2 || columns == 3) {
+        config->tile_columns = columns;
+    } else {
+        log_warn("Invalid tile_columns value %d, using default 3", columns);
+        config->tile_columns = 3;
+    }
+
+    s = cofi_json_obj_str_or(options, "digit_slot_mode", "", &present);
+    if (present) config->digit_slot_mode = string_to_digit_slot_mode(s);
+    else log_warn("Config missing required key: digit_slot_mode");
+
+    config->slot_overlay_duration_ms = cofi_json_obj_int_or(
+        options, "slot_overlay_duration_ms", config->slot_overlay_duration_ms, &present);
+    if (!present) log_warn("Config missing required key: slot_overlay_duration_ms");
+
+    config->ripple_enabled = cofi_json_obj_bool_or(
+        options, "ripple_enabled", config->ripple_enabled, &present) ? 1 : 0;
+    if (!present) log_warn("Config missing required key: ripple_enabled");
+
+    s = cofi_json_obj_str_or(options, "slot_sort_order", "", &present);
+    if (present) config->slot_sort_order = string_to_slot_sort_order(s);
+    else log_warn("Config missing required key: slot_sort_order");
+
+    s = cofi_json_obj_str_or(options, "window_order_mode", "", &present);
+    if (present) config->window_order_mode = string_to_window_order_mode(s);
+    else log_warn("Config missing required key: window_order_mode");
+
+    config->show_all_tabs = cofi_json_obj_bool_or(
+        options, "show_all_tabs", config->show_all_tabs, &present) ? 1 : 0;
+    if (!present) log_warn("Config missing required key: show_all_tabs");
+
+    s = cofi_json_obj_str_or(options, "disabled_providers", "", &present);
+    if (present) {
+        g_strlcpy(config->disabled_providers, s, sizeof(config->disabled_providers));
+    } else {
+        log_warn("Config missing required key: disabled_providers");
+    }
+
+    JsonNode *threshold_node = json_object_get_member(options, "slot_occlusion_threshold");
+    if (!threshold_node || !JSON_NODE_HOLDS_VALUE(threshold_node)) {
+        log_warn("Config missing required key: slot_occlusion_threshold");
+    } else {
+        int pct = 0;
+        GType threshold_type = json_node_get_value_type(threshold_node);
+        if (threshold_type == G_TYPE_INT64 || threshold_type == G_TYPE_INT) {
+            pct = (int)json_node_get_int(threshold_node);
+        } else if (threshold_type == G_TYPE_DOUBLE) {
+            double raw = json_node_get_double(threshold_node);
+            if (raw >= 0.0 && raw < 1.0) pct = (int)(raw * 100.0 + 0.5);
+            else pct = (int)(raw + 0.5);
+        }
+        if (pct >= 1 && pct <= 100) {
+            config->slot_occlusion_threshold_pct = pct;
+        }
+    }
+
+    s = cofi_json_obj_str_or(options, "log_level", "", &present);
+    if (present) {
+        g_strlcpy(config->log_level, s, sizeof(config->log_level));
+    }
+
+    gboolean quick_slots = cofi_json_obj_bool_or(options, "quick_workspace_slots", FALSE, &present);
+    if (present && quick_slots) {
+        config->digit_slot_mode = DIGIT_MODE_WORKSPACES;
+    }
+
+    for (int i = 0; i < cofi_config_entry_count(); i++) {
+        const CofiConfigSpec *spec = cofi_config_entry_at(i);
+        if (!spec || !spec->key) continue;
+        gboolean key_present = FALSE;
+        const char *value = cofi_json_obj_str_or(options, spec->key, "", &key_present);
+        if (!key_present) continue;
+        char err[128] = {0};
+        if (!spec->set_value(config, value, err, sizeof(err))) {
+            log_warn("Ignoring invalid config value for %s: %s",
+                     spec->key, err[0] ? err : "invalid value");
+        }
+    }
+
+    g_object_unref(parser);
     log_info("Loaded config options from %s", path);
 }
 
