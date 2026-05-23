@@ -204,10 +204,12 @@ static void test_mru_promotes_same_tier_within_top_tier(void) {
     ASSERT_TRUE("aup/mru: MRU-promoted up arrow ranks #1", up == 0);
 }
 
-// BUG B regression guard: MRU must NEVER cross tiers. 😀 (grinning) is in
-// MRU at max recency and matches "sl" only via keyword (tier 0). 😴 (sleeping
-// face) has tier-3 name prefix. Sleeping must still win — MRU promotion
-// applies only inside the top tier.
+// Zone-boundary guard: MRU must NEVER cross the junk→structural boundary.
+// 😀 (grinning) is in MRU at max recency and matches "sl" only via keyword
+// (tier 0 = junk zone). 😴 (sleeping face) has tier-3 name prefix
+// (structural zone). Sleeping must still win — MRU promotion is allowed to
+// reorder freely within the structural zone, but never lifts a junk-zone
+// candidate above a structural one.
 static void test_mru_does_not_cross_tiers(void) {
     reset_mru_state();
     emoji_history_push("😀");
@@ -220,6 +222,33 @@ static void test_mru_does_not_cross_tiers(void) {
     ASSERT_TRUE("sl/cross-tier: grinning face present", grinning >= 0);
     ASSERT_TRUE("sl/cross-tier: tier-3 name-prefix beats MRU'd tier-0 keyword",
                 sleeping < grinning);
+}
+
+// Zone-based MRU: cross-tier promotion within the structural zone. "shr"
+// matches 🤷 person-shrugging at tier 2 (word prefix on "shrugging") and 🦐
+// shrimp at tier 3 (name prefix). Without MRU, shrimp wins (higher tier).
+// With shrug in MRU at recency 0, zone-based bucket promotion lifts shrug
+// above shrimp — both are structural, MRU is allowed to reorder freely.
+static void test_mru_promotes_across_structural_tiers_shr(void) {
+    reset_mru_state();
+    emoji_history_push("🤷");
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "shr");
+    int shrug  = rank_of_glyph(&app, "🤷");
+    int shrimp = rank_of_glyph(&app, "🦐");
+    ASSERT_TRUE("shr/zone: person shrugging present", shrug >= 0);
+    ASSERT_TRUE("shr/zone: shrimp present", shrimp >= 0);
+    EmojiRank shrug_rank  = emoji_rank_score_full("shr", &EMOJI_TABLE[app.filtered_emoji[shrug]]);
+    EmojiRank shrimp_rank = emoji_rank_score_full("shr", &EMOJI_TABLE[app.filtered_emoji[shrimp]]);
+    printf("    shr/diag: shrug tier=%d score=%d ; shrimp tier=%d score=%d\n",
+           shrug_rank.tier_id, shrug_rank.total, shrimp_rank.tier_id, shrimp_rank.total);
+    ASSERT_TRUE("shr/zone: both candidates are structural (tier >= 1)",
+                shrug_rank.tier_id >= 1 && shrimp_rank.tier_id >= 1);
+    ASSERT_TRUE("shr/zone: shrug and shrimp inhabit different tiers (exercises cross-tier promotion)",
+                shrug_rank.tier_id != shrimp_rank.tier_id);
+    ASSERT_TRUE("shr/zone: MRU'd shrug (tier 2) ranks above shrimp (tier 3)",
+                shrug < shrimp);
 }
 
 // Alias-exact tier (tier 6) must be invulnerable to a keyword-only+max-MRU attack.
@@ -267,6 +296,7 @@ int main(void) {
     test_acronym_tier_sf_sleeping_beats_steam_from_nose();
     test_mru_promotes_same_tier_within_top_tier();
     test_mru_does_not_cross_tiers();
+    test_mru_promotes_across_structural_tiers_shr();
     test_alias_exact_invulnerable_to_mru();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);

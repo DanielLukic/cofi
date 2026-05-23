@@ -578,12 +578,17 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
         }
     }
 
-    // MRU bucket promotion: items in the top tier that are also in MRU history
-    // get promoted above other top-tier (and lower) items, preserving recency
-    // order. Cross-tier promotion is impossible: a lower-tier MRU'd item never
-    // beats a higher-tier non-MRU'd item.
+    // MRU bucket promotion: zone-based. Two zones exist:
+    //   JUNK       = tier 0  (keyword/substring/fzf-only matches)
+    //   STRUCTURAL = tier >= 1 (name prefix, word prefix, acronym, alias, ...)
+    // An MRU'd candidate is promoted when it shares the top match's zone. This
+    // lets recency reorder freely across structural tiers (e.g. tier-2 shrug
+    // can beat tier-3 shrimp right after being picked) while preserving the
+    // junk→structural boundary (a tier-0 MRU'd item never crosses into a
+    // structural top tier — the "sl→grinning" regression guard).
     for (int i = 0; i < app->filtered_emoji_count; i++) {
-        matched_promoted[i] = (matched_tier[i] == top_tier && matched_mru[i] >= 0) ? 1 : 0;
+        int same_zone = (matched_tier[i] >= 1) == (top_tier >= 1);
+        matched_promoted[i] = (same_zone && matched_mru[i] >= 0) ? 1 : 0;
     }
 
     // Sort:
