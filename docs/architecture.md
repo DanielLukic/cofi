@@ -142,6 +142,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **`src/log.c`** — rxi/log.c bundled logging library.
 - **`src/utils.c`** — string and path helpers.
+- **`src/cofi_json_io.c`** — tolerant JSON I/O wrapper over `json-glib`. Convergence point for persistence stores; codifies the unknown-field / missing-key / wrong-type / corrupt-file policy in one place. See [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md). Migration to it is staged per-store; some legacy stores still use hand-rolled `fprintf`/`sscanf`.
 
 ## Cross-cutting invariants
 
@@ -153,6 +154,8 @@ These are the rules that don't live in any one file but must hold across the sys
 - **Cache invalidation on show.** Pango/monitor/DPI state is sampled per show, not at startup, to survive `xrandr` and XSettings (`Xft/DPI`) changes mid-session.
 - **Single source of truth for config keys.** Config descriptors in `src/config.c` drive save/load, `:set`, and Config tab rows. Provider-owned keys use a `provider_id.key_name` namespace and must be registered during provider bootstrap.
 - **Detached launch.** Anything cofi launches (run mode, apps tab, `:run`) must outlive cofi itself. `systemd-run --scope --user` is the primary path; `fork+setsid` is the fallback.
+- **Rules-as-policy boundary.** Auto-apply behaviors on window-appear/title-change (geom restore, sticky, always-above, workspace pin) attach via the rules engine, not bespoke triggers. A single execution path keeps the fire-once + circuit-breaker + idempotency invariants in one place — fixes there pay off everywhere. Geom auto-restore is the canonical example: layout payload in `layouts.json` keyed by match_id; trigger via `pattern → rl` rule.
+- **Tolerant persistence I/O.** All JSON reads through `cofi_json_io` (migration in progress, see [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md)) treat unknown fields as forward-compat, missing/wrong-type as `present == FALSE` + fallback, corrupt files as `log_error` + empty-load. Stores never abort on bad input. Atomic save via tmp+rename in the same directory.
 
 ## Build & test
 

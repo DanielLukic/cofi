@@ -16,6 +16,7 @@ Format: numbered, dated, with `Status` + `Supersedes` / `Superseded by` headers.
 | 0006 | [Per-show window-size recompute on cursor monitor](0006-per-show-window-size-recompute.md) | **Accepted** |
 | 0007 | [Registry-based tab architecture (CofiTabProvider)](0007-provider-registry-architecture.md) | **Accepted** |
 | 0008 | [Cluster-correct UTF-8 column rendering](0008-utf8-column-rendering.md) | **Accepted** |
+| 0009 | [Tolerant JSON I/O via `cofi_json_io`](0009-tolerant-json-io-via-json-glib.md) | **Accepted** |
 
 ## Topics intentionally not recorded
 

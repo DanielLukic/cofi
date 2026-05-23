@@ -316,6 +316,7 @@ Title-pattern automation rules triggered via `:rules` or `:rl`.
 
 - Rules map window-title glob patterns to cofi command sequences (e.g., auto-tile or workspace-assign windows matching a pattern)
 - Rules fire automatically on window-open and window-title-change events
+- Auto-restore for saved layouts is configured as a rule whose action is `rl` (e.g., `cofi* → rl`). Layout payload lives in `layouts.json`, keyed by match_id; the rule controls *when* to restore, the layout controls *what* to restore. Composable with other actions: `rl,sb+,ab+` restores geometry then sets sticky + always-above.
 - `Ctrl+A` — add a new rule
 - `Ctrl+E` — edit the selected rule
 - `Ctrl+D` — delete the selected rule
