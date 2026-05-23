@@ -359,12 +359,26 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     prop_event->atom == XA_WM_NAME) {
                     handle_window_title_change(app, prop_event->window);
                 }
-                if (app->pending_restore_count > 0) {
+                // When _NET_FRAME_EXTENTS is (re)populated by the WM, re-run restore
+                // for that window if it has a saved layout. The geometry planner is
+                // idempotent: if the frame is already at target do_move=false → no-op;
+                // if extents changed (e.g. reparent completed), XMoveResizeWindow
+                // places the frame correctly with the now-real extents.
+                {
                     static Atom net_frame_extents = None;
                     if (net_frame_extents == None)
-                        net_frame_extents = XInternAtom(app->display, "_NET_FRAME_EXTENTS", False);
-                    if (prop_event->atom == net_frame_extents)
-                        process_pending_geometry_restore(app, prop_event->window);
+                        net_frame_extents = XInternAtom(app->display,
+                                                        "_NET_FRAME_EXTENTS", False);
+                    if (prop_event->atom == net_frame_extents) {
+                        for (int i = 0; i < app->window_count; i++) {
+                            if (app->windows[i].id == prop_event->window) {
+                                log_info("GEOMDBG: extents-changed re-apply 0x%lx",
+                                         prop_event->window);
+                                restore_window_geometry_for_window(app, &app->windows[i]);
+                                break;
+                            }
+                        }
+                    }
                 }
                 break;
             }

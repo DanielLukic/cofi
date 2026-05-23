@@ -326,13 +326,6 @@ typedef struct AppData {
     gint64 debug_printscr_keep_visible_until_us; // Suppress focus reset/close after PrintScr
 #endif
 
-    // Deferred geometry restores: windows whose move was skipped because
-    // _NET_FRAME_EXTENTS was not yet populated when :rl fired.
-    // Processed when _NET_FRAME_EXTENTS PropertyNotify arrives.
-#define PENDING_RESTORE_MAX 32
-    Window pending_restores[PENDING_RESTORE_MAX];
-    int pending_restore_count;
-
     // Fixed window sizing authority (TFD-100)
     gint fixed_cols;                        // Fixed text columns once initialized (0 = not initialized)
     gint fixed_rows;                        // Fixed visible text rows once initialized (0 = not initialized)
