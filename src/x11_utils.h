@@ -79,4 +79,10 @@ void toggle_maximize_vertical(Display *display, Window window);
 // Best-effort: call early so the WM has time to set the property before first restore.
 void request_frame_extents(Display *display, Window window);
 
+// Move and resize a window given FRAME-space coordinates (as returned by get_window_geometry).
+// Reads _NET_FRAME_EXTENTS and converts to client-space before calling XMoveResizeWindow.
+// Falls back to raw (frame_x, frame_y) when extents are unavailable.
+void xmove_resize_frame_aware(Display *display, Window window,
+                               int frame_x, int frame_y, int width, int height);
+
 #endif // X11_UTILS_H

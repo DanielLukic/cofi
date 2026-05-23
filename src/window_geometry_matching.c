@@ -1,6 +1,5 @@
 #include "window_geometry_matching.h"
 
-#include "frame_extents.h"
 #include "geometry_planner.h"
 #include "layout_store.h"
 #include "log.h"
@@ -80,21 +79,9 @@ gboolean apply_window_geometry_restore(Display *display,
     if (plan.unset_max_horz)
         set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
                          WINDOW_STATE_UNSET);
-    if (plan.do_move) {
-        // get_window_geometry returns the frame's root position; XMoveResizeWindow
-        // expects the client's root position. Add frame extents so the frame lands
-        // back at the stored position — otherwise each restore shifts by (-left,-top).
-        int move_x = target->x, move_y = target->y;
-        FrameExtents fe = {0};
-        int fe_ok = get_frame_extents(display, target->window, &fe);
-        if (fe_ok)
-            frame_pos_to_client_pos(target->x, target->y, &fe, &move_x, &move_y);
-        log_info("GEOMDBG: 0x%lx fe_ok=%d fe={l=%d t=%d r=%d b=%d} saved=(%d,%d) move=(%d,%d)",
-                 target->window, fe_ok, fe.left, fe.top, fe.right, fe.bottom,
-                 target->x, target->y, move_x, move_y);
-        XMoveResizeWindow(display, target->window, move_x, move_y,
-                          (unsigned int)target->width, (unsigned int)target->height);
-    }
+    if (plan.do_move)
+        xmove_resize_frame_aware(display, target->window,
+                                  target->x, target->y, target->width, target->height);
     if (plan.do_desktop)
         move_window_to_desktop(display, target->window, target->desktop);
     if (plan.do_switch_active_desktop)

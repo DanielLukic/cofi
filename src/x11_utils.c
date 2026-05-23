@@ -1,4 +1,5 @@
 #include "x11_utils.h"
+#include "frame_extents.h"
 #include "window_info.h"
 #include <X11/Xatom.h>
 #include <glib.h>
@@ -710,4 +711,18 @@ void request_frame_extents(Display *display, Window window) {
     XSendEvent(display, DefaultRootWindow(display), False,
                SubstructureRedirectMask | SubstructureNotifyMask, &event);
     XFlush(display);
+}
+
+void xmove_resize_frame_aware(Display *display, Window window,
+                               int frame_x, int frame_y, int width, int height) {
+    int client_x = frame_x, client_y = frame_y;
+    FrameExtents fe = {0};
+    int fe_ok = get_frame_extents(display, window, &fe);
+    if (fe_ok)
+        frame_pos_to_client_pos(frame_x, frame_y, &fe, &client_x, &client_y);
+    log_info("GEOMDBG: 0x%lx fe_ok=%d fe={l=%d t=%d r=%d b=%d} frame=(%d,%d) client=(%d,%d)",
+             window, fe_ok, fe.left, fe.top, fe.right, fe.bottom,
+             frame_x, frame_y, client_x, client_y);
+    XMoveResizeWindow(display, window, client_x, client_y,
+                      (unsigned int)width, (unsigned int)height);
 }

@@ -52,6 +52,10 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
     return 0;
 }
 void request_frame_extents(Display *display, Window window) { (void)display; (void)window; }
+void xmove_resize_frame_aware(Display *display, Window window,
+                               int frame_x, int frame_y, int width, int height) {
+    (void)display; (void)window; (void)frame_x; (void)frame_y; (void)width; (void)height;
+}
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 
 static int tests_passed = 0;
