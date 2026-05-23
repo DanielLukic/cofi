@@ -346,8 +346,8 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o $(LDFLAGS)
 
 # Build tab header overflow tests
 test_tab_header: test/test_tab_header.c src/tab_metadata.o
@@ -399,8 +399,8 @@ test_sessions: test/test_sessions.c src/sessions.c src/fzf_algo.o src/log.o
 test_sessions_provider: test/test_sessions_provider.c src/fzf_algo.o
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sessions_provider test/test_sessions_provider.c src/fzf_algo.o $(LDFLAGS)
 
-test_profiles_provider: test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o $(LDFLAGS)
+test_profiles_provider: test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c src/fzf_algo.o src/slot_store.o src/cofi_json_io.o $(LDFLAGS)
 
 test_hotkeys_provider: test/test_hotkeys_provider.c
 	$(CC) $(CFLAGS) -o test/test_hotkeys_provider test/test_hotkeys_provider.c $(LDFLAGS)
@@ -415,8 +415,8 @@ test_rules_provider: test/test_rules_provider.c
 test_sinks: test/test_sinks.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks test/test_sinks.c $(LDFLAGS)
 
-test_sinks_provider: test/test_sinks_provider.c
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks_provider test/test_sinks_provider.c $(LDFLAGS)
+test_sinks_provider: test/test_sinks_provider.c src/cofi_json_io.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sinks_provider test/test_sinks_provider.c src/cofi_json_io.o $(LDFLAGS)
 
 test_proc_provider: test/test_proc_provider.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_proc_provider test/test_proc_provider.c $(LDFLAGS)
@@ -425,8 +425,8 @@ test_proc_provider: test/test_proc_provider.c
 test_projects: test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_exec.o src/projects_folder_windows.o src/projects_window_env.c src/projects_window_env.h src/projects_tmux_windows.c src/projects_tmux_windows.h src/projects_zellij_windows.c src/projects_zellij_windows.h
 	$(CC) $(CFLAGS) -o test/test_projects test/test_projects.c src/projects_parse.o src/projects_commands.o src/projects_exec.o src/projects_folder_windows.o $(LDFLAGS)
 
-test_projects_provider: test/test_projects_provider.c
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c src/config.o $(LDFLAGS)
+test_projects_provider: test/test_projects_provider.c src/cofi_json_io.o
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c src/config.o src/cofi_json_io.o $(LDFLAGS)
 
 test_projects_remote_store: test/test_projects_remote_store.c src/projects_remote_store.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_remote_store test/test_projects_remote_store.c src/projects_remote_store.c $(LDFLAGS)
@@ -457,8 +457,8 @@ test_quick: src/match.o
 	fi
 
 # Integration tests
-test_slot_store: test/test_slot_store.c src/slot_store.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_slot_store test/test_slot_store.c src/slot_store.o src/log.o $(LDFLAGS)
+test_slot_store: test/test_slot_store.c src/slot_store.o src/cofi_json_io.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_slot_store test/test_slot_store.c src/slot_store.o src/cofi_json_io.o src/log.o $(LDFLAGS)
 
 test_layout_store: test/test_layout_store.c src/layout_store.o src/cofi_json_io.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_layout_store test/test_layout_store.c src/layout_store.o src/cofi_json_io.o src/log.o $(LDFLAGS)
@@ -478,8 +478,8 @@ test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/harp
 test_matching_gc: test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
 	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
-test_event_sequence: test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/log.o src/utils.o $(LDFLAGS)
+test_event_sequence: test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 test_calc: test/test_calc.c src/cofi_json_io.o src/tinyexpr.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_calc test/test_calc.c src/cofi_json_io.o src/tinyexpr.o src/log.o $(LDFLAGS)
