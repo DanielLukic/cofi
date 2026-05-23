@@ -243,7 +243,7 @@ void load_config(CofiConfig *config) {
     JsonObject *root = json_node_get_object(json_parser_get_root(parser));
     JsonObject *options = cofi_json_obj_object(root, "options");
     if (!options) {
-        log_warn("Config missing required object: options");
+        log_trace("Config missing options object; using defaults");
         g_object_unref(parser);
         return;
     }
@@ -251,19 +251,19 @@ void load_config(CofiConfig *config) {
     gboolean present = FALSE;
     config->close_on_focus_loss = cofi_json_obj_bool_or(
         options, "close_on_focus_loss", config->close_on_focus_loss, &present) ? 1 : 0;
-    if (!present) log_warn("Config missing required key: close_on_focus_loss");
+    if (!present) log_trace("Config missing key: close_on_focus_loss; using default");
 
     const char *s = cofi_json_obj_str_or(options, "align", "", &present);
     if (present) config->alignment = string_to_alignment(s);
-    else log_warn("Config missing required key: align");
+    else log_trace("Config missing key: align; using default");
 
     config->workspaces_per_row = cofi_json_obj_int_or(
         options, "workspaces_per_row", config->workspaces_per_row, &present);
-    if (!present) log_warn("Config missing required key: workspaces_per_row");
+    if (!present) log_trace("Config missing key: workspaces_per_row; using default");
 
     int columns = cofi_json_obj_int_or(options, "tile_columns", config->tile_columns, &present);
     if (!present) {
-        log_warn("Config missing required key: tile_columns");
+        log_trace("Config missing key: tile_columns; using default");
     } else if (columns == 2 || columns == 3) {
         config->tile_columns = columns;
     } else {
@@ -273,38 +273,38 @@ void load_config(CofiConfig *config) {
 
     s = cofi_json_obj_str_or(options, "digit_slot_mode", "", &present);
     if (present) config->digit_slot_mode = string_to_digit_slot_mode(s);
-    else log_warn("Config missing required key: digit_slot_mode");
+    else log_trace("Config missing key: digit_slot_mode; using default");
 
     config->slot_overlay_duration_ms = cofi_json_obj_int_or(
         options, "slot_overlay_duration_ms", config->slot_overlay_duration_ms, &present);
-    if (!present) log_warn("Config missing required key: slot_overlay_duration_ms");
+    if (!present) log_trace("Config missing key: slot_overlay_duration_ms; using default");
 
     config->ripple_enabled = cofi_json_obj_bool_or(
         options, "ripple_enabled", config->ripple_enabled, &present) ? 1 : 0;
-    if (!present) log_warn("Config missing required key: ripple_enabled");
+    if (!present) log_trace("Config missing key: ripple_enabled; using default");
 
     s = cofi_json_obj_str_or(options, "slot_sort_order", "", &present);
     if (present) config->slot_sort_order = string_to_slot_sort_order(s);
-    else log_warn("Config missing required key: slot_sort_order");
+    else log_trace("Config missing key: slot_sort_order; using default");
 
     s = cofi_json_obj_str_or(options, "window_order_mode", "", &present);
     if (present) config->window_order_mode = string_to_window_order_mode(s);
-    else log_warn("Config missing required key: window_order_mode");
+    else log_trace("Config missing key: window_order_mode; using default");
 
     config->show_all_tabs = cofi_json_obj_bool_or(
         options, "show_all_tabs", config->show_all_tabs, &present) ? 1 : 0;
-    if (!present) log_warn("Config missing required key: show_all_tabs");
+    if (!present) log_trace("Config missing key: show_all_tabs; using default");
 
     s = cofi_json_obj_str_or(options, "disabled_providers", "", &present);
     if (present) {
         g_strlcpy(config->disabled_providers, s, sizeof(config->disabled_providers));
     } else {
-        log_warn("Config missing required key: disabled_providers");
+        log_trace("Config missing key: disabled_providers; using default");
     }
 
     JsonNode *threshold_node = json_object_get_member(options, "slot_occlusion_threshold");
     if (!threshold_node || !JSON_NODE_HOLDS_VALUE(threshold_node)) {
-        log_warn("Config missing required key: slot_occlusion_threshold");
+        log_trace("Config missing key: slot_occlusion_threshold; using default");
     } else {
         int pct = 0;
         GType threshold_type = json_node_get_value_type(threshold_node);

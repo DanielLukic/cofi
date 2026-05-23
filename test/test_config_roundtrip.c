@@ -51,6 +51,18 @@ static void write_options_fixture(const char *json_body) {
     fclose(f);
 }
 
+static int read_options_file(char *out, size_t out_size) {
+    const char *home = getenv("HOME");
+    char config_path[512];
+    snprintf(config_path, sizeof(config_path), "%s/.config/cofi/options.json", home);
+    FILE *f = fopen(config_path, "r");
+    if (!f) return 0;
+    size_t n = fread(out, 1, out_size - 1, f);
+    out[n] = '\0';
+    fclose(f);
+    return 1;
+}
+
 #define ASSERT_INT(name, expected, actual) do { \
     if ((expected) != (actual)) { \
         printf("FAIL: %s — expected %d, got %d\n", name, expected, actual); \
@@ -231,6 +243,75 @@ static void test_missing_optional_key_keeps_default(void) {
     ASSERT_STR("missing optional key keeps default log_level", "debug", loaded.log_level);
 }
 
+static void test_corrupt_json_loads_defaults_without_autosave(void) {
+    CofiConfig loaded;
+    const char *broken =
+        "{\n"
+        "  \"options\": {\n"
+        "    \"close_on_focus_loss\": true,\n";
+    write_options_fixture(broken);
+
+    load_config(&loaded);
+    ASSERT_INT("corrupt: defaults close_on_focus_loss", 1, loaded.close_on_focus_loss);
+    ASSERT_INT("corrupt: defaults tile_columns", 2, loaded.tile_columns);
+    ASSERT_STR("corrupt: defaults log_level", "debug", loaded.log_level);
+
+    char after[1024];
+    ASSERT_INT("corrupt: file still present", 1, read_options_file(after, sizeof(after)));
+    ASSERT_STR("corrupt: file not rewritten", broken, after);
+}
+
+static void test_legacy_threshold_roundtrip_rewrites_as_int(void) {
+    CofiConfig loaded;
+    write_options_fixture(
+        "{\n"
+        "  \"options\": {\n"
+        "    \"close_on_focus_loss\": true,\n"
+        "    \"align\": \"center\",\n"
+        "    \"workspaces_per_row\": 0,\n"
+        "    \"tile_columns\": 2,\n"
+        "    \"digit_slot_mode\": \"default\",\n"
+        "    \"slot_overlay_duration_ms\": 750,\n"
+        "    \"ripple_enabled\": true,\n"
+        "    \"slot_sort_order\": \"row\",\n"
+        "    \"window_order_mode\": \"cofi\",\n"
+        "    \"show_all_tabs\": false,\n"
+        "    \"disabled_providers\": \"\",\n"
+        "    \"slot_occlusion_threshold\": 0.05\n"
+        "  }\n"
+        "}\n");
+
+    load_config(&loaded);
+    ASSERT_INT("legacy threshold reads as 5", 5, loaded.slot_occlusion_threshold_pct);
+    save_config(&loaded);
+    load_config(&loaded);
+    ASSERT_INT("legacy threshold remains 5 after save/reload", 5, loaded.slot_occlusion_threshold_pct);
+}
+
+static void test_wrong_type_field_keeps_default(void) {
+    CofiConfig loaded;
+    write_options_fixture(
+        "{\n"
+        "  \"options\": {\n"
+        "    \"close_on_focus_loss\": true,\n"
+        "    \"align\": \"center\",\n"
+        "    \"workspaces_per_row\": 0,\n"
+        "    \"tile_columns\": \"2\",\n"
+        "    \"digit_slot_mode\": \"default\",\n"
+        "    \"slot_overlay_duration_ms\": 750,\n"
+        "    \"ripple_enabled\": true,\n"
+        "    \"slot_sort_order\": \"row\",\n"
+        "    \"window_order_mode\": \"cofi\",\n"
+        "    \"show_all_tabs\": false,\n"
+        "    \"disabled_providers\": \"\",\n"
+        "    \"slot_occlusion_threshold\": 5\n"
+        "  }\n"
+        "}\n");
+
+    load_config(&loaded);
+    ASSERT_INT("wrong-type tile_columns keeps default", 2, loaded.tile_columns);
+}
+
 int main(void) {
     // Use temp dir so we don't clobber real config
     char tmpdir[] = "/tmp/cofi_test_XXXXXX";
@@ -250,6 +331,9 @@ int main(void) {
     test_all_digit_modes();
     test_load_fixture_multiple_sections_and_enums();
     test_missing_optional_key_keeps_default();
+    test_corrupt_json_loads_defaults_without_autosave();
+    test_legacy_threshold_roundtrip_rewrites_as_int();
+    test_wrong_type_field_keeps_default();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
