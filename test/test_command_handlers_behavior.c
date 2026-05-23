@@ -47,6 +47,10 @@ static int g_restore_layout_calls = 0;
 static int g_clear_layout_calls = 0;
 
 // --- shared stubs for handler dependencies ---
+void xmove_resize_frame_aware(Display *display, Window window,
+                               int frame_x, int frame_y, int width, int height) {
+    (void)display; (void)window; (void)frame_x; (void)frame_y; (void)width; (void)height;
+}
 void hide_window(AppData *app) {
     (void)app;
     hide_window_calls++;

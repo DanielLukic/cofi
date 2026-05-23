@@ -344,8 +344,8 @@ static void send_maximize_change(Display *display, Window window, const SwapAtom
 static void swap_window_geometry(Display *display,
                                  const SwapWindowState *first,
                                  const SwapWindowState *second) {
-    XMoveResizeWindow(display, first->id, second->x, second->y, second->width, second->height);
-    XMoveResizeWindow(display, second->id, first->x, first->y, first->width, first->height);
+    xmove_resize_frame_aware(display, first->id, second->x, second->y, second->width, second->height);
+    xmove_resize_frame_aware(display, second->id, first->x, first->y, first->width, first->height);
 }
 
 static gboolean prepare_swap_states(AppData *app, WindowInfo *window,

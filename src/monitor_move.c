@@ -1,11 +1,13 @@
 #include "monitor_move.h"
 #include "app_data.h"
+#include "frame_extents.h"
 #include "window_info.h"
 #include "log.h"
 #include "display.h"
 #include "window_list.h"
 #include "filter.h"
 #include "selection.h"
+#include "x11_utils.h"
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -209,29 +211,37 @@ void move_window_to_position(Display *display, Window window, int x, int y,
     Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
     XEvent event;
     
-    // First, remove maximized state if present
-    memset(&event, 0, sizeof(event));
-    event.type = ClientMessage;
-    event.xclient.type = ClientMessage;
-    event.xclient.send_event = True;
-    event.xclient.display = display;
-    event.xclient.window = window;
-    event.xclient.message_type = net_wm_state;
-    event.xclient.format = 32;
-    event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
-    event.xclient.data.l[1] = net_wm_state_maximized_vert;
-    event.xclient.data.l[2] = net_wm_state_maximized_horz;
-    event.xclient.data.l[3] = 1; // Source indication
-    
-    XSendEvent(display, DefaultRootWindow(display), False,
-               SubstructureRedirectMask | SubstructureNotifyMask, &event);
-    XFlush(display);
-    
-    // Small delay to let the window manager process the unmaximize
-    usleep(50000); // 50ms
-    
-    // Move the window
-    XMoveWindow(display, window, x, y);
+    // Remove maximized state only if currently set
+    if (get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT") ||
+        get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ")) {
+        memset(&event, 0, sizeof(event));
+        event.type = ClientMessage;
+        event.xclient.type = ClientMessage;
+        event.xclient.send_event = True;
+        event.xclient.display = display;
+        event.xclient.window = window;
+        event.xclient.message_type = net_wm_state;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+        event.xclient.data.l[1] = net_wm_state_maximized_vert;
+        event.xclient.data.l[2] = net_wm_state_maximized_horz;
+        event.xclient.data.l[3] = 1; // Source indication
+
+        XSendEvent(display, DefaultRootWindow(display), False,
+                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        XFlush(display);
+
+        // Small delay to let the window manager process the unmaximize
+        usleep(50000); // 50ms
+    }
+
+    // Move the window; x,y are frame-space (from monitor geometry)
+    int cur_width = 0, cur_height = 0;
+    {
+        int cx, cy;
+        get_window_geometry(display, window, &cx, &cy, &cur_width, &cur_height);
+    }
+    xmove_resize_frame_aware(display, window, x, y, cur_width, cur_height);
     XFlush(display);
     
     // Restore maximized state if needed

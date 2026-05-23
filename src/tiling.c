@@ -34,12 +34,17 @@ static void apply_maximization_hints(Display *display, Window window_id, TileOpt
 
 // Unmaximize window before tiling
 static void unmaximize_window(Display *display, Window window_id) {
+    gboolean is_max_horz = get_window_state(display, window_id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    gboolean is_max_vert = get_window_state(display, window_id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    if (!is_max_horz && !is_max_vert)
+        return;
+
     log_debug("Unmaximizing window before tiling");
-    
+
     Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
     Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
     Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    
+
     XEvent unmaximize_event;
     memset(&unmaximize_event, 0, sizeof(unmaximize_event));
     unmaximize_event.type = ClientMessage;
@@ -49,7 +54,7 @@ static void unmaximize_window(Display *display, Window window_id) {
     unmaximize_event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
     unmaximize_event.xclient.data.l[1] = net_wm_state_maximized_horz;
     unmaximize_event.xclient.data.l[2] = net_wm_state_maximized_vert;
-    
+
     XSendEvent(display, DefaultRootWindow(display), False,
                SubstructureRedirectMask | SubstructureNotifyMask, &unmaximize_event);
     XFlush(display);
@@ -136,8 +141,8 @@ static void apply_window_position(Display *display, Window window_id,
     ensure_size_hints_satisfied(&x, &y, &width, &height, (WindowSizeHints *)size_hints);
     log_debug("After size hints: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
     
-    // Move and resize the window
-    XMoveResizeWindow(display, window_id, x, y, width, height);
+    // Move and resize the window; x,y are frame-space (from work area calculation)
+    xmove_resize_frame_aware(display, window_id, x, y, width, height);
     XFlush(display);
 }
 
