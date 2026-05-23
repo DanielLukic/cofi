@@ -279,6 +279,75 @@ static void test_t8_load_idempotent(void) {
     ASSERT_TRUE("T8: second load is no-op", strcmp(s_history_glyphs[0], "X") == 0);
 }
 
+static void test_u1_unicode_multibyte_roundtrip(void) {
+    setup_home("cofi-emoji-mru-u1");
+    /* Multi-codepoint glyphs: woman shrugging (U+1F937 U+200D U+2640 U+FE0F)
+     * and family (U+1F9D1 U+200D U+1F91D U+200D U+1F9D1) */
+    const char *glyphs[] = {
+        "🤷‍♀️",  /* woman shrugging: f0 9f a4 b7 e2 80 8d e2 99 80 ef b8 8f (13 bytes) */
+        "😀",     /* grinning face: f0 9f 98 80 (4 bytes) */
+        "🦐",     /* shrimp: f0 9f a6 90 (4 bytes) */
+        "⬆️",     /* up arrow + variation selector: e2 ac 86 ef b8 8f (7 bytes) */
+        "👨‍👩‍👦",   /* family: f0 9f 91 a8 e2 80 8d f0 9f 91 a9 e2 80 8d f0 9f 91 a6 (25 bytes) */
+        NULL
+    };
+
+    for (int i = 0; glyphs[i]; i++) {
+        emoji_history_push(glyphs[i]);
+    }
+
+    emoji_history_save();
+
+    /* Snapshot glyphs before reset */
+    char saved[5][EMOJI_GLYPH_MAX_BYTES];
+    int saved_count = s_history_count;
+    for (int i = 0; i < saved_count && i < 5; i++) {
+        memcpy(saved[i], s_history_glyphs[i], EMOJI_GLYPH_MAX_BYTES);
+    }
+
+    reset_history_state();
+    emoji_history_load();
+
+    ASSERT_TRUE("U1: glyph count restored after roundtrip", s_history_count == saved_count);
+    for (int i = 0; i < saved_count; i++) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "U1: glyph[%d] roundtrip byte-equal", i);
+        ASSERT_TRUE(msg, strcmp(s_history_glyphs[i], saved[i]) == 0);
+    }
+}
+
+static void test_u2_zwj_glyph_save_load_exact(void) {
+    setup_home("cofi-emoji-mru-u2");
+    /* Woman shrugging — the most complex emoji: ZWJ + variation selector */
+    const char *shrug = "🤷‍♀️";
+    emoji_history_push(shrug);
+    ASSERT_TRUE("U2: shrug stored as pushed",
+                strcmp(s_history_glyphs[0], shrug) == 0);
+    ASSERT_TRUE("U2: shrug byte length is 13 (with ZWJ+VS16)",
+                strlen(s_history_glyphs[0]) == 13);
+
+    emoji_history_save();
+
+    /* Read back the raw file and verify the glyph appears as-encoded */
+    FILE *f = fopen(emoji_history_path(), "r");
+    ASSERT_TRUE("U2: history file exists after save", f != NULL);
+    if (!f) return;
+
+    char buf[2048];
+    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    buf[n] = '\0';
+
+    ASSERT_TRUE("U2: shrug glyph literal present in saved JSON",
+                strstr(buf, shrug) != NULL);
+
+    reset_history_state();
+    emoji_history_load();
+    ASSERT_TRUE("U2: shrug survives load after reset",
+                s_history_count == 1 &&
+                strcmp(s_history_glyphs[0], shrug) == 0);
+}
+
 static void test_t9_unknown_glyph_round_trip(void) {
     setup_home("cofi-emoji-mru-t9");
     FILE *f = fopen(emoji_history_path(), "w");
@@ -308,6 +377,8 @@ int main(void) {
     test_long_glyph_round_trip_and_reindex();
     test_t8_load_idempotent();
     test_t9_unknown_glyph_round_trip();
+    test_u1_unicode_multibyte_roundtrip();
+    test_u2_zwj_glyph_save_load_exact();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_run == tests_passed ? 0 : 1;

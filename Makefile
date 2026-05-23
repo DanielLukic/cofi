@@ -212,17 +212,17 @@ test_utf8_columns: test/test_utf8_columns.c src/utf8_columns.o
 test_emoji_data: test/test_emoji_data.c src/emoji_data.o
 	$(CC) $(CFLAGS) -o test/test_emoji_data test/test_emoji_data.c src/emoji_data.o $(LDFLAGS)
 
-test_emoji_provider: test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o
-	$(CC) $(CFLAGS) -o test/test_emoji_provider test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o $(LDFLAGS)
+test_emoji_provider: test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_emoji_provider test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
-test_provider_selection: test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o
-	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o $(LDFLAGS)
+test_provider_selection: test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
-test_emoji_ranking: test/test_emoji_ranking.c src/emoji_data.o src/fzf_algo.o
-	$(CC) $(CFLAGS) -o test/test_emoji_ranking test/test_emoji_ranking.c src/emoji_data.o src/fzf_algo.o $(LDFLAGS)
+test_emoji_ranking: test/test_emoji_ranking.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_emoji_ranking test/test_emoji_ranking.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
-test_emoji_history: test/test_emoji_history.c src/emoji_data.o src/fzf_algo.o
-	$(CC) $(CFLAGS) -o test/test_emoji_history test/test_emoji_history.c src/emoji_data.o src/fzf_algo.o $(LDFLAGS)
+test_emoji_history: test/test_emoji_history.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_emoji_history test/test_emoji_history.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
 # Build overlay dispatch tests
 test_overlay_dispatch: test/test_overlay_dispatch.c src/overlay_hotkey_add_policy.o

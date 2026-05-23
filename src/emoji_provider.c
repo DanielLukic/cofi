@@ -1,6 +1,7 @@
 #include "emoji_provider.h"
 
 #include "app_data.h"
+#include "cofi_json_io.h"
 #include "command_mode.h"
 #include "command_registry.h"
 #include "cofi_tab_provider.h"
@@ -127,50 +128,63 @@ static void emoji_history_load(void) {
     s_history_loaded = 1;
     s_history_count = 0;
 
-    FILE *f = fopen(emoji_history_path(), "r");
-    if (!f) {
+    JsonParser *parser = cofi_json_load_object_file(emoji_history_path());
+    if (!parser) {
         return;
     }
 
-    char line[512];
-    while (fgets(line, sizeof(line), f)) {
-        char *glyph_start = strstr(line, "\"glyph\": \"");
-        if (!glyph_start) {
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *picks = cofi_json_obj_array(root, "picks");
+    if (!picks) {
+        g_object_unref(parser);
+        return;
+    }
+
+    guint n = json_array_get_length(picks);
+    for (guint i = 0; i < n; i++) {
+        JsonNode *element = json_array_get_element(picks, i);
+        if (!element || !JSON_NODE_HOLDS_OBJECT(element)) {
             continue;
         }
-        glyph_start += 10;
-        char *glyph_end = strchr(glyph_start, '"');
-        if (!glyph_end) {
+        JsonObject *obj = json_node_get_object(element);
+        const char *glyph = cofi_json_obj_str_or(obj, "glyph", NULL, NULL);
+        if (!glyph || glyph[0] == '\0') {
             continue;
         }
         if (!emoji_history_ensure_capacity(s_history_count + 1)) {
             continue;
         }
-        size_t glyph_len = (size_t)(glyph_end - glyph_start);
+        size_t glyph_len = strlen(glyph);
         if (glyph_len >= EMOJI_GLYPH_MAX_BYTES) {
             glyph_len = EMOJI_GLYPH_MAX_BYTES - 1;
         }
-        memcpy(s_history_glyphs[s_history_count], glyph_start, glyph_len);
+        memcpy(s_history_glyphs[s_history_count], glyph, glyph_len);
         s_history_glyphs[s_history_count][glyph_len] = '\0';
         s_history_count++;
     }
 
-    fclose(f);
+    g_object_unref(parser);
     emoji_history_reindex();
 }
 
 static void emoji_history_save(void) {
-    FILE *f = fopen(emoji_history_path(), "w");
-    if (!f) {
-        return;
-    }
-    fprintf(f, "{\n  \"picks\": [\n");
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "picks");
+    json_builder_begin_array(builder);
     for (int i = 0; i < s_history_count; i++) {
-        fprintf(f, "    {\"glyph\": \"%s\"}%s\n",
-                s_history_glyphs[i], (i < s_history_count - 1) ? "," : "");
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "glyph");
+        json_builder_add_string_value(builder, s_history_glyphs[i]);
+        json_builder_end_object(builder);
     }
-    fprintf(f, "  ]\n}\n");
-    fclose(f);
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
+
+    JsonNode *root = json_builder_get_root(builder);
+    cofi_json_save_root(emoji_history_path(), root);
+    json_node_unref(root);
+    g_object_unref(builder);
 }
 
 static void emoji_history_push(const char *glyph) {
