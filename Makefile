@@ -151,8 +151,8 @@ test_config_set: test/test_config_set.c src/config.o src/cofi_json_io.o src/log.
 	$(CC) $(CFLAGS) -o test/test_config_set test/test_config_set.c src/config.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build hotkey config test
-test_hotkey_config: test/test_hotkey_config.c src/hotkey_config.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_hotkey_config test/test_hotkey_config.c src/hotkey_config.o src/log.o $(LDFLAGS)
+test_hotkey_config: test/test_hotkey_config.c src/hotkey_config.o src/cofi_json_io.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_config test/test_hotkey_config.c src/hotkey_config.o src/cofi_json_io.o src/log.o $(LDFLAGS)
 
 test_hotkey_dispatch: test/test_hotkey_dispatch.c
 	$(CC) $(CFLAGS) -o test/test_hotkey_dispatch test/test_hotkey_dispatch.c $(LDFLAGS)
@@ -255,8 +255,8 @@ HOTKEY_REBIND_WRAP = \
 	-Wl,--wrap=log_log \
 	-Wl,--wrap=gtk_entry_get_text
 
-test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o
-	$(CC) $(CFLAGS) -o test/test_hotkey_rebind_flow test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o $(HOTKEY_REBIND_WRAP) $(LDFLAGS)
+test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_hotkey_rebind_flow test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o src/overlay_hotkey_add_policy.o src/hotkey_config.o src/cofi_json_io.o $(HOTKEY_REBIND_WRAP) $(LDFLAGS)
 
 # Build rules overlay behavior tests
 # (tests rules CRUD persistence-only behavior and clamp)

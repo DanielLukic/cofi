@@ -1,10 +1,10 @@
 #include "hotkey_config.h"
+#include "cofi_json_io.h"
 #include "log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <ctype.h>
 
 static const char* get_hotkey_config_path(void) {
@@ -78,23 +78,29 @@ int save_hotkey_config(const HotkeyConfig *config) {
     if (!config) return 0;
 
     const char *path = get_hotkey_config_path();
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        log_error("Failed to write hotkeys: %s", path);
-        return 0;
-    }
-
-    fprintf(f, "{\n  \"hotkeys\": [\n");
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "hotkeys");
+    json_builder_begin_array(builder);
     for (int i = 0; i < config->count; i++) {
-        fprintf(f, "    {\"key\": \"%s\", \"command\": \"%s\"}%s\n",
-                config->bindings[i].key, config->bindings[i].command,
-                (i < config->count - 1) ? "," : "");
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "key");
+        json_builder_add_string_value(builder, config->bindings[i].key);
+        json_builder_set_member_name(builder, "command");
+        json_builder_add_string_value(builder, config->bindings[i].command);
+        json_builder_end_object(builder);
     }
-    fprintf(f, "  ]\n}\n");
-    fclose(f);
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
 
-    log_debug("Saved %d hotkey bindings to %s", config->count, path);
-    return 1;
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+    if (ok) {
+        log_debug("Saved %d hotkey bindings to %s", config->count, path);
+    }
+    return ok ? 1 : 0;
 }
 
 int load_hotkey_config(HotkeyConfig *config) {
@@ -102,39 +108,43 @@ int load_hotkey_config(HotkeyConfig *config) {
     init_hotkey_config(config);
 
     const char *path = get_hotkey_config_path();
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        if (errno != ENOENT)
-            log_error("Failed to read hotkeys: %s", path);
+    JsonParser *parser = cofi_json_load_object_file(path);
+    if (!parser) {
         return 0;
     }
 
-    char line[512];
-    while (fgets(line, sizeof(line), f)) {
-        char *key_start = strstr(line, "\"key\": \"");
-        char *cmd_start = strstr(line, "\"command\": \"");
-        if (!key_start || !cmd_start) continue;
-
-        key_start += 8;
-        char *key_end = strchr(key_start, '"');
-        if (!key_end) continue;
-
-        cmd_start += 12;
-        char *cmd_end = strchr(cmd_start, '"');
-        if (!cmd_end) continue;
-
-        char key[64] = {0}, cmd[256] = {0};
-        size_t key_len = (size_t)(key_end - key_start);
-        size_t cmd_len = (size_t)(cmd_end - cmd_start);
-        if (key_len >= sizeof(key)) key_len = sizeof(key) - 1;
-        if (cmd_len >= sizeof(cmd)) cmd_len = sizeof(cmd) - 1;
-        memcpy(key, key_start, key_len);
-        memcpy(cmd, cmd_start, cmd_len);
-
-        add_hotkey_binding(config, key, cmd);
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *hotkeys = cofi_json_obj_array(root, "hotkeys");
+    if (!hotkeys) {
+        g_object_unref(parser);
+        return 0;
     }
 
-    fclose(f);
+    guint n = json_array_get_length(hotkeys);
+    for (guint i = 0; i < n; i++) {
+        JsonNode *element = json_array_get_element(hotkeys, i);
+        if (!element || !JSON_NODE_HOLDS_OBJECT(element)) {
+            log_warn("hotkey_config: skipping non-object binding");
+            continue;
+        }
+
+        JsonObject *binding = json_node_get_object(element);
+        gboolean has_key = FALSE;
+        gboolean has_command = FALSE;
+        const char *key = cofi_json_obj_str_or(binding, "key", "", &has_key);
+        const char *command = cofi_json_obj_str_or(binding, "command", "", &has_command);
+        if (!has_key || key[0] == '\0') {
+            log_warn("hotkey_config: skipping binding with missing/empty key");
+            continue;
+        }
+        if (!has_command || command[0] == '\0') {
+            log_warn("hotkey_config: skipping binding with missing/empty command");
+            continue;
+        }
+        add_hotkey_binding(config, key, command);
+    }
+
+    g_object_unref(parser);
     log_info("Loaded %d hotkey bindings from %s", config->count, path);
     return 1;
 }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include "../src/hotkey_config.h"
 
 static int tests_passed = 0;
@@ -25,6 +26,28 @@ static int tests_failed = 0;
         tests_passed++; \
     } \
 } while (0)
+
+static int write_hotkeys_file(const char *tmpdir, const char *contents) {
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/hotkeys.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) return 0;
+    fputs(contents, file);
+    fclose(file);
+    return 1;
+}
+
+static void bootstrap_hotkey_config(HotkeyConfig *config) {
+    if (!load_hotkey_config(config)) {
+        init_default_hotkey_config(config);
+        save_hotkey_config(config);
+    }
+}
 
 static void test_parse_hotkey_command(void) {
     char key[64], cmd[256];
@@ -158,6 +181,175 @@ static void test_save_load_roundtrip(void) {
     system(cmd);
 }
 
+static void test_load_existing_hotkeys_json_fixture(void) {
+    char tmpdir[] = "/tmp/cofi_hk_fixture_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    if (!write_hotkeys_file(tmpdir,
+            "{\n"
+            "  \"hotkeys\": [\n"
+            "    {\"key\": \"Mod1+Tab\", \"command\": \"show windows!\", \"ignored\": true},\n"
+            "    {\"key\": \"Mod4+Return\", \"command\": \"run alacritty\"},\n"
+            "    {\"key\": \"Mod4+BackSpace\", \"command\": \"show command!\"}\n"
+            "  ],\n"
+            "  \"future_root\": \"ignored\"\n"
+            "}\n")) {
+        printf("FAIL: write hotkeys fixture\n");
+        tests_failed++;
+        return;
+    }
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    ASSERT_INT("fixture load succeeds", 1, load_hotkey_config(&config));
+    ASSERT_INT("fixture count", 3, config.count);
+    ASSERT_STR("fixture key 0 exact", "Mod1+Tab", config.bindings[0].key);
+    ASSERT_STR("fixture command 0 exact", "show windows!", config.bindings[0].command);
+    ASSERT_STR("fixture key 1 exact", "Mod4+Return", config.bindings[1].key);
+    ASSERT_STR("fixture command 1 exact", "run alacritty", config.bindings[1].command);
+    ASSERT_STR("fixture key 2 exact", "Mod4+BackSpace", config.bindings[2].key);
+    ASSERT_STR("fixture command 2 exact", "show command!", config.bindings[2].command);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_bootstrap_missing_file_writes_defaults(void) {
+    char tmpdir[] = "/tmp/cofi_hk_missing_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    bootstrap_hotkey_config(&config);
+
+    ASSERT_INT("missing bootstrap default count", 3, config.count);
+    ASSERT_STR("missing bootstrap key", "Mod1+Tab", config.bindings[0].key);
+    ASSERT_INT("missing bootstrap wrote file", 1, load_hotkey_config(&config));
+    ASSERT_INT("missing reload count", 3, config.count);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_bootstrap_empty_file_writes_defaults(void) {
+    char tmpdir[] = "/tmp/cofi_hk_empty_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+    if (!write_hotkeys_file(tmpdir, "")) {
+        printf("FAIL: write empty hotkeys file\n");
+        tests_failed++;
+        return;
+    }
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    bootstrap_hotkey_config(&config);
+    ASSERT_INT("empty file bootstrap default count", 3, config.count);
+    ASSERT_STR("empty file bootstrap key", "Mod1+Tab", config.bindings[0].key);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_bootstrap_corrupt_file_writes_defaults(void) {
+    char tmpdir[] = "/tmp/cofi_hk_corrupt_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+    if (!write_hotkeys_file(tmpdir, "{\"hotkeys\": [")) {
+        printf("FAIL: write corrupt hotkeys file\n");
+        tests_failed++;
+        return;
+    }
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    bootstrap_hotkey_config(&config);
+    ASSERT_INT("corrupt file bootstrap default count", 3, config.count);
+    ASSERT_STR("corrupt file bootstrap key", "Mod1+Tab", config.bindings[0].key);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_valid_empty_hotkeys_array_stays_empty(void) {
+    char tmpdir[] = "/tmp/cofi_hk_empty_array_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+    if (!write_hotkeys_file(tmpdir, "{\"hotkeys\": []}\n")) {
+        printf("FAIL: write empty hotkeys array\n");
+        tests_failed++;
+        return;
+    }
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    bootstrap_hotkey_config(&config);
+    ASSERT_INT("valid empty hotkeys array count", 0, config.count);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_skips_bindings_missing_required_fields(void) {
+    char tmpdir[] = "/tmp/cofi_hk_missing_required_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+    if (!write_hotkeys_file(tmpdir,
+            "{\n"
+            "  \"hotkeys\": [\n"
+            "    {\"command\": \"show windows!\"},\n"
+            "    {\"key\": \"Mod4+2\"},\n"
+            "    {\"key\": \"Mod4+3\", \"command\": \"jw 3\"}\n"
+            "  ]\n"
+            "}\n")) {
+        printf("FAIL: write missing-required hotkeys file\n");
+        tests_failed++;
+        return;
+    }
+
+    HotkeyConfig config;
+    init_hotkey_config(&config);
+    ASSERT_INT("missing required load succeeds", 1, load_hotkey_config(&config));
+    ASSERT_INT("missing required keeps valid count", 1, config.count);
+    ASSERT_STR("missing required valid key", "Mod4+3", config.bindings[0].key);
+    ASSERT_STR("missing required valid command", "jw 3", config.bindings[0].command);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
 static void test_format_display(void) {
     HotkeyConfig config;
     init_hotkey_config(&config);
@@ -198,6 +390,12 @@ int main(void) {
     test_add_remove_bindings();
     test_default_bindings();
     test_save_load_roundtrip();
+    test_load_existing_hotkeys_json_fixture();
+    test_bootstrap_missing_file_writes_defaults();
+    test_bootstrap_empty_file_writes_defaults();
+    test_bootstrap_corrupt_file_writes_defaults();
+    test_valid_empty_hotkeys_array_stays_empty();
+    test_load_skips_bindings_missing_required_fields();
     test_format_display();
 
     printf("\n=====================================\n");
