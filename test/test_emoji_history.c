@@ -294,41 +294,6 @@ static void test_t9_unknown_glyph_round_trip(void) {
     ASSERT_TRUE("T9: known glyph still indexed", s_history_indices[1] >= 0);
 }
 
-static void test_mru_bonus_floor_and_never_picked(void) {
-    setup_home("cofi-emoji-mru-floor");
-    int match_a = -1;
-    int match_b = -1;
-    for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
-        if (emoji_rank_score("face", &EMOJI_TABLE[i]) > 0) {
-            if (match_a < 0) {
-                match_a = i;
-            } else if (match_b < 0) {
-                match_b = i;
-                break;
-            }
-        }
-    }
-    ASSERT_TRUE("floor: found two matching entries", match_a >= 0 && match_b >= 0);
-    if (match_a < 0 || match_b < 0) return;
-
-    for (int i = 0; i < 80; i++) {
-        emoji_history_push(EMOJI_TABLE[(i + 2) % EMOJI_TABLE_LEN].glyph);
-    }
-    emoji_history_push(EMOJI_TABLE[match_a].glyph);
-    for (int i = 0; i < 80; i++) {
-        emoji_history_push(EMOJI_TABLE[(i + 120) % EMOJI_TABLE_LEN].glyph);
-    }
-
-    int pos = emoji_history_position(match_a);
-    ASSERT_TRUE("floor: historical match has deep position", pos >= 50);
-
-    int base_a = emoji_rank_score("face", &EMOJI_TABLE[match_a]);
-    int base_b = emoji_rank_score("face", &EMOJI_TABLE[match_b]);
-    int final_a = base_a + EMOJI_MRU_MIN_BONUS;
-    int final_b = base_b;
-    ASSERT_TRUE("floor: deep history still gets minimum bonus", final_a >= base_a + EMOJI_MRU_MIN_BONUS);
-    ASSERT_TRUE("floor: never-picked emoji has no bonus", emoji_history_position(match_b) < 0 || final_b == base_b);
-}
 
 int main(void) {
     printf("Emoji MRU history tests\n");
@@ -343,7 +308,6 @@ int main(void) {
     test_long_glyph_round_trip_and_reindex();
     test_t8_load_idempotent();
     test_t9_unknown_glyph_round_trip();
-    test_mru_bonus_floor_and_never_picked();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_run == tests_passed ? 0 : 1;

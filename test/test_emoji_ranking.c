@@ -103,6 +103,76 @@ static void assert_not_in_top_n(const char *query, const char *glyph, int n) {
     ASSERT_TRUE("unexpected glyph not in top N", rank < 0 || rank >= n);
 }
 
+// Reset in-memory MRU state without touching disk.
+// Needed to isolate MRU-sensitive ranking tests.
+static void reset_mru_state(void) {
+    free(s_history_glyphs);
+    free(s_history_indices);
+    s_history_glyphs = NULL;
+    s_history_indices = NULL;
+    s_history_count = 0;
+    s_history_capacity = 0;
+    s_history_loaded = 1;  // Suppress disk load for subsequent calls
+}
+
+// BUG REPRO: "sl" → sleeping face (😴, name_norm starts with "sl") must rank above
+// grinning face (😀, only matches via keywords "smile").  Without MRU this holds.
+// With grinning at max-MRU the bug fires: keyword_score(96)+MRU(5000)=5096 beats
+// name_prefix_score(496)+PREFIX_BOOST(600)=1096.  Test 1 passes; Test 2 fails today.
+static void test_sl_name_prefix_beats_keywords_no_mru(void) {
+    reset_mru_state();
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "sl");
+    int sleeping = rank_of_glyph(&app, "😴");
+    int grinning = rank_of_glyph(&app, "😀");
+    ASSERT_TRUE("sl/no-mru: sleeping face present (name prefix)", sleeping >= 0);
+    ASSERT_TRUE("sl/no-mru: grinning face present (keywords via smile)", grinning >= 0);
+    ASSERT_TRUE("sl/no-mru: name-prefix (sleeping) ranks above keywords-only (grinning)", sleeping < grinning);
+}
+
+// FAILING TEST — demonstrates MRU cross-tier bug (#47).
+// grinning face has max MRU (position 0, +5000 bonus); sleeping face has none.
+// Expected: sleeping still wins (name-prefix tier > keywords tier).
+// Actual:   grinning wins (MRU bonus crosses tier boundary).
+static void test_sl_name_prefix_beats_keywords_max_mru(void) {
+    reset_mru_state();
+    emoji_history_push("😀");  // grinning face → position 0, +EMOJI_MRU_MAX_BONUS (5000)
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "sl");
+    int sleeping = rank_of_glyph(&app, "😴");
+    int grinning = rank_of_glyph(&app, "😀");
+    ASSERT_TRUE("sl/max-mru: sleeping face present", sleeping >= 0);
+    ASSERT_TRUE("sl/max-mru: grinning face present", grinning >= 0);
+    // Currently FAILS: MRU bonus (5000) >> name-prefix boost (600) + fzf gap
+    ASSERT_TRUE("sl/max-mru: name-prefix (sleeping) beats keywords-only+max-MRU (grinning)",
+                sleeping < grinning);
+}
+
+// Acronym tier: "sf" → sleeping face has consecutive word-start pairs (s→sleeping,
+// f→face). Surfer (🏄) only matches "sf" mid-word in "surfing" — no word-start 'f'
+// — so it stays at tier 0. After tier redesign: sleeping face (tier 1) ranks above.
+static void test_acronym_tier_sf_beats_non_structural(void) {
+    reset_mru_state();
+    assert_ranked_above("sf", "😴", "🏄");
+}
+
+// Alias-exact tier (tier 6) must be invulnerable to a keyword-only+max-MRU attack.
+// 😄 (smile) matches "joy" only via keywords; 😂 (joy) has alias "joy" → tier 6.
+static void test_alias_exact_invulnerable_to_mru(void) {
+    reset_mru_state();
+    emoji_history_push("😄");  // smile: matches "joy" only via keyword
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "joy");
+    int joy_face = rank_of_glyph(&app, "😂");
+    int smile    = rank_of_glyph(&app, "😄");
+    ASSERT_TRUE("alias-exact/mru: joy face (alias exact) present", joy_face >= 0);
+    ASSERT_TRUE("alias-exact/mru: smile (keyword+mru) present", smile >= 0);
+    ASSERT_TRUE("alias-exact/mru: alias-exact beats keyword+max-MRU", joy_face < smile);
+}
+
 int main(void) {
     printf("Emoji ranking oracle tests\n");
     printf("==========================\n\n");
@@ -126,6 +196,11 @@ int main(void) {
     assert_ranked_above("ro", "🚀", "🚣‍♀️");
     assert_ranked_above("ro", "🪨", "🧖‍♂️");
     assert_not_in_top_n("r", "🇸🇹", 5);
+
+    test_sl_name_prefix_beats_keywords_no_mru();
+    test_sl_name_prefix_beats_keywords_max_mru();
+    test_acronym_tier_sf_beats_non_structural();
+    test_alias_exact_invulnerable_to_mru();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_run == tests_passed ? 0 : 1;

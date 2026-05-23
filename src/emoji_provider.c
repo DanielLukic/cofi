@@ -10,6 +10,7 @@
 #include "window_lifecycle.h"
 
 #include <gtk/gtk.h>
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,19 +18,22 @@
 #include <sys/stat.h>
 
 enum {
-    EMOJI_ALIAS_EXACT_BOOST = 200000,
-    EMOJI_NAME_WORD_BOOST = 100000,
-    EMOJI_MAX_TOKEN_LEN = 63,
-    EMOJI_NAME_WEIGHT = 8,
-    EMOJI_ALIASES_WEIGHT = 7,
-    EMOJI_KEYWORDS_WEIGHT = 2,
-    EMOJI_NAME_PREFIX_BOOST = 600,
-    EMOJI_NAME_WORD_PREFIX_BOOST = 220,
-    EMOJI_GLYPH_MAX_BYTES = 32,
-    // Keep MRU boost well below EMOJI_NAME_WORD_BOOST so it only breaks ties
-    // within a match tier and never beats a strong name-word match.
-    EMOJI_MRU_MAX_BONUS = 5000,
-    EMOJI_MRU_MIN_BONUS = 100,
+    // Non-overlapping tier bases. Max intra-tier fzf+weight contribution ≈ 200×8=1600,
+    // so no lower tier can ever cross into a higher one regardless of fzf score.
+    // MRU is a stable-sort tiebreaker among equal scores, never an additive bonus.
+    EMOJI_TIER6_ALIAS_EXACT  = 300000,  // aliases token exactly matches query
+    EMOJI_TIER5_NAME_EXACT   = 200000,  // name_norm exactly equals single-word query
+    EMOJI_TIER4_NAME_WORD    = 100000,  // a word in name_norm exactly matches
+    EMOJI_TIER3_NAME_PREFIX  =  30000,  // name_norm starts with query token
+    EMOJI_TIER2_WORD_PREFIX  =  15000,  // a name word starts with query token
+    EMOJI_TIER1_ACRONYM      =   5000,  // consecutive word-start aligned chars
+    // Tier 0 (pure fzf): base 0
+
+    EMOJI_NAME_WEIGHT        = 8,
+    EMOJI_ALIASES_WEIGHT     = 7,
+    EMOJI_KEYWORDS_WEIGHT    = 2,
+    EMOJI_MAX_TOKEN_LEN      = 63,
+    EMOJI_GLYPH_MAX_BYTES    = 32,
 };
 
 static CofiTabProvider s_emoji_provider;
@@ -278,6 +282,57 @@ static int name_has_word_prefix(const char *name, const char *token) {
     return 0;
 }
 
+static int is_word_start(const char *s, int pos) {
+    if (pos == 0) return 1;
+    char p = s[pos - 1];
+    return p == ' ' || p == '-' || p == '_' || p == '.' ||
+           p == '(' || p == '|' || p == '/';
+}
+
+static int consecutive_word_start_pairs(const char *filter, const char *display) {
+    int flen = (int)strlen(filter);
+    if (flen < 2) return 0;
+
+    int ws[256];
+    int ws_count = 0;
+    for (int i = 0; display[i] && ws_count < 256; i++) {
+        if (is_word_start(display, i))
+            ws[ws_count++] = i;
+    }
+    if (ws_count == 0) return 0;
+
+    enum { FLEN_CAP = 64, WS_CAP = 128 };
+    int eff_flen = flen < FLEN_CAP ? flen : FLEN_CAP;
+    int eff_ws   = ws_count < WS_CAP ? ws_count : WS_CAP;
+
+    int dp[FLEN_CAP][WS_CAP];
+    for (int i = 0; i < eff_flen; i++)
+        for (int j = 0; j < eff_ws; j++)
+            dp[i][j] = -1;
+
+    for (int j = 0; j < eff_ws; j++) {
+        if (tolower((unsigned char)display[ws[j]]) == tolower((unsigned char)filter[0]))
+            dp[0][j] = 0;
+    }
+
+    for (int i = 1; i < eff_flen; i++) {
+        for (int j = 0; j < eff_ws; j++) {
+            if (tolower((unsigned char)display[ws[j]]) != tolower((unsigned char)filter[i]))
+                continue;
+            for (int k = 0; k < j; k++) {
+                if (dp[i-1][k] < 0) continue;
+                int candidate = dp[i-1][k] + (k + 1 == j ? 1 : 0);
+                if (candidate > dp[i][j]) dp[i][j] = candidate;
+            }
+        }
+    }
+
+    int best = 0;
+    for (int j = 0; j < eff_ws; j++)
+        if (dp[eff_flen-1][j] > best) best = dp[eff_flen-1][j];
+    return best;
+}
+
 static int weighted_positive_score(score_t score, int weight) {
     if (score <= 0) {
         return 0;
@@ -322,11 +377,11 @@ static char *normalize_query_ascii(const char *query) {
 
 static int emoji_rank_score(const char *query, const EmojiEntry *entry) {
     int total = 0;
-    int qlen = 0;
-    char token[EMOJI_MAX_TOKEN_LEN + 1];
     int token_count = 0;
-    char *normalized_query = normalize_query_ascii(query);
-    const char *p = normalized_query;
+    int qlen;
+    char token[EMOJI_MAX_TOKEN_LEN + 1];
+    char *nq = normalize_query_ascii(query);
+    const char *p = nq;
 
     while (*p) {
         while (*p && ((*p < 'a' || *p > 'z') && (*p < '0' || *p > '9'))) p++;
@@ -334,55 +389,59 @@ static int emoji_rank_score(const char *query, const EmojiEntry *entry) {
 
         qlen = 0;
         while ((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9')) {
-            if (qlen < EMOJI_MAX_TOKEN_LEN) {
-                token[qlen++] = *p;
-            }
+            if (qlen < EMOJI_MAX_TOKEN_LEN) token[qlen++] = *p;
             p++;
         }
         token[qlen] = '\0';
         token_count++;
 
-        score_t name_score = fzf_fuzzy_match(token, entry->name_norm);
-        score_t aliases_score = fzf_fuzzy_match(token, entry->aliases);
-        score_t keywords_score = fzf_fuzzy_match(token, entry->keywords);
-        int token_score = 0;
+        score_t name_score  = fzf_fuzzy_match(token, entry->name_norm);
+        score_t alias_score = fzf_fuzzy_match(token, entry->aliases);
+        score_t kw_score    = fzf_fuzzy_match(token, entry->keywords);
 
-        if (name_score > 0) {
-            token_score = weighted_positive_score(name_score, EMOJI_NAME_WEIGHT);
-            if (name_has_prefix(entry->name_norm, token)) {
-                token_score += EMOJI_NAME_PREFIX_BOOST;
-            } else if (name_has_word_prefix(entry->name_norm, token)) {
-                token_score += EMOJI_NAME_WORD_PREFIX_BOOST;
-            }
+        int fzf_contrib = 0;
+        if (name_score > 0)
+            fzf_contrib = weighted_positive_score(name_score, EMOJI_NAME_WEIGHT);
+        if (alias_score > 0) {
+            int a = weighted_positive_score(alias_score, EMOJI_ALIASES_WEIGHT);
+            if (a > fzf_contrib) fzf_contrib = a;
         }
-        if (aliases_score > 0) {
-            int a = weighted_positive_score(aliases_score, EMOJI_ALIASES_WEIGHT);
-            if (a > token_score) token_score = a;
-        }
-        if (keywords_score > 0) {
-            int kw = weighted_positive_score(keywords_score, EMOJI_KEYWORDS_WEIGHT);
-            if (kw > token_score) token_score = kw;
+        if (kw_score > 0) {
+            int k = weighted_positive_score(kw_score, EMOJI_KEYWORDS_WEIGHT);
+            if (k > fzf_contrib) fzf_contrib = k;
         }
 
-        if (token_score <= 0) {
-            g_free(normalized_query);
+        if (fzf_contrib <= 0) {
+            g_free(nq);
             return 0;
         }
-        total += token_score;
+
+        int tier_base;
         if (string_has_token(entry->aliases, token)) {
-            total += EMOJI_ALIAS_EXACT_BOOST;
+            tier_base = EMOJI_TIER6_ALIAS_EXACT;
+        } else if (strcmp(entry->name_norm, token) == 0) {
+            tier_base = EMOJI_TIER5_NAME_EXACT;
+        } else if (name_has_word(entry->name_norm, token)) {
+            tier_base = EMOJI_TIER4_NAME_WORD;
+        } else if (name_has_prefix(entry->name_norm, token)) {
+            tier_base = EMOJI_TIER3_NAME_PREFIX;
+        } else if (name_has_word_prefix(entry->name_norm, token)) {
+            tier_base = EMOJI_TIER2_WORD_PREFIX;
+        } else if (consecutive_word_start_pairs(token, entry->name_norm) > 0) {
+            tier_base = EMOJI_TIER1_ACRONYM;
+        } else {
+            tier_base = 0;
         }
-        if (name_has_word(entry->name_norm, token)) {
-            total += EMOJI_NAME_WORD_BOOST;
-        }
+
+        total += tier_base + fzf_contrib;
     }
 
     if (token_count == 0) {
-        g_free(normalized_query);
+        g_free(nq);
         return 0;
     }
 
-    g_free(normalized_query);
+    g_free(nq);
     return total;
 }
 
@@ -440,55 +499,52 @@ static CofiActionStatus emoji_on_enter_pressed(AppData *app, int filtered_idx,
 static void emoji_on_query_changed(AppData *app, const char *query) {
     int matched_idx[EMOJI_COUNT];
     int matched_score[EMOJI_COUNT];
+    int matched_mru[EMOJI_COUNT];
 
-    if (!app) {
-        return;
-    }
+    if (!app) return;
     app->filtered_emoji_count = 0;
 
     if (!query || query[0] == '\0') {
-        for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
+        for (int i = 0; i < EMOJI_TABLE_LEN; i++)
             app->filtered_emoji[app->filtered_emoji_count++] = i;
-        }
         return;
     }
 
     for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
         int score = emoji_rank_score(query, &EMOJI_TABLE[i]);
         if (score > 0) {
-            int pos = emoji_history_position(i);
-            if (pos >= 0) {
-                const int span = 49;
-                const int step = (EMOJI_MRU_MAX_BONUS - EMOJI_MRU_MIN_BONUS) / span;
-                int mru_bonus = EMOJI_MRU_MAX_BONUS - (pos * step);
-                if (mru_bonus < EMOJI_MRU_MIN_BONUS) {
-                    mru_bonus = EMOJI_MRU_MIN_BONUS;
-                }
-                score += mru_bonus;
-            }
-            matched_idx[app->filtered_emoji_count] = i;
+            matched_idx[app->filtered_emoji_count]   = i;
             matched_score[app->filtered_emoji_count] = score;
+            matched_mru[app->filtered_emoji_count]   = emoji_history_position(i);
             app->filtered_emoji_count++;
         }
     }
 
+    // Sort: score desc; ties broken by MRU position asc (lower = more recent;
+    // -1 = not in history → treated as INT_MAX = worst); then table index asc.
     for (int i = 0; i < app->filtered_emoji_count - 1; i++) {
         for (int j = i + 1; j < app->filtered_emoji_count; j++) {
-            if (matched_score[j] > matched_score[i] ||
-                (matched_score[j] == matched_score[i] && matched_idx[j] < matched_idx[i])) {
-                int tmp_score = matched_score[i];
-                int tmp_idx = matched_idx[i];
-                matched_score[i] = matched_score[j];
-                matched_idx[i] = matched_idx[j];
-                matched_score[j] = tmp_score;
-                matched_idx[j] = tmp_idx;
+            int si = matched_score[i], sj = matched_score[j];
+            int mi = matched_mru[i] < 0 ? INT_MAX : matched_mru[i];
+            int mj = matched_mru[j] < 0 ? INT_MAX : matched_mru[j];
+            int do_swap = 0;
+            if (sj > si) {
+                do_swap = 1;
+            } else if (sj == si) {
+                if (mj < mi) do_swap = 1;
+                else if (mj == mi && matched_idx[j] < matched_idx[i]) do_swap = 1;
+            }
+            if (do_swap) {
+                int tmp;
+                tmp = matched_score[i]; matched_score[i] = matched_score[j]; matched_score[j] = tmp;
+                tmp = matched_idx[i];   matched_idx[i]   = matched_idx[j];   matched_idx[j]   = tmp;
+                tmp = matched_mru[i];   matched_mru[i]   = matched_mru[j];   matched_mru[j]   = tmp;
             }
         }
     }
 
-    for (int i = 0; i < app->filtered_emoji_count; i++) {
+    for (int i = 0; i < app->filtered_emoji_count; i++)
         app->filtered_emoji[i] = matched_idx[i];
-    }
 }
 
 static void emoji_on_enter(AppData *app) {
