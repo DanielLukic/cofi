@@ -694,3 +694,20 @@ void get_window_class_cached(Display *display, Window window, char *instance, ch
     // XA_WM_CLASS is a standard atom, no need to intern it
     get_window_class(display, window, instance, class_name);
 }
+
+void request_frame_extents(Display *display, Window window) {
+    if (!display || !window) return;
+    Atom nrfe = XInternAtom(display, "_NET_REQUEST_FRAME_EXTENTS", False);
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.type = ClientMessage;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.message_type = nrfe;
+    event.xclient.format = 32;
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+}

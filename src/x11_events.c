@@ -18,6 +18,7 @@
 #include "harpoon_config.h"
 #include "match_entry.h"
 #include "match_entry_config.h"
+#include "window_geometry_matching.h"
 #include "window_highlight.h"
 #include "hotkeys.h"
 #include "command_api.h"
@@ -169,6 +170,8 @@ static void subscribe_to_window_properties(AppData *app) {
                 XSelectInput(app->display, w, attrs.your_event_mask | PropertyChangeMask);
                 subscribed_windows[subscribed_count++] = w;
                 log_trace("Subscribed to PropertyNotify on 0x%lx", w);
+                // Pre-warm _NET_FRAME_EXTENTS so it's populated before a restore fires.
+                request_frame_extents(app->display, w);
             }
         }
     }
@@ -355,6 +358,13 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 if (prop_event->atom == app->atoms.net_wm_name ||
                     prop_event->atom == XA_WM_NAME) {
                     handle_window_title_change(app, prop_event->window);
+                }
+                if (app->pending_restore_count > 0) {
+                    static Atom net_frame_extents = None;
+                    if (net_frame_extents == None)
+                        net_frame_extents = XInternAtom(app->display, "_NET_FRAME_EXTENTS", False);
+                    if (prop_event->atom == net_frame_extents)
+                        process_pending_geometry_restore(app, prop_event->window);
                 }
                 break;
             }

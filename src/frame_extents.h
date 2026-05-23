@@ -2,6 +2,7 @@
 #define FRAME_EXTENTS_H
 
 #include <X11/Xlib.h>
+#include <stdbool.h>
 
 typedef struct {
     int left;
@@ -34,6 +35,12 @@ static inline void frame_pos_to_client_pos(int frame_x, int frame_y,
                                            int *client_x, int *client_y) {
     *client_x = frame_x + (fe ? fe->left : 0);
     *client_y = frame_y + (fe ? fe->top  : 0);
+}
+
+// Returns true if the extents contain at least one nonzero value.
+// All-zero extents indicate the WM has not yet populated _NET_FRAME_EXTENTS.
+static inline bool frame_extents_valid(const FrameExtents *fe) {
+    return fe && (fe->left || fe->right || fe->top || fe->bottom);
 }
 
 #endif // FRAME_EXTENTS_H

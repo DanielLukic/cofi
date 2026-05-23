@@ -345,6 +345,25 @@ static void test_frame_pos_null_extents_is_identity(void) {
     ASSERT_INT("null extents: y unchanged", frame_y, client_y);
 }
 
+static void test_frame_extents_valid_null(void) {
+    ASSERT_FALSE("null fe is invalid", frame_extents_valid(NULL));
+}
+
+static void test_frame_extents_valid_all_zeros(void) {
+    FrameExtents fe = {0};
+    ASSERT_FALSE("all-zero fe is invalid", frame_extents_valid(&fe));
+}
+
+static void test_frame_extents_valid_nonzero_top(void) {
+    FrameExtents fe = {.left = 0, .right = 0, .top = 20, .bottom = 0};
+    ASSERT_TRUE("fe with top=20 is valid", frame_extents_valid(&fe));
+}
+
+static void test_frame_extents_valid_nonzero_left(void) {
+    FrameExtents fe = {.left = 1};
+    ASSERT_TRUE("fe with left=1 is valid", frame_extents_valid(&fe));
+}
+
 int main(void) {
     printf("Geometry planner tests\n");
     printf("======================\n");
@@ -377,6 +396,11 @@ int main(void) {
     test_frame_pos_round_trip_typical();
     test_frame_pos_round_trip_zero_extents();
     test_frame_pos_null_extents_is_identity();
+
+    test_frame_extents_valid_null();
+    test_frame_extents_valid_all_zeros();
+    test_frame_extents_valid_nonzero_top();
+    test_frame_extents_valid_nonzero_left();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

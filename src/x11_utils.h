@@ -75,4 +75,8 @@ void toggle_maximize_window(Display *display, Window window);
 void toggle_maximize_horizontal(Display *display, Window window);
 void toggle_maximize_vertical(Display *display, Window window);
 
+// Send _NET_REQUEST_FRAME_EXTENTS to ask the WM to populate _NET_FRAME_EXTENTS.
+// Best-effort: call early so the WM has time to set the property before first restore.
+void request_frame_extents(Display *display, Window window);
+
 #endif // X11_UTILS_H

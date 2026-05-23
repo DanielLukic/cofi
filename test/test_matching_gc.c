@@ -71,6 +71,7 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
     if (extents) memset(extents, 0, sizeof(*extents));
     return 0;
 }
+void request_frame_extents(Display *display, Window window) { (void)display; (void)window; }
 
 static void set_test_home(const char *suffix) {
     char path[256];
