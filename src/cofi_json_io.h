@@ -17,7 +17,8 @@ JsonParser *cofi_json_load_object_file(const char *path);
 bool cofi_json_save_root(const char *path, JsonNode *root);
 
 /* Returned pointer is owned by the parser tree — copy if storing past parser
- * lifetime.
+ * lifetime. When `fallback` is NULL and the key is missing or wrong-type,
+ * returns NULL (so `if (s)` works as expected).
  */
 const char *cofi_json_obj_str_or(JsonObject *obj, const char *key, const char *fallback, gboolean *present);
 int cofi_json_obj_int_or(JsonObject *obj, const char *key, int fallback, gboolean *present);

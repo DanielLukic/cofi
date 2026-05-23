@@ -89,9 +89,9 @@ bool cofi_json_save_root(const char *path, JsonNode *root) {
 }
 
 const char *cofi_json_obj_str_or(JsonObject *obj, const char *key, const char *fallback, gboolean *present) {
-    if (!fallback) {
-        fallback = "";
-    }
+    /* NULL fallback means "give me NULL on missing/wrong-type" — the intuitive
+     * shape callers reach for. Do NOT coerce to "" or callers cannot
+     * distinguish present-with-empty-value from absent. */
     if (!obj || !key || key[0] == '\0') {
         set_present(present, FALSE);
         return fallback;

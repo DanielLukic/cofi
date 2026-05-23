@@ -80,6 +80,26 @@ static void test_obj_str_or_returns_default_on_missing_key(void) {
     g_object_unref(p);
 }
 
+static void test_obj_str_or_returns_NULL_when_fallback_NULL_and_key_missing(void) {
+    JsonParser *p = json_parser_new();
+    ASSERT_TRUE("parser loads object fixture",
+                json_parser_load_from_data(p, "{\"ok\":\"yes\"}", -1, NULL));
+    JsonObject *obj = json_node_get_object(json_parser_get_root(p));
+    const char *value = cofi_json_obj_str_or(obj, "missing", NULL, NULL);
+    ASSERT_TRUE("NULL fallback + missing key returns NULL", value == NULL);
+    g_object_unref(p);
+}
+
+static void test_obj_str_or_returns_NULL_when_fallback_NULL_and_wrong_type(void) {
+    JsonParser *p = json_parser_new();
+    ASSERT_TRUE("parser loads wrong-type fixture",
+                json_parser_load_from_data(p, "{\"n\":42}", -1, NULL));
+    JsonObject *obj = json_node_get_object(json_parser_get_root(p));
+    const char *value = cofi_json_obj_str_or(obj, "n", NULL, NULL);
+    ASSERT_TRUE("NULL fallback + wrong type returns NULL", value == NULL);
+    g_object_unref(p);
+}
+
 static void test_obj_str_or_returns_default_on_null_value(void) {
     JsonParser *p = json_parser_new();
     ASSERT_TRUE("parser loads null str fixture",
@@ -262,6 +282,8 @@ int main(void) {
     test_load_returns_null_on_corrupt_json();
     test_load_returns_null_on_non_object_root();
     test_obj_str_or_returns_default_on_missing_key();
+    test_obj_str_or_returns_NULL_when_fallback_NULL_and_key_missing();
+    test_obj_str_or_returns_NULL_when_fallback_NULL_and_wrong_type();
     test_obj_str_or_returns_default_on_null_value();
     test_obj_str_or_returns_default_on_wrong_type();
     test_obj_int_or_returns_default_on_wrong_type();
