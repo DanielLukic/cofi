@@ -63,6 +63,7 @@ bool cofi_json_save_root(const char *path, JsonNode *root) {
     json_generator_set_pretty(generator, TRUE);
     json_generator_set_root(generator, root);
 
+    // tmp+rename only — no fsync, no mid-write crash protection (v1 trade-off).
     char tmp_path[1024];
     g_snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path);
 
@@ -154,7 +155,7 @@ gboolean cofi_json_obj_bool_or(JsonObject *obj, const char *key, gboolean fallba
 }
 
 JsonArray *cofi_json_obj_array(JsonObject *obj, const char *key) {
-    if (!obj || !key || !json_object_has_member(obj, key)) {
+    if (!obj || !key || key[0] == '\0' || !json_object_has_member(obj, key)) {
         return NULL;
     }
     JsonNode *node = json_object_get_member(obj, key);
@@ -166,7 +167,7 @@ JsonArray *cofi_json_obj_array(JsonObject *obj, const char *key) {
 }
 
 JsonObject *cofi_json_obj_object(JsonObject *obj, const char *key) {
-    if (!obj || !key || !json_object_has_member(obj, key)) {
+    if (!obj || !key || key[0] == '\0' || !json_object_has_member(obj, key)) {
         return NULL;
     }
     JsonNode *node = json_object_get_member(obj, key);
