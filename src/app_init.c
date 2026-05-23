@@ -77,9 +77,16 @@ void init_app_data(AppData *app) {
     init_hotkey_config(&app->hotkey_config);
     init_hotkey_grab_state(&app->hotkey_grab_state);
     if (!load_hotkey_config(&app->hotkey_config)) {
-        // No hotkeys.json yet — create defaults owned by the hotkeys subsystem.
+        // Load failed — distinguish "file missing" (write defaults) from
+        // "file corrupt" (keep defaults in memory only, never overwrite the
+        // user's existing file — corruption may hide recoverable data).
         init_default_hotkey_config(&app->hotkey_config);
-        save_hotkey_config(&app->hotkey_config);
+        if (!hotkey_config_file_exists()) {
+            save_hotkey_config(&app->hotkey_config);
+        } else {
+            log_warn("hotkey_config: existing hotkeys.json failed to parse; "
+                     "using defaults in memory; NOT overwriting the file");
+        }
     }
     
     // Initialize harpoon tab data

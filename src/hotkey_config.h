@@ -19,6 +19,7 @@ void init_hotkey_config(HotkeyConfig *config);
 void init_default_hotkey_config(HotkeyConfig *config);
 int save_hotkey_config(const HotkeyConfig *config);
 int load_hotkey_config(HotkeyConfig *config);
+int hotkey_config_file_exists(void);
 int add_hotkey_binding(HotkeyConfig *config, const char *key, const char *command);
 int remove_hotkey_binding(HotkeyConfig *config, const char *key);
 int find_hotkey_binding(const HotkeyConfig *config, const char *key);

@@ -19,6 +19,11 @@ static const char* get_hotkey_config_path(void) {
     return path;
 }
 
+int hotkey_config_file_exists(void) {
+    struct stat st;
+    return stat(get_hotkey_config_path(), &st) == 0;
+}
+
 void init_hotkey_config(HotkeyConfig *config) {
     if (!config) return;
     memset(config, 0, sizeof(HotkeyConfig));

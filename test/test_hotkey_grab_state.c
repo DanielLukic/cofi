@@ -74,6 +74,7 @@ void init_hotkey_config(HotkeyConfig *config) { config->count = 0; }
 void init_default_hotkey_config(HotkeyConfig *config) { config->count = 3; }
 gboolean load_hotkey_config(HotkeyConfig *config) { (void)config; return TRUE; }
 gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return TRUE; }
+int hotkey_config_file_exists(void) { return 0; }
 void match_entry_manager_init(MatchEntryManager *manager) { (void)manager; }
 void init_rules_config(RulesConfig *config) { (void)config; }
 gboolean load_rules_config(RulesConfig *config) { (void)config; return TRUE; }
