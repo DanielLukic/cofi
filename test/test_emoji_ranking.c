@@ -158,6 +158,70 @@ static void test_acronym_tier_sf_beats_non_structural(void) {
     assert_ranked_above("sf", "😴", "🏄");
 }
 
+// BUG A repro: query "sf" — both 😴 (sleeping face) and 😤 (face with steam from
+// nose) are tier-1 acronym matches (1 consecutive word-start pair each). The
+// intra-tier score is pure fzf, which favours 😤 due to shorter gap between 's'
+// and 'f' positions. UX expects the tighter/shorter name (😴) to win.
+static void test_acronym_tier_sf_sleeping_beats_steam_from_nose(void) {
+    reset_mru_state();
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "sf");
+    int sleeping = rank_of_glyph(&app, "😴");
+    int steam    = rank_of_glyph(&app, "😤");
+    ASSERT_TRUE("sf/bug-a: sleeping face present", sleeping >= 0);
+    ASSERT_TRUE("sf/bug-a: face-with-steam present", steam >= 0);
+    // Diagnostic dump: print both rank scores so the failure log is actionable.
+    int s_score = emoji_rank_score("sf", &EMOJI_TABLE[app.filtered_emoji[sleeping]]);
+    int t_score = emoji_rank_score("sf", &EMOJI_TABLE[app.filtered_emoji[steam]]);
+    printf("    sf/diag: sleeping rank=%d score=%d ; steam rank=%d score=%d\n",
+           sleeping, s_score, steam, t_score);
+    ASSERT_TRUE("sf/bug-a: sleeping face beats face-with-steam-from-nose",
+                sleeping < steam);
+}
+
+// BUG B: MRU same-tier promotion. "aup" → both ⬆️ (up arrow) and ⤴️ (right
+// arrow curving up) match. With ⬆️ in MRU at recency 0, it should rank #1.
+// Same-tier promotion: bucket-promote MRU'd items within the top tier only.
+static void test_mru_promotes_same_tier_within_top_tier(void) {
+    reset_mru_state();
+    emoji_history_push("⬆️");
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "aup");
+    int up = rank_of_glyph(&app, "⬆️");
+    int curving_up = rank_of_glyph(&app, "⤴️");
+    ASSERT_TRUE("aup/mru: up arrow present", up >= 0);
+    ASSERT_TRUE("aup/mru: right arrow curving up present", curving_up >= 0);
+    // Verify both candidates inhabit the SAME tier so this exercises
+    // same-tier promotion (not a cross-tier accident).
+    EmojiRank up_rank = emoji_rank_score_full("aup", &EMOJI_TABLE[app.filtered_emoji[up]]);
+    EmojiRank cu_rank = emoji_rank_score_full("aup", &EMOJI_TABLE[app.filtered_emoji[curving_up]]);
+    printf("    aup/diag: up tier=%d score=%d ; curving_up tier=%d score=%d\n",
+           up_rank.tier_id, up_rank.total, cu_rank.tier_id, cu_rank.total);
+    ASSERT_TRUE("aup/mru: up and curving-up share a tier",
+                up_rank.tier_id == cu_rank.tier_id);
+    ASSERT_TRUE("aup/mru: MRU-promoted up arrow ranks #1", up == 0);
+}
+
+// BUG B regression guard: MRU must NEVER cross tiers. 😀 (grinning) is in
+// MRU at max recency and matches "sl" only via keyword (tier 0). 😴 (sleeping
+// face) has tier-3 name prefix. Sleeping must still win — MRU promotion
+// applies only inside the top tier.
+static void test_mru_does_not_cross_tiers(void) {
+    reset_mru_state();
+    emoji_history_push("😀");
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    emoji_on_query_changed(&app, "sl");
+    int sleeping = rank_of_glyph(&app, "😴");
+    int grinning = rank_of_glyph(&app, "😀");
+    ASSERT_TRUE("sl/cross-tier: sleeping face present", sleeping >= 0);
+    ASSERT_TRUE("sl/cross-tier: grinning face present", grinning >= 0);
+    ASSERT_TRUE("sl/cross-tier: tier-3 name-prefix beats MRU'd tier-0 keyword",
+                sleeping < grinning);
+}
+
 // Alias-exact tier (tier 6) must be invulnerable to a keyword-only+max-MRU attack.
 // 😄 (smile) matches "joy" only via keywords; 😂 (joy) has alias "joy" → tier 6.
 static void test_alias_exact_invulnerable_to_mru(void) {
@@ -200,6 +264,9 @@ int main(void) {
     test_sl_name_prefix_beats_keywords_no_mru();
     test_sl_name_prefix_beats_keywords_max_mru();
     test_acronym_tier_sf_beats_non_structural();
+    test_acronym_tier_sf_sleeping_beats_steam_from_nose();
+    test_mru_promotes_same_tier_within_top_tier();
+    test_mru_does_not_cross_tiers();
     test_alias_exact_invulnerable_to_mru();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);

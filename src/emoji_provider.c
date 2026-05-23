@@ -289,6 +289,25 @@ static int is_word_start(const char *s, int pos) {
            p == '(' || p == '|' || p == '/';
 }
 
+static int count_words(const char *s) {
+    if (!s) return 0;
+    int words = 0;
+    int in_word = 0;
+    for (int i = 0; s[i]; i++) {
+        int is_alnum = (s[i] >= 'a' && s[i] <= 'z') ||
+                       (s[i] >= '0' && s[i] <= '9');
+        if (is_alnum) {
+            if (!in_word) {
+                words++;
+                in_word = 1;
+            }
+        } else {
+            in_word = 0;
+        }
+    }
+    return words;
+}
+
 static int consecutive_word_start_pairs(const char *filter, const char *display) {
     int flen = (int)strlen(filter);
     if (flen < 2) return 0;
@@ -375,9 +394,16 @@ static char *normalize_query_ascii(const char *query) {
     return g_string_free(out, FALSE);
 }
 
-static int emoji_rank_score(const char *query, const EmojiEntry *entry) {
+typedef struct {
+    int total;     // 0 == no match
+    int tier_id;   // 0..6 (max tier across tokens); valid when total > 0
+} EmojiRank;
+
+static EmojiRank emoji_rank_score_full(const char *query, const EmojiEntry *entry) {
+    EmojiRank result = {0, 0};
     int total = 0;
     int token_count = 0;
+    int max_tier_id = 0;
     int qlen;
     char token[EMOJI_MAX_TOKEN_LEN + 1];
     char *nq = normalize_query_ascii(query);
@@ -413,36 +439,58 @@ static int emoji_rank_score(const char *query, const EmojiEntry *entry) {
 
         if (fzf_contrib <= 0) {
             g_free(nq);
-            return 0;
+            return result;
         }
 
         int tier_base;
+        int tier_id;
+        int intra = fzf_contrib;
         if (string_has_token(entry->aliases, token)) {
             tier_base = EMOJI_TIER6_ALIAS_EXACT;
+            tier_id = 6;
         } else if (strcmp(entry->name_norm, token) == 0) {
             tier_base = EMOJI_TIER5_NAME_EXACT;
+            tier_id = 5;
         } else if (name_has_word(entry->name_norm, token)) {
             tier_base = EMOJI_TIER4_NAME_WORD;
+            tier_id = 4;
         } else if (name_has_prefix(entry->name_norm, token)) {
             tier_base = EMOJI_TIER3_NAME_PREFIX;
+            tier_id = 3;
         } else if (name_has_word_prefix(entry->name_norm, token)) {
             tier_base = EMOJI_TIER2_WORD_PREFIX;
-        } else if (consecutive_word_start_pairs(token, entry->name_norm) > 0) {
-            tier_base = EMOJI_TIER1_ACRONYM;
+            tier_id = 2;
         } else {
-            tier_base = 0;
+            int pairs = consecutive_word_start_pairs(token, entry->name_norm);
+            if (pairs > 0) {
+                tier_base = EMOJI_TIER1_ACRONYM;
+                tier_id = 1;
+                int words = count_words(entry->name_norm);
+                int coverage_bonus = (pairs + 1 == words) ? 800 : 0;
+                intra = pairs * 200 + coverage_bonus + fzf_contrib;
+            } else {
+                tier_base = 0;
+                tier_id = 0;
+            }
         }
 
-        total += tier_base + fzf_contrib;
+        if (tier_id > max_tier_id) max_tier_id = tier_id;
+        total += tier_base + intra;
     }
 
     if (token_count == 0) {
         g_free(nq);
-        return 0;
+        return result;
     }
 
     g_free(nq);
-    return total;
+    result.total = total;
+    result.tier_id = max_tier_id;
+    return result;
+}
+
+static int emoji_rank_score(const char *query, const EmojiEntry *entry) {
+    return emoji_rank_score_full(query, entry).total;
 }
 
 static void emoji_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
@@ -500,6 +548,8 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
     int matched_idx[EMOJI_COUNT];
     int matched_score[EMOJI_COUNT];
     int matched_mru[EMOJI_COUNT];
+    int matched_tier[EMOJI_COUNT];
+    int matched_promoted[EMOJI_COUNT];
 
     if (!app) return;
     app->filtered_emoji_count = 0;
@@ -510,35 +560,66 @@ static void emoji_on_query_changed(AppData *app, const char *query) {
         return;
     }
 
+    int top_tier = -1;
+    int top_score = -1;
     for (int i = 0; i < EMOJI_TABLE_LEN; i++) {
-        int score = emoji_rank_score(query, &EMOJI_TABLE[i]);
-        if (score > 0) {
-            matched_idx[app->filtered_emoji_count]   = i;
-            matched_score[app->filtered_emoji_count] = score;
-            matched_mru[app->filtered_emoji_count]   = emoji_history_position(i);
+        EmojiRank r = emoji_rank_score_full(query, &EMOJI_TABLE[i]);
+        if (r.total > 0) {
+            int n = app->filtered_emoji_count;
+            matched_idx[n]   = i;
+            matched_score[n] = r.total;
+            matched_tier[n]  = r.tier_id;
+            matched_mru[n]   = emoji_history_position(i);
+            if (r.total > top_score) {
+                top_score = r.total;
+                top_tier = r.tier_id;
+            }
             app->filtered_emoji_count++;
         }
     }
 
-    // Sort: score desc; ties broken by MRU position asc (lower = more recent;
-    // -1 = not in history → treated as INT_MAX = worst); then table index asc.
+    // MRU bucket promotion: items in the top tier that are also in MRU history
+    // get promoted above other top-tier (and lower) items, preserving recency
+    // order. Cross-tier promotion is impossible: a lower-tier MRU'd item never
+    // beats a higher-tier non-MRU'd item.
+    for (int i = 0; i < app->filtered_emoji_count; i++) {
+        matched_promoted[i] = (matched_tier[i] == top_tier && matched_mru[i] >= 0) ? 1 : 0;
+    }
+
+    // Sort:
+    //   1. promoted bucket first, ordered by MRU asc (more-recent first)
+    //   2. then by score desc
+    //   3. then by MRU asc (existing tie-break; -1 == INT_MAX = worst)
+    //   4. then by table index asc
     for (int i = 0; i < app->filtered_emoji_count - 1; i++) {
         for (int j = i + 1; j < app->filtered_emoji_count; j++) {
+            int pi = matched_promoted[i], pj = matched_promoted[j];
             int si = matched_score[i], sj = matched_score[j];
             int mi = matched_mru[i] < 0 ? INT_MAX : matched_mru[i];
             int mj = matched_mru[j] < 0 ? INT_MAX : matched_mru[j];
             int do_swap = 0;
-            if (sj > si) {
+            if (pj > pi) {
                 do_swap = 1;
-            } else if (sj == si) {
-                if (mj < mi) do_swap = 1;
-                else if (mj == mi && matched_idx[j] < matched_idx[i]) do_swap = 1;
+            } else if (pj == pi) {
+                if (pi == 1) {
+                    // both promoted: sort by MRU asc only
+                    if (mj < mi) do_swap = 1;
+                    else if (mj == mi && matched_idx[j] < matched_idx[i]) do_swap = 1;
+                } else {
+                    if (sj > si) do_swap = 1;
+                    else if (sj == si) {
+                        if (mj < mi) do_swap = 1;
+                        else if (mj == mi && matched_idx[j] < matched_idx[i]) do_swap = 1;
+                    }
+                }
             }
             if (do_swap) {
                 int tmp;
-                tmp = matched_score[i]; matched_score[i] = matched_score[j]; matched_score[j] = tmp;
-                tmp = matched_idx[i];   matched_idx[i]   = matched_idx[j];   matched_idx[j]   = tmp;
-                tmp = matched_mru[i];   matched_mru[i]   = matched_mru[j];   matched_mru[j]   = tmp;
+                tmp = matched_score[i];    matched_score[i]    = matched_score[j];    matched_score[j]    = tmp;
+                tmp = matched_idx[i];      matched_idx[i]      = matched_idx[j];      matched_idx[j]      = tmp;
+                tmp = matched_mru[i];      matched_mru[i]      = matched_mru[j];      matched_mru[j]      = tmp;
+                tmp = matched_tier[i];     matched_tier[i]     = matched_tier[j];     matched_tier[j]     = tmp;
+                tmp = matched_promoted[i]; matched_promoted[i] = matched_promoted[j]; matched_promoted[j] = tmp;
             }
         }
     }
