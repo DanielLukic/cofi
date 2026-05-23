@@ -101,13 +101,14 @@ static void test_save_load_roundtrip(void) {
     add_rule(&original, "*htop*Terminal", "sb,ab,ew");
     add_rule(&original, "*Firefox*", "ew");
     add_rule(&original, "Tsunami*Thunderbird*", "sb");
+    add_rule(&original, "*quote\"slash\\<script>*", "rl,echo \"hi\"");
     original.rules[1].run_at_start = 1;
 
     ASSERT_INT("save", 1, save_rules_config(&original));
 
     init_rules_config(&loaded);
     ASSERT_INT("load", 1, load_rules_config(&loaded));
-    ASSERT_INT("loaded count", 3, loaded.count);
+    ASSERT_INT("loaded count", 4, loaded.count);
     ASSERT_STR("loaded pattern 0", "*htop*Terminal", loaded.rules[0].pattern);
     ASSERT_STR("loaded commands 0", "sb,ab,ew", loaded.rules[0].commands);
     ASSERT_STR("loaded pattern 1", "*Firefox*", loaded.rules[1].pattern);
@@ -115,6 +116,8 @@ static void test_save_load_roundtrip(void) {
     ASSERT_TRUE("loaded run_at_start 1", loaded.rules[1].run_at_start);
     ASSERT_STR("loaded pattern 2", "Tsunami*Thunderbird*", loaded.rules[2].pattern);
     ASSERT_STR("loaded commands 2", "sb", loaded.rules[2].commands);
+    ASSERT_STR("loaded pattern 3", "*quote\"slash\\<script>*", loaded.rules[3].pattern);
+    ASSERT_STR("loaded commands 3", "rl,echo \"hi\"", loaded.rules[3].commands);
     ASSERT_FALSE("loaded run_at_start defaults false when saved false", loaded.rules[0].run_at_start);
     ASSERT_FALSE("loaded run_at_start remains false on third rule", loaded.rules[2].run_at_start);
 
@@ -181,6 +184,144 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     ASSERT_INT("load legacy file", 1, load_rules_config(&config));
     ASSERT_INT("legacy count", 1, config.count);
     ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_rules_json_with_special_chars(void) {
+    char tmpdir[] = "/tmp/cofi_rules_special_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open special rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\n"
+            "      \"pattern\": \"*term?$HOME<script>\",\n"
+            "      \"commands\": \"rl,ew+,ab+\",\n"
+            "      \"run_at_start\": true,\n"
+            "      \"future_field\": \"ignored\"\n"
+            "    },\n"
+            "    {\n"
+            "      \"pattern\": \"browser*&docs?\",\n"
+            "      \"commands\": \"sb off, aot on\",\n"
+            "      \"run_at_start\": false\n"
+            "    }\n"
+            "  ],\n"
+            "  \"unknown_root\": true\n"
+            "}\n");
+    fclose(file);
+
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_INT("load special char rules file", 1, load_rules_config(&config));
+    ASSERT_INT("special char count", 2, config.count);
+    ASSERT_STR("special pattern 0", "*term?$HOME<script>", config.rules[0].pattern);
+    ASSERT_STR("special commands 0", "rl,ew+,ab+", config.rules[0].commands);
+    ASSERT_TRUE("special run_at_start 0", config.rules[0].run_at_start);
+    ASSERT_STR("special pattern 1", "browser*&docs?", config.rules[1].pattern);
+    ASSERT_STR("special commands 1", "sb off, aot on", config.rules[1].commands);
+    ASSERT_FALSE("special run_at_start 1", config.rules[1].run_at_start);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_skips_rules_missing_required_fields(void) {
+    char tmpdir[] = "/tmp/cofi_rules_missing_required_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open missing-required rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\"commands\": \"rl\", \"run_at_start\": true},\n"
+            "    {\"pattern\": \"*missing commands*\"},\n"
+            "    {\"pattern\": \"*valid*\", \"commands\": \"sb\", \"run_at_start\": true}\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_INT("load skips missing required fields", 1, load_rules_config(&config));
+    ASSERT_INT("missing required leaves only valid rule", 1, config.count);
+    ASSERT_STR("valid rule pattern survives", "*valid*", config.rules[0].pattern);
+    ASSERT_STR("valid rule commands survives", "sb", config.rules[0].commands);
+    ASSERT_TRUE("valid rule run_at_start survives", config.rules[0].run_at_start);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_corrupt_json_returns_empty(void) {
+    char tmpdir[] = "/tmp/cofi_rules_corrupt_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open corrupt rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file, "{\"rules\": [");
+    fclose(file);
+
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*preexisting*", "rl");
+    ASSERT_INT("load corrupt json succeeds empty", 1, load_rules_config(&config));
+    ASSERT_INT("corrupt json leaves config empty", 0, config.count);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -542,6 +683,9 @@ int main(void) {
     test_save_load_roundtrip();
     test_load_missing_file();
     test_load_legacy_file_defaults_run_at_start_false();
+    test_load_rules_json_with_special_chars();
+    test_load_skips_rules_missing_required_fields();
+    test_load_corrupt_json_returns_empty();
 
     // Matching state machine tests
     printf("\n--- Matching ---\n");

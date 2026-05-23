@@ -1,11 +1,11 @@
 #include "rules_config.h"
+#include "cofi_json_io.h"
 #include "log.h"
 #include "window_matcher.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <errno.h>
 
 static const char* get_rules_config_path(void) {
     static char path[512];
@@ -53,107 +53,80 @@ int save_rules_config(const RulesConfig *config) {
     if (!config) return 0;
 
     const char *path = get_rules_config_path();
-    FILE *file = fopen(path, "w");
-    if (!file) {
-        log_error("Failed to open rules config for writing: %s", path);
-        return 0;
-    }
-
-    fprintf(file, "{\n");
-    fprintf(file, "  \"rules\": [\n");
-
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "rules");
+    json_builder_begin_array(builder);
     for (int i = 0; i < config->count; i++) {
-        if (i > 0) fprintf(file, ",\n");
-        fprintf(file, "    {\n");
-        fprintf(file, "      \"pattern\": \"%s\",\n", config->rules[i].pattern);
-        fprintf(file, "      \"commands\": \"%s\",\n", config->rules[i].commands);
-        fprintf(file, "      \"run_at_start\": %s\n",
-                config->rules[i].run_at_start ? "true" : "false");
-        fprintf(file, "    }");
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "pattern");
+        json_builder_add_string_value(builder, config->rules[i].pattern);
+        json_builder_set_member_name(builder, "commands");
+        json_builder_add_string_value(builder, config->rules[i].commands);
+        json_builder_set_member_name(builder, "run_at_start");
+        json_builder_add_boolean_value(builder, config->rules[i].run_at_start);
+        json_builder_end_object(builder);
     }
+    json_builder_end_array(builder);
+    json_builder_end_object(builder);
 
-    fprintf(file, "\n  ]\n");
-    fprintf(file, "}\n");
-
-    fclose(file);
-    log_debug("Saved rules config to %s", path);
-    return 1;
+    JsonNode *root = json_builder_get_root(builder);
+    bool ok = cofi_json_save_root(path, root);
+    json_node_unref(root);
+    g_object_unref(builder);
+    if (ok) {
+        log_debug("Saved rules config to %s", path);
+    }
+    return ok ? 1 : 0;
 }
 
 int load_rules_config(RulesConfig *config) {
     if (!config) return 0;
 
     const char *path = get_rules_config_path();
-    FILE *file = fopen(path, "r");
-    if (!file) {
-        if (errno == ENOENT) {
-            log_debug("No rules config found at %s", path);
-            return 1;  // not an error, just no rules yet
-        }
-        log_error("Failed to open rules config: %s", path);
-        return 0;
+    init_rules_config(config);
+    JsonParser *parser = cofi_json_load_object_file(path);
+    if (!parser) {
+        return 1;
     }
 
-    char line[1024];
-    char pattern[MAX_PATTERN_LEN] = {0};
-    char commands[MAX_COMMANDS_LEN] = {0};
-    int run_at_start = 0;
-    int in_rules = 0;
-
-    while (fgets(line, sizeof(line), file)) {
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-
-        if (strstr(p, "\"rules\":")) {
-            in_rules = 1;
-        } else if (in_rules && strstr(p, "}")) {
-            if (pattern[0] && commands[0]) {
-                add_rule(config, pattern, commands);
-                config->rules[config->count - 1].run_at_start = run_at_start;
-                pattern[0] = '\0';
-                commands[0] = '\0';
-                run_at_start = 0;
-            }
-        }
-
-        if (in_rules) {
-            if (strstr(p, "\"pattern\":")) {
-                char *start = strchr(p, ':');
-                if (start) {
-                    start = strchr(start + 1, '"');
-                    if (start) {
-                        start++;
-                        char *end = strchr(start, '"');
-                        if (end) {
-                            int len = end - start;
-                            if (len >= MAX_PATTERN_LEN) len = MAX_PATTERN_LEN - 1;
-                            strncpy(pattern, start, len);
-                            pattern[len] = '\0';
-                        }
-                    }
-                }
-            } else if (strstr(p, "\"commands\":")) {
-                char *start = strchr(p, ':');
-                if (start) {
-                    start = strchr(start + 1, '"');
-                    if (start) {
-                        start++;
-                        char *end = strchr(start, '"');
-                        if (end) {
-                            int len = end - start;
-                            if (len >= MAX_COMMANDS_LEN) len = MAX_COMMANDS_LEN - 1;
-                            strncpy(commands, start, len);
-                            commands[len] = '\0';
-                        }
-                    }
-                }
-            } else if (strstr(p, "\"run_at_start\":")) {
-                run_at_start = strstr(p, "true") != NULL;
-            }
-        }
+    JsonObject *root = json_node_get_object(json_parser_get_root(parser));
+    JsonArray *rules = cofi_json_obj_array(root, "rules");
+    if (!rules) {
+        g_object_unref(parser);
+        return 1;
     }
 
-    fclose(file);
+    guint n = json_array_get_length(rules);
+    for (guint i = 0; i < n; i++) {
+        JsonNode *element = json_array_get_element(rules, i);
+        if (!element || !JSON_NODE_HOLDS_OBJECT(element)) {
+            log_warn("rules_config: skipping non-object rule");
+            continue;
+        }
+
+        JsonObject *rule = json_node_get_object(element);
+        gboolean has_pattern = FALSE;
+        gboolean has_commands = FALSE;
+        const char *pattern = cofi_json_obj_str_or(rule, "pattern", "", &has_pattern);
+        const char *commands = cofi_json_obj_str_or(rule, "commands", "", &has_commands);
+        if (!has_pattern || pattern[0] == '\0') {
+            log_warn("rules_config: skipping rule with missing/empty pattern");
+            continue;
+        }
+        if (!has_commands || commands[0] == '\0') {
+            log_warn("rules_config: skipping rule with missing/empty commands");
+            continue;
+        }
+        if (!add_rule(config, pattern, commands)) {
+            log_warn("rules_config: skipping rule because rule limit was reached");
+            continue;
+        }
+        config->rules[config->count - 1].run_at_start =
+            cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
+    }
+
+    g_object_unref(parser);
     log_info("Loaded %d rules from %s", config->count, path);
     return 1;
 }
