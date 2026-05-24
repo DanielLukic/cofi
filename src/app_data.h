@@ -169,6 +169,10 @@ typedef struct AppData {
     MatchEntry filtered_matching[MAX_WINDOWS];
     int filtered_matching_count;
 
+    // Layouts tab data
+    int filtered_geom[MAX_WINDOWS];    // Indices into layouts.records
+    int filtered_geom_count;
+
     // Config tab data
     ConfigEntry filtered_config[MAX_CONFIG_ENTRIES];
     int filtered_config_count;

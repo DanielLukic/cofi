@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "../src/app_data.h"
+#include "../src/cofi_tab_provider.h"
+#include "../src/command_registry.h"
+#include "../src/window_geometry_matching.h"
+#include "../src/x11_utils.h"
+
+static int tests_run = 0;
+static int tests_passed = 0;
+
+#define ASSERT_TRUE(msg, cond) do { \
+    tests_run++; \
+    if (cond) { tests_passed++; printf("PASS: %s\n", msg); } \
+    else { printf("FAIL: %s (line %d)\n", msg, __LINE__); } \
+} while (0)
+
+static int g_reset_selection_calls;
+static int g_update_display_calls;
+static int g_matching_run_gc_calls;
+static int g_show_confirm_calls;
+static void (*g_confirm_cb)(AppData *);
+static CofiTabProvider g_registered_provider;
+static int g_set_state_calls;
+static int g_move_calls;
+static int g_move_desktop_calls;
+static int g_switch_desktop_calls;
+static int g_flush_calls;
+
+void log_log(int level, const char *file, int line, const char *fmt, ...) {(void)level;(void)file;(void)line;(void)fmt;}
+int has_match(const char *needle, const char *haystack) { return !needle || !needle[0] || (haystack && strstr(haystack, needle)); }
+void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
+void update_display(AppData *app) { (void)app; g_update_display_calls++; }
+int matching_run_gc(AppData *app) { (void)app; g_matching_run_gc_calls++; return 1; }
+void show_confirm_overlay(AppData *app, const char *title, const char *info, void (*on_confirm)(AppData *)) { (void)app;(void)title;(void)info; g_show_confirm_calls++; g_confirm_cb = on_confirm; }
+void exit_command_mode(AppData *app) { (void)app; }
+void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
+void cofi_init_provider_defaults(CofiTabProvider *p) { if (p) memset(p, 0, sizeof(*p)); }
+int cofi_register_tab_provider(const CofiTabProvider *p) { g_registered_provider = *p; g_registered_provider.tab_mode = (TabMode)(TAB_COUNT + 7); return 0; }
+const CofiTabProvider *cofi_get_provider(int provider_id) { return provider_id == 0 ? &g_registered_provider : NULL; }
+int cofi_register_command(const CommandSpec *spec) { return spec ? 0 : -1; }
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) { if (!manager) return -1; for (int i = 0; i < manager->count; i++) if (manager->entries[i].match_id == match_id) return i; return -1; }
+gboolean get_window_state(Display *display, Window window, const char *state_atom_name) { (void)display;(void)window;(void)state_atom_name; return FALSE; }
+int get_window_desktop(Display *display, Window window) { (void)display;(void)window; return 2; }
+int get_current_desktop(Display *display) { (void)display; return 2; }
+gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) { (void)display;(void)window; if (x) *x = 0; if (y) *y = 0; if (w) *w = 100; if (h) *h = 100; return TRUE; }
+void set_window_state(Display *display, Window window, const char *name, WindowStateAction action) { (void)display;(void)window;(void)name;(void)action; g_set_state_calls++; }
+void xmove_resize_frame_aware(Display *display, Window window, int x, int y, int w, int h) { (void)display;(void)window;(void)x;(void)y;(void)w;(void)h; g_move_calls++; }
+void move_window_to_desktop(Display *display, Window window, int desktop) { (void)display;(void)window;(void)desktop; g_move_desktop_calls++; }
+void switch_to_desktop(Display *display, int desktop) { (void)display;(void)desktop; g_switch_desktop_calls++; }
+int XFlush(Display *display) { (void)display; g_flush_calls++; return 0; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
+int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int n, const WindowInfo *window) { (void)manager;(void)windows;(void)n;(void)window; return 0; }
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager;(void)id; return -1; }
+bool match_entry_reassign_live_windows(MatchEntryManager *m, WindowInfo *w, int c) { (void)m;(void)w;(void)c; return false; }
+
+#include "../src/geom_provider.c"
+#include "../src/geometry_planner.c"
+#include "../src/window_geometry_matching.c"
+
+static void reset_app(AppData *app) {
+    memset(app, 0, sizeof(*app));
+    g_reset_selection_calls = 0;
+    g_update_display_calls = 0;
+    g_matching_run_gc_calls = 0;
+    g_show_confirm_calls = 0;
+    g_confirm_cb = NULL;
+}
+
+static void seed_layouts(AppData *app) {
+    app->matching.count = 2;
+    app->matching.entries[0].match_id = 11;
+    app->matching.entries[0].assigned = 1;
+    g_strlcpy(app->matching.entries[0].custom_name, "alpha", sizeof(app->matching.entries[0].custom_name));
+    g_strlcpy(app->matching.entries[0].original_title, "Alpha Title", sizeof(app->matching.entries[0].original_title));
+    g_strlcpy(app->matching.entries[0].class_name, "Firefox", sizeof(app->matching.entries[0].class_name));
+    g_strlcpy(app->matching.entries[0].instance, "firefox", sizeof(app->matching.entries[0].instance));
+    app->matching.entries[1].match_id = 22;
+    g_strlcpy(app->matching.entries[1].original_title, "Beta Title", sizeof(app->matching.entries[1].original_title));
+    g_strlcpy(app->matching.entries[1].class_name, "Code", sizeof(app->matching.entries[1].class_name));
+    g_strlcpy(app->matching.entries[1].instance, "code", sizeof(app->matching.entries[1].instance));
+    app->layouts.count = 2;
+    app->layouts.records[0] = (LayoutRecord){.match_id=11,.x=10,.y=20,.width=800,.height=600,.desktop=3,.maximized_vert=true,.restore_desktop=true};
+    app->layouts.records[1] = (LayoutRecord){.match_id=22,.x=30,.y=40,.width=640,.height=480,.desktop=4,.fullscreen=true,.disabled=true};
+}
+
+static void test_filter_and_row_format(void) {
+    AppData app; CofiRowCells row;
+    reset_app(&app); seed_layouts(&app);
+    geom_on_query_changed(&app, "fire");
+    ASSERT_TRUE("filter substring on class", app.filtered_geom_count == 1);
+    geom_format_row(&app, 0, &row);
+    ASSERT_TRUE("row has five cells", row.cell_count == 5);
+    ASSERT_TRUE("row label uses custom_name", strcmp(row.cells[0].text, "alpha") == 0);
+    ASSERT_TRUE("row includes flags", strstr(row.cells[3].text, "V") && strstr(row.cells[3].text, "L"));
+}
+
+static void test_delete_flow_and_selection_clamp(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    geom_on_query_changed(&app, "");
+    app.current_tab = geom_tab_mode();
+    app.selection.provider_index = 1;
+    GdkEventKey ev = {.keyval = GDK_KEY_Delete};
+    ASSERT_TRUE("delete key handled", handle_geom_tab_keys(&ev, &app) == TRUE);
+    ASSERT_TRUE("delete asks confirm", g_show_confirm_calls == 1 && g_confirm_cb != NULL);
+    g_confirm_cb(&app);
+    ASSERT_TRUE("delete clears record", app.layouts.count == 1);
+    ASSERT_TRUE("delete runs gc", g_matching_run_gc_calls == 1);
+    ASSERT_TRUE("selection clamped", app.selection.provider_index == 0);
+}
+
+static void test_toggles_persist(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    geom_on_query_changed(&app, "");
+    app.current_tab = geom_tab_mode();
+    app.selection.provider_index = 0;
+    GdkEventKey lock = {.keyval = GDK_KEY_l, .state = GDK_CONTROL_MASK};
+    GdkEventKey dis = {.keyval = GDK_KEY_t, .state = GDK_CONTROL_MASK};
+    ASSERT_TRUE("Ctrl+L handled", handle_geom_tab_keys(&lock, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+L flips restore_desktop", app.layouts.records[0].restore_desktop == false);
+    ASSERT_TRUE("Ctrl+T handled", handle_geom_tab_keys(&dis, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+T flips disabled", app.layouts.records[0].disabled == true);
+}
+
+static void test_skip_missing_entry_and_empty_store(void) {
+    AppData app; reset_app(&app);
+    app.layouts.count = 1;
+    app.layouts.records[0].match_id = 999;
+    geom_on_query_changed(&app, "");
+    ASSERT_TRUE("missing match entry skipped", app.filtered_geom_count == 0);
+    ASSERT_TRUE("empty list row count zero", geom_row_count(&app) == 0);
+}
+
+static void test_apply_respects_flags(void) {
+    WindowGeometryRestoreTarget target = {.window = 0xBEEF, .x = 1, .y = 2, .width = 300, .height = 200, .desktop = 7, .restore_desktop = FALSE};
+    g_set_state_calls = g_move_calls = g_move_desktop_calls = g_switch_desktop_calls = g_flush_calls = 0;
+    ASSERT_TRUE("apply succeeds", apply_window_geometry_restore((Display *)0x1, &target) == TRUE);
+    ASSERT_TRUE("restore_desktop=false skips desktop move", g_move_desktop_calls == 0 && g_switch_desktop_calls == 0);
+    target.disabled = TRUE;
+    g_set_state_calls = g_move_calls = g_flush_calls = 0;
+    ASSERT_TRUE("disabled returns success", apply_window_geometry_restore((Display *)0x1, &target) == TRUE);
+    ASSERT_TRUE("disabled no-op", g_set_state_calls == 0 && g_move_calls == 0 && g_flush_calls == 0);
+}
+
+int main(void) {
+    printf("Geom provider tests\n");
+    printf("===================\n\n");
+    geom_provider_register();
+    test_filter_and_row_format();
+    test_delete_flow_and_selection_clamp();
+    test_toggles_persist();
+    test_skip_missing_entry_and_empty_store();
+    test_apply_respects_flags();
+    printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
+    return tests_passed == tests_run ? 0 : 1;
+}

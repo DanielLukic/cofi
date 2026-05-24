@@ -215,6 +215,9 @@ test_emoji_data: test/test_emoji_data.c src/emoji_data.o
 test_emoji_provider: test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_emoji_provider test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
+test_geom_provider: test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o
+	$(CC) $(CFLAGS) -o test/test_geom_provider test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o $(LDFLAGS)
+
 test_provider_selection: test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 

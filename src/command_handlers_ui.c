@@ -314,6 +314,7 @@ static void append_help_static_sections(GString *out, int width) {
     g_string_append(out, "\nPER-TAB KEYS\n\n");
     append_wrapped_line(out, "Harpoon", "Ctrl+A assign current window, Ctrl+E edit slot, Ctrl+D delete slot", width);
     append_wrapped_line(out, "Matching", "Ctrl+A assign name, Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete", width);
+    append_wrapped_line(out, "Layouts", "Ctrl+D/Delete delete, Ctrl+L lock workspace restore, Ctrl+T toggle enable", width);
     append_wrapped_line(out, "Rules", "Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay", width);
     append_wrapped_line(out, "Config", "Ctrl+E edit value, Ctrl+T toggle/cycle value", width);
     append_wrapped_line(out, "Hotkeys", "Ctrl+A add binding, Ctrl+E edit command, Ctrl+D remove binding", width);
