@@ -284,11 +284,9 @@ Slots auto-assign on every Alt+digit press — no manual step needed. Windows ar
 
 Also available for explicit control:
 
-1. **CLI flag** — `cofi --assign-slots`
-   - For use with external hotkeys (WM, sxhkd, etc.)
-   - Assigns slots on the current workspace and exits silently
-2. **Command mode** — `:as` (or `:assign-slots`)
-   - Also auto-enables per-workspace mode if not already set
+- **CLI flag** — `cofi --assign-slots`
+  - For use with external hotkeys (WM, sxhkd, etc.)
+  - Assigns slots on the current workspace and exits silently
 
 ### Digit Slot Mode (config)
 
@@ -403,7 +401,6 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 ### Slot Commands
 
-- `:as` (`:assign-slots`) — assign workspace window slots by screen position
 - `:js N` (`:jump-slot`) — jump to the Nth visible window on the current workspace by screen position (1–9)
 
 ### Help

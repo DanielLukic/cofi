@@ -11,7 +11,6 @@
 STUB_COMMAND_HANDLER(cmd_always_below)
 STUB_COMMAND_HANDLER(cmd_assign_name)
 STUB_COMMAND_HANDLER(cmd_rename_window)
-STUB_COMMAND_HANDLER(cmd_assign_slots)
 STUB_COMMAND_HANDLER(cmd_always_on_top)
 STUB_COMMAND_HANDLER(cmd_close_window)
 STUB_COMMAND_HANDLER(cmd_change_workspace)

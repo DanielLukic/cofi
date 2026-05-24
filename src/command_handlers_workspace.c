@@ -232,10 +232,3 @@ gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute_
     return move_collected_windows_to_target(app, args, current_workspace);
 }
 
-gboolean cmd_assign_slots(AppData *app, WindowInfo *window __attribute__((unused)),
-                          const char *args __attribute__((unused))) {
-    assign_workspace_slots(app);
-    hide_window(app);
-    log_info("Assigned workspace slots via command mode");
-    return TRUE;
-}

@@ -26,14 +26,6 @@ static const CommandSpec s_core_commands[] = {
         .keeps_open_on_hotkey_auto = 1
     },
     {
-        .primary = "as",
-        .aliases = {"assign-slots", NULL},
-        .owner_provider_id = COMMAND_OWNER_CORE,
-        .handler = cmd_assign_slots,
-        .description = "Assign workspace window slots by screen position (1-9)",
-        .help_format = "as, assign-slots"
-    },
-    {
         .primary = "aot",
         .aliases = {"at", "always-on-top", NULL},
         .compact_suffix = "+-",

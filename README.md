@@ -163,7 +163,6 @@ When `digit_slot_mode` is `"per-workspace"` in options.json:
 - Only visible windows are numbered (minimized, shaded, and occluded windows are excluded)
 - Numbered overlays flash briefly on each window after assignment
 - **Alt+a-z** - Still activates global harpoon letter slots as normal
-- **`:as`** - Manually reassign slots and auto-enable per-workspace mode
 
 Typical workflow: Alt+Tab to open cofi, then Alt+1/2/3 to jump directly to a window.
 
@@ -242,7 +241,6 @@ The Apps tab launches installed desktop applications from XDG desktop entries vi
 - `:set <key> <value>` - Set a config option at runtime
 - `:config` or `:cfg` - Switch to the Config tab
 - `:hotkeys` or `:hk` - Show/manage hotkey bindings
-- `:as` or `:assign-slots` - Assign workspace window slots by screen position
 
 **Mouse:**
 - `:mouse away` or `:ma` - Move mouse cursor away
