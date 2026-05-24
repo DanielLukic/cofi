@@ -798,7 +798,7 @@ static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(v
     match_entry_assign_custom_name(&mgr, &w, "restore");
     ASSERT_INT("layout record stored", TRUE,
                layout_store_set(&store, mgr.entries[0].match_id, 70, 80, 900, 700, 2,
-                                true, false, true));
+                                true, false, true, false, true));
 
     WindowGeometryRestoreTarget target = {0};
     ASSERT_INT("resolve succeeds for live bound layout entry", TRUE,
@@ -812,6 +812,8 @@ static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(v
     ASSERT_INT("resolve returns max vert", 1, target.maximized_vert);
     ASSERT_INT("resolve returns max horz", 0, target.maximized_horz);
     ASSERT_INT("resolve returns fullscreen", 1, target.fullscreen);
+    ASSERT_INT("resolve returns desktop lock", 0, target.restore_desktop);
+    ASSERT_INT("resolve returns disabled", 1, target.disabled);
 
     mgr.entries[0].assigned = 0;
     ASSERT_INT("resolve fails when entry is not live-bound", FALSE,

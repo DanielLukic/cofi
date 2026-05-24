@@ -15,6 +15,8 @@ typedef struct {
     bool maximized_vert;
     bool maximized_horz;
     bool fullscreen;
+    bool restore_desktop;
+    bool disabled;
 } LayoutRecord;
 
 typedef struct {
@@ -28,7 +30,8 @@ void layout_store_init_with_path(LayoutStore *store, const char *path);
 
 bool layout_store_set(LayoutStore *store, int match_id,
                       int x, int y, int width, int height, int desktop,
-                      bool maximized_vert, bool maximized_horz, bool fullscreen);
+                      bool maximized_vert, bool maximized_horz, bool fullscreen,
+                      bool restore_desktop, bool disabled);
 const LayoutRecord *layout_store_get(const LayoutStore *store, int match_id);
 bool layout_store_clear(LayoutStore *store, int match_id);
 

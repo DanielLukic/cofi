@@ -32,6 +32,8 @@ gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager
     out->maximized_vert = record->maximized_vert;
     out->maximized_horz = record->maximized_horz;
     out->fullscreen = record->fullscreen;
+    out->restore_desktop = record->restore_desktop;
+    out->disabled = record->disabled;
     return TRUE;
 }
 
@@ -39,6 +41,7 @@ gboolean apply_window_geometry_restore(Display *display,
                                        const WindowGeometryRestoreTarget *target) {
     if (!display || !target || target->window == 0) return FALSE;
     if (target->width <= 0 || target->height <= 0) return FALSE;
+    if (target->disabled) return TRUE;
 
     // Read current window state so we emit only the delta.
     GeometryState current = {0};
@@ -66,6 +69,9 @@ gboolean apply_window_geometry_restore(Display *display,
         .maximized_horz = (bool)target->maximized_horz,
         .fullscreen    = (bool)target->fullscreen,
     };
+    if (!target->restore_desktop) {
+        wanted.desktop = current.desktop;
+    }
 
     int active_desktop = get_current_desktop(display);
     GeometryRestorePlan plan = geometry_restore_plan(&current, &wanted, active_desktop);
@@ -152,7 +158,7 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     if (!layout_store_set(&app->layouts, match_id, x, y, width, height, desktop,
-                          maximized_vert, maximized_horz, fullscreen)) {
+                          maximized_vert, maximized_horz, fullscreen, TRUE, FALSE)) {
         log_warn("Failed to store layout for window 0x%lx (match_id=%d)",
                  window->id, match_id);
         return FALSE;
@@ -161,9 +167,9 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     save_match_entries(&app->matching);
     layout_store_save(&app->layouts);
 
-    log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d]",
+    log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d lock=%d disabled=%d]",
              window->id, match_id, x, y, width, height, desktop,
-             maximized_vert, maximized_horz, fullscreen);
+             maximized_vert, maximized_horz, fullscreen, 1, 0);
     return TRUE;
 }
 
@@ -189,10 +195,11 @@ gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *wind
         return FALSE;
     }
 
-    log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d]",
+    log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d lock=%d disabled=%d]",
              target.window, match_id, target.x, target.y,
              target.width, target.height, target.desktop,
-             target.maximized_vert, target.maximized_horz, target.fullscreen);
+             target.maximized_vert, target.maximized_horz, target.fullscreen,
+             target.restore_desktop, target.disabled);
     return TRUE;
 }
 

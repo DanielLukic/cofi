@@ -401,11 +401,11 @@ static void test_layout_command_behavior(void) {
 
     const CommandSpec *save_cmd = cofi_command_by_primary("save-layout");
     const CommandSpec *restore_cmd = cofi_command_by_primary("restore-layout");
-    const CommandSpec *clear_cmd = cofi_command_by_primary("clear-layout");
+    const CommandSpec *clear_cmd = cofi_command_by_primary("delete-layout");
 
     ASSERT_TRUE("save-layout command exists", save_cmd != NULL);
     ASSERT_TRUE("restore-layout command exists", restore_cmd != NULL);
-    ASSERT_TRUE("clear-layout command exists", clear_cmd != NULL);
+    ASSERT_TRUE("delete-layout command exists", clear_cmd != NULL);
     if (!save_cmd || !restore_cmd || !clear_cmd) return;
 
     g_save_layout_calls = 0;
@@ -423,10 +423,11 @@ static void test_layout_command_behavior(void) {
     ASSERT_TRUE("restore-layout calls helper once", g_restore_layout_calls == 1);
 
     g_clear_layout_calls = 0;
-    ASSERT_TRUE("clear-layout rejects missing window", clear_cmd->handler(&app, NULL, "") == FALSE);
-    ASSERT_TRUE("clear-layout missing window is no-op", g_clear_layout_calls == 0);
-    ASSERT_TRUE("clear-layout dispatches helper", clear_cmd->handler(&app, &window, "") == TRUE);
-    ASSERT_TRUE("clear-layout calls helper once", g_clear_layout_calls == 1);
+    ASSERT_TRUE("delete-layout rejects missing window", clear_cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("delete-layout missing window is no-op", g_clear_layout_calls == 0);
+    ASSERT_TRUE("delete-layout alias resolves", cofi_command_for_token("dl") == clear_cmd);
+    ASSERT_TRUE("delete-layout dispatches helper", clear_cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("delete-layout calls helper once", g_clear_layout_calls == 1);
 }
 
 static void test_workspace_handler_behavior(void) {

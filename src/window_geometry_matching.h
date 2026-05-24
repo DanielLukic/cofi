@@ -18,6 +18,8 @@ typedef struct {
     gboolean maximized_vert;
     gboolean maximized_horz;
     gboolean fullscreen;
+    gboolean restore_desktop;
+    gboolean disabled;
 } WindowGeometryRestoreTarget;
 
 gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager,

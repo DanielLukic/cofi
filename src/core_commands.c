@@ -119,12 +119,12 @@ static const CommandSpec s_core_commands[] = {
         .activates = 1
     },
     {
-        .primary = "clear-layout",
-        .aliases = {NULL},
+        .primary = "delete-layout",
+        .aliases = {"dl", NULL},
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_clear_layout,
         .description = "Forget the saved layout for the selected window",
-        .help_format = "clear-layout",
+        .help_format = "delete-layout, dl",
         .activates = 1
     },
     {

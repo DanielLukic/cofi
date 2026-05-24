@@ -114,7 +114,7 @@ static void test_activates_field(void) {
     ASSERT_ACTIVATES("mouse",   0);   // mouse: moves cursor
     ASSERT_ACTIVATES("save-layout", 1);    // save-layout: captures current placement
     ASSERT_ACTIVATES("restore-layout", 1); // restore-layout: reapplies placement
-    ASSERT_ACTIVATES("clear-layout", 1);   // clear-layout: forgets saved placement
+    ASSERT_ACTIVATES("delete-layout", 1);   // delete-layout: forgets saved placement
     ASSERT_ACTIVATES("rw",      0);   // rename-workspace: shows overlay
     ASSERT_ACTIVATES("set",     0);   // set: changes config
     ASSERT_ACTIVATES("show",    0);   // show: switches view
@@ -135,7 +135,7 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("maw", 0);
     ASSERT_KEEP_OPEN("save-layout", 0);
     ASSERT_KEEP_OPEN("restore-layout", 0);
-    ASSERT_KEEP_OPEN("clear-layout", 0);
+    ASSERT_KEEP_OPEN("delete-layout", 0);
     ASSERT_KEEP_OPEN("tw", 0);
     ASSERT_KEEP_OPEN("mw", 0);
 }

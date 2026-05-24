@@ -344,7 +344,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 - `:cl` (`:close-window`, `:c`) — close selected window
 - `:save-layout` (`:sl`) — save the selected window's position, size and workspace
 - `:restore-layout` (`:rl`) — restore the saved position, size and workspace
-- `:clear-layout` — forget the saved layout for the selected window
+- `:delete-layout` (`:dl`) — forget the saved layout for the selected window
 - `:sw` (`:swap-windows`) — swap two windows (positions and sizes)
 - `:maw [N|dir]` (`:move-all-to-workspace`) — move all windows from current workspace to target
 - `:mw` (`:max`, `:maximize-window`) — toggle maximize selected window

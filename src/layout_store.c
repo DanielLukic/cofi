@@ -57,7 +57,8 @@ static int layout_store_find_index(const LayoutStore *store, int match_id) {
 
 bool layout_store_set(LayoutStore *store, int match_id,
                       int x, int y, int width, int height, int desktop,
-                      bool maximized_vert, bool maximized_horz, bool fullscreen) {
+                      bool maximized_vert, bool maximized_horz, bool fullscreen,
+                      bool restore_desktop, bool disabled) {
     if (!store || match_id <= 0 || width <= 0 || height <= 0) {
         return false;
     }
@@ -81,6 +82,8 @@ bool layout_store_set(LayoutStore *store, int match_id,
     store->records[idx].maximized_vert = maximized_vert;
     store->records[idx].maximized_horz = maximized_horz;
     store->records[idx].fullscreen = fullscreen;
+    store->records[idx].restore_desktop = restore_desktop;
+    store->records[idx].disabled = disabled;
     return true;
 }
 
@@ -138,6 +141,10 @@ bool layout_store_save(const LayoutStore *store) {
         json_builder_add_boolean_value(builder, record->maximized_horz);
         json_builder_set_member_name(builder, "fullscreen");
         json_builder_add_boolean_value(builder, record->fullscreen);
+        json_builder_set_member_name(builder, "restore_desktop");
+        json_builder_add_boolean_value(builder, record->restore_desktop);
+        json_builder_set_member_name(builder, "disabled");
+        json_builder_add_boolean_value(builder, record->disabled);
         json_builder_end_object(builder);
     }
     json_builder_end_array(builder);
@@ -200,7 +207,9 @@ bool layout_store_load(LayoutStore *store) {
                          cofi_json_obj_int_or(layout, "desktop", 0, NULL),
                          cofi_json_obj_bool_or(layout, "maximized_vert", FALSE, NULL),
                          cofi_json_obj_bool_or(layout, "maximized_horz", FALSE, NULL),
-                         cofi_json_obj_bool_or(layout, "fullscreen", FALSE, NULL));
+                         cofi_json_obj_bool_or(layout, "fullscreen", FALSE, NULL),
+                         cofi_json_obj_bool_or(layout, "restore_desktop", TRUE, NULL),
+                         cofi_json_obj_bool_or(layout, "disabled", FALSE, NULL));
     }
 
     g_object_unref(parser);
