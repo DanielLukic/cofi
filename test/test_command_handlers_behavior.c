@@ -45,6 +45,7 @@ static Window g_last_activate_window = 0;
 static int g_save_layout_calls = 0;
 static int g_restore_layout_calls = 0;
 static int g_clear_layout_calls = 0;
+static int g_save_match_entries_calls = 0;
 
 // --- shared stubs for handler dependencies ---
 void xmove_resize_frame_aware(Display *display, Window window,
@@ -284,6 +285,10 @@ gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window
     g_clear_layout_calls++;
     return TRUE;
 }
+void save_match_entries(const MatchEntryManager *manager) {
+    (void)manager;
+    g_save_match_entries_calls++;
+}
 
 void save_config(const CofiConfig *config) { (void)config; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
@@ -335,6 +340,36 @@ static void test_window_handler_behavior(void) {
     gboolean open_overlay_result = cmd->handler(&app, &window, "");
     ASSERT_TRUE("an returns FALSE when opening overlay", open_overlay_result == FALSE);
     ASSERT_TRUE("an opens name assign overlay", show_name_assign_overlay_calls == 1);
+
+    memset(&window, 0, sizeof(window));
+    window.id = 0xCAFE;
+    g_strlcpy(window.title, "Terminal", sizeof(window.title));
+    g_strlcpy(window.class_name, "Alacritty", sizeof(window.class_name));
+    g_strlcpy(window.instance, "term", sizeof(window.instance));
+
+    show_name_assign_overlay_calls = 0;
+    hide_window_calls = 0;
+    g_save_match_entries_calls = 0;
+    gboolean inline_result = cmd->handler(&app, &window, "mywin");
+    int inline_idx = match_entry_find_index_by_window(&app.matching, window.id);
+
+    ASSERT_TRUE("an inline returns TRUE", inline_result == TRUE);
+    ASSERT_TRUE("an inline persists entries", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("an inline hides window", hide_window_calls == 1);
+    ASSERT_TRUE("an inline does not open overlay", show_name_assign_overlay_calls == 0);
+    ASSERT_TRUE("an inline creates/updates match entry", inline_idx >= 0);
+    ASSERT_TRUE("an inline sets custom name",
+                inline_idx >= 0 && strcmp(app.matching.entries[inline_idx].custom_name, "mywin") == 0);
+
+    show_name_assign_overlay_calls = 0;
+    hide_window_calls = 0;
+    g_save_match_entries_calls = 0;
+    gboolean whitespace_result = cmd->handler(&app, &window, "   ");
+
+    ASSERT_TRUE("an whitespace returns FALSE (overlay path)", whitespace_result == FALSE);
+    ASSERT_TRUE("an whitespace opens overlay", show_name_assign_overlay_calls == 1);
+    ASSERT_TRUE("an whitespace does not persist entries", g_save_match_entries_calls == 0);
+    ASSERT_TRUE("an whitespace does not hide window", hide_window_calls == 0);
 }
 
 static void test_window_state_handler(const char *cmd_name, const char *atom_name) {

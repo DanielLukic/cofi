@@ -3,6 +3,7 @@
 #include "app_data.h"
 #include "log.h"
 #include "match_entry.h"
+#include "match_entry_config.h"
 #include "monitor_move.h"
 #include "overlay_manager.h"
 #include "rules_config.h"
@@ -179,7 +180,7 @@ gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *arg
     return TRUE;
 }
 
-gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_error("No window selected for name assignment");
         return TRUE;
@@ -187,6 +188,34 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args __at
 
     if (app->current_tab != TAB_WINDOWS) {
         log_error("Name assignment only available from Windows tab");
+        return TRUE;
+    }
+
+    const char *label_start = args ? args : "";
+    while (*label_start == ' ' || *label_start == '\t' || *label_start == '\n' || *label_start == '\r') {
+        label_start++;
+    }
+
+    const char *label_end = label_start + strlen(label_start);
+    while (label_end > label_start &&
+           (label_end[-1] == ' ' || label_end[-1] == '\t' || label_end[-1] == '\n' || label_end[-1] == '\r')) {
+        label_end--;
+    }
+
+    size_t label_len = (size_t)(label_end - label_start);
+    if (label_len > 0) {
+        char inline_label[MAX_TITLE_LEN];
+        size_t copy_len = label_len;
+        if (copy_len >= sizeof(inline_label)) {
+            copy_len = sizeof(inline_label) - 1;
+        }
+
+        memcpy(inline_label, label_start, copy_len);
+        inline_label[copy_len] = '\0';
+        match_entry_assign_custom_name(&app->matching, window, inline_label);
+        save_match_entries(&app->matching);
+        hide_window(app);
+        log_info("CMD: Assigned inline name '%s' to window 0x%lx", inline_label, window->id);
         return TRUE;
     }
 
