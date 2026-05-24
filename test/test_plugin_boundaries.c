@@ -33,7 +33,7 @@ static void test_builtin_registration_shape(void) {
     reset_and_register_builtins();
 
     ASSERT_EQ("all builtin providers registered", cofi_provider_count(), 16);
-    ASSERT_EQ("core plus provider commands registered", cofi_command_count(), 43);
+    ASSERT_EQ("core plus provider commands registered", cofi_command_count(), 44);
 
     int providers_have_valid_shape = 1;
     for (int i = 0; i < cofi_provider_count(); i++) {

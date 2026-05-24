@@ -19,6 +19,7 @@ gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args)
 gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_swap_windows(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args);
+gboolean cmd_harpoon_set(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_rename_window(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_save_layout(AppData *app, WindowInfo *window, const char *args);
 gboolean cmd_restore_layout(AppData *app, WindowInfo *window, const char *args);

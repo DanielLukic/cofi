@@ -27,6 +27,7 @@ static void test_domain_handler_mappings(void) {
     const CommandSpec *save_layout = cofi_command_by_primary("save-layout");
     const CommandSpec *restore_layout = cofi_command_by_primary("restore-layout");
     const CommandSpec *clear_layout = cofi_command_by_primary("delete-layout");
+    const CommandSpec *harpoon_set = cofi_command_by_primary("hs");
     const CommandSpec *tw = cofi_command_by_primary("tw");
     const CommandSpec *show = cofi_command_by_primary("show");
     const CommandSpec *sw = cofi_command_by_primary("sw");
@@ -36,6 +37,7 @@ static void test_domain_handler_mappings(void) {
     ASSERT_TRUE("save-layout exists", save_layout != NULL);
     ASSERT_TRUE("restore-layout exists", restore_layout != NULL);
     ASSERT_TRUE("delete-layout exists", clear_layout != NULL);
+    ASSERT_TRUE("hs exists", harpoon_set != NULL);
     ASSERT_TRUE("show exists", show != NULL);
     ASSERT_TRUE("sw exists", sw != NULL);
 
@@ -43,6 +45,7 @@ static void test_domain_handler_mappings(void) {
     ASSERT_TRUE("save-layout mapped to window domain", save_layout && save_layout->handler == cmd_save_layout);
     ASSERT_TRUE("restore-layout mapped to window domain", restore_layout && restore_layout->handler == cmd_restore_layout);
     ASSERT_TRUE("delete-layout mapped to window domain", clear_layout && clear_layout->handler == cmd_clear_layout);
+    ASSERT_TRUE("hs mapped to window domain", harpoon_set && harpoon_set->handler == cmd_harpoon_set);
     ASSERT_TRUE("tw mapped to tiling domain", tw && tw->handler == cmd_tile_window);
     ASSERT_TRUE("show mapped to ui domain", show && show->handler == cmd_show);
     ASSERT_TRUE("sw mapped to window domain", sw && sw->handler == cmd_swap_windows);

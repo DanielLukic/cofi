@@ -46,6 +46,31 @@ static int get_harpoon_slot(GdkEventKey *event, gboolean is_assignment) {
     return -1;
 }
 
+gboolean harpoon_assign_or_toggle_window(AppData *app, WindowInfo *selected_window, int slot) {
+    if (!app || !selected_window || slot < 0 || slot >= MAX_HARPOON_SLOTS) {
+        return FALSE;
+    }
+
+    Window current_window = get_slot_window(&app->harpoon, slot);
+    if (current_window == selected_window->id) {
+        unassign_slot(&app->harpoon, slot);
+        matching_run_gc(app);
+        log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
+    } else {
+        int old_slot = get_window_slot(&app->harpoon, selected_window->id);
+        if (old_slot >= 0) {
+            unassign_slot(&app->harpoon, old_slot);
+        }
+        assign_window_to_slot(&app->harpoon, slot, selected_window);
+        matching_run_gc(app);
+        log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
+    }
+
+    save_match_entries(&app->matching);
+    save_harpoon_slots(&app->harpoon);
+    return TRUE;
+}
+
 gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
     if (!(event->state & GDK_CONTROL_MASK)) {
         return FALSE;
@@ -93,30 +118,11 @@ gboolean handle_harpoon_assignment(GdkEventKey *event, AppData *app) {
         return FALSE;
     }
 
-    Window current_window = get_slot_window(&app->harpoon, slot);
-    int gc_removed = 0;
-    gboolean matching_changed = FALSE;
-    if (current_window == selected_window->id) {
-        unassign_slot(&app->harpoon, slot);
-        gc_removed = matching_run_gc(app);
-        matching_changed = gc_removed > 0;
-        log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
-    } else {
-        int old_slot = get_window_slot(&app->harpoon, selected_window->id);
-        if (old_slot >= 0) {
-            unassign_slot(&app->harpoon, old_slot);
-        }
-        assign_window_to_slot(&app->harpoon, slot, selected_window);
-        gc_removed = matching_run_gc(app);
-        matching_changed = TRUE;
-        log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
+    if (!harpoon_assign_or_toggle_window(app, selected_window, slot)) {
+        return FALSE;
     }
 
     save_config(&app->config);
-    if (matching_changed) {
-        save_match_entries(&app->matching);
-    }
-    save_harpoon_slots(&app->harpoon);
     update_display(app);
     return TRUE;
 }

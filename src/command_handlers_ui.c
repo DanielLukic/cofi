@@ -333,6 +333,7 @@ static void append_grouped_commands_section(GString *out, int width) {
     static const char *const tiling_cmds[] = {"tw",NULL};
     static const char *const workspace_cmds[] = {"cw","jw","maw","rw",NULL};
     static const char *const slot_cmds[] = {"jump-slot",NULL};
+    static const char *const harpoon_cmds[] = {"hs",NULL};
     static const char *const window_props_cmds[] = {"ew","sb","mouse",NULL};
     static const char *const monitor_cmds[] = {"tm",NULL};
     static const char *const naming_cmds[] = {"an","rename",NULL};
@@ -347,6 +348,7 @@ static void append_grouped_commands_section(GString *out, int width) {
         {"Tiling", tiling_cmds},
         {"Workspace", workspace_cmds},
         {"Slots", slot_cmds},
+        {"Harpoon", harpoon_cmds},
         {"Window-Props", window_props_cmds},
         {"Monitor", monitor_cmds},
         {"Naming", naming_cmds},

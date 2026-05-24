@@ -65,6 +65,14 @@ static const CommandSpec s_core_commands[] = {
         .activates = 1
     },
     {
+        .primary = "hs",
+        .aliases = {"harpoon-set", NULL},
+        .owner_provider_id = COMMAND_OWNER_CORE,
+        .handler = cmd_harpoon_set,
+        .description = "Assign selected window to harpoon slot (0-9, a-z)",
+        .help_format = "hs <key>, harpoon-set <key>"
+    },
+    {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
         .owner_provider_id = COMMAND_OWNER_CORE,

@@ -46,6 +46,8 @@ static int g_save_layout_calls = 0;
 static int g_restore_layout_calls = 0;
 static int g_clear_layout_calls = 0;
 static int g_save_match_entries_calls = 0;
+static int g_save_harpoon_slots_calls = 0;
+static Window g_harpoon_slots[MAX_HARPOON_SLOTS] = {0};
 
 // --- shared stubs for handler dependencies ---
 void xmove_resize_frame_aware(Display *display, Window window,
@@ -289,6 +291,30 @@ void save_match_entries(const MatchEntryManager *manager) {
     (void)manager;
     g_save_match_entries_calls++;
 }
+void save_harpoon_slots(const HarpoonManager *manager) {
+    (void)manager;
+    g_save_harpoon_slots_calls++;
+}
+gboolean harpoon_assign_or_toggle_window(AppData *app, WindowInfo *selected_window, int slot) {
+    if (!app || !selected_window || slot < 0 || slot >= MAX_HARPOON_SLOTS) {
+        return FALSE;
+    }
+
+    if (g_harpoon_slots[slot] == selected_window->id) {
+        g_harpoon_slots[slot] = 0;
+    } else {
+        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+            if (g_harpoon_slots[i] == selected_window->id) {
+                g_harpoon_slots[i] = 0;
+            }
+        }
+        g_harpoon_slots[slot] = selected_window->id;
+    }
+
+    save_match_entries(&app->matching);
+    save_harpoon_slots(&app->harpoon);
+    return TRUE;
+}
 
 void save_config(const CofiConfig *config) { (void)config; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value,
@@ -370,6 +396,84 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an whitespace opens overlay", show_name_assign_overlay_calls == 1);
     ASSERT_TRUE("an whitespace does not persist entries", g_save_match_entries_calls == 0);
     ASSERT_TRUE("an whitespace does not hide window", hide_window_calls == 0);
+}
+
+static void test_harpoon_set_handler_behavior(void) {
+    AppData app;
+    WindowInfo window;
+    memset(&app, 0, sizeof(app));
+    memset(&window, 0, sizeof(window));
+    window.id = 0xBEEF;
+
+    const CommandSpec *cmd = cofi_command_by_primary("hs");
+    ASSERT_TRUE("hs command exists", cmd != NULL);
+    if (!cmd) return;
+    ASSERT_TRUE("hs alias resolves", cofi_command_for_token("harpoon-set") == cmd);
+
+    g_save_harpoon_slots_calls = 0;
+    g_save_match_entries_calls = 0;
+    hide_window_calls = 0;
+    memset(g_harpoon_slots, 0, sizeof(g_harpoon_slots));
+
+    app.current_tab = TEST_HOTKEYS_TAB;
+    ASSERT_TRUE("hs rejects outside windows tab", cmd->handler(&app, &window, "1") == TRUE);
+    ASSERT_TRUE("hs wrong-tab no mutation",
+                g_save_harpoon_slots_calls == 0 && g_save_match_entries_calls == 0 && hide_window_calls == 0);
+
+    app.current_tab = TAB_WINDOWS;
+    ASSERT_TRUE("hs rejects missing arg", cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("hs rejects whitespace arg", cmd->handler(&app, &window, "   ") == TRUE);
+    ASSERT_TRUE("hs rejects multi-char", cmd->handler(&app, &window, "12") == TRUE);
+    ASSERT_TRUE("hs invalid args no mutation",
+                g_save_harpoon_slots_calls == 0 && g_save_match_entries_calls == 0 && hide_window_calls == 0);
+
+    ASSERT_TRUE("hs accepts h key", cmd->handler(&app, &window, "h") == TRUE);
+    ASSERT_TRUE("hs h-key assigned to slot", g_harpoon_slots[17] == window.id);
+    ASSERT_TRUE("hs h-key persists match entries", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("hs h-key persists", g_save_harpoon_slots_calls == 1);
+    ASSERT_TRUE("hs h-key hides window", hide_window_calls == 1);
+
+    hide_window_calls = 0;
+    ASSERT_TRUE("hs assigns digit key", cmd->handler(&app, &window, "1") == TRUE);
+    ASSERT_TRUE("hs digit clears previous slot", g_harpoon_slots[17] == 0);
+    ASSERT_TRUE("hs digit assigned", g_harpoon_slots[1] == window.id);
+    ASSERT_TRUE("hs digit persists match entries second time", g_save_match_entries_calls == 2);
+    ASSERT_TRUE("hs digit persists second time", g_save_harpoon_slots_calls == 2);
+    ASSERT_TRUE("hs digit hides window", hide_window_calls == 1);
+
+    hide_window_calls = 0;
+    ASSERT_TRUE("hs assigns letter key", cmd->handler(&app, &window, "a") == TRUE);
+    ASSERT_TRUE("hs letter assigned", g_harpoon_slots[10] == window.id);
+    ASSERT_TRUE("hs letter clears previous digit slot", g_harpoon_slots[1] == 0);
+    ASSERT_TRUE("hs letter persists match entries third time", g_save_match_entries_calls == 3);
+    ASSERT_TRUE("hs letter persists third time", g_save_harpoon_slots_calls == 3);
+    ASSERT_TRUE("hs letter hides window", hide_window_calls == 1);
+
+    hide_window_calls = 0;
+    ASSERT_TRUE("hs assigns uppercase key", cmd->handler(&app, &window, "A") == TRUE);
+    ASSERT_TRUE("hs uppercase toggles slot off", g_harpoon_slots[10] == 0);
+    ASSERT_TRUE("hs uppercase persists match entries fourth time", g_save_match_entries_calls == 4);
+    ASSERT_TRUE("hs uppercase persists fourth time", g_save_harpoon_slots_calls == 4);
+    ASSERT_TRUE("hs uppercase hides window", hide_window_calls == 1);
+
+    hide_window_calls = 0;
+    g_save_match_entries_calls = 0;
+    g_save_harpoon_slots_calls = 0;
+    memset(g_harpoon_slots, 0, sizeof(g_harpoon_slots));
+    ASSERT_TRUE("hs reassign same window slot1", cmd->handler(&app, &window, "1") == TRUE);
+    ASSERT_TRUE("hs reassign same window slot2", cmd->handler(&app, &window, "2") == TRUE);
+    ASSERT_TRUE("hs reassign clears old slot", g_harpoon_slots[1] == 0);
+    ASSERT_TRUE("hs reassign stores new slot", g_harpoon_slots[2] == window.id);
+
+    hide_window_calls = 0;
+    g_save_match_entries_calls = 0;
+    g_save_harpoon_slots_calls = 0;
+    memset(g_harpoon_slots, 0, sizeof(g_harpoon_slots));
+    WindowInfo new_window = window;
+    new_window.id = 0xCAFE;
+    ASSERT_TRUE("hs persists matching for new window", cmd->handler(&app, &new_window, "3") == TRUE);
+    ASSERT_TRUE("hs new window save_match_entries called", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("hs new window save_harpoon_slots called", g_save_harpoon_slots_calls == 1);
 }
 
 static void test_window_state_handler(const char *cmd_name, const char *atom_name) {
@@ -561,6 +665,7 @@ int main(void) {
 
     init_stub_providers();
     test_window_handler_behavior();
+    test_harpoon_set_handler_behavior();
     test_window_state_handlers_behavior();
     test_layout_command_behavior();
     test_workspace_handler_behavior();

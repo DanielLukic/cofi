@@ -1,12 +1,16 @@
 #include "command_handlers_window.h"
 
 #include "app_data.h"
+#include "harpoon.h"
+#include "harpoon_config.h"
+#include "key_handler_harpoon.h"
 #include "log.h"
 #include "match_entry.h"
 #include "match_entry_config.h"
 #include "monitor_move.h"
 #include "overlay_manager.h"
 #include "rules_config.h"
+#include "slot_store.h"
 #include "window_geometry_matching.h"
 #include "x11_utils.h"
 
@@ -222,6 +226,63 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args) {
     show_name_assign_overlay(app);
     log_info("CMD: Opening name assignment overlay for window 0x%lx", window->id);
     return FALSE;
+}
+
+static gboolean parse_slot_key_arg(const char *args, char *slot_key_out) {
+    if (!args || !slot_key_out) {
+        return FALSE;
+    }
+
+    while (*args == ' ' || *args == '\t' || *args == '\n' || *args == '\r') {
+        args++;
+    }
+
+    if (*args == '\0') {
+        return FALSE;
+    }
+
+    char slot_key = *args++;
+    while (*args == ' ' || *args == '\t' || *args == '\n' || *args == '\r') {
+        args++;
+    }
+
+    if (*args != '\0') {
+        return FALSE;
+    }
+
+    *slot_key_out = slot_key;
+    return TRUE;
+}
+
+gboolean cmd_harpoon_set(AppData *app, WindowInfo *window, const char *args) {
+    if (app->current_tab != TAB_WINDOWS) {
+        log_warn("Harpoon set only available from Windows tab");
+        return TRUE;
+    }
+    if (!window) {
+        log_warn("No window selected for harpoon set");
+        return TRUE;
+    }
+
+    char slot_key = '\0';
+    if (!parse_slot_key_arg(args, &slot_key)) {
+        log_warn("Invalid hs argument '%s' (expected one slot key)", args ? args : "");
+        return TRUE;
+    }
+
+    int slot = slot_index_from_key(slot_key);
+    if (slot < 0) {
+        log_warn("Invalid hs slot key '%c' (allowed: 0-9, a-z)", slot_key);
+        return TRUE;
+    }
+
+    if (!harpoon_assign_or_toggle_window(app, window, slot)) {
+        log_warn("Failed to assign selected window to slot %d", slot);
+        return TRUE;
+    }
+    hide_window(app);
+    log_info("CMD: Assigned window 0x%lx to harpoon slot key '%c'", window->id, slot_key);
+    return TRUE;
 }
 
 gboolean cmd_rename_window(AppData *app, WindowInfo *window, const char *args) {
