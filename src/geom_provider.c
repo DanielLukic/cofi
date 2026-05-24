@@ -117,6 +117,7 @@ static const char *geom_row_identity(AppData *app, int raw_idx) {
 static void geom_on_enter(AppData *app) {
     if (!app || !app->entry) return;
     gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "search saved layouts");
+    geom_on_query_changed(app, "");
 }
 
 void geom_on_query_changed(AppData *app, const char *query) {
