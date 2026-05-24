@@ -65,8 +65,10 @@ void filter_rules(AppData *app, const char *filter) {
 
     if (!filter || !*filter) {
         for (int i = 0; i < app->rules_config.count; i++) {
+            Rule *rule = &app->rules_config.rules[i];
+            if (rule->tag[0] != '\0' && !app->config.rules_show_all_tags) continue;
             app->filtered_rules[app->filtered_rules_count] =
-                app->rules_config.rules[i];
+                *rule;
             app->filtered_rule_indices[app->filtered_rules_count] = i;
             app->filtered_rules_count++;
         }
@@ -74,13 +76,15 @@ void filter_rules(AppData *app, const char *filter) {
     }
 
     for (int i = 0; i < app->rules_config.count; i++) {
+        Rule *rule = &app->rules_config.rules[i];
+        if (rule->tag[0] != '\0' && !app->config.rules_show_all_tags) continue;
         char searchable[600];
         snprintf(searchable, sizeof(searchable), "%s %s",
-                 app->rules_config.rules[i].pattern,
-                 app->rules_config.rules[i].commands);
+                 rule->pattern,
+                 rule->commands);
         if (has_match(filter, searchable)) {
             app->filtered_rules[app->filtered_rules_count] =
-                app->rules_config.rules[i];
+                *rule;
             app->filtered_rule_indices[app->filtered_rules_count] = i;
             app->filtered_rules_count++;
         }

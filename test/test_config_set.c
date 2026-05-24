@@ -89,6 +89,16 @@ static void test_boolean_fields(void) {
 
     ASSERT_ERR("set show_all_tabs garbage", c, "show_all_tabs", "garbage");
 
+    ASSERT_OK("set rules.show_all_tags true", c, "rules.show_all_tags", "true");
+    ASSERT_INT("rules_show_all_tags is 1", 1, c.rules_show_all_tags);
+
+    ASSERT_OK("set rules.show_all_tags false", c, "rules.show_all_tags", "false");
+    ASSERT_INT("rules_show_all_tags is 0", 0, c.rules_show_all_tags);
+
+    ASSERT_ERR("set rules.show_all_tags garbage", c, "rules.show_all_tags", "garbage");
+    ASSERT_OK("set legacy rules_show_all_tags still accepted", c, "rules_show_all_tags", "true");
+    ASSERT_INT("legacy rules_show_all_tags sets value", 1, c.rules_show_all_tags);
+
     ASSERT_ERR("set close_on_focus_loss garbage", c, "close_on_focus_loss", "garbage");
 }
 

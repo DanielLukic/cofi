@@ -166,6 +166,8 @@ static void save_options_section(JsonBuilder *builder, const CofiConfig *config)
     json_builder_add_string_value(builder, window_order_mode_to_string(config->window_order_mode));
     json_builder_set_member_name(builder, "show_all_tabs");
     json_builder_add_boolean_value(builder, config->show_all_tabs ? TRUE : FALSE);
+    json_builder_set_member_name(builder, "rules.show_all_tags");
+    json_builder_add_boolean_value(builder, config->rules_show_all_tags ? TRUE : FALSE);
     json_builder_set_member_name(builder, "disabled_providers");
     json_builder_add_string_value(builder, config->disabled_providers);
     json_builder_set_member_name(builder, "slot_occlusion_threshold");
@@ -194,6 +196,7 @@ void init_config_defaults(CofiConfig *config) {
     config->slot_sort_order = SLOT_SORT_ROW_FIRST;
     config->slot_occlusion_threshold_pct = 5;
     config->show_all_tabs = 0;
+    config->rules_show_all_tags = 0;
     strncpy(config->log_level, "debug", sizeof(config->log_level) - 1);
     config->window_order_mode = WINDOW_ORDER_COFI;
     config->disabled_providers[0] = '\0';
@@ -294,6 +297,13 @@ void load_config(CofiConfig *config) {
     config->show_all_tabs = cofi_json_obj_bool_or(
         options, "show_all_tabs", config->show_all_tabs, &present) ? 1 : 0;
     if (!present) log_trace("Config missing key: show_all_tabs; using default");
+    config->rules_show_all_tags = cofi_json_obj_bool_or(
+        options, "rules.show_all_tags", config->rules_show_all_tags, &present) ? 1 : 0;
+    if (!present) {
+        config->rules_show_all_tags = cofi_json_obj_bool_or(
+            options, "rules_show_all_tags", config->rules_show_all_tags, &present) ? 1 : 0;
+    }
+    if (!present) log_trace("Config missing key: rules.show_all_tags; using default");
 
     s = cofi_json_obj_str_or(options, "disabled_providers", "", &present);
     if (present) {
@@ -378,6 +388,13 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
         int v = parse_bool_value(value);
         if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
         config->show_all_tabs = v;
+        return 1;
+    }
+    if (strcmp(key, "rules.show_all_tags") == 0 ||
+        strcmp(key, "rules_show_all_tags") == 0) {
+        int v = parse_bool_value(value);
+        if (v < 0) { snprintf(err_buf, err_size, "Expected true/false/on/off/1/0"); return 0; }
+        config->rules_show_all_tags = v;
         return 1;
     }
     if (strcmp(key, "disabled_providers") == 0) {
@@ -573,6 +590,7 @@ void build_config_entries(const CofiConfig *config, ConfigEntry *entries, int *c
     ADD_ENUM("log_level", config->log_level);
     ADD_ENUM("window_order_mode", window_order_mode_to_string(config->window_order_mode));
     ADD_BOOL("show_all_tabs", config->show_all_tabs);
+    ADD_BOOL("rules.show_all_tags", config->rules_show_all_tags);
     strncpy(entries[*count].key, "disabled_providers", CONFIG_KEY_LEN - 1);
     const char *disabled_value = config->disabled_providers[0] ?
         config->disabled_providers : "(none)";

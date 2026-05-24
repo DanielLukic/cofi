@@ -119,6 +119,26 @@ static void test_replay_does_not_mutate_transition_rule_state(void) {
     ASSERT_TRUE("rule replay keeps existing rule_state entry unchanged", app.rule_state.windows[0].id == 0x1 && app.rule_state.windows[0].matched == true);
 }
 
+static void test_replay_all_includes_tagged_rules(void) {
+    AppData app;
+    memset(&app, 0, sizeof(app));
+
+    app.window_count = 1;
+    app.windows[0].id = 0x123;
+    strcpy(app.windows[0].title, "Terminal");
+
+    app.rules_config.count = 1;
+    strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
+    strcpy(app.rules_config.rules[0].commands, "sb on");
+    strcpy(app.rules_config.rules[0].tag, "geom");
+
+    reset_exec_log();
+    int replayed = replay_all_rules_against_open_windows(&app);
+
+    ASSERT_TRUE("replay all includes tagged rule", replayed == 1);
+    ASSERT_TRUE("tagged rule executes command", strcmp(g_exec_log[0], "sb on@0x123") == 0);
+}
+
 int main(void) {
     printf("Rules replay tests\n");
     printf("==================\n\n");
@@ -126,6 +146,7 @@ int main(void) {
     test_replay_selected_rule_matches_all_windows();
     test_replay_all_rules_uses_stored_order();
     test_replay_does_not_mutate_transition_rule_state();
+    test_replay_all_includes_tagged_rules();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

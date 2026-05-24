@@ -6,11 +6,13 @@
 #define MAX_RULES 64
 #define MAX_PATTERN_LEN 256
 #define MAX_COMMANDS_LEN 256
+#define MAX_RULE_TAG_LEN 64
 
 typedef struct {
     char pattern[MAX_PATTERN_LEN];    // wildcard pattern for window title
     char commands[MAX_COMMANDS_LEN];  // comma-separated cofi commands
     int run_at_start;                 // allow this rule to fire during startup scan
+    char tag[MAX_RULE_TAG_LEN];       // optional subsystem tag for UI filtering
 } Rule;
 
 typedef struct {

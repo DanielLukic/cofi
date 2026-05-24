@@ -35,6 +35,7 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     strncpy(r->commands, commands, MAX_COMMANDS_LEN - 1);
     r->commands[MAX_COMMANDS_LEN - 1] = '\0';
     r->run_at_start = 0;
+    r->tag[0] = '\0';
     config->count++;
     return 1;
 }
@@ -65,6 +66,10 @@ int save_rules_config(const RulesConfig *config) {
         json_builder_add_string_value(builder, config->rules[i].commands);
         json_builder_set_member_name(builder, "run_at_start");
         json_builder_add_boolean_value(builder, config->rules[i].run_at_start);
+        if (config->rules[i].tag[0] != '\0') {
+            json_builder_set_member_name(builder, "tag");
+            json_builder_add_string_value(builder, config->rules[i].tag);
+        }
         json_builder_end_object(builder);
     }
     json_builder_end_array(builder);
@@ -124,6 +129,9 @@ int load_rules_config(RulesConfig *config) {
         }
         config->rules[config->count - 1].run_at_start =
             cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
+        const char *tag = cofi_json_obj_str_or(rule, "tag", "", NULL);
+        g_strlcpy(config->rules[config->count - 1].tag, tag,
+                  sizeof(config->rules[config->count - 1].tag));
     }
 
     g_object_unref(parser);

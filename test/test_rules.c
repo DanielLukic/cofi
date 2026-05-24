@@ -103,6 +103,8 @@ static void test_save_load_roundtrip(void) {
     add_rule(&original, "Tsunami*Thunderbird*", "sb");
     add_rule(&original, "*quote\"slash\\<script>*", "rl,echo \"hi\"");
     original.rules[1].run_at_start = 1;
+    strncpy(original.rules[1].tag, "geom", sizeof(original.rules[1].tag) - 1);
+    original.rules[1].tag[sizeof(original.rules[1].tag) - 1] = '\0';
 
     ASSERT_INT("save", 1, save_rules_config(&original));
 
@@ -114,12 +116,14 @@ static void test_save_load_roundtrip(void) {
     ASSERT_STR("loaded pattern 1", "*Firefox*", loaded.rules[1].pattern);
     ASSERT_STR("loaded commands 1", "ew", loaded.rules[1].commands);
     ASSERT_TRUE("loaded run_at_start 1", loaded.rules[1].run_at_start);
+    ASSERT_STR("loaded tag 1", "geom", loaded.rules[1].tag);
     ASSERT_STR("loaded pattern 2", "Tsunami*Thunderbird*", loaded.rules[2].pattern);
     ASSERT_STR("loaded commands 2", "sb", loaded.rules[2].commands);
     ASSERT_STR("loaded pattern 3", "*quote\"slash\\<script>*", loaded.rules[3].pattern);
     ASSERT_STR("loaded commands 3", "rl,echo \"hi\"", loaded.rules[3].commands);
     ASSERT_FALSE("loaded run_at_start defaults false when saved false", loaded.rules[0].run_at_start);
     ASSERT_FALSE("loaded run_at_start remains false on third rule", loaded.rules[2].run_at_start);
+    ASSERT_STR("loaded empty tag defaults to empty string", "", loaded.rules[0].tag);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -184,6 +188,7 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     ASSERT_INT("load legacy file", 1, load_rules_config(&config));
     ASSERT_INT("legacy count", 1, config.count);
     ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
+    ASSERT_STR("legacy tag defaults empty", "", config.rules[0].tag);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -219,6 +224,7 @@ static void test_load_rules_json_with_special_chars(void) {
             "      \"pattern\": \"*term?$HOME<script>\",\n"
             "      \"commands\": \"rl,ew+,ab+\",\n"
             "      \"run_at_start\": true,\n"
+            "      \"tag\": \"geom\",\n"
             "      \"future_field\": \"ignored\"\n"
             "    },\n"
             "    {\n"
@@ -238,9 +244,11 @@ static void test_load_rules_json_with_special_chars(void) {
     ASSERT_STR("special pattern 0", "*term?$HOME<script>", config.rules[0].pattern);
     ASSERT_STR("special commands 0", "rl,ew+,ab+", config.rules[0].commands);
     ASSERT_TRUE("special run_at_start 0", config.rules[0].run_at_start);
+    ASSERT_STR("special tag 0", "geom", config.rules[0].tag);
     ASSERT_STR("special pattern 1", "browser*&docs?", config.rules[1].pattern);
     ASSERT_STR("special commands 1", "sb off, aot on", config.rules[1].commands);
     ASSERT_FALSE("special run_at_start 1", config.rules[1].run_at_start);
+    ASSERT_STR("special tag 1 defaults empty", "", config.rules[1].tag);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);

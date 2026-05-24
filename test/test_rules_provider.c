@@ -164,6 +164,44 @@ static void test_on_enter_filters_all_rules(void) {
                 strcmp(app.filtered_rules[0].pattern, "*term*") == 0);
 }
 
+static void test_filter_hides_tagged_rules_by_default(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 0;
+
+    filter_rules(&app, "");
+
+    ASSERT_TRUE("default filter hides tagged rule", app.filtered_rules_count == 1);
+    ASSERT_TRUE("untagged rule remains visible",
+                strcmp(app.filtered_rules[0].pattern, "*term*") == 0);
+}
+
+static void test_filter_shows_tagged_rules_when_enabled(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 1;
+
+    filter_rules(&app, "");
+
+    ASSERT_TRUE("show_all_tags includes tagged rule", app.filtered_rules_count == 2);
+}
+
+static void test_search_still_hides_tagged_rules_when_toggle_off(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 0;
+
+    filter_rules(&app, "fire");
+
+    ASSERT_TRUE("search branch still hides tagged rule", app.filtered_rules_count == 0);
+}
+
 static void test_selected_rule_and_config_index(void) {
     AppData app;
     reset_state(&app);
@@ -222,6 +260,9 @@ int main(void) {
     test_empty_row();
     test_query_resets_selection();
     test_on_enter_filters_all_rules();
+    test_filter_hides_tagged_rules_by_default();
+    test_filter_shows_tagged_rules_when_enabled();
+    test_search_still_hides_tagged_rules_when_toggle_off();
     test_selected_rule_and_config_index();
     test_command_metadata();
     test_command_handler_surfaces_tab();

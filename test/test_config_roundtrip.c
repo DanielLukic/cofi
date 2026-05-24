@@ -98,6 +98,7 @@ static void test_defaults_roundtrip(void) {
     ASSERT_INT("defaults: slot_overlay_duration_ms", original.slot_overlay_duration_ms, loaded.slot_overlay_duration_ms);
     ASSERT_INT("defaults: ripple_enabled", original.ripple_enabled, loaded.ripple_enabled);
     ASSERT_INT("defaults: show_all_tabs", original.show_all_tabs, loaded.show_all_tabs);
+    ASSERT_INT("defaults: rules_show_all_tags", original.rules_show_all_tags, loaded.rules_show_all_tags);
     ASSERT_STR("defaults: disabled_providers", original.disabled_providers, loaded.disabled_providers);
 }
 
@@ -115,6 +116,7 @@ static void test_nondefault_roundtrip(void) {
     original.slot_overlay_duration_ms = 1500;
     original.ripple_enabled = 0;
     original.show_all_tabs = 1;
+    original.rules_show_all_tags = 1;
     strcpy(original.disabled_providers, "profiles,sinks");
     strcpy(original.projects_tmux_path, "/bin/sh");
 
@@ -129,8 +131,16 @@ static void test_nondefault_roundtrip(void) {
     ASSERT_INT("nondefault: slot_overlay_duration_ms", 1500, loaded.slot_overlay_duration_ms);
     ASSERT_INT("nondefault: ripple_enabled", 0, loaded.ripple_enabled);
     ASSERT_INT("nondefault: show_all_tabs", 1, loaded.show_all_tabs);
+    ASSERT_INT("nondefault: rules_show_all_tags", 1, loaded.rules_show_all_tags);
     ASSERT_STR("nondefault: disabled_providers", "profiles,sinks", loaded.disabled_providers);
     ASSERT_STR("nondefault: projects.tmux_path", "/bin/sh", loaded.projects_tmux_path);
+
+    char saved[4096];
+    ASSERT_INT("nondefault: read saved options", 1, read_options_file(saved, sizeof(saved)));
+    ASSERT_INT("nondefault: saves dotted rules.show_all_tags key",
+               1, strstr(saved, "\"rules.show_all_tags\"") != NULL);
+    ASSERT_INT("nondefault: does not save legacy rules_show_all_tags key",
+               1, strstr(saved, "\"rules_show_all_tags\"") == NULL);
 }
 
 // Test 3: all alignment values round-trip
@@ -194,6 +204,7 @@ static void test_load_fixture_multiple_sections_and_enums(void) {
         "    \"log_level\": \"warn\",\n"
         "    \"window_order_mode\": \"native\",\n"
         "    \"show_all_tabs\": true,\n"
+        "    \"rules.show_all_tags\": true,\n"
         "    \"disabled_providers\": \"emoji,sinks\",\n"
         "    \"slot_occlusion_threshold\": 0.05,\n"
         "    \"projects.tmux_path\": \"/usr/bin/tmux\",\n"
@@ -214,9 +225,23 @@ static void test_load_fixture_multiple_sections_and_enums(void) {
     ASSERT_STR("fixture: log_level", "warn", loaded.log_level);
     ASSERT_INT("fixture: window_order_mode", WINDOW_ORDER_NATIVE, loaded.window_order_mode);
     ASSERT_INT("fixture: show_all_tabs", 1, loaded.show_all_tabs);
+    ASSERT_INT("fixture: rules_show_all_tags", 1, loaded.rules_show_all_tags);
     ASSERT_STR("fixture: disabled_providers", "emoji,sinks", loaded.disabled_providers);
     ASSERT_INT("fixture: legacy float threshold 0.05 => 5", 5, loaded.slot_occlusion_threshold_pct);
     ASSERT_STR("fixture: registered entry", "/usr/bin/tmux", loaded.projects_tmux_path);
+}
+
+static void test_load_legacy_rules_show_all_tags_key(void) {
+    CofiConfig loaded;
+    write_options_fixture(
+        "{\n"
+        "  \"options\": {\n"
+        "    \"rules_show_all_tags\": true\n"
+        "  }\n"
+        "}\n");
+
+    load_config(&loaded);
+    ASSERT_INT("legacy rules_show_all_tags key loads", 1, loaded.rules_show_all_tags);
 }
 
 static void test_missing_optional_key_keeps_default(void) {
@@ -330,6 +355,7 @@ int main(void) {
     test_all_alignments();
     test_all_digit_modes();
     test_load_fixture_multiple_sections_and_enums();
+    test_load_legacy_rules_show_all_tags_key();
     test_missing_optional_key_keeps_default();
     test_corrupt_json_loads_defaults_without_autosave();
     test_legacy_threshold_roundtrip_rewrites_as_int();

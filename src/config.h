@@ -87,6 +87,7 @@ struct CofiConfig {
     char log_level[16];            // Log level: trace, debug, info, warn, error, fatal
     WindowOrderMode window_order_mode; // How to order windows in the list
     int show_all_tabs;                  // Show/cycle all tabs instead of only pinned/surfaced tabs
+    int rules_show_all_tags;            // Show tagged rules in Rules tab list
     int slot_occlusion_threshold_pct;   // Min visible percent for workspace slots (1-100, default 5)
     char disabled_providers[CONFIG_DISABLED_PROVIDERS_LEN]; // Comma-separated provider ids
     char projects_tmux_path[CONFIG_TOOL_PATH_LEN];
