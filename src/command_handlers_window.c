@@ -9,7 +9,6 @@
 #include "match_entry_config.h"
 #include "monitor_move.h"
 #include "overlay_manager.h"
-#include "rules_config.h"
 #include "slot_store.h"
 #include "window_geometry_matching.h"
 #include "x11_utils.h"
@@ -314,19 +313,7 @@ gboolean cmd_save_layout(AppData *app, WindowInfo *window, const char *args __at
         return FALSE;
     }
 
-    if (!save_window_geometry_for_window(app, window))
-        return FALSE;
-
-    int idx = match_entry_find_index_by_window(&app->matching, window->id);
-    if (idx >= 0 && rules_needs_restore_rule(&app->rules_config,
-                                             app->matching.entries[idx].original_title)) {
-        const char *pattern = app->matching.entries[idx].original_title;
-        add_rule(&app->rules_config, pattern, "rl");
-        save_rules_config(&app->rules_config);
-        log_info("Auto-created restore rule: \"%s\" → rl", pattern);
-    }
-
-    return TRUE;
+    return save_window_geometry_for_window(app, window);
 }
 
 gboolean cmd_restore_layout(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {

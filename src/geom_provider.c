@@ -4,6 +4,7 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "display.h"
+#include "geom_rule_sync.h"
 #include "log.h"
 #include "match.h"
 #include "matching_gc.h"
@@ -153,11 +154,22 @@ static LayoutRecord *geom_selected_record(AppData *app) {
 
 static void geom_delete_confirmed(AppData *app) {
     int match_id = s_pending_delete_match_id;
+    char pattern[MAX_TITLE_LEN] = {0};
     s_pending_delete_match_id = 0;
     if (!app || match_id <= 0) return;
 
+    int idx = match_entry_find_index_by_match_id(&app->matching, match_id);
+    if (idx >= 0) {
+        g_strlcpy(pattern, app->matching.entries[idx].original_title, sizeof(pattern));
+    }
     if (!layout_store_clear(&app->layouts, match_id)) return;
-    layout_store_save(&app->layouts);
+    if (!layout_store_save(&app->layouts)) {
+        log_warn("geom: layout save failed after delete; skipping rule sync");
+        return;
+    }
+    if (pattern[0] != '\0') {
+        geom_rule_sync_for_pattern(app, pattern);
+    }
     matching_run_gc(app);
     const char *query = "";
     if (app->entry) {
@@ -194,8 +206,19 @@ static gboolean geom_toggle_restore_desktop(AppData *app) {
 static gboolean geom_toggle_disabled(AppData *app) {
     LayoutRecord *record = geom_selected_record(app);
     if (!record) return FALSE;
+    int idx = match_entry_find_index_by_match_id(&app->matching, record->match_id);
+    char pattern[MAX_TITLE_LEN] = {0};
+    if (idx >= 0) {
+        g_strlcpy(pattern, app->matching.entries[idx].original_title, sizeof(pattern));
+    }
     record->disabled = !record->disabled;
-    layout_store_save(&app->layouts);
+    if (!layout_store_save(&app->layouts)) {
+        log_warn("geom: layout save failed after toggle; skipping rule sync");
+        return FALSE;
+    }
+    if (pattern[0] != '\0') {
+        geom_rule_sync_for_pattern(app, pattern);
+    }
     update_display(app);
     return TRUE;
 }

@@ -139,13 +139,35 @@ int load_rules_config(RulesConfig *config) {
     return 1;
 }
 
-static bool commands_contain_rl(const char *commands) {
+bool rule_commands_contain_segment(const char *commands, const char *segment) {
+    if (!commands || !segment || segment[0] == '\0') {
+        return false;
+    }
+
     const char *p = commands;
-    while (*p) {
-        while (*p == ' ' || *p == ',') p++;
-        if (p[0] == 'r' && p[1] == 'l' && (p[2] == '\0' || p[2] == ','))
+    while (*p != '\0') {
+        while (*p == ',' || *p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+        }
+        if (*p == '\0') {
+            break;
+        }
+
+        const char *end = p;
+        while (*end != '\0' && *end != ',') {
+            end++;
+        }
+
+        while (end > p && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) {
+            end--;
+        }
+
+        size_t len = (size_t)(end - p);
+        if (len > 0 && strlen(segment) == len && strncmp(p, segment, len) == 0) {
             return true;
-        while (*p && *p != ',') p++;
+        }
+
+        p = (*end == ',') ? end + 1 : end;
     }
     return false;
 }
@@ -153,7 +175,7 @@ static bool commands_contain_rl(const char *commands) {
 bool rules_needs_restore_rule(const RulesConfig *config, const char *window_title) {
     if (!config || !window_title) return false;
     for (int i = 0; i < config->count; i++) {
-        if (commands_contain_rl(config->rules[i].commands) &&
+        if (rule_commands_contain_segment(config->rules[i].commands, "rl") &&
             wildcard_match(config->rules[i].pattern, window_title))
             return false;
     }

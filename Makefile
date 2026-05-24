@@ -218,6 +218,9 @@ test_emoji_provider: test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o 
 test_geom_provider: test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_geom_provider test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o $(LDFLAGS)
 
+test_geom_rule_sync: test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_geom_rule_sync test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
+
 test_provider_selection: test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
 
@@ -478,8 +481,8 @@ test_window_matcher: test/test_window_matcher.c src/window_matcher.o src/log.o
 test_harpoon_integration: test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
 	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c src/harpoon.o src/harpoon_config.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
-test_matching_gc: test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
+test_matching_gc: test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geom_rule_sync.o src/rules_config.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c src/harpoon.o src/layout_store.o src/matching_gc.o src/match_entry.o src/match_entry_config.o src/slot_store.o src/window_geometry_matching.o src/geom_rule_sync.o src/rules_config.o src/geometry_planner.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 test_event_sequence: test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
 	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c src/harpoon.o src/match_entry.o src/slot_store.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)

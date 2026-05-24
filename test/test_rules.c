@@ -679,6 +679,18 @@ static void test_needs_restore_rule_non_matching_rl_needs_rule(void) {
     ASSERT_TRUE("rl rule for different pattern needs new rule", rules_needs_restore_rule(&config, "My App"));
 }
 
+static void test_rule_commands_contain_segment_rl_variants(void) {
+    ASSERT_TRUE("rl matches exact", rule_commands_contain_segment("rl", "rl"));
+    ASSERT_TRUE("rl matches head", rule_commands_contain_segment("rl,foo", "rl"));
+    ASSERT_TRUE("rl matches tail", rule_commands_contain_segment("foo,rl", "rl"));
+    ASSERT_TRUE("rl matches with spacing", rule_commands_contain_segment("foo, rl", "rl"));
+    ASSERT_TRUE("rl matches trimmed single", rule_commands_contain_segment(" rl ", "rl"));
+
+    ASSERT_FALSE("does not match url", rule_commands_contain_segment("url", "rl"));
+    ASSERT_FALSE("does not match rlx", rule_commands_contain_segment("rlx", "rl"));
+    ASSERT_FALSE("does not match foorl", rule_commands_contain_segment("foorl", "rl"));
+}
+
 int main(void) {
     printf("Rules tests\n");
     printf("===========\n\n");
@@ -721,6 +733,7 @@ int main(void) {
     test_needs_restore_rule_non_rl_commands_needs_rule();
     test_needs_restore_rule_glob_covers_exact_title();
     test_needs_restore_rule_non_matching_rl_needs_rule();
+    test_rule_commands_contain_segment_rl_variants();
 
     // Circuit breaker tests
     printf("\n--- Circuit breaker ---\n");

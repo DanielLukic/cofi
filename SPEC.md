@@ -323,6 +323,8 @@ Title-pattern automation rules triggered via `:rules` or `:rl`.
 
 Saving or editing a rule does not immediately replay it; changes apply only to subsequent window transitions. Use `Ctrl+X` / `Ctrl+Shift+X` for one-shot replay.
 
+Layout-rule migration note (TFD-784 PR2): tag only the restore rules you want geom to manage with `"tag": "geom"` in `~/.config/cofi/rules.json`. Hand-authored/composite user rules with custom commands should remain untagged unless you specifically want them hidden from `:rules` and synced with layout enable/disable state.
+
 ## Command Mode
 
 Vim-style command entry triggered by typing `:` in the search field.

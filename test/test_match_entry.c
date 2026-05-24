@@ -57,6 +57,11 @@ void xmove_resize_frame_aware(Display *display, Window window,
     (void)display; (void)window; (void)frame_x; (void)frame_y; (void)width; (void)height;
 }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
+int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
+    (void)app;
+    (void)pattern;
+    return 1;
+}
 
 static int tests_passed = 0;
 static int tests_failed = 0;

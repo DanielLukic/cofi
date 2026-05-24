@@ -1,6 +1,7 @@
 #include "window_geometry_matching.h"
 
 #include "geometry_planner.h"
+#include "geom_rule_sync.h"
 #include "layout_store.h"
 #include "log.h"
 #include "matching_gc.h"
@@ -165,7 +166,15 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     save_match_entries(&app->matching);
-    layout_store_save(&app->layouts);
+    if (!layout_store_save(&app->layouts)) {
+        log_warn("Failed to persist layout for window 0x%lx (match_id=%d); skipping rule sync",
+                 window->id, match_id);
+        return FALSE;
+    }
+    int entry_idx = match_entry_find_index_by_match_id(&app->matching, match_id);
+    if (entry_idx >= 0) {
+        geom_rule_sync_for_pattern(app, app->matching.entries[entry_idx].original_title);
+    }
 
     log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d lock=%d disabled=%d]",
              window->id, match_id, x, y, width, height, desktop,

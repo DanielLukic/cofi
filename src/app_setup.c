@@ -23,6 +23,7 @@
 #include "display.h"
 #include "dynamic_display.h"
 #include "gtk_window.h"
+#include "geom_rule_sync.h"
 #include "harpoon_config.h"
 #include "history.h"
 #include "hotkeys.h"
@@ -354,6 +355,7 @@ int run_cofi(int argc, char *argv[]) {
     }
     load_harpoon_slots(&app.harpoon);
     layout_store_load(&app.layouts);
+    geom_rule_sync_all_layout_patterns(&app);
 
     if (!log_level_from_cli && app.config.log_level[0]) {
         int level = parse_log_level(app.config.log_level);

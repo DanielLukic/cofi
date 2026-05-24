@@ -25,6 +25,7 @@ int save_rules_config(const RulesConfig *config);
 int load_rules_config(RulesConfig *config);
 int add_rule(RulesConfig *config, const char *pattern, const char *commands);
 int remove_rule(RulesConfig *config, int index);
+bool rule_commands_contain_segment(const char *commands, const char *segment);
 bool rules_needs_restore_rule(const RulesConfig *config, const char *window_title);
 
 #endif // RULES_CONFIG_H
