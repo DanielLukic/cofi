@@ -5,6 +5,22 @@
 #include "window_matcher.h"
 #include "utils.h"
 
+static void escape_title_wildcards(char *dst, const char *src, size_t dst_size) {
+    // On capture, replace literal '*' in window titles with '.' so captured
+    // patterns do not broaden into wildcard '*' matches. User-edited patterns
+    // are saved raw (no inverse conversion).
+    if (!dst || dst_size == 0) return;
+    dst[0] = '\0';
+    if (!src) return;
+
+    size_t i = 0;
+    while (src[i] != '\0' && i + 1 < dst_size) {
+        dst[i] = (src[i] == '*') ? '.' : src[i];
+        i++;
+    }
+    dst[i] = '\0';
+}
+
 static int allocate_match_id(MatchEntryManager *manager) {
     if (!manager) return -1;
     if (manager->next_match_id <= 0) {
@@ -38,45 +54,40 @@ void match_entry_manager_init(MatchEntryManager *manager) {
         manager->entries[i].assigned = 0;
         manager->entries[i].match_id = 0;
         manager->entries[i].bound_x11_id = 0;
-        manager->entries[i].custom_name[0] = '\0';
-        manager->entries[i].original_title[0] = '\0';
         manager->entries[i].class_name[0] = '\0';
         manager->entries[i].instance[0] = '\0';
         manager->entries[i].type[0] = '\0';
-        manager->entries[i].match_mode = TITLE_MATCH_MODE_EXACT;
+        manager->entries[i].custom_name[0] = '\0';
+        manager->entries[i].original_title[0] = '\0';
     }
 }
 
 void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
     if (!manager || !window || !custom_name || strlen(custom_name) == 0) return;
-    
-    // Check if window already has a name
-    int existing_idx = match_entry_find_index_by_window(manager, window->id);
-    
-    if (existing_idx >= 0) {
-        // Update existing name
-        safe_string_copy(manager->entries[existing_idx].custom_name, custom_name, MAX_TITLE_LEN);
-        log_info("Updated custom name for window 0x%lx to '%s'", window->id, custom_name);
-    } else {
-        // Add new named window
-        if (manager->count >= MAX_WINDOWS) {
-            log_error("Cannot add more named windows, limit reached");
-            return;
-        }
-        
-        MatchEntry *entry = &manager->entries[manager->count];
-        entry->match_id = allocate_match_id(manager);
-        entry->bound_x11_id = window->id;
+
+    for (int i = 0; i < manager->count; i++) {
+        MatchEntry *entry = &manager->entries[i];
+        if (entry->custom_name[0] == '\0') continue;
+        if (!match_entry_matches_window(entry, window)) continue;
         safe_string_copy(entry->custom_name, custom_name, MAX_TITLE_LEN);
-        safe_string_copy(entry->original_title, window->title, MAX_TITLE_LEN);
-        
-        safe_string_copy(entry->class_name, window->class_name, MAX_CLASS_LEN);
-        safe_string_copy(entry->instance, window->instance, MAX_CLASS_LEN);
-        safe_string_copy(entry->type, window->type, 16);
-        entry->match_mode = TITLE_MATCH_MODE_EXACT;
+        entry->bound_x11_id = window->id;
         entry->assigned = 1;
-        
-        manager->count++;
+        log_info("Updated custom name for window 0x%lx to '%s'", window->id, custom_name);
+        return;
+    }
+
+    int match_id = matching_create_entry(manager, window);
+    if (match_id <= 0) {
+        log_error("Cannot add more named windows, limit reached");
+        return;
+    }
+
+    int idx = match_entry_find_index_by_match_id(manager, match_id);
+    if (idx >= 0) {
+        MatchEntry *entry = &manager->entries[idx];
+        safe_string_copy(entry->custom_name, custom_name, MAX_TITLE_LEN);
+        entry->bound_x11_id = window->id;
+        entry->assigned = 1;
         log_info("Assigned custom name '%s' to window 0x%lx", custom_name, window->id);
     }
 }
@@ -96,16 +107,23 @@ int match_entry_is_bound_window(const MatchEntryManager *manager, Window id) {
     return match_entry_get_custom_name(manager, id) != NULL;
 }
 
-// Helper function to check if a window matches a named window entry
-static int window_matches_named_entry(const WindowInfo *window, const MatchEntry *entry) {
-    if (!window || !entry) return 0;
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
+    if (!entry || !window) return false;
+    if (!wildcard_match(entry->original_title, window->title)) {
+        return false;
+    }
 
-    return window_matches_identity_and_title_pattern(window,
-                                                     entry->class_name,
-                                                     entry->instance,
-                                                     entry->type,
-                                                     entry->original_title,
-                                                     entry->match_mode);
+    if (entry->class_name[0] != '\0' && strcmp(entry->class_name, window->class_name) != 0) {
+        return false;
+    }
+    if (entry->instance[0] != '\0' && strcmp(entry->instance, window->instance) != 0) {
+        return false;
+    }
+    if (entry->type[0] != '\0' && strcmp(entry->type, window->type) != 0) {
+        return false;
+    }
+
+    return true;
 }
 
 bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *windows, int window_count) {
@@ -125,23 +143,13 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
         Window old_id = entry->bound_x11_id;
         int has_valid_binding = 0;
 
-        // Validate persisted binding by class/instance/type only (title can drift).
+        // Persisted X11 ids are not trusted across restarts; always rebind by title pattern.
         if (entry->bound_x11_id != 0) {
             const WindowInfo *bound = find_live_window_by_id(windows, window_count, entry->bound_x11_id);
-            if (bound &&
-                strcmp(bound->class_name, entry->class_name) == 0 &&
-                strcmp(bound->instance, entry->instance) == 0 &&
-                strcmp(bound->type, entry->type) == 0) {
+            if (bound && match_entry_matches_window(entry, bound)) {
                 has_valid_binding = 1;
                 entry->assigned = 1;
-                log_trace("Named window binding 0x%lx validated by class/instance/type", entry->bound_x11_id);
-            } else if (bound) {
-                log_trace("Named window binding 0x%lx failed validation; clearing binding", entry->bound_x11_id);
-                entry->bound_x11_id = 0;
-                entry->assigned = 0;
-                config_changed = 1;
             } else {
-                log_trace("Named window binding 0x%lx is stale; clearing binding", entry->bound_x11_id);
                 entry->bound_x11_id = 0;
                 entry->assigned = 0;
                 config_changed = 1;
@@ -151,8 +159,8 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
         if (!has_valid_binding) {
             log_trace("Window 0x%lx with name '%s' is unbound or invalid, looking for replacement",
                       old_id, entry->custom_name);
-            log_trace("Looking for: class='%s', instance='%s', type='%s', title='%s'",
-                      entry->class_name, entry->instance, entry->type, entry->original_title);
+            log_trace("Looking for title pattern '%s'",
+                      entry->original_title);
 
             entry->assigned = 0;
             entry->bound_x11_id = 0;
@@ -163,10 +171,7 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
                     continue;
                 }
 
-                log_trace("Checking window %d: class='%s', instance='%s', type='%s', title='%s'",
-                          j, windows[j].class_name, windows[j].instance, windows[j].type, windows[j].title);
-
-                if (window_matches_named_entry(&windows[j], entry)) {
+                if (match_entry_matches_window(entry, &windows[j])) {
                     entry->bound_x11_id = windows[j].id;
                     entry->assigned = 1;
                     config_changed = 1;
@@ -238,6 +243,9 @@ void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
     manager->entries[manager->count - 1].assigned = 0;
     manager->entries[manager->count - 1].match_id = 0;
     manager->entries[manager->count - 1].bound_x11_id = 0;
+    manager->entries[manager->count - 1].class_name[0] = '\0';
+    manager->entries[manager->count - 1].instance[0] = '\0';
+    manager->entries[manager->count - 1].type[0] = '\0';
     
     manager->count--;
 }
@@ -288,46 +296,8 @@ int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, cons
     return -1;
 }
 
-int matching_capture_or_get(MatchEntryManager *manager,
-                            WindowInfo *windows,
-                            int window_count,
-                            const WindowInfo *w) {
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     if (!manager || !w) return -1;
-
-    // First pass: exact live-bound match to this window id.
-    for (int i = 0; i < manager->count; i++) {
-        MatchEntry *entry = &manager->entries[i];
-        if (entry->assigned && entry->bound_x11_id == w->id) {
-            return entry->match_id;
-        }
-    }
-
-    // Second pass: dedup by exact criteria, skipping stale/other-live-bound entries.
-    for (int i = 0; i < manager->count; i++) {
-        MatchEntry *entry = &manager->entries[i];
-        if (entry->assigned && entry->bound_x11_id != 0) {
-            const WindowInfo *bound = find_live_window_by_id(windows, window_count,
-                                                             entry->bound_x11_id);
-            if (!bound) {
-                // Stale binding: allow this entry to dedup by criteria for current capture.
-                entry->assigned = 0;
-                entry->bound_x11_id = 0;
-            }
-        }
-        if (entry->assigned && entry->bound_x11_id != 0) {
-            if (entry->bound_x11_id != w->id) continue; // currently bound to a different live window
-        }
-
-        if (entry->match_mode == TITLE_MATCH_MODE_EXACT &&
-            strcmp(entry->class_name, w->class_name) == 0 &&
-            strcmp(entry->instance, w->instance) == 0 &&
-            strcmp(entry->type, w->type) == 0 &&
-            strcmp(entry->original_title, w->title) == 0) {
-            entry->bound_x11_id = w->id;
-            entry->assigned = 1;
-            return entry->match_id;
-        }
-    }
 
     if (manager->count >= MAX_WINDOWS) {
         return -1;
@@ -337,11 +307,37 @@ int matching_capture_or_get(MatchEntryManager *manager,
     memset(entry, 0, sizeof(*entry));
     entry->match_id = allocate_match_id(manager);
     entry->bound_x11_id = w->id;
-    safe_string_copy(entry->original_title, w->title, MAX_TITLE_LEN);
     safe_string_copy(entry->class_name, w->class_name, MAX_CLASS_LEN);
     safe_string_copy(entry->instance, w->instance, MAX_CLASS_LEN);
     safe_string_copy(entry->type, w->type, sizeof(entry->type));
-    entry->match_mode = TITLE_MATCH_MODE_EXACT;
+    escape_title_wildcards(entry->original_title, w->title, MAX_TITLE_LEN);
     entry->assigned = 1;
+    return entry->match_id;
+}
+
+int matching_find_or_create_pattern_entry(MatchEntryManager *manager, const char *pattern) {
+    if (!manager || !pattern || pattern[0] == '\0') return -1;
+
+    for (int i = 0; i < manager->count; i++) {
+        MatchEntry *entry = &manager->entries[i];
+        if (entry->class_name[0] != '\0' || entry->instance[0] != '\0' || entry->type[0] != '\0') {
+            continue;
+        }
+        if (strcmp(entry->original_title, pattern) != 0) {
+            continue;
+        }
+        return entry->match_id;
+    }
+
+    if (manager->count >= MAX_WINDOWS) {
+        return -1;
+    }
+
+    MatchEntry *entry = &manager->entries[manager->count++];
+    memset(entry, 0, sizeof(*entry));
+    entry->match_id = allocate_match_id(manager);
+    entry->bound_x11_id = 0;
+    safe_string_copy(entry->original_title, pattern, MAX_TITLE_LEN);
+    entry->assigned = 0;
     return entry->match_id;
 }

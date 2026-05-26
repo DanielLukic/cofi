@@ -209,7 +209,7 @@ void profiles_provider_register(void) {
     s_profiles_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_profiles_provider.id = "profiles";
     s_profiles_provider.display_name = "PROFILES";
-    s_profiles_provider.shortcut_hint = "Actions: Enter=Open  Ctrl+key=Slot  Alt+key=Recall";
+    s_profiles_provider.shortcut_hint = "Shortcuts: Enter=Open  Ctrl+key=Assign slot  Alt+key=Recall slot";
     s_profiles_provider.required = 0;
     s_profiles_provider.hidden_by_default = 1;
     s_profiles_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

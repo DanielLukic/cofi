@@ -47,10 +47,7 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
     if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS) return;
     if (!manager->matching || !manager->windows || !manager->window_count) return;
 
-    int match_id = matching_capture_or_get(manager->matching,
-                                           manager->windows,
-                                           *manager->window_count,
-                                           window);
+    int match_id = matching_create_entry(manager->matching, window);
     if (match_id <= 0) {
         log_warn("Unable to capture matching entry for harpoon slot %d", slot);
         return;

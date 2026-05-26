@@ -228,13 +228,13 @@ test_command_dispatch: test/test_command_dispatch.c test/command_handler_stubs.c
 	$(CC) $(CFLAGS) -DCOMMAND_POLICY_ONLY -o test/test_command_dispatch test/test_command_dispatch.c test/command_handler_stubs.c src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o src/command_availability.o src/command_handlers.c $(LDFLAGS)
 
 # Build rules test
-test_rules: test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/cofi_json_io.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_rules test/test_rules.c src/rules_config.o src/rules.o src/window_matcher.o src/cofi_json_io.o src/log.o $(LDFLAGS)
+test_rules: test/test_rules.c src/rules_config.o src/rules.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_rules test/test_rules.c src/rules_config.o src/rules.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build rules replay test
 # (tests stateless replay executor over currently open windows)
-test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/window_matcher.o
-	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/window_matcher.o $(LDFLAGS)
+test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c src/utf8_columns.o
@@ -260,8 +260,8 @@ test_emoji_provider: test/test_emoji_provider.c src/emoji_data.o src/fzf_algo.o 
 test_geom_provider: test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_geom_provider test/test_geom_provider.c src/layout_store.o src/cofi_json_io.o $(LDFLAGS)
 
-test_geom_rule_sync: test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_geom_rule_sync test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
+test_geom_rule_sync: test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/match_entry_config.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_geom_rule_sync test/test_geom_rule_sync.c src/geom_rule_sync.o src/rules_config.o src/match_entry.o src/match_entry_config.o src/window_matcher.o src/cofi_json_io.o src/log.o src/utils.o $(LDFLAGS)
 
 test_provider_selection: test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o
 	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c src/emoji_data.o src/fzf_algo.o src/cofi_json_io.o $(LDFLAGS)
@@ -311,6 +311,10 @@ test_hotkey_rebind_flow: test/test_hotkey_rebind_flow.c src/overlay_hotkey_add.o
 test_overlay_rules: test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/overlay_confirm.o src/gtk_utils.o src/log.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o
 	$(CC) $(CFLAGS) -o test/test_overlay_rules test/test_overlay_rules.c test/command_handler_stubs.c src/overlay_rules.o src/overlay_confirm.o src/gtk_utils.o src/log.o src/command_parser.o src/core_commands.o src/command_registry.o src/cofi_tab_provider.o $(LDFLAGS)
 
+# Build shared pattern overlay tests
+test_overlay_pattern: test/test_overlay_pattern.c src/overlay_pattern.o src/overlay_manager.o src/gtk_utils.o src/log.o
+	$(CC) $(CFLAGS) -o test/test_overlay_pattern test/test_overlay_pattern.c src/overlay_pattern.o src/overlay_manager.o src/gtk_utils.o src/log.o $(LDFLAGS)
+
 # Build hotkey grab state tests
 test_hotkey_grab_state: test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/cofi_json_io.o src/tinyexpr.o
 	$(CC) $(CFLAGS) -o test/test_hotkey_grab_state test/test_hotkey_grab_state.c src/hotkey_grab_state.o src/app_init.o src/layout_store.o src/match_entry_config.o src/cofi_tab_provider.o src/calc.o src/cofi_json_io.o src/tinyexpr.o $(LDFLAGS)
@@ -339,8 +343,8 @@ test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs
 test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
 	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)

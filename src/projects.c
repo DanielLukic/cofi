@@ -753,11 +753,16 @@ ProjectFolder *projects_folder_at_visible(AppData *app, int visible_idx) {
 }
 
 const char *projects_get_shortcut_hint(AppData *app) {
-    /* Ctrl+T (terminal here) applies to folder rows only — show it only then. */
+    /* Ctrl+T (terminal here) applies to folder rows only. */
     if (projects_selected_folder(app)) {
-        return "Actions: Ctrl+S=Remote   Enter=Open   Ctrl+D=Delete   Ctrl+N=New   Ctrl+T=Terminal";
+        return "Shortcuts: Enter=Open  Ctrl+N=New  Ctrl+S=Remote  Ctrl+T=Terminal  Ctrl+D/Delete=Delete";
     }
-    return "Actions: Ctrl+S=Remote   Enter=Open   Ctrl+D=Delete   Ctrl+N=New";
+    /* Ctrl+R rename applies only to tmux session rows. */
+    ProjectSessionEntry *session = projects_selected_session(app);
+    if (session && session->backend == PROJECT_BACKEND_TMUX) {
+        return "Shortcuts: Enter=Open  Ctrl+N=New  Ctrl+S=Remote  Ctrl+R=Rename  Ctrl+D/Delete=Delete";
+    }
+    return "Shortcuts: Enter=Open  Ctrl+N=New  Ctrl+S=Remote  Ctrl+D/Delete=Delete";
 }
 
 const char *projects_slot_payload_for(AppData *app, int visible_idx) {

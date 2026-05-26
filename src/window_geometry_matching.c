@@ -150,8 +150,20 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
                                                "_NET_WM_STATE_MAXIMIZED_HORZ");
     gboolean fullscreen = get_window_state(app->display, window->id,
                                            "_NET_WM_STATE_FULLSCREEN");
-    int match_id = matching_capture_or_get(&app->matching, app->windows,
-                                           app->window_count, window);
+    int match_id = 0;
+    for (int i = 0; i < app->layouts.count; i++) {
+        int idx = match_entry_find_index_by_match_id(&app->matching, app->layouts.records[i].match_id);
+        if (idx < 0) continue;
+        if (!match_entry_matches_window(&app->matching.entries[idx], window)) continue;
+        match_id = app->layouts.records[i].match_id;
+        app->matching.entries[idx].bound_x11_id = window->id;
+        app->matching.entries[idx].assigned = 1;
+        break;
+    }
+
+    if (match_id <= 0) {
+        match_id = matching_create_entry(&app->matching, window);
+    }
     if (match_id <= 0) {
         log_warn("Failed to capture matching entry for geometry save on window 0x%lx",
                  window->id);

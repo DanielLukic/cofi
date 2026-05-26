@@ -33,8 +33,9 @@ static void clear_overlay_state(AppData *app, OverlayType type) {
         return;
     }
 
-    if (type == OVERLAY_HARPOON_EDIT) {
-        app->harpoon_edit.editing = FALSE;
+    if (type == OVERLAY_MATCH_PATTERN_EDIT) {
+        app->pattern_edit.target_match_id = 0;
+        app->pattern_edit.context_line[0] = '\0';
         return;
     }
 
@@ -127,8 +128,8 @@ void show_overlay(AppData *app, OverlayType type, gpointer data) {
                                          app->modal_background, FALSE);
 
     set_main_focusability(app, FALSE);
-    if (type == OVERLAY_HARPOON_EDIT || type == OVERLAY_WORKSPACE_RENAME) {
-        focus_harpoon_edit_entry_delayed(app);
+    if (type == OVERLAY_WORKSPACE_RENAME) {
+        focus_edit_entry_delayed(app);
         return;
     }
     if (overlay_should_focus_name_entry(type)) {

@@ -51,17 +51,32 @@ gboolean harpoon_assign_or_toggle_window(AppData *app, WindowInfo *selected_wind
         return FALSE;
     }
 
-    Window current_window = get_slot_window(&app->harpoon, slot);
-    if (current_window == selected_window->id) {
+    MatchEntry *target_entry = NULL;
+    if (app->harpoon.slots[slot].assigned && app->harpoon.slots[slot].match_id > 0) {
+        int idx = match_entry_find_index_by_match_id(&app->matching, app->harpoon.slots[slot].match_id);
+        if (idx >= 0) target_entry = &app->matching.entries[idx];
+    }
+
+    if (target_entry && match_entry_matches_window(target_entry, selected_window)) {
         unassign_slot(&app->harpoon, slot);
         matching_run_gc(app);
         log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
     } else {
-        int old_slot = get_window_slot(&app->harpoon, selected_window->id);
-        if (old_slot >= 0) {
-            unassign_slot(&app->harpoon, old_slot);
+        for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+            if (i == slot) continue;
+            if (!app->harpoon.slots[i].assigned || app->harpoon.slots[i].match_id <= 0) continue;
+            int idx = match_entry_find_index_by_match_id(&app->matching, app->harpoon.slots[i].match_id);
+            if (idx < 0) continue;
+            if (match_entry_matches_window(&app->matching.entries[idx], selected_window)) {
+                unassign_slot(&app->harpoon, i);
+            }
         }
         assign_window_to_slot(&app->harpoon, slot, selected_window);
+        int new_idx = match_entry_find_index_by_match_id(&app->matching, app->harpoon.slots[slot].match_id);
+        if (new_idx >= 0) {
+            app->matching.entries[new_idx].bound_x11_id = selected_window->id;
+            app->matching.entries[new_idx].assigned = 1;
+        }
         matching_run_gc(app);
         log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
     }

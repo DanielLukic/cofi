@@ -416,11 +416,15 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     (void)app; (void)custom_name; (void)manager_index;
 }
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager; (void)id; return -1; }
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
+    if (!entry || !window) return false;
+    return strcmp(entry->original_title, window->title) == 0;
+}
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
-int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
-    (void)manager; (void)windows; (void)window_count; (void)w; return -1;
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
+    (void)manager; (void)w; return -1;
 }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
     (void)display; (void)window; (void)x; (void)y; (void)width; (void)height; return FALSE;
@@ -430,7 +434,6 @@ void move_window_to_desktop(Display *display, Window window, int desktop_index) 
     (void)display; (void)window; (void)desktop_index;
 }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
-void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value, char *err_buf, size_t err_size) {
     (void)config; (void)key; (void)value; (void)err_buf; (void)err_size; return 0;

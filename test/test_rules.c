@@ -7,6 +7,30 @@
 
 static int tests_passed = 0;
 static int tests_failed = 0;
+static MatchEntryManager g_matching;
+
+static RuleMatch check_rule_match_for_title(const Rule *rule, RuleState *state, int rule_index,
+                                            Window id, const char *title) {
+    WindowInfo window = {0};
+    window.id = id;
+    strncpy(window.title, title ? title : "", sizeof(window.title) - 1);
+    window.title[sizeof(window.title) - 1] = '\0';
+    window.class_name[0] = '\0';
+    window.instance[0] = '\0';
+    window.type[0] = '\0';
+
+    if (rule->match_id <= 0 || match_entry_find_index_by_match_id(&g_matching, rule->match_id) < 0) {
+        int match_id = matching_find_or_create_pattern_entry(&g_matching, rule->pattern);
+        ((Rule *)rule)->match_id = match_id;
+    }
+
+    return check_rule_match(rule, state, rule_index, &g_matching, &window);
+}
+
+#define check_rule_match(rule, state, rule_index, id, title) \
+    check_rule_match_for_title((rule), (state), (rule_index), (id), (title))
+#define load_rules_config(config) load_rules_config((config), &g_matching)
+#define save_rules_config(config) save_rules_config((config), &g_matching)
 
 #define ASSERT_INT(desc, expected, actual) do { \
     if ((expected) != (actual)) { \
@@ -189,6 +213,7 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     ASSERT_INT("legacy count", 1, config.count);
     ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
     ASSERT_STR("legacy tag defaults empty", "", config.rules[0].tag);
+    ASSERT_TRUE("legacy migration sets match_id", config.rules[0].match_id > 0);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -294,6 +319,7 @@ static void test_load_skips_rules_missing_required_fields(void) {
     ASSERT_STR("valid rule pattern survives", "*valid*", config.rules[0].pattern);
     ASSERT_STR("valid rule commands survives", "sb", config.rules[0].commands);
     ASSERT_TRUE("valid rule run_at_start survives", config.rules[0].run_at_start);
+    ASSERT_TRUE("valid rule migrated to match_id", config.rules[0].match_id > 0);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -330,6 +356,49 @@ static void test_load_corrupt_json_returns_empty(void) {
     add_rule(&config, "*preexisting*", "rl");
     ASSERT_INT("load corrupt json succeeds empty", 1, load_rules_config(&config));
     ASSERT_INT("corrupt json leaves config empty", 0, config.count);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_load_legacy_empty_pattern_skips_without_creating_entry(void) {
+    char tmpdir[] = "/tmp/cofi_rules_empty_pattern_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open empty-pattern rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\"pattern\": \"\", \"commands\": \"rl\"},\n"
+            "    {\"commands\": \"rl\"}\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    int before = g_matching.count;
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_INT("empty pattern rule skipped", 1, load_rules_config(&config));
+    ASSERT_INT("no valid rules loaded", 0, config.count);
+    ASSERT_INT("no match entry created for empty pattern", before, g_matching.count);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
@@ -694,6 +763,7 @@ static void test_rule_commands_contain_segment_rl_variants(void) {
 int main(void) {
     printf("Rules tests\n");
     printf("===========\n\n");
+    match_entry_manager_init(&g_matching);
 
     // Config tests
     printf("--- Config ---\n");
@@ -706,6 +776,7 @@ int main(void) {
     test_load_rules_json_with_special_chars();
     test_load_skips_rules_missing_required_fields();
     test_load_corrupt_json_returns_empty();
+    test_load_legacy_empty_pattern_skips_without_creating_entry();
 
     // Matching state machine tests
     printf("\n--- Matching ---\n");

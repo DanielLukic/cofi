@@ -150,7 +150,7 @@ void calc_provider_register(void) {
     s_calc_provider.on_enter_pressed  = calc_on_enter_pressed;
     s_calc_provider.on_command_args   = calc_on_command_args;
     s_calc_provider.handle_key        = calc_handle_key;
-    s_calc_provider.shortcut_hint     = "Actions: Enter / Ctrl+C = Copy   Ctrl+X = Clear";
+    s_calc_provider.shortcut_hint     = "Shortcuts: Enter=Copy  Ctrl+C=Copy  Ctrl+X=Clear";
     s_calc_provider_id = cofi_register_tab_provider(&s_calc_provider);
     if (s_calc_provider_id >= 0) {
         cofi_register_command(&s_calc_command);

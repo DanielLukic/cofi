@@ -11,7 +11,7 @@ int matching_run_gc(AppData *app) {
         return 0;
     }
 
-    int referenced_ids[MAX_HARPOON_SLOTS + (MAX_WINDOWS * 2)];
+    int referenced_ids[MAX_HARPOON_SLOTS + MAX_RULES + (MAX_WINDOWS * 2)];
     int referenced_count = 0;
 
     for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
@@ -30,6 +30,14 @@ int matching_run_gc(AppData *app) {
         &app->layouts,
         referenced_ids + referenced_count,
         (int)(sizeof(referenced_ids) / sizeof(referenced_ids[0])) - referenced_count);
+
+    for (int i = 0; i < app->rules_config.count &&
+                    referenced_count < (int)(sizeof(referenced_ids) / sizeof(referenced_ids[0])); i++) {
+        if (app->rules_config.rules[i].match_id <= 0) {
+            continue;
+        }
+        referenced_ids[referenced_count++] = app->rules_config.rules[i].match_id;
+    }
 
     int removed = match_entry_gc(&app->matching, referenced_ids, referenced_count);
     if (removed > 0) {

@@ -597,7 +597,7 @@ static void test_all_parse_defs_have_owner(void) {
 static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
-    // 28 core commands + 14 provider-owned commands.
+    // 27 core commands + 14 provider-owned commands.
     if (table_count == 42) {
         printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;

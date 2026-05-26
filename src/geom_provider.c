@@ -9,6 +9,7 @@
 #include "match.h"
 #include "matching_gc.h"
 #include "overlay_confirm.h"
+#include "overlay_pattern.h"
 #include "selection.h"
 #include "tab_switching.h"
 
@@ -18,6 +19,7 @@
 static CofiTabProvider s_geom_provider;
 static int s_geom_provider_id = -1;
 static int s_pending_delete_match_id = 0;
+void geom_on_query_changed(AppData *app, const char *query);
 
 static MatchEntry *geom_match_entry_for_record(AppData *app, const LayoutRecord *record) {
     if (!app || !record) return NULL;
@@ -53,6 +55,16 @@ static void format_state_flags(const LayoutRecord *record, char *out, size_t out
                record->disabled ? 'D' : '-');
 }
 
+static const char *geom_class_for_entry(const AppData *app, const MatchEntry *entry) {
+    if (!app || !entry || !entry->assigned || entry->bound_x11_id == 0) return "-";
+    for (int i = 0; i < app->window_count; i++) {
+        if (app->windows[i].id == entry->bound_x11_id) {
+            return app->windows[i].class_name[0] ? app->windows[i].class_name : "-";
+        }
+    }
+    return "-";
+}
+
 static int geom_row_count(AppData *app) {
     if (!app) return 0;
     return app->filtered_geom_count;
@@ -79,10 +91,11 @@ static void geom_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     format_state_flags(record, desktop_flags, sizeof(desktop_flags));
 
     const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
+    const char *class_name = geom_class_for_entry(app, entry);
     out->cell_count = 5;
     out->cells[0].text = label;
     out->cells[0].width_hint = 25;
-    out->cells[1].text = entry->class_name;
+    out->cells[1].text = class_name;
     out->cells[1].width_hint = 18;
     out->cells[2].text = geometry;
     out->cells[2].width_hint = 18;
@@ -102,8 +115,8 @@ static const char *geom_match_string(AppData *app, int raw_idx) {
     char geometry[64];
     format_geom(record, geometry, sizeof(geometry));
     const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
-    g_snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-               label, entry->class_name, entry->instance, geometry);
+    g_snprintf(searchable, sizeof(searchable), "%s %s %s",
+               label, geom_class_for_entry(app, entry), geometry);
     return searchable;
 }
 
@@ -134,8 +147,8 @@ void geom_on_query_changed(AppData *app, const char *query) {
         char geometry[64];
         const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
         format_geom(record, geometry, sizeof(geometry));
-        g_snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-                   label, entry->class_name, entry->instance, geometry);
+        g_snprintf(searchable, sizeof(searchable), "%s %s %s",
+                   label, geom_class_for_entry(app, entry), geometry);
         if (!query || !query[0] || has_match(query, searchable)) {
             app->filtered_geom[app->filtered_geom_count++] = i;
         }
@@ -240,6 +253,16 @@ gboolean handle_geom_tab_keys(GdkEventKey *event, AppData *app) {
     if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
         return geom_toggle_disabled(app);
     }
+    if (event->keyval == GDK_KEY_p && (event->state & GDK_CONTROL_MASK)) {
+        int match_id = selected_match_id_for_pattern_edit(app);
+        char geom[64];
+        char context[96];
+        format_geom(record, geom, sizeof(geom));
+        g_snprintf(context, sizeof(context), "Layout: %s%s",
+                   geom, record->disabled ? " (disabled)" : "");
+        show_pattern_edit_overlay(app, match_id, context);
+        return TRUE;
+    }
     return FALSE;
 }
 
@@ -284,7 +307,7 @@ void geom_provider_register(void) {
     s_geom_provider.on_query_changed = geom_on_query_changed;
     s_geom_provider.handle_key = handle_geom_tab_keys;
     s_geom_provider.shortcut_hint =
-        "Ctrl+D=Delete  Ctrl+L=Lock workspace  Ctrl+T=Toggle enable";
+        "Ctrl+D=Delete  Ctrl+L=Lock workspace  Ctrl+T=Toggle enable  Ctrl+P=Edit pattern";
     s_geom_provider_id = cofi_register_tab_provider(&s_geom_provider);
     if (s_geom_provider_id >= 0) {
         cofi_register_command(&s_geom_command);

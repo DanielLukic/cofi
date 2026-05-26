@@ -5,18 +5,16 @@
 #include <stdbool.h>
 #include "window_info.h"
 #include "constants.h"
-#include "window_matcher.h"
 
 // Structure to store a matching entry.
 typedef struct MatchEntry {
     int match_id;                       // Stable persistent key (never reused)
-    Window bound_x11_id;                // Live X11 binding (validated against criteria)
+    Window bound_x11_id;                // Live X11 binding (reassigned via title pattern)
+    char class_name[MAX_CLASS_LEN];    // Optional class anchor (exact if set)
+    char instance[MAX_CLASS_LEN];      // Optional instance anchor (exact if set)
+    char type[16];                     // Optional type anchor (exact if set)
     char custom_name[MAX_TITLE_LEN];   // User-defined custom name
     char original_title[MAX_TITLE_LEN]; // Captured title or pattern
-    char class_name[MAX_CLASS_LEN];    // Window class name
-    char instance[MAX_CLASS_LEN];      // Window instance name
-    char type[16];                     // Window type ("Normal" or "Special")
-    TitleMatchMode match_mode;         // EXACT(default) or GLOB (future UI edit)
     int assigned;                      // 1 if matched to existing window, 0 if orphaned
 } MatchEntry;
 
@@ -66,10 +64,11 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
 // Find entry index by custom label.
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name);
 
-// Capture or deduplicate a match entry for a live window and return its stable match_id.
-int matching_capture_or_get(MatchEntryManager *manager,
-                            WindowInfo *windows,
-                            int window_count,
-                            const WindowInfo *w);
+// Match a live window against a stored entry's title pattern.
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window);
+
+// Create a new match entry for a live window and return its stable match_id.
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w);
+int matching_find_or_create_pattern_entry(MatchEntryManager *manager, const char *pattern);
 
 #endif // MATCH_ENTRY_H

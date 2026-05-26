@@ -25,6 +25,9 @@ static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static TabMode g_last_surface_tab = -1;
 static CofiTabProvider g_registered_provider;
+static int g_show_pattern_overlay_calls;
+static int g_selected_pattern_match_id;
+static char g_last_pattern_context[128];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -68,6 +71,34 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
 int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
+int selected_match_id_for_pattern_edit(AppData *app) {
+    (void)app;
+    return g_selected_pattern_match_id;
+}
+gboolean show_pattern_edit_overlay(AppData *app, int match_id, const char *context_line) {
+    (void)app;
+    if (match_id <= 0) return FALSE;
+    g_show_pattern_overlay_calls++;
+    g_strlcpy(g_last_pattern_context, context_line ? context_line : "",
+              sizeof(g_last_pattern_context));
+    return TRUE;
+}
+
+int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
+    if (!manager || match_id <= 0) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void match_entry_manager_init(MatchEntryManager *manager) {
+    if (!manager) return;
+    memset(manager, 0, sizeof(*manager));
+    manager->next_match_id = 1;
+}
 
 void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
@@ -89,23 +120,37 @@ gboolean replay_selected_filtered_rule(AppData *app) {
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
+    match_entry_manager_init(&app->matching);
     g_reset_selection_calls = 0;
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
     g_last_surface_tab = -1;
+    g_show_pattern_overlay_calls = 0;
+    g_selected_pattern_match_id = 0;
+    g_last_pattern_context[0] = '\0';
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
 }
 
 static void seed_rules(AppData *app) {
+    app->matching.count = 2;
+    app->matching.entries[0].match_id = 101;
+    g_strlcpy(app->matching.entries[0].original_title, "*term*",
+              sizeof(app->matching.entries[0].original_title));
+    app->matching.entries[1].match_id = 202;
+    g_strlcpy(app->matching.entries[1].original_title, "*firefox*",
+              sizeof(app->matching.entries[1].original_title));
+
     app->rules_config.count = 2;
     g_strlcpy(app->rules_config.rules[0].pattern, "*term*",
               sizeof(app->rules_config.rules[0].pattern));
     g_strlcpy(app->rules_config.rules[0].commands, "sb on",
               sizeof(app->rules_config.rules[0].commands));
+    app->rules_config.rules[0].match_id = 101;
     g_strlcpy(app->rules_config.rules[1].pattern, "*firefox*",
               sizeof(app->rules_config.rules[1].pattern));
     g_strlcpy(app->rules_config.rules[1].commands, "ew off",
               sizeof(app->rules_config.rules[1].commands));
+    app->rules_config.rules[1].match_id = 202;
 }
 
 static void test_filter_and_format_row(void) {
@@ -220,6 +265,19 @@ static void test_selected_rule_and_config_index(void) {
     ASSERT_TRUE("select config index sets provider index", app.selection.provider_index == 0);
 }
 
+static void test_orphan_rule_row_fallback_indicator(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    app.rules_config.rules[1].match_id = 9999;
+    filter_rules(&app, "fire");
+
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("orphan row marks fallback", strcmp(row.cells[0].text, "*firefox* (orphan)") == 0);
+}
+
 static void test_command_metadata(void) {
     rules_provider_register();
 
@@ -252,6 +310,23 @@ static void test_command_handler_surfaces_tab(void) {
                 app.current_tab == (TabMode)g_registered_provider.tab_mode);
 }
 
+static void test_ctrl_p_uses_shared_pattern_overlay(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    filter_rules(&app, "");
+    app.current_tab = rules_tab_mode();
+    g_selected_pattern_match_id = 101;
+
+    GdkEventKey event = {0};
+    event.keyval = GDK_KEY_p;
+    event.state = GDK_CONTROL_MASK;
+    ASSERT_TRUE("Ctrl+P handled in rules tab", handle_rules_tab_keys(&event, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+P opens shared pattern overlay", g_show_pattern_overlay_calls == 1);
+    ASSERT_TRUE("Ctrl+P passes commands context",
+                strcmp(g_last_pattern_context, "Commands: sb on") == 0);
+}
+
 int main(void) {
     printf("Rules provider tests\n");
     printf("====================\n\n");
@@ -264,8 +339,10 @@ int main(void) {
     test_filter_shows_tagged_rules_when_enabled();
     test_search_still_hides_tagged_rules_when_toggle_off();
     test_selected_rule_and_config_index();
+    test_orphan_rule_row_fallback_indicator();
     test_command_metadata();
     test_command_handler_surfaces_tab();
+    test_ctrl_p_uses_shared_pattern_overlay();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

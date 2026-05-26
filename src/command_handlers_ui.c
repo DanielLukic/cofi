@@ -271,6 +271,7 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_line(out, "Enter", "Activate selected row", width);
     append_wrapped_line(out, "Escape", "Clear filter, close overlays, or hide cofi", width);
     append_wrapped_line(out, "Tab / Shift+Tab", "Cycle visible tabs forward/backward", width);
+    append_wrapped_line(out, "Per-tab keys", "Tab-specific shortcuts are shown in the footer of the active tab", width);
 
     g_string_append(out, "\nTABS\n\n");
     append_wrapped_paragraph(out, "Reach a tab via the prefix or command shown. Windows and Apps are cycled with Tab; the rest surface on demand.", width);
@@ -310,16 +311,6 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_line(out, "Alt+Tab", "Cycle selection forward", width);
     append_wrapped_line(out, "Shift+Alt+Tab", "Cycle selection backward", width);
     append_wrapped_line(out, ".", "Repeat last action", width);
-
-    g_string_append(out, "\nPER-TAB KEYS\n\n");
-    append_wrapped_line(out, "Harpoon", "Ctrl+A assign current window, Ctrl+E edit slot, Ctrl+D delete slot", width);
-    append_wrapped_line(out, "Matching", "Ctrl+A assign name, Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete", width);
-    append_wrapped_line(out, "Layouts", "Ctrl+D/Delete delete, Ctrl+L lock workspace restore, Ctrl+T toggle enable", width);
-    append_wrapped_line(out, "Rules", "Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay", width);
-    append_wrapped_line(out, "Config", "Ctrl+E edit value, Ctrl+T toggle/cycle value", width);
-    append_wrapped_line(out, "Hotkeys", "Ctrl+A add binding, Ctrl+E edit command, Ctrl+D remove binding", width);
-    append_wrapped_line(out, "Projects", "Ctrl+S remote host, Ctrl+D/Delete delete, Ctrl+N/Insert new, Ctrl+R/F2 rename tmux, Ctrl+T terminal here", width);
-    append_wrapped_line(out, "Sessions", "Ctrl+R/F2 rename session, Delete remove session entry", width);
 
     g_string_append(out, "\nCOMMAND MODE\n\n");
     append_wrapped_line(out, "Entry", "Press ':' to open, Escape to cancel, Enter to execute", width);

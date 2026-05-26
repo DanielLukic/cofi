@@ -71,7 +71,7 @@ static void init_gc_app(AppData *app) {
     app->harpoon.window_count = &app->window_count;
 }
 
-static void test_glob_slot_survives_title_drift_but_exact_does_not(void) {
+static void test_wildcard_slot_survives_title_drift(void) {
     set_test_home("glob-drift");
 
     MatchEntryManager matching;
@@ -92,19 +92,12 @@ static void test_glob_slot_survives_title_drift_but_exact_does_not(void) {
 
     safe_string_copy(matching.entries[idx].original_title, "cofi*Terminal",
                      sizeof(matching.entries[idx].original_title));
-    matching.entries[idx].match_mode = TITLE_MATCH_MODE_GLOB;
     matching.entries[idx].bound_x11_id = 0;
     matching.entries[idx].assigned = 1;
 
     windows[0] = make_window(0x222, "cofi | feature - Terminal", "Kitty", "kitty", "Normal");
     Window resolved = get_slot_window(&harpoon, 3);
-    ASSERT_TRUE("glob entry rebinds after title drift", resolved == 0x222);
-
-    matching.entries[idx].match_mode = TITLE_MATCH_MODE_EXACT;
-    matching.entries[idx].bound_x11_id = 0;
-    matching.entries[idx].assigned = 1;
-    resolved = get_slot_window(&harpoon, 3);
-    ASSERT_TRUE("exact entry does not match drifted title", resolved == 0);
+    ASSERT_TRUE("wildcard entry rebinds after title drift", resolved == 0x222);
 }
 
 static void test_slot_rebinds_after_window_reopens_with_new_id(void) {
@@ -148,7 +141,7 @@ static void test_slot_rebinds_after_orphaned_reopen_cycle(void) {
     wire_harpoon_context(&harpoon, &matching, windows, &window_count);
 
     windows[0] = make_window(0x777, "cofi", "Kitty", "kitty", "Normal");
-    int match_id = matching_capture_or_get(&matching, windows, window_count, &windows[0]);
+    int match_id = matching_create_entry(&matching, &windows[0]);
     ASSERT_TRUE("orphan cycle captured match entry", match_id > 0);
 
     int idx = match_entry_find_index_by_match_id(&matching, match_id);
@@ -156,7 +149,6 @@ static void test_slot_rebinds_after_orphaned_reopen_cycle(void) {
 
     safe_string_copy(matching.entries[idx].original_title, "cofi*",
                      sizeof(matching.entries[idx].original_title));
-    matching.entries[idx].match_mode = TITLE_MATCH_MODE_GLOB;
     matching.entries[idx].assigned = 1;
 
     harpoon.slots[2].assigned = 1;
@@ -313,7 +305,7 @@ int main(void) {
     printf("Harpoon integration tests\n");
     printf("=========================\n\n");
 
-    test_glob_slot_survives_title_drift_but_exact_does_not();
+    test_wildcard_slot_survives_title_drift();
     test_slot_rebinds_after_window_reopens_with_new_id();
     test_slot_rebinds_after_orphaned_reopen_cycle();
     test_unassign_gc_removes_unlabeled_unreferenced_entry();

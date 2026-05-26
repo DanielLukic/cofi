@@ -1,5 +1,4 @@
 #include "rules.h"
-#include "window_matcher.h"
 #include "log.h"
 #include <string.h>
 
@@ -24,13 +23,32 @@ static RuleWindowState* find_or_add_entry(RuleState *state, int rule_index, Wind
     return ws;
 }
 
-RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
-                            Window id, const char *title) {
-    RuleMatch result = {false, NULL};
-    if (!rule || !state || !title) return result;
+bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
+                         const WindowInfo *window, const char **resolved_pattern) {
+    if (resolved_pattern) *resolved_pattern = "";
+    if (!rule || !manager || !window || rule->match_id <= 0) {
+        return false;
+    }
 
-    bool matches = wildcard_match(rule->pattern, title);
-    RuleWindowState *ws = find_or_add_entry(state, rule_index, id);
+    int entry_index = match_entry_find_index_by_match_id(manager, rule->match_id);
+    if (entry_index < 0) {
+        log_warn("rules: rule match_id=%d missing matching entry", rule->match_id);
+        if (resolved_pattern) *resolved_pattern = rule->pattern;
+        return false;
+    }
+
+    const MatchEntry *entry = &manager->entries[entry_index];
+    if (resolved_pattern) *resolved_pattern = entry->original_title;
+    return match_entry_matches_window(entry, window);
+}
+
+RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
+                           const MatchEntryManager *manager, const WindowInfo *window) {
+    RuleMatch result = {false, NULL};
+    if (!rule || !state || !window) return result;
+
+    bool matches = rule_matches_window(rule, manager, window, NULL);
+    RuleWindowState *ws = find_or_add_entry(state, rule_index, window->id);
     if (!ws) return result;
 
     if (matches && !ws->matched) {

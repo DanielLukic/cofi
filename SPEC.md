@@ -78,7 +78,7 @@ Applied after the fzf score:
 - **Tab / Shift+Tab** — cycle through visible tabs. Since TFD-545, tabs have three visibility states:
   - **PINNED** — always visible: Windows, Apps
   - **SURFACED** — shown once Tab-cycled into (e.g. via `:show <tab>` command), then dismissed on hide
-  - **HIDDEN** — secondary tabs (Workspaces, Harpoon, Names, Config, Hotkeys, Rules) not reached by Tab unless surfaced
+  - **HIDDEN** — secondary tabs (Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles) not reached by Tab unless surfaced
   Tabs are surfaced programmatically by `:show <verb>` commands or explicit prefix flows; Tab/Shift+Tab only cycles PINNED + currently-SURFACED tabs.
 - Typing any character starts filtering immediately (no mode switch needed)
 
@@ -298,14 +298,14 @@ Also available for explicit control:
 
 Replaces the old `quick_workspace_slots` boolean.
 
-## Custom Window Names
+## Matching
 
 Assign custom names to windows that override the displayed title.
 
 - Display format: "custom_name - original_title"
 - Names persist across cofi restarts (stored in config)
 - When a named window closes, the name attempts to reassign to a matching window
-- Matching tab (Ctrl+E to edit, Ctrl+D to delete — works on both active and orphaned entries)
+- Matching tab (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete — works on both active and orphaned entries)
 - Searchable — custom names are included in filter matching
 
 ## Rules Tab
@@ -316,7 +316,8 @@ Title-pattern automation rules triggered via `:rules` or `:rl`.
 - Rules fire automatically on window-open and window-title-change events
 - Auto-restore for saved layouts is configured as a rule whose action is `rl` (e.g., `cofi* → rl`). Layout payload lives in `layouts.json`, keyed by match_id; the rule controls *when* to restore, the layout controls *what* to restore. Composable with other actions: `rl,sb+,ab+` restores geometry then sets sticky + always-above.
 - `Ctrl+A` — add a new rule
-- `Ctrl+E` — edit the selected rule
+- `Ctrl+E` — edit the selected rule commands
+- `Ctrl+P` — edit the selected rule pattern
 - `Ctrl+D` — delete the selected rule
 - `Ctrl+X` — replay the selected rule against all currently open matching windows (explicit, stateless)
 - `Ctrl+Shift+X` — replay all stored rules in stored order against all currently open windows
@@ -537,10 +538,10 @@ Browser profile launcher triggered via `:profiles`, `:chrome`, or `:browser`.
 
 ## Tabs
 
-Fifteen tabs exist; visibility is controlled per-tab (TFD-545):
+Sixteen tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
@@ -548,17 +549,18 @@ Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tab
 2. **Apps** — installed desktop application launcher + system actions + `$PATH` binaries *(PINNED)*
 3. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
 4. **Workspaces** — workspace list and management *(HIDDEN by default)*
-5. **Harpoon** — harpoon slot assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-6. **Names** — custom window name assignments (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-7. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
-8. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-9. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
-10. **Calc** — calculator modal *(HIDDEN by default)*
-11. **Sinks** — audio sink selection *(HIDDEN by default)*
-12. **Run** — command runner modal *(HIDDEN by default)*
-13. **Proc** — process manager *(HIDDEN by default)*
-14. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
-15. **Profiles** — browser profile launcher *(HIDDEN by default)*
+5. **Harpoon** — harpoon slot assignments (Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+6. **Matching** — custom window name assignments (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+7. **Layouts** — saved window layouts (Ctrl+D/Delete delete, Ctrl+L workspace restore, Ctrl+T enable/disable, Ctrl+P edit pattern) *(HIDDEN by default)*
+8. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
+9. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+10. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit commands, Ctrl+P edit pattern, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
+11. **Calc** — calculator modal *(HIDDEN by default)*
+12. **Sinks** — audio sink selection *(HIDDEN by default)*
+13. **Run** — command runner modal *(HIDDEN by default)*
+14. **Proc** — process manager *(HIDDEN by default)*
+15. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+16. **Profiles** — browser profile launcher *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 
@@ -585,7 +587,11 @@ Stored in `~/.config/cofi/`:
   - Auto-generated with default show-mode bindings on first run
 - `harpoon.json` — harpoon slot assignments with match patterns
 - `matching.json` — custom window matching entries
-- `rules.json` — window-title rules (`pattern`, `commands`) in stored order
+  - `class_name` / `instance` / `type` are optional anchors. When set, they must exactly match the live window property; when empty, they are unconstrained.
+  - Auto-created entries (`:sl`, harpoon-assign, name-assign) capture these three anchors from the source window for precise matching.
+  - User-authored rules currently remain title-focused; future editing paths can deliberately leave anchors empty for title-only behavior.
+- `rules.json` — window-title rules (`match_id`, `pattern`, `commands`) in stored order
+  - Legacy `pattern`-only rules migrate on load by creating a matching MatchEntry (wildcard semantics, empty class/instance/type anchors); next save writes `match_id` while retaining `pattern` as a compatibility cache for one release.
 
 Runtime config changes via `:set <key> <value>` are saved to `options.json` immediately. View current config with `:config`.
 

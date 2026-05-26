@@ -210,7 +210,7 @@ static void apply_rules_to_windows(AppData *app) {
         WindowInfo *w = &app->windows[i];
         for (int r = 0; r < app->rules_config.count; r++) {
             RuleMatch match = check_rule_match(
-                &app->rules_config.rules[r], &app->rule_state, r, w->id, w->title);
+                &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
             if (match.should_fire) {
                 if (!app->initial_window_population_done &&
                     !app->rules_config.rules[r].run_at_start) {
@@ -265,7 +265,7 @@ static void handle_window_title_change(AppData *app, Window id) {
         gint64 now_ms = g_get_monotonic_time() / 1000;
         for (int r = 0; r < app->rules_config.count; r++) {
             RuleMatch match = check_rule_match(
-                &app->rules_config.rules[r], &app->rule_state, r, id, w->title);
+                &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
             if (match.should_fire) {
                 if (!rule_breaker_should_fire(&app->rule_breaker, r, id,
                                               now_ms, app->rules_config.rules[r].pattern)) {

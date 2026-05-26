@@ -43,9 +43,15 @@ static void reset_exec_log(void) {
     memset(g_exec_log, 0, sizeof(g_exec_log));
 }
 
+static void bind_rule_to_pattern(AppData *app, int rule_index, const char *pattern) {
+    int match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+    app->rules_config.rules[rule_index].match_id = match_id;
+}
+
 static void test_replay_selected_rule_matches_all_windows(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
 
     app.window_count = 3;
     app.windows[0].id = 0x100;
@@ -58,6 +64,7 @@ static void test_replay_selected_rule_matches_all_windows(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    bind_rule_to_pattern(&app, 0, "*Terminal*");
 
     app.filtered_rules_count = 1;
     app.filtered_rule_indices[0] = 0;
@@ -75,6 +82,7 @@ static void test_replay_selected_rule_matches_all_windows(void) {
 static void test_replay_all_rules_uses_stored_order(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
 
     app.window_count = 2;
     app.windows[0].id = 0x111;
@@ -85,8 +93,10 @@ static void test_replay_all_rules_uses_stored_order(void) {
     app.rules_config.count = 2;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "first");
+    bind_rule_to_pattern(&app, 0, "*Terminal*");
     strcpy(app.rules_config.rules[1].pattern, "*Firefox*");
     strcpy(app.rules_config.rules[1].commands, "second");
+    bind_rule_to_pattern(&app, 1, "*Firefox*");
 
     reset_exec_log();
     int replayed = replay_all_rules_against_open_windows(&app);
@@ -99,6 +109,7 @@ static void test_replay_all_rules_uses_stored_order(void) {
 static void test_replay_does_not_mutate_transition_rule_state(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
 
     app.window_count = 1;
     app.windows[0].id = 0x777;
@@ -107,6 +118,7 @@ static void test_replay_does_not_mutate_transition_rule_state(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    bind_rule_to_pattern(&app, 0, "*Terminal*");
 
     app.rule_state.count = 3;
     app.rule_state.windows[0].id = 0x1;
@@ -122,6 +134,7 @@ static void test_replay_does_not_mutate_transition_rule_state(void) {
 static void test_replay_all_includes_tagged_rules(void) {
     AppData app;
     memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
 
     app.window_count = 1;
     app.windows[0].id = 0x123;
@@ -131,6 +144,7 @@ static void test_replay_all_includes_tagged_rules(void) {
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
     strcpy(app.rules_config.rules[0].tag, "geom");
+    bind_rule_to_pattern(&app, 0, "*Terminal*");
 
     reset_exec_log();
     int replayed = replay_all_rules_against_open_windows(&app);

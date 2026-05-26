@@ -174,8 +174,9 @@ static void test_empty_row_and_hint(void) {
     hotkeys_format_row(&app, 0, &row);
     ASSERT_TRUE("empty row text", strcmp(row.cells[0].text, "No hotkey bindings found") == 0);
     ASSERT_TRUE("empty row not actionable", row.row_flags == 0);
-    ASSERT_TRUE("empty hint add-only",
-                strcmp(hotkeys_shortcut_hint(&app), "Shortcuts: Ctrl+A=Add binding") == 0);
+    ASSERT_TRUE("empty hint shows full hotkey actions",
+                strcmp(hotkeys_shortcut_hint(&app),
+                       "Shortcuts: Ctrl+A=Add binding  Ctrl+B=Rebind key  Ctrl+E=Edit command  Ctrl+D=Delete binding") == 0);
 }
 
 static void test_query_resets_selection(void) {

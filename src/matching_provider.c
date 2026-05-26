@@ -4,11 +4,13 @@
 #include "command_mode.h"
 #include "command_registry.h"
 #include "daemon_socket.h"
+#include "dynamic_display.h"
 #include "filter_matching.h"
 #include "log.h"
 #include "match.h"
 #include "match_entry.h"
 #include "overlay_manager.h"
+#include "overlay_pattern.h"
 #include "selection.h"
 #include "tab_switching.h"
 
@@ -44,14 +46,35 @@ static void matching_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
         g_strlcpy(window_id, "* NONE *", sizeof(window_id));
     }
 
-    out->cell_count = 4;
+    const int label_w = 16;
+    const int class_w = 16;
+    const int instance_w = 14;
+    const int type_w = 8;
+    const int id_w = 14;
+    const int cell_count = 6;
+    const int separators = cell_count - 1;
+    const int selection_overhead = 2;  // "> " / "  "
+    const int fixed_total = label_w + class_w + instance_w + type_w + id_w
+                            + separators + selection_overhead;
+    int target = get_display_columns(app);
+    int title_w = target - fixed_total;
+    if (title_w < 20) {
+        title_w = 20;
+    }
+
+    out->cell_count = cell_count;
     out->cells[0].text = named->original_title;
-    out->cells[0].width_hint = 45;
+    out->cells[0].width_hint = title_w;
     out->cells[1].text = named->custom_name;
-    out->cells[1].width_hint = 20;
+    out->cells[1].width_hint = label_w;
     out->cells[2].text = named->class_name;
-    out->cells[2].width_hint = 18;
-    out->cells[3].text = window_id;
+    out->cells[2].width_hint = class_w;
+    out->cells[3].text = named->instance;
+    out->cells[3].width_hint = instance_w;
+    out->cells[4].text = named->type;
+    out->cells[4].width_hint = type_w;
+    out->cells[5].text = window_id;
+    out->cells[5].width_hint = id_w;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
@@ -59,9 +82,9 @@ static const char *matching_match_string(AppData *app, int raw_idx) {
     MatchEntry *entry = name_at_row(app, raw_idx);
     static char searchable[1024];
     if (!entry) return "";
-    g_snprintf(searchable, sizeof(searchable), "%s %s %s %s",
+    g_snprintf(searchable, sizeof(searchable), "%s %s %s %s %s",
                entry->custom_name, entry->original_title,
-               entry->class_name, entry->instance);
+               entry->class_name, entry->instance, entry->type);
     return searchable;
 }
 
@@ -99,15 +122,7 @@ MatchEntry *matching_selected_entry(AppData *app) {
 int matching_selected_manager_index(AppData *app) {
     MatchEntry *named = matching_selected_entry(app);
     if (!app || !named) return -1;
-
-    int manager_index = -1;
-    if (named->bound_x11_id != 0) {
-        manager_index = match_entry_find_index_by_window(&app->matching, named->bound_x11_id);
-    }
-    if (manager_index < 0) {
-        manager_index = match_entry_find_index_by_custom_name(&app->matching, named->custom_name);
-    }
-    return manager_index;
+    return match_entry_find_index_by_match_id(&app->matching, named->match_id);
 }
 
 void matching_select_custom_name(AppData *app, const char *custom_name) {
@@ -136,10 +151,12 @@ gboolean handle_matching_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if (event->keyval == GDK_KEY_p && (event->state & GDK_CONTROL_MASK)) {
-        if (!matching_selected_entry(app)) {
-            return FALSE;
-        }
-        show_name_pattern_edit_overlay(app);
+        MatchEntry *selected = matching_selected_entry(app);
+        int match_id = selected_match_id_for_pattern_edit(app);
+        char context[96];
+        g_snprintf(context, sizeof(context), "Label: %s",
+                   (selected && selected->custom_name[0]) ? selected->custom_name : "(none)");
+        show_pattern_edit_overlay(app, match_id, context);
         return TRUE;
     }
 

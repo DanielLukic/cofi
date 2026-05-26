@@ -223,7 +223,7 @@ void sessions_provider_register(void) {
     s_sessions_provider.id = "sessions";
     s_sessions_provider.display_name = "SESSIONS";
     s_sessions_provider.shortcut_hint =
-        "Search: terms | refine   Enter=Resume  Ctrl+R=Rename  Ctrl+D/Delete=Delete";
+        "Shortcuts: Enter=Resume  Ctrl+R=Rename  Ctrl+D/Delete=Delete";
     s_sessions_provider.required = 0;
     s_sessions_provider.hidden_by_default = 1;
     s_sessions_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

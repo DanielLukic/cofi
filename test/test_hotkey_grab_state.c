@@ -77,7 +77,11 @@ gboolean save_hotkey_config(const HotkeyConfig *config) { (void)config; return T
 int hotkey_config_file_exists(void) { return 0; }
 void match_entry_manager_init(MatchEntryManager *manager) { (void)manager; }
 void init_rules_config(RulesConfig *config) { (void)config; }
-gboolean load_rules_config(RulesConfig *config) { (void)config; return TRUE; }
+gboolean load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
+    (void)config;
+    (void)manager;
+    return TRUE;
+}
 void init_rule_state(RuleState *state) { (void)state; }
 void init_rule_breaker(RuleBreakerState *breaker) { (void)breaker; }
 void init_command_mode(CommandMode *cmd) { (void)cmd; }

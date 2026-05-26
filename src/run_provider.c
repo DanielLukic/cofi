@@ -144,6 +144,7 @@ void run_provider_register(void) {
     s_run_provider.tab_mode                = COFI_PROVIDER_DYNAMIC_TAB;
     s_run_provider.id                      = "run";
     s_run_provider.display_name            = "RUN";
+    s_run_provider.shortcut_hint           = NULL;
     s_run_provider.prefix_char             = '!';
     s_run_provider.delegate_opcode         = COFI_OPCODE_RUN;
     s_run_provider.hotkey_mode_claim       = COFI_PROVIDER_HOTKEY_MODE(SHOW_MODE_RUN);

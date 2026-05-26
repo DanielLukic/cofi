@@ -3,7 +3,7 @@
 #include "command_api.h"
 #include "log.h"
 #include "rules_provider.h"
-#include "window_matcher.h"
+#include "rules.h"
 
 static int rule_index_from_filtered(AppData *app) {
     return rules_selected_config_index(app);
@@ -17,12 +17,13 @@ int replay_rule_against_open_windows(AppData *app, const Rule *rule) {
     int replayed = 0;
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *window = &app->windows[i];
-        if (!wildcard_match(rule->pattern, window->title)) {
+        const char *pattern = NULL;
+        if (!rule_matches_window(rule, &app->matching, window, &pattern)) {
             continue;
         }
 
         log_info("RULE REPLAY: pattern '%s' matched 0x%lx '%s' -> %s",
-                 rule->pattern, window->id, window->title, rule->commands);
+                 pattern ? pattern : rule->pattern, window->id, window->title, rule->commands);
         execute_command_background(rule->commands, app, window);
         replayed++;
     }

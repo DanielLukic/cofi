@@ -686,6 +686,7 @@ void emoji_provider_register(void) {
     s_emoji_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_emoji_provider.id = "emoji";
     s_emoji_provider.display_name = "Emoji";
+    s_emoji_provider.shortcut_hint = NULL;
     s_emoji_provider.prefix_char = 0;
     s_emoji_provider.tab_prefix_chars = NULL;
     s_emoji_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

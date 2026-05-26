@@ -42,3 +42,16 @@ STUB_COMMAND_HANDLER(cmd_help)
 
 STUB_COMMAND_HANDLER(cmd_run)
 STUB_COMMAND_HANDLER(cmd_calc)
+
+__attribute__((weak)) int selected_match_id_for_pattern_edit(AppData *app) {
+    (void)app;
+    return 0;
+}
+
+__attribute__((weak)) gboolean show_pattern_edit_overlay(AppData *app, int match_id,
+                                                         const char *context_line) {
+    (void)app;
+    (void)match_id;
+    (void)context_line;
+    return FALSE;
+}

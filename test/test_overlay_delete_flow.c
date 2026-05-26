@@ -191,7 +191,6 @@ static void test_harpoon_delete_confirm_flow(void) {
     app.matching.count = 1;
     app.matching.entries[0].match_id = 12;
     strcpy(app.matching.entries[0].original_title, "Terminal");
-    strcpy(app.matching.entries[0].class_name, "XTerm");
 
     reset_counters();
     show_harpoon_delete_confirm(&app, 2);

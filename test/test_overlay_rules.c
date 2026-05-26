@@ -38,6 +38,7 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     if (!config || !pattern || !commands || config->count >= MAX_RULES) return 0;
     g_strlcpy(config->rules[config->count].pattern, pattern, sizeof(config->rules[config->count].pattern));
     g_strlcpy(config->rules[config->count].commands, commands, sizeof(config->rules[config->count].commands));
+    config->rules[config->count].match_id = 1;
     config->count++;
     return 1;
 }
@@ -51,10 +52,21 @@ int remove_rule(RulesConfig *config, int index) {
     return 1;
 }
 
-int save_rules_config(const RulesConfig *config) {
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
     (void)config;
+    (void)manager;
     g_save_rules_calls++;
     return 1;
+}
+
+int matching_find_or_create_pattern_entry(MatchEntryManager *mgr, const char *pattern) {
+    (void)mgr;
+    (void)pattern;
+    return 1;
+}
+
+void save_match_entries(const MatchEntryManager *manager) {
+    (void)manager;
 }
 
 void filter_rules(AppData *app, const char *filter) {
@@ -170,12 +182,15 @@ static void test_edit_rule_updates_entry(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*term*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    app.rules_config.rules[0].match_id = 42;
     app.filtered_rules_count = 1;
     app.filtered_rule_indices[0] = 0;
     app.selection.provider_index = 0;
 
     create_rule_edit_overlay_content(app.dialog_container, &app);
+    GtkWidget *pattern = g_object_get_data(G_OBJECT(app.dialog_container), "rule_pattern_entry");
     GtkWidget *commands = g_object_get_data(G_OBJECT(app.dialog_container), "rule_commands_entry");
+    ASSERT_TRUE("rule edit has no pattern field", pattern == NULL);
     gtk_entry_set_text(GTK_ENTRY(commands), "ew off");
 
     GdkEventKey ev = enter_event();
@@ -183,6 +198,8 @@ static void test_edit_rule_updates_entry(void) {
 
     ASSERT_TRUE("rule edit handled", handled == TRUE);
     ASSERT_TRUE("rule edit updated command", strcmp(app.rules_config.rules[0].commands, "ew off") == 0);
+    ASSERT_TRUE("rule edit keeps pattern", strcmp(app.rules_config.rules[0].pattern, "*term*") == 0);
+    ASSERT_TRUE("rule edit keeps match_id", app.rules_config.rules[0].match_id == 42);
     ASSERT_TRUE("rule edit persisted", g_save_rules_calls == 1);
 }
 

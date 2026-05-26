@@ -6,6 +6,7 @@
 
 #include "app_data.h"
 #include "log.h"
+#include "match_entry_config.h"
 #include "rules_config.h"
 
 static bool is_geom_restore_rule(const Rule *rule, const char *pattern) {
@@ -61,6 +62,13 @@ int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
     if (has_enabled && existing_idx < 0) {
         if (add_rule(&app->rules_config, pattern, "rl")) {
             Rule *new_rule = &app->rules_config.rules[app->rules_config.count - 1];
+            int match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+            if (match_id <= 0) {
+                log_warn("geom sync: failed creating pattern entry for '%s'", pattern);
+                remove_rule(&app->rules_config, app->rules_config.count - 1);
+                return 0;
+            }
+            new_rule->match_id = match_id;
             g_strlcpy(new_rule->tag, "geom", sizeof(new_rule->tag));
             changed = true;
             log_info("geom sync: created tagged restore rule for pattern '%s'", pattern);
@@ -77,7 +85,8 @@ int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
     }
 
     if (changed) {
-        save_rules_config(&app->rules_config);
+        save_match_entries(&app->matching);
+        save_rules_config(&app->rules_config, &app->matching);
     }
     return changed ? 1 : 0;
 }
@@ -137,7 +146,8 @@ int geom_rule_sync_all_layout_patterns(AppData *app) {
     }
 
     if (changed > 0) {
-        save_rules_config(&app->rules_config);
+        save_match_entries(&app->matching);
+        save_rules_config(&app->rules_config, &app->matching);
     }
     return changed;
 }

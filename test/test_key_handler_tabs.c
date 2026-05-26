@@ -28,7 +28,7 @@ static int fail = 0;
 } while (0)
 
 static int g_show_name_edit_calls;
-static int g_show_name_pattern_edit_calls;
+static int g_show_pattern_edit_calls;
 static int g_last_name_edit_index;
 static MatchEntry g_last_name_edit_named;
 
@@ -39,8 +39,6 @@ static char g_last_matching_delete_custom_name[MAX_TITLE_LEN];
 static int g_show_harpoon_delete_calls;
 static int g_last_harpoon_delete_slot;
 
-static int g_show_harpoon_edit_calls;
-static int g_last_harpoon_edit_slot;
 
 static int g_save_config_calls;
 static int g_regrab_hotkeys_calls;
@@ -210,8 +208,8 @@ void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slo
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
-int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
-    (void)manager; (void)windows; (void)window_count; (void)w; return -1;
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
+    (void)manager; (void)w; return -1;
 }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
     (void)display; (void)window; (void)x; (void)y; (void)width; (void)height; return FALSE;
@@ -235,9 +233,16 @@ void show_name_edit_overlay(AppData *app) {
     }
 }
 
-void show_name_pattern_edit_overlay(AppData *app) {
+int selected_match_id_for_pattern_edit(AppData *app) {
     (void)app;
-    g_show_name_pattern_edit_calls++;
+    return 101;
+}
+gboolean show_pattern_edit_overlay(AppData *app, int match_id, const char *context_line) {
+    (void)app;
+    (void)context_line;
+    if (match_id <= 0) return FALSE;
+    g_show_pattern_edit_calls++;
+    return TRUE;
 }
 
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
@@ -270,6 +275,11 @@ int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, cons
     return -1;
 }
 
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
+    if (!entry || !window) return false;
+    return strcmp(entry->original_title, window->title) == 0;
+}
+
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
@@ -300,12 +310,6 @@ void show_harpoon_delete_overlay(AppData *app, int slot) {
     (void)app;
     g_show_harpoon_delete_calls++;
     g_last_harpoon_delete_slot = slot;
-}
-
-void show_harpoon_edit_overlay(AppData *app, int slot) {
-    (void)app;
-    g_show_harpoon_edit_calls++;
-    g_last_harpoon_edit_slot = slot;
 }
 
 void show_rule_delete_overlay(AppData *app, int rule_index) {
@@ -538,7 +542,7 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
 
 static void reset_captures(void) {
     g_show_name_edit_calls = 0;
-    g_show_name_pattern_edit_calls = 0;
+    g_show_pattern_edit_calls = 0;
     g_last_name_edit_index = -1;
     memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
 
@@ -548,8 +552,6 @@ static void reset_captures(void) {
 
     g_show_harpoon_delete_calls = 0;
     g_last_harpoon_delete_slot = -1;
-    g_show_harpoon_edit_calls = 0;
-    g_last_harpoon_edit_slot = -1;
 
     g_save_config_calls = 0;
     g_regrab_hotkeys_calls = 0;
@@ -646,10 +648,13 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
 
     app.current_tab = TEST_MATCHING_TAB;
     app.matching.count = 2;
+    app.matching.entries[0].match_id = 11;
     strcpy(app.matching.entries[0].custom_name, "alpha");
+    app.matching.entries[1].match_id = 22;
     strcpy(app.matching.entries[1].custom_name, "beta");
     app.filtered_matching_count = 1;
     app.selection.provider_index = 0;
+    app.filtered_matching[0].match_id = 22;
     strcpy(app.filtered_matching[0].custom_name, "beta");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
@@ -679,7 +684,7 @@ static void test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry(vo
 
     ASSERT_TRUE("Ctrl+p on Matching handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+p on Matching shows pattern edit overlay",
-                g_show_name_pattern_edit_calls == 1);
+                g_show_pattern_edit_calls == 1);
 }
 
 static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index(void) {
@@ -729,7 +734,7 @@ static void test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot(void) 
     ASSERT_TRUE("Ctrl+d on Harpoon unassigned does not show overlay again", g_show_harpoon_delete_calls == 1);
 }
 
-static void test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot(void) {
+static void test_ctrl_e_harpoon_tab_is_noop(void) {
     AppData app;
     init_app(&app);
     reset_captures();
@@ -742,16 +747,12 @@ static void test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot(void) {
     app.filtered_harpoon[0].assigned = 1;
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled_assigned = on_key_press(NULL, &ev, &app);
-
-    ASSERT_TRUE("Ctrl+e on Harpoon assigned handled", handled_assigned == TRUE);
-    ASSERT_TRUE("Ctrl+e on Harpoon assigned shows edit overlay for selected slot",
-                g_show_harpoon_edit_calls == 1 && g_last_harpoon_edit_slot == 12);
+    ASSERT_TRUE("Ctrl+e on Harpoon assigned falls through", handled_assigned == FALSE);
 
     app.filtered_harpoon[0].assigned = 0;
     gboolean handled_unassigned = on_key_press(NULL, &ev, &app);
 
-    ASSERT_TRUE("Ctrl+e on Harpoon unassigned not handled by edit path", handled_unassigned == FALSE);
-    ASSERT_TRUE("Ctrl+e on Harpoon unassigned does not show edit overlay again", g_show_harpoon_edit_calls == 1);
+    ASSERT_TRUE("Ctrl+e on Harpoon unassigned falls through", handled_unassigned == FALSE);
 }
 
 static void test_ctrl_t_config_tab_cycles_bool_and_saves(void) {
@@ -1158,7 +1159,7 @@ int main(int argc, char **argv) {
     test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry();
     test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index();
     test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot();
-    test_ctrl_e_harpoon_tab_edit_overlay_only_for_assigned_slot();
+    test_ctrl_e_harpoon_tab_is_noop();
     test_ctrl_t_config_tab_cycles_bool_and_saves();
     test_ctrl_t_config_tab_cycles_enum_and_saves();
     test_ctrl_e_config_tab_shows_edit_overlay_for_value_entry();

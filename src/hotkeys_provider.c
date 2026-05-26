@@ -82,9 +82,7 @@ static void hotkeys_on_query_changed(AppData *app, const char *query) {
 }
 
 static const char *hotkeys_shortcut_hint(AppData *app) {
-    if (!app || app->filtered_hotkeys_count == 0) {
-        return "Shortcuts: Ctrl+A=Add binding";
-    }
+    (void)app;
     return "Shortcuts: Ctrl+A=Add binding  Ctrl+B=Rebind key  Ctrl+E=Edit command  Ctrl+D=Delete binding";
 }
 

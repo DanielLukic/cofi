@@ -51,7 +51,6 @@ typedef enum {
     OVERLAY_WORKSPACE_RENAME,
     OVERLAY_WORKSPACE_MOVE_ALL,
     OVERLAY_CONFIRM,
-    OVERLAY_HARPOON_EDIT,
     OVERLAY_NAME_ASSIGN,
     OVERLAY_NAME_EDIT,
     OVERLAY_MATCH_PATTERN_EDIT,
@@ -199,12 +198,10 @@ typedef struct AppData {
     ProjectsMode projects_mode;
     AppsMode apps_mode;
 
-    // Edit state for harpoon
     struct {
-        gboolean editing;
-        int editing_slot;
-        char edit_buffer[MAX_TITLE_LEN];
-    } harpoon_edit;
+        int target_match_id;
+        char context_line[MAX_COMMANDS_LEN];
+    } pattern_edit;
 
     // Shared confirm overlay state
     struct {

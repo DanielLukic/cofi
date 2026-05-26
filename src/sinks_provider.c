@@ -180,7 +180,7 @@ void sinks_provider_register(void) {
     s_sinks_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_sinks_provider.id = "sinks";
     s_sinks_provider.display_name = "SINKS";
-    s_sinks_provider.shortcut_hint = "Shortcuts: Ctrl+key=Assign sink slot  Alt+key=Activate sink slot";
+    s_sinks_provider.shortcut_hint = "Shortcuts: Enter=Activate sink  Ctrl+key=Assign slot  Alt+key=Recall slot";
     s_sinks_provider.prefix_char = 0;
     s_sinks_provider.required = 0;
     s_sinks_provider.hidden_by_default = 1;

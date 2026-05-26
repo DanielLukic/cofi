@@ -25,31 +25,6 @@ static const char *get_match_entries_config_path(void) {
     return path;
 }
 
-static const char *match_mode_to_string(TitleMatchMode mode) {
-    return mode == TITLE_MATCH_MODE_GLOB ? "GLOB" : "EXACT";
-}
-
-static TitleMatchMode parse_match_mode(JsonObject *entry_obj) {
-    JsonNode *node = json_object_get_member(entry_obj, "match_mode");
-    if (!node) {
-        return TITLE_MATCH_MODE_EXACT;
-    }
-
-    if (JSON_NODE_HOLDS_VALUE(node)) {
-        GType value_type = json_node_get_value_type(node);
-        if (value_type == G_TYPE_STRING) {
-            const char *mode_str = json_node_get_string(node);
-            return g_strcmp0(mode_str, "GLOB") == 0 ? TITLE_MATCH_MODE_GLOB : TITLE_MATCH_MODE_EXACT;
-        }
-        if (value_type == G_TYPE_INT64 || value_type == G_TYPE_INT) {
-            int mode_int = (int)json_node_get_int(node);
-            return mode_int == TITLE_MATCH_MODE_GLOB ? TITLE_MATCH_MODE_GLOB : TITLE_MATCH_MODE_EXACT;
-        }
-    }
-
-    return TITLE_MATCH_MODE_EXACT;
-}
-
 static int parse_assigned(JsonObject *entry_obj) {
     JsonNode *node = json_object_get_member(entry_obj, "assigned");
     if (!node || !JSON_NODE_HOLDS_VALUE(node)) {
@@ -94,9 +69,6 @@ static void normalize_loaded_match_entries(MatchEntryManager *manager) {
             seen_ids[seen_count++] = id;
         }
 
-        if (manager->entries[i].match_mode != TITLE_MATCH_MODE_GLOB) {
-            manager->entries[i].match_mode = TITLE_MATCH_MODE_EXACT;
-        }
     }
 }
 
@@ -132,8 +104,6 @@ void save_match_entries(const MatchEntryManager *manager) {
         json_builder_add_string_value(builder, entry->instance);
         json_builder_set_member_name(builder, "type");
         json_builder_add_string_value(builder, entry->type);
-        json_builder_set_member_name(builder, "match_mode");
-        json_builder_add_string_value(builder, match_mode_to_string(entry->match_mode));
         json_builder_set_member_name(builder, "assigned");
         json_builder_add_boolean_value(builder, entry->assigned != 0);
 
@@ -180,10 +150,8 @@ void load_match_entries(MatchEntryManager *manager) {
             JsonObject *entry_obj = json_node_get_object(node);
             MatchEntry entry;
             memset(&entry, 0, sizeof(entry));
-            entry.match_mode = TITLE_MATCH_MODE_EXACT;
-
             entry.match_id = cofi_json_obj_int_or(entry_obj, "match_id", 0, NULL);
-            entry.bound_x11_id = (Window)cofi_json_obj_int_or(entry_obj, "bound_x11_id", 0, NULL);
+            entry.bound_x11_id = 0;
             g_strlcpy(entry.custom_name,
                       cofi_json_obj_str_or(entry_obj, "custom_name", "", NULL),
                       sizeof(entry.custom_name));
@@ -199,7 +167,6 @@ void load_match_entries(MatchEntryManager *manager) {
             g_strlcpy(entry.type,
                       cofi_json_obj_str_or(entry_obj, "type", "", NULL),
                       sizeof(entry.type));
-            entry.match_mode = parse_match_mode(entry_obj);
             entry.assigned = parse_assigned(entry_obj);
 
             manager->entries[manager->count++] = entry;

@@ -68,6 +68,7 @@ void proc_provider_register(void) {
     s_proc_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
     s_proc_provider.id = "proc";
     s_proc_provider.display_name = "PROC";
+    s_proc_provider.shortcut_hint = NULL;
     s_proc_provider.prefix_char = 0;
     s_proc_provider.required = 0;
     s_proc_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;

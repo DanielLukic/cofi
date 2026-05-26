@@ -9,6 +9,7 @@
 #include "overlay_hotkey_edit.h"
 #include "overlay_manager.h"
 #include "overlay_name.h"
+#include "overlay_pattern.h"
 #include "overlay_rules.h"
 #include "overlay_projects.h"
 #include "overlay_workspace.h"
@@ -36,10 +37,6 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
         case OVERLAY_CONFIRM:
             create_confirm_overlay_content(app->dialog_container, app);
             return;
-        case OVERLAY_HARPOON_EDIT:
-            create_harpoon_edit_overlay_content(
-                app->dialog_container, app, app->harpoon_edit.editing_slot);
-            return;
         case OVERLAY_NAME_ASSIGN:
             create_name_assign_overlay_content(app->dialog_container, app);
             return;
@@ -47,7 +44,7 @@ void overlay_create_content(AppData *app, OverlayType type, gpointer data) {
             create_name_edit_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_MATCH_PATTERN_EDIT:
-            create_name_pattern_edit_overlay_content(app->dialog_container, app);
+            create_pattern_edit_overlay_content(app->dialog_container, app);
             return;
         case OVERLAY_CONFIG_EDIT:
             create_config_edit_overlay_content(app->dialog_container, app);
@@ -106,14 +103,12 @@ gboolean overlay_dispatch_key_press(AppData *app, GdkEventKey *event) {
             return handle_workspace_rename_key_press(app, event->keyval);
         case OVERLAY_CONFIRM:
             return handle_confirm_overlay_key_press(app, event);
-        case OVERLAY_HARPOON_EDIT:
-            return handle_harpoon_edit_key_press(app, event);
         case OVERLAY_NAME_ASSIGN:
             return handle_name_assign_key_press(app, event);
         case OVERLAY_NAME_EDIT:
             return handle_name_edit_key_press(app, event);
         case OVERLAY_MATCH_PATTERN_EDIT:
-            return handle_name_pattern_edit_key_press(app, event);
+            return handle_pattern_edit_key_press(app, event);
         case OVERLAY_CONFIG_EDIT:
             return handle_config_edit_key_press(app, event);
         case OVERLAY_PROVIDER_ENABLEMENT:
@@ -168,12 +163,6 @@ void show_harpoon_delete_overlay(AppData *app, int slot_index) {
     show_harpoon_delete_confirm(app, slot_index);
 }
 
-void show_harpoon_edit_overlay(AppData *app, int slot_index) {
-    app->harpoon_edit.editing = TRUE;
-    app->harpoon_edit.editing_slot = slot_index;
-    show_overlay(app, OVERLAY_HARPOON_EDIT, NULL);
-}
-
 void show_name_assign_overlay(AppData *app) {
     show_overlay(app, OVERLAY_NAME_ASSIGN, NULL);
 }
@@ -183,7 +172,8 @@ void show_name_edit_overlay(AppData *app) {
 }
 
 void show_name_pattern_edit_overlay(AppData *app) {
-    show_overlay(app, OVERLAY_MATCH_PATTERN_EDIT, NULL);
+    int match_id = selected_match_id_for_pattern_edit(app);
+    show_pattern_edit_overlay(app, match_id, NULL);
 }
 
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {

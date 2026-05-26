@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "rules_config.h"
 #include "types.h"
+#include "match_entry.h"
 
 // One entry per (rule_index, window_id) pair.
 // Worst case: MAX_RULES rules each monitoring MAX_WINDOWS windows.
@@ -57,7 +58,9 @@ void init_rule_state(RuleState *state);
 // rule_index must be the index into RulesConfig.rules[] so each rule has
 // independent fire-once state per window (prevents cross-rule state stomping).
 RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
-                            Window id, const char *title);
+                           const MatchEntryManager *manager, const WindowInfo *window);
+bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
+                         const WindowInfo *window, const char **resolved_pattern);
 // Remove all (*, id) entries — one per rule that has ever checked this window.
 void rule_state_remove_window(RuleState *state, Window id);
 

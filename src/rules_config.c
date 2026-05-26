@@ -34,6 +34,7 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     r->pattern[MAX_PATTERN_LEN - 1] = '\0';
     strncpy(r->commands, commands, MAX_COMMANDS_LEN - 1);
     r->commands[MAX_COMMANDS_LEN - 1] = '\0';
+    r->match_id = 0;
     r->run_at_start = 0;
     r->tag[0] = '\0';
     config->count++;
@@ -50,7 +51,7 @@ int remove_rule(RulesConfig *config, int index) {
     return 1;
 }
 
-int save_rules_config(const RulesConfig *config) {
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
     if (!config) return 0;
 
     const char *path = get_rules_config_path();
@@ -59,9 +60,18 @@ int save_rules_config(const RulesConfig *config) {
     json_builder_set_member_name(builder, "rules");
     json_builder_begin_array(builder);
     for (int i = 0; i < config->count; i++) {
+        const char *pattern_cache = config->rules[i].pattern;
+        if (manager && config->rules[i].match_id > 0) {
+            int entry_index = match_entry_find_index_by_match_id(manager, config->rules[i].match_id);
+            if (entry_index >= 0) {
+                pattern_cache = manager->entries[entry_index].original_title;
+            }
+        }
         json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "match_id");
+        json_builder_add_int_value(builder, config->rules[i].match_id);
         json_builder_set_member_name(builder, "pattern");
-        json_builder_add_string_value(builder, config->rules[i].pattern);
+        json_builder_add_string_value(builder, pattern_cache ? pattern_cache : "");
         json_builder_set_member_name(builder, "commands");
         json_builder_add_string_value(builder, config->rules[i].commands);
         json_builder_set_member_name(builder, "run_at_start");
@@ -85,7 +95,7 @@ int save_rules_config(const RulesConfig *config) {
     return ok ? 1 : 0;
 }
 
-int load_rules_config(RulesConfig *config) {
+int load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
     if (!config) return 0;
 
     const char *path = get_rules_config_path();
@@ -112,26 +122,70 @@ int load_rules_config(RulesConfig *config) {
 
         JsonObject *rule = json_node_get_object(element);
         gboolean has_pattern = FALSE;
+        gboolean has_match_id = FALSE;
         gboolean has_commands = FALSE;
         const char *pattern = cofi_json_obj_str_or(rule, "pattern", "", &has_pattern);
+        int match_id = cofi_json_obj_int_or(rule, "match_id", 0, &has_match_id);
         const char *commands = cofi_json_obj_str_or(rule, "commands", "", &has_commands);
-        if (!has_pattern || pattern[0] == '\0') {
-            log_warn("rules_config: skipping rule with missing/empty pattern");
-            continue;
-        }
         if (!has_commands || commands[0] == '\0') {
             log_warn("rules_config: skipping rule with missing/empty commands");
             continue;
         }
-        if (!add_rule(config, pattern, commands)) {
+
+        if (match_id <= 0) {
+            if (!has_pattern || pattern[0] == '\0') {
+                log_warn("rules_config: skipping rule with missing pattern and match_id");
+                continue;
+            }
+            if (!manager) {
+                log_warn("rules_config: cannot migrate legacy pattern '%s' without matching manager", pattern);
+                continue;
+            }
+            match_id = matching_find_or_create_pattern_entry(manager, pattern);
+            if (match_id <= 0) {
+                log_warn("rules_config: failed to migrate legacy rule pattern '%s'", pattern);
+                continue;
+            }
+        } else if (manager && match_entry_find_index_by_match_id(manager, match_id) < 0) {
+            if (has_pattern && pattern[0] != '\0') {
+                int fallback_match_id = matching_find_or_create_pattern_entry(manager, pattern);
+                if (fallback_match_id > 0) {
+                    match_id = fallback_match_id;
+                } else {
+                    log_warn("rules_config: skipping orphaned rule match_id=%d pattern='%s'", match_id, pattern);
+                    continue;
+                }
+            } else {
+                log_warn("rules_config: skipping orphaned rule with missing pattern fallback (match_id=%d)", match_id);
+                continue;
+            }
+        }
+
+        const char *stored_pattern = pattern;
+        if ((!has_pattern || pattern[0] == '\0') && manager) {
+            int idx = match_entry_find_index_by_match_id(manager, match_id);
+            if (idx >= 0) {
+                stored_pattern = manager->entries[idx].original_title;
+            }
+        }
+
+        if (!add_rule(config, stored_pattern ? stored_pattern : "", commands)) {
             log_warn("rules_config: skipping rule because rule limit was reached");
             continue;
         }
-        config->rules[config->count - 1].run_at_start =
-            cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
+        Rule *loaded_rule = &config->rules[config->count - 1];
+        loaded_rule->match_id = match_id;
+        loaded_rule->run_at_start = cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
         const char *tag = cofi_json_obj_str_or(rule, "tag", "", NULL);
-        g_strlcpy(config->rules[config->count - 1].tag, tag,
-                  sizeof(config->rules[config->count - 1].tag));
+        g_strlcpy(loaded_rule->tag, tag, sizeof(loaded_rule->tag));
+        if (manager) {
+            int idx = match_entry_find_index_by_match_id(manager, loaded_rule->match_id);
+            if (idx >= 0) {
+                g_strlcpy(loaded_rule->pattern,
+                          manager->entries[idx].original_title,
+                          sizeof(loaded_rule->pattern));
+            }
+        }
     }
 
     g_object_unref(parser);

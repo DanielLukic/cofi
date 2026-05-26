@@ -205,7 +205,6 @@ void show_name_assign_overlay(AppData *app) {
     (void)app;
     show_name_assign_overlay_calls++;
 }
-
 void assign_workspace_slots(AppData *app) {
     (void)app;
     g_assign_workspace_slots_calls++;
@@ -386,6 +385,21 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an inline creates/updates match entry", inline_idx >= 0);
     ASSERT_TRUE("an inline sets custom name",
                 inline_idx >= 0 && strcmp(app.matching.entries[inline_idx].custom_name, "mywin") == 0);
+
+    app.matching.entries[inline_idx].custom_name[0] = '\0';
+    int count_before_relabel = app.matching.count;
+    hide_window_calls = 0;
+    g_save_match_entries_calls = 0;
+    gboolean relabel_result = cmd->handler(&app, &window, "bar");
+    int relabel_idx = match_entry_find_index_by_custom_name(&app.matching, "bar");
+
+    ASSERT_TRUE("an relabel after clear returns TRUE", relabel_result == TRUE);
+    ASSERT_TRUE("an relabel creates fresh entry", app.matching.count == count_before_relabel + 1);
+    ASSERT_TRUE("an relabel persists entries", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("an relabel hides window", hide_window_calls == 1);
+    ASSERT_TRUE("an relabel stores new name", relabel_idx >= 0);
+    ASSERT_TRUE("an relabel keeps cleared entry unlabeled",
+                app.matching.entries[inline_idx].custom_name[0] == '\0');
 
     show_name_assign_overlay_calls = 0;
     hide_window_calls = 0;
@@ -672,7 +686,6 @@ int main(void) {
     test_jump_slot_handler_behavior();
     test_tiling_handler_behavior();
     test_ui_handler_behavior();
-
     printf("\n========================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

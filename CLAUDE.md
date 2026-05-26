@@ -107,6 +107,7 @@ When handing work back, state:
 - cofi is a single binary with daemon mode plus Unix-socket delegation for later invocations.
 - Global hotkeys use X11 grabs; test hotkey behavior against X11 focus/grab semantics.
 - Non-Windows tabs are provider-backed. Add tab behavior through `CofiTabProvider` registration, not by adding new switch cases to display, selection, or core key dispatch.
+- Per-tab actions live in `CofiTabProvider.shortcut_hint` only; never centralize in `/help` or `--help-commands`. Hints are context-rendered when the tab is active.
 
 # Karpathy-Inspired Claude Code Guidelines
 

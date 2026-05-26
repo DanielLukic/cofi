@@ -374,70 +374,90 @@ static void test_wildcard_in_title(void) {
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
-    // Window with asterisk in title is stored literally (no conversion in PR2)
+    // Capture escapes '*' to '.' so literal asterisks do not become broad '*' matches.
     WindowInfo w = make_window(100, "test*file", "Class", "inst", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "myfile");
 
-    ASSERT_STR("asterisk preserved literally", "test*file", mgr.entries[0].original_title);
+    ASSERT_STR("asterisk escaped to dot on capture", "test.file", mgr.entries[0].original_title);
 }
 
-static void test_reassign_title_mode_characterization(void) {
-    printf("\n--- match_entry_reassign_live_windows title mode characterization ---\n");
+static void test_reassign_wildcard_characterization(void) {
+    printf("\n--- match_entry_reassign_live_windows wildcard characterization ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "term-*", "ClassA", "instA", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "term");
-    ASSERT_STR("capture stores literal title", "term-*", mgr.entries[0].original_title);
-    ASSERT_INT("capture defaults to EXACT mode", TITLE_MATCH_MODE_EXACT, mgr.entries[0].match_mode);
+    ASSERT_STR("capture escapes wildcard star", "term-.", mgr.entries[0].original_title);
 
     mgr.entries[0].bound_x11_id = 999;
     mgr.entries[0].assigned = 1;
     WindowInfo exact_candidate = make_window(200, "term-1", "ClassA", "instA", "Normal");
     int exact_changed = match_entry_reassign_live_windows(&mgr, &exact_candidate, 1);
-    ASSERT_INT("EXACT mode reports changed when stale binding is cleared", 1, exact_changed);
-    ASSERT_INT("EXACT mode leaves entry orphaned on title mismatch", 0, mgr.entries[0].assigned);
+    ASSERT_INT("wildcard mode reports changed when stale binding is cleared", 1, exact_changed);
+    ASSERT_INT("escaped dot matches single-char suffix", 1, mgr.entries[0].assigned);
 
     mgr.entries[0].bound_x11_id = 998;
     mgr.entries[0].assigned = 1;
-    mgr.entries[0].match_mode = TITLE_MATCH_MODE_GLOB;
     safe_string_copy(mgr.entries[0].original_title, "term-*", MAX_TITLE_LEN);
     WindowInfo glob_candidate = make_window(300, "term-xyz", "ClassA", "instA", "Normal");
-    ASSERT_INT("GLOB mode matches wildcard title", 1, (int)match_entry_reassign_live_windows(&mgr, &glob_candidate, 1));
-    ASSERT_INT("GLOB mode rebinds matched window", 1, (mgr.entries[0].bound_x11_id == 300));
+    ASSERT_INT("raw wildcard title matches candidate", 1, (int)match_entry_reassign_live_windows(&mgr, &glob_candidate, 1));
+    ASSERT_INT("wildcard match rebinds matched window", 1, (mgr.entries[0].bound_x11_id == 300));
 }
 
-static void test_reassign_requires_exact_class_instance_type(void) {
-    printf("\n--- match_entry_reassign_live_windows requires exact class/instance/type ---\n");
+static void test_match_if_set_class_instance_type(void) {
+    printf("\n--- match_entry_matches_window uses optional class/instance/type anchors ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "term-1", "ClassA", "instA", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "term");
-    mgr.entries[0].bound_x11_id = 999;
-    mgr.entries[0].assigned = 1;
-    safe_string_copy(mgr.entries[0].original_title, "term-1", MAX_TITLE_LEN);
+    ASSERT_STR("create captures class", "ClassA", mgr.entries[0].class_name);
+    ASSERT_STR("create captures instance", "instA", mgr.entries[0].instance);
+    ASSERT_STR("create captures type", "Normal", mgr.entries[0].type);
 
-    WindowInfo wrong_class = make_window(200, "term-1", "ClassB", "instA", "Normal");
-    int wrong_class_changed = match_entry_reassign_live_windows(&mgr, &wrong_class, 1);
-    ASSERT_INT("wrong class clears stale binding", 1, wrong_class_changed);
-    ASSERT_INT("wrong class leaves entry orphaned", 0, mgr.entries[0].assigned);
+    WindowInfo same = make_window(200, "term-1", "ClassA", "instA", "Normal");
+    ASSERT_INT("same title/class/instance/type matches", 1,
+               (int)match_entry_matches_window(&mgr.entries[0], &same));
 
-    mgr.entries[0].bound_x11_id = 998;
-    mgr.entries[0].assigned = 1;
-    WindowInfo wrong_instance = make_window(201, "term-1", "ClassA", "instB", "Normal");
-    int wrong_instance_changed = match_entry_reassign_live_windows(&mgr, &wrong_instance, 1);
-    ASSERT_INT("wrong instance clears stale binding", 1, wrong_instance_changed);
-    ASSERT_INT("wrong instance leaves entry orphaned", 0, mgr.entries[0].assigned);
+    WindowInfo wrong_class = make_window(201, "term-1", "ClassB", "instA", "Normal");
+    ASSERT_INT("wrong class rejected when class anchor set", 0,
+               (int)match_entry_matches_window(&mgr.entries[0], &wrong_class));
 
-    mgr.entries[0].bound_x11_id = 997;
-    mgr.entries[0].assigned = 1;
-    WindowInfo wrong_type = make_window(202, "term-1", "ClassA", "instA", "Special");
-    int wrong_type_changed = match_entry_reassign_live_windows(&mgr, &wrong_type, 1);
-    ASSERT_INT("wrong type clears stale binding", 1, wrong_type_changed);
-    ASSERT_INT("wrong type leaves entry orphaned", 0, mgr.entries[0].assigned);
+    WindowInfo wrong_instance = make_window(202, "term-1", "ClassA", "instB", "Normal");
+    ASSERT_INT("wrong instance rejected when instance anchor set", 0,
+               (int)match_entry_matches_window(&mgr.entries[0], &wrong_instance));
+
+    WindowInfo wrong_type = make_window(203, "term-1", "ClassA", "instA", "Special");
+    ASSERT_INT("wrong type rejected when type anchor set", 0,
+               (int)match_entry_matches_window(&mgr.entries[0], &wrong_type));
+
+    mgr.entries[0].class_name[0] = '\0';
+    mgr.entries[0].instance[0] = '\0';
+    mgr.entries[0].type[0] = '\0';
+    ASSERT_INT("empty anchors become unconstrained", 1,
+               (int)match_entry_matches_window(&mgr.entries[0], &wrong_class));
+}
+
+static void test_same_title_different_class_create_distinct_entries(void) {
+    printf("\n--- same title but different class creates distinct entries ---\n");
+
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo browser = make_window(100, "Dashboard", "Chromium", "chromium", "Normal");
+    WindowInfo terminal = make_window(101, "Dashboard", "mate-terminal", "mate-terminal", "Normal");
+
+    int a = matching_create_entry(&mgr, &browser);
+    int b = matching_create_entry(&mgr, &terminal);
+
+    ASSERT_INT("first entry created", 1, a > 0);
+    ASSERT_INT("second entry created", 1, b > 0);
+    ASSERT_INT("two entries exist", 2, mgr.count);
+    ASSERT_INT("entries keep distinct classes", 1,
+               strcmp(mgr.entries[0].class_name, mgr.entries[1].class_name) != 0);
 }
 
 static void set_test_home(const char *suffix) {
@@ -447,8 +467,8 @@ static void set_test_home(const char *suffix) {
     setenv("HOME", path, 1);
 }
 
-static void test_matching_capture_or_get_dedups_same_window(void) {
-    printf("\n--- matching_capture_or_get dedup ---\n");
+static void test_matching_create_entry_always_creates(void) {
+    printf("\n--- matching_create_entry always creates ---\n");
 
     MatchEntryManager manager;
     WindowInfo windows[MAX_WINDOWS] = {0};
@@ -456,12 +476,15 @@ static void test_matching_capture_or_get_dedups_same_window(void) {
     WindowInfo w = make_window(111, "Editor", "Code", "code", "Normal");
     windows[0] = w;
 
-    int id1 = matching_capture_or_get(&manager, windows, 1, &w);
-    int id2 = matching_capture_or_get(&manager, windows, 1, &w);
+    int id1 = matching_create_entry(&manager, &w);
+    int id2 = matching_create_entry(&manager, &w);
 
     ASSERT_INT("first capture succeeds", 1, id1 > 0);
-    ASSERT_INT("second capture returns same match id", id1, id2);
-    ASSERT_INT("capture dedup keeps one entry", 1, manager.count);
+    ASSERT_INT("second create returns new match id", 1, id2 > id1);
+    ASSERT_INT("create stores two entries", 2, manager.count);
+    ASSERT_STR("create captured class", "Code", manager.entries[0].class_name);
+    ASSERT_STR("create captured instance", "code", manager.entries[0].instance);
+    ASSERT_STR("create captured type", "Normal", manager.entries[0].type);
 }
 
 static void test_match_id_persist_and_non_reuse(void) {
@@ -609,12 +632,76 @@ static void test_load_missing_required_fields_and_missing_match_id(void) {
     load_match_entries(&loaded);
     ASSERT_INT("two entries loaded even with missing fields", 2, loaded.count);
     ASSERT_INT("missing match_id repaired to positive", 1, loaded.entries[0].match_id > 0);
-    ASSERT_STR("missing class defaults empty", "", loaded.entries[0].class_name);
-    ASSERT_STR("missing instance defaults empty", "", loaded.entries[0].instance);
-    ASSERT_STR("missing type defaults empty", "", loaded.entries[0].type);
-    ASSERT_INT("missing match_mode defaults EXACT", TITLE_MATCH_MODE_EXACT, loaded.entries[0].match_mode);
     ASSERT_INT("second entry id preserved", 7, loaded.entries[1].match_id);
     ASSERT_INT("next_match_id remains monotonic", 1, loaded.next_match_id > 7);
+}
+
+static void test_load_realistic_legacy_matching_json_shape(void) {
+    printf("\n--- load realistic legacy matching.json shape ---\n");
+
+    set_test_home("legacy-shape");
+    const char *home = getenv("HOME");
+    char config_root[512];
+    char config_dir[512];
+    char config_path[512];
+    snprintf(config_root, sizeof(config_root), "%s/.config", home);
+    snprintf(config_dir, sizeof(config_dir), "%s/.config/cofi", home);
+    snprintf(config_path, sizeof(config_path), "%s/.config/cofi/matching.json", home);
+    mkdir(config_root, 0755);
+    mkdir(config_dir, 0755);
+
+    FILE *f = fopen(config_path, "w");
+    ASSERT_NOT_NULL("legacy-shape fixture opened", f);
+    if (!f) return;
+    fprintf(f,
+            "{\n"
+            "  \"next_match_id\": 42,\n"
+            "  \"match_entries\": [\n"
+            "    {\n"
+            "      \"match_id\": 7,\n"
+            "      \"bound_x11_id\": 12345,\n"
+            "      \"custom_name\": \"editor-main\",\n"
+            "      \"original_title\": \"Code - main.c\",\n"
+            "      \"class_name\": \"Code\",\n"
+            "      \"instance\": \"code\",\n"
+            "      \"type\": \"Normal\",\n"
+            "      \"match_mode\": \"EXACT\",\n"
+            "      \"assigned\": 1\n"
+            "    },\n"
+            "    {\n"
+            "      \"match_id\": 8,\n"
+            "      \"bound_x11_id\": 67890,\n"
+            "      \"custom_name\": \"term-*\",\n"
+            "      \"original_title\": \"cofi*Terminal\",\n"
+            "      \"class_name\": \"Alacritty\",\n"
+            "      \"instance\": \"alacritty\",\n"
+            "      \"type\": \"Normal\",\n"
+            "      \"match_mode\": \"GLOB\",\n"
+            "      \"assigned\": 0\n"
+            "    }\n"
+            "  ]\n"
+            "}\n");
+    fclose(f);
+
+    MatchEntryManager loaded;
+    load_match_entries(&loaded);
+    ASSERT_INT("legacy-shape loaded two entries", 2, loaded.count);
+    ASSERT_INT("legacy-shape preserves first id", 7, loaded.entries[0].match_id);
+    ASSERT_INT("legacy-shape preserves second id", 8, loaded.entries[1].match_id);
+    ASSERT_STR("legacy-shape keeps title", "Code - main.c", loaded.entries[0].original_title);
+
+    save_match_entries(&loaded);
+    char saved[8192];
+    memset(saved, 0, sizeof(saved));
+    FILE *saved_file = fopen(config_path, "r");
+    ASSERT_NOT_NULL("legacy-shape saved file opened", saved_file);
+    if (!saved_file) return;
+    size_t n = fread(saved, 1, sizeof(saved) - 1, saved_file);
+    fclose(saved_file);
+    ASSERT_INT("legacy-shape saved bytes read", 1, n > 0);
+    ASSERT_INT("legacy-shape preserves class_name on save", 1, strstr(saved, "\"class_name\"") != NULL);
+    ASSERT_INT("legacy-shape preserves instance on save", 1, strstr(saved, "\"instance\"") != NULL);
+    ASSERT_INT("legacy-shape preserves type on save", 1, strstr(saved, "\"type\"") != NULL);
 }
 
 static void test_save_load_roundtrip_special_chars(void) {
@@ -627,10 +714,9 @@ static void test_save_load_roundtrip_special_chars(void) {
     WindowInfo w = make_window(501, "Title", "Class", "inst", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "name + extras !@#$%^&*()");
     safe_string_copy(mgr.entries[0].original_title, "Orig [brackets] / path", MAX_TITLE_LEN);
-    safe_string_copy(mgr.entries[0].class_name, "Class-Q_01", MAX_CLASS_LEN);
-    safe_string_copy(mgr.entries[0].instance, "inst-x.y", MAX_CLASS_LEN);
+    safe_string_copy(mgr.entries[0].class_name, "", sizeof(mgr.entries[0].class_name));
+    safe_string_copy(mgr.entries[0].instance, "inst-special", sizeof(mgr.entries[0].instance));
     safe_string_copy(mgr.entries[0].type, "Normal", sizeof(mgr.entries[0].type));
-    mgr.entries[0].match_mode = TITLE_MATCH_MODE_GLOB;
     mgr.entries[0].assigned = 1;
 
     save_match_entries(&mgr);
@@ -640,25 +726,25 @@ static void test_save_load_roundtrip_special_chars(void) {
     ASSERT_INT("roundtrip loads one entry", 1, loaded.count);
     ASSERT_STR("custom_name roundtrip", "name + extras !@#$%^&*()", loaded.entries[0].custom_name);
     ASSERT_STR("original_title roundtrip", "Orig [brackets] / path", loaded.entries[0].original_title);
-    ASSERT_STR("class_name roundtrip", "Class-Q_01", loaded.entries[0].class_name);
-    ASSERT_STR("instance roundtrip", "inst-x.y", loaded.entries[0].instance);
-    ASSERT_INT("match_mode roundtrip", TITLE_MATCH_MODE_GLOB, loaded.entries[0].match_mode);
+    ASSERT_STR("class_name roundtrip empty", "", loaded.entries[0].class_name);
+    ASSERT_STR("instance roundtrip populated", "inst-special", loaded.entries[0].instance);
+    ASSERT_STR("type roundtrip populated", "Normal", loaded.entries[0].type);
 }
 
 static void test_bound_x11_id_validation_and_rebind(void) {
-    printf("\n--- bound_x11_id validation and rebind ---\n");
+    printf("\n--- bound_x11_id ignored on load and rebound by title ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
     WindowInfo captured = make_window(200, "Title-A", "ClassA", "instA", "Normal");
     match_entry_assign_custom_name(&mgr, &captured, "name");
 
-    // Same id + drifted title is still trusted (class/instance/type validation only).
+    // Same id + drifted title is no longer trusted; rebind is title/mode-based.
     WindowInfo drifted = make_window(200, "Title-B", "ClassA", "instA", "Normal");
     int changed = match_entry_reassign_live_windows(&mgr, &drifted, 1);
-    ASSERT_INT("drifted title keeps trusted binding", 0, changed);
-    ASSERT_INT("binding preserved on drifted title", 200, (int)mgr.entries[0].bound_x11_id);
-    ASSERT_INT("entry remains assigned", 1, mgr.entries[0].assigned);
+    ASSERT_INT("drifted title clears stale binding", 1, changed);
+    ASSERT_INT("binding cleared on drifted title", 0, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("entry marked unassigned", 0, mgr.entries[0].assigned);
 
     // Reused id with wrong class should be dropped, then rebound by criteria.
     safe_string_copy(mgr.entries[0].original_title, "Wanted", MAX_TITLE_LEN);
@@ -666,8 +752,8 @@ static void test_bound_x11_id_validation_and_rebind(void) {
     windows[0] = make_window(200, "Wanted", "OtherClass", "instA", "Normal");
     windows[1] = make_window(300, "Wanted", "ClassA", "instA", "Normal");
     changed = match_entry_reassign_live_windows(&mgr, windows, 2);
-    ASSERT_INT("class mismatch triggers rebind path", 1, changed);
-    ASSERT_INT("rebound to matching criteria window", 300, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("class mismatch on reused id forces fallback rebind", 1, changed);
+    ASSERT_INT("rebound to title+class matching window", 300, (int)mgr.entries[0].bound_x11_id);
 }
 
 static void test_startup_load_then_reassign_path(void) {
@@ -692,8 +778,8 @@ static void test_startup_load_then_reassign_path(void) {
     ASSERT_INT("startup rebound to live window", 300, (int)loaded.entries[0].bound_x11_id);
 }
 
-static void test_glob_pattern_persists_and_rebinds_changed_title(void) {
-    printf("\n--- glob pattern persists and rematches changed title ---\n");
+static void test_escaped_star_pattern_persists_as_single_char_wildcard(void) {
+    printf("\n--- escaped star pattern persists as single-char wildcard ---\n");
 
     set_test_home("glob-persist");
     MatchEntryManager mgr;
@@ -701,27 +787,24 @@ static void test_glob_pattern_persists_and_rebinds_changed_title(void) {
 
     WindowInfo w = make_window(100, "cofi*Terminal", "ClassA", "instA", "Normal");
     match_entry_assign_custom_name(&mgr, &w, "term");
-    mgr.entries[0].match_mode = TITLE_MATCH_MODE_GLOB;
     save_match_entries(&mgr);
 
     MatchEntryManager loaded;
     load_match_entries(&loaded);
     ASSERT_INT("loaded one entry", 1, loaded.count);
-    ASSERT_INT("glob mode persisted", TITLE_MATCH_MODE_GLOB, loaded.entries[0].match_mode);
-    ASSERT_STR("pattern persisted", "cofi*Terminal", loaded.entries[0].original_title);
+    ASSERT_STR("pattern persisted with escaped star", "cofi.Terminal", loaded.entries[0].original_title);
 
     loaded.entries[0].bound_x11_id = 999;
     loaded.entries[0].assigned = 1;
     WindowInfo changed_title = make_window(200, "cofi | main - Terminal", "ClassA", "instA", "Normal");
     int changed = match_entry_reassign_live_windows(&loaded, &changed_title, 1);
-    ASSERT_INT("glob entry rebinds changed title", 1, changed);
-    ASSERT_INT("glob entry rebound id", 200, (int)loaded.entries[0].bound_x11_id);
+    ASSERT_INT("single-char wildcard does not match long drifted title", 0, loaded.entries[0].assigned);
 
-    loaded.entries[0].match_mode = TITLE_MATCH_MODE_EXACT;
     loaded.entries[0].bound_x11_id = 998;
     loaded.entries[0].assigned = 1;
+    safe_string_copy(loaded.entries[0].original_title, "cofi.Terminal", MAX_TITLE_LEN);
     changed = match_entry_reassign_live_windows(&loaded, &changed_title, 1);
-    ASSERT_INT("exact entry does not match changed title", 0, loaded.entries[0].assigned);
+    ASSERT_INT("single-char wildcard pattern does not match changed title", 0, loaded.entries[0].assigned);
 }
 
 static void test_match_entry_collect_labeled_ids(void) {
@@ -738,7 +821,7 @@ static void test_match_entry_collect_labeled_ids(void) {
     windows[1] = labeled_a;
     windows[2] = labeled_b;
 
-    matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    matching_create_entry(&mgr, &unlabeled);
     match_entry_assign_custom_name(&mgr, &labeled_a, "keep-a");
     match_entry_assign_custom_name(&mgr, &labeled_b, "keep-b");
 
@@ -844,9 +927,9 @@ static void test_match_entry_gc_is_pure_reference_check(void) {
     windows[1] = labeled;
     windows[2] = referenced;
 
-    int unlabeled_id = matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    int unlabeled_id = matching_create_entry(&mgr, &unlabeled);
     match_entry_assign_custom_name(&mgr, &labeled, "labeled");
-    int referenced_id = matching_capture_or_get(&mgr, windows, 3, &referenced);
+    int referenced_id = matching_create_entry(&mgr, &referenced);
 
     ASSERT_INT("three entries captured before gc", 3, mgr.count);
     ASSERT_INT("gc removes every unreferenced entry", 3,
@@ -871,9 +954,9 @@ static void test_match_entry_gc_removes_only_unreferenced_ids(void) {
     windows[1] = labeled;
     windows[2] = referenced;
 
-    int unlabeled_id = matching_capture_or_get(&mgr, windows, 3, &unlabeled);
+    int unlabeled_id = matching_create_entry(&mgr, &unlabeled);
     match_entry_assign_custom_name(&mgr, &labeled, "keep");
-    int referenced_id = matching_capture_or_get(&mgr, windows, 3, &referenced);
+    int referenced_id = matching_create_entry(&mgr, &referenced);
     int referenced_ids[] = {mgr.entries[1].match_id, referenced_id};
 
     ASSERT_INT("three entries captured before gc", 3, mgr.count);
@@ -901,16 +984,18 @@ int main(void) {
     test_reassign_no_match();
     test_reassign_skip_already_named();
     test_wildcard_in_title();
-    test_reassign_title_mode_characterization();
-    test_reassign_requires_exact_class_instance_type();
-    test_matching_capture_or_get_dedups_same_window();
+    test_reassign_wildcard_characterization();
+    test_match_if_set_class_instance_type();
+    test_same_title_different_class_create_distinct_entries();
+    test_matching_create_entry_always_creates();
     test_match_id_persist_and_non_reuse();
     test_load_repairs_malformed_or_duplicate_match_ids();
     test_load_missing_required_fields_and_missing_match_id();
+    test_load_realistic_legacy_matching_json_shape();
     test_save_load_roundtrip_special_chars();
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
-    test_glob_pattern_persists_and_rebinds_changed_title();
+    test_escaped_star_pattern_persists_as_single_char_wildcard();
     test_match_entry_collect_labeled_ids();
     test_layout_save_persists_on_deduped_match_id();
     test_layout_restore_resolve_requires_live_binding_and_saved_layout();

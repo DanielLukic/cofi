@@ -252,6 +252,8 @@ void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *
         int idx = manager->matching->count++;
         manager->matching->entries[idx].match_id = idx + 1;
         manager->matching->entries[idx].bound_x11_id = window->id;
+        g_strlcpy(manager->matching->entries[idx].original_title, window->title,
+                  sizeof(manager->matching->entries[idx].original_title));
         manager->matching->entries[idx].assigned = 1;
         match_id = manager->matching->entries[idx].match_id;
     }
@@ -268,6 +270,10 @@ void show_name_delete_overlay(AppData *app, const char *custom_name, int manager
     (void)app; (void)custom_name; (void)manager_index;
 }
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager; (void)id; return -1; }
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
+    if (!entry || !window) return false;
+    return strcmp(entry->original_title, window->title) == 0;
+}
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     if (!manager || match_id <= 0) return -1;
     for (int i = 0; i < manager->count; i++) {
@@ -278,20 +284,14 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
 int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
 void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
-int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int window_count, const WindowInfo *w) {
-    (void)windows;
-    (void)window_count;
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     if (!manager || !w) return -1;
-    for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].bound_x11_id == w->id) {
-            manager->entries[i].assigned = 1;
-            return manager->entries[i].match_id;
-        }
-    }
     if (manager->count >= MAX_WINDOWS) return -1;
     int idx = manager->count++;
     manager->entries[idx].match_id = idx + 1;
     manager->entries[idx].bound_x11_id = w->id;
+    g_strlcpy(manager->entries[idx].original_title, w->title,
+              sizeof(manager->entries[idx].original_title));
     manager->entries[idx].assigned = 1;
     return manager->entries[idx].match_id;
 }
@@ -300,7 +300,6 @@ MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
 int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
 void matching_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
-void show_harpoon_edit_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value, char *err_buf, size_t err_size) {
     (void)config; (void)key; (void)value; (void)err_buf; (void)err_size; return 0;
@@ -455,6 +454,8 @@ static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
     app.matching.count = 1;
     app.matching.entries[0].match_id = 44;
     app.matching.entries[0].bound_x11_id = x;
+    g_strlcpy(app.matching.entries[0].original_title, app.filtered[0].title,
+              sizeof(app.matching.entries[0].original_title));
     app.matching.entries[0].assigned = 1;
     app.harpoon.slots[3].assigned = 1;
     app.harpoon.slots[3].match_id = 44;

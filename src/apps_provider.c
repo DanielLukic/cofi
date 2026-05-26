@@ -158,6 +158,7 @@ void apps_provider_register(void) {
     s_apps_provider.tab_prefix_chars = "$\\";
     s_apps_provider.required = 0;
     s_apps_provider.hidden_by_default = 0;
+    s_apps_provider.shortcut_hint = NULL;
     s_apps_provider.initial_selection_index = 0;
     s_apps_provider.row_count = apps_row_count;
     s_apps_provider.format_row = apps_format_row;

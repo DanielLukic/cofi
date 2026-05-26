@@ -5,11 +5,14 @@
 #include "command_registry.h"
 #include "match.h"
 #include "overlay_manager.h"
+#include "overlay_pattern.h"
 #include "rules_replay.h"
 #include "selection.h"
 #include "tab_switching.h"
+#include "match_entry.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static int rules_row_count(AppData *app) {
     if (!app) return 0;
@@ -23,6 +26,17 @@ static Rule *rule_at_row(AppData *app, int raw_idx) {
     return &app->filtered_rules[raw_idx];
 }
 
+static const MatchEntry *entry_for_rule(const AppData *app, const Rule *rule) {
+    if (!app || !rule || rule->match_id <= 0) {
+        return NULL;
+    }
+    int idx = match_entry_find_index_by_match_id(&app->matching, rule->match_id);
+    if (idx < 0) {
+        return NULL;
+    }
+    return &app->matching.entries[idx];
+}
+
 static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     Rule *rule = rule_at_row(app, raw_idx);
     if (!rule) {
@@ -33,7 +47,18 @@ static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     }
 
     out->cell_count = 2;
-    out->cells[0].text = rule->pattern;
+    const MatchEntry *entry = entry_for_rule(app, rule);
+    static char pattern_buf[MAX_RULES][MAX_TITLE_LEN + 32];
+    int row = raw_idx;
+    if (row < 0) row = 0;
+    if (row >= MAX_RULES) row = MAX_RULES - 1;
+    if (entry) {
+        snprintf(pattern_buf[row], sizeof(pattern_buf[row]), "%s",
+                 entry->original_title);
+    } else {
+        snprintf(pattern_buf[row], sizeof(pattern_buf[row]), "%s (orphan)", rule->pattern);
+    }
+    out->cells[0].text = pattern_buf[row];
     out->cells[0].width_hint = 40;
     out->cells[1].text = rule->commands;
     out->cells[1].width_hint = 64;
@@ -44,8 +69,10 @@ static const char *rules_match_string(AppData *app, int raw_idx) {
     Rule *rule = rule_at_row(app, raw_idx);
     static char searchable[600];
     if (!rule) return "";
+    const MatchEntry *entry = entry_for_rule(app, rule);
+    const char *pattern = entry ? entry->original_title : rule->pattern;
     snprintf(searchable, sizeof(searchable), "%s %s",
-             rule->pattern, rule->commands);
+             pattern, rule->commands);
     return searchable;
 }
 
@@ -53,9 +80,27 @@ static const char *rules_row_identity(AppData *app, int raw_idx) {
     Rule *rule = rule_at_row(app, raw_idx);
     static char identity[700];
     if (!rule) return "";
-    snprintf(identity, sizeof(identity), "rule:%s:%s",
-             rule->pattern, rule->commands);
+    snprintf(identity, sizeof(identity), "rule:%d:%s",
+             rule->match_id, rule->commands);
     return identity;
+}
+
+static void format_rules_context(const Rule *rule, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    out[0] = '\0';
+    if (!rule) return;
+    const size_t max_cmd = 60;
+    size_t len = strlen(rule->commands);
+    if (len <= max_cmd) {
+        g_snprintf(out, out_size, "Commands: %s", rule->commands);
+        return;
+    }
+    char truncated[MAX_COMMANDS_LEN];
+    g_strlcpy(truncated, rule->commands, sizeof(truncated));
+    if (max_cmd + 1 < sizeof(truncated)) {
+        truncated[max_cmd] = '\0';
+    }
+    g_snprintf(out, out_size, "Commands: %s...", truncated);
 }
 
 void filter_rules(AppData *app, const char *filter) {
@@ -79,8 +124,10 @@ void filter_rules(AppData *app, const char *filter) {
         Rule *rule = &app->rules_config.rules[i];
         if (rule->tag[0] != '\0' && !app->config.rules_show_all_tags) continue;
         char searchable[600];
+        const MatchEntry *entry = entry_for_rule(app, rule);
+        const char *pattern = entry ? entry->original_title : rule->pattern;
         snprintf(searchable, sizeof(searchable), "%s %s",
-                 rule->pattern,
+                 pattern,
                  rule->commands);
         if (has_match(filter, searchable)) {
             app->filtered_rules[app->filtered_rules_count] =
@@ -162,6 +209,16 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
     }
 
     if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_p || event->keyval == GDK_KEY_P)) {
+        Rule *selected = rules_selected_rule(app);
+        int match_id = selected_match_id_for_pattern_edit(app);
+        char context[96];
+        format_rules_context(selected, context, sizeof(context));
+        show_pattern_edit_overlay(app, match_id, context);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D)) {
         int rule_index = rules_selected_config_index(app);
         if (rule_index < 0) {
@@ -227,7 +284,7 @@ void rules_provider_register(void) {
     s_rules_provider.on_query_changed = rules_on_query_changed;
     s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
-        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
     s_rules_provider_id = cofi_register_tab_provider(&s_rules_provider);
     if (s_rules_provider_id >= 0) {
         cofi_register_command(&s_rules_command);

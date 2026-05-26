@@ -22,10 +22,11 @@ static int tests_passed = 0;
 
 static int g_reset_selection_calls;
 static int g_show_delete_calls;
-static int g_show_edit_calls;
 static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static int g_last_overlay_slot;
+static int g_show_pattern_overlay_calls;
+static char g_last_pattern_context[64];
 static TabMode g_last_surface_tab = TAB_WINDOWS;
 static CofiTabProvider g_registered_provider;
 
@@ -74,6 +75,18 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
 int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
+int selected_match_id_for_pattern_edit(AppData *app) {
+    (void)app;
+    return 101;
+}
+gboolean show_pattern_edit_overlay(AppData *app, int match_id, const char *context_line) {
+    (void)app;
+    if (match_id <= 0) return FALSE;
+    g_show_pattern_overlay_calls++;
+    g_strlcpy(g_last_pattern_context, context_line ? context_line : "",
+              sizeof(g_last_pattern_context));
+    return TRUE;
+}
 
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     if (!manager || match_id <= 0) return -1;
@@ -89,22 +102,17 @@ void show_harpoon_delete_overlay(AppData *app, int slot) {
     g_last_overlay_slot = slot;
 }
 
-void show_harpoon_edit_overlay(AppData *app, int slot) {
-    (void)app;
-    g_show_edit_calls++;
-    g_last_overlay_slot = slot;
-}
-
 #include "../src/harpoon_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
     g_reset_selection_calls = 0;
     g_show_delete_calls = 0;
-    g_show_edit_calls = 0;
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
     g_last_overlay_slot = -1;
+    g_show_pattern_overlay_calls = 0;
+    g_last_pattern_context[0] = '\0';
     g_last_surface_tab = TAB_WINDOWS;
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     g_registered_provider.tab_mode = TEST_HARPOON_TAB;
@@ -115,28 +123,27 @@ static void seed_slots(AppData *app) {
     app->harpoon.slots[3].assigned = 1;
     app->harpoon.slots[3].match_id = 101;
     app->matching.entries[0].match_id = 101;
+    app->matching.entries[0].bound_x11_id = 0x101;
     g_strlcpy(app->matching.entries[0].original_title, "Terminal",
               sizeof(app->matching.entries[0].original_title));
-    g_strlcpy(app->matching.entries[0].class_name, "Mate-terminal",
-              sizeof(app->matching.entries[0].class_name));
-    g_strlcpy(app->matching.entries[0].instance, "mate-terminal",
-              sizeof(app->matching.entries[0].instance));
-    g_strlcpy(app->matching.entries[0].type, "normal",
-              sizeof(app->matching.entries[0].type));
     app->matching.entries[0].assigned = 1;
+    app->windows[0].id = 0x101;
+    g_strlcpy(app->windows[0].class_name, "Mate-terminal", sizeof(app->windows[0].class_name));
+    g_strlcpy(app->windows[0].instance, "mate-terminal", sizeof(app->windows[0].instance));
+    g_strlcpy(app->windows[0].type, "normal", sizeof(app->windows[0].type));
 
     app->harpoon.slots[12].assigned = 1;
     app->harpoon.slots[12].match_id = 202;
     app->matching.entries[1].match_id = 202;
+    app->matching.entries[1].bound_x11_id = 0x202;
     g_strlcpy(app->matching.entries[1].original_title, "Browser",
               sizeof(app->matching.entries[1].original_title));
-    g_strlcpy(app->matching.entries[1].class_name, "Firefox",
-              sizeof(app->matching.entries[1].class_name));
-    g_strlcpy(app->matching.entries[1].instance, "firefox",
-              sizeof(app->matching.entries[1].instance));
-    g_strlcpy(app->matching.entries[1].type, "normal",
-              sizeof(app->matching.entries[1].type));
     app->matching.entries[1].assigned = 1;
+    app->windows[1].id = 0x202;
+    g_strlcpy(app->windows[1].class_name, "Firefox", sizeof(app->windows[1].class_name));
+    g_strlcpy(app->windows[1].instance, "firefox", sizeof(app->windows[1].instance));
+    g_strlcpy(app->windows[1].type, "normal", sizeof(app->windows[1].type));
+    app->window_count = 2;
     app->matching.count = 2;
 }
 
@@ -198,14 +205,17 @@ static void test_selected_slot_clamps_and_keys_use_actual_slot(void) {
 
     GdkEventKey ev;
     memset(&ev, 0, sizeof(ev));
-    ev.keyval = GDK_KEY_e;
     ev.state = GDK_CONTROL_MASK;
-    ASSERT_TRUE("Ctrl+E handled", handle_harpoon_tab_keys(&ev, &app) == TRUE);
-    ASSERT_TRUE("Ctrl+E opens selected actual slot", g_show_edit_calls == 1 && g_last_overlay_slot == 12);
-
+    ev.keyval = GDK_KEY_e;
+    ASSERT_TRUE("Ctrl+E falls through", handle_harpoon_tab_keys(&ev, &app) == FALSE);
     ev.keyval = GDK_KEY_d;
     ASSERT_TRUE("Ctrl+D handled", handle_harpoon_tab_keys(&ev, &app) == TRUE);
     ASSERT_TRUE("Ctrl+D opens selected actual slot", g_show_delete_calls == 1 && g_last_overlay_slot == 12);
+
+    ev.keyval = GDK_KEY_p;
+    ASSERT_TRUE("Ctrl+P handled", handle_harpoon_tab_keys(&ev, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+P opens pattern overlay", g_show_pattern_overlay_calls == 1);
+    ASSERT_TRUE("Ctrl+P passes slot context", strcmp(g_last_pattern_context, "Slot: c") == 0);
 }
 
 static void test_command_metadata(void) {

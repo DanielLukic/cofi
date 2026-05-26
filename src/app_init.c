@@ -91,9 +91,6 @@ void init_app_data(AppData *app) {
     
     // Initialize harpoon tab data
     app->filtered_harpoon_count = 0;
-    app->harpoon_edit.editing = FALSE;
-    app->harpoon_edit.editing_slot = 0;
-    app->harpoon_edit.edit_buffer[0] = '\0';
     app->confirm_overlay.active = FALSE;
     app->confirm_overlay.title = NULL;
     app->confirm_overlay.info = NULL;
@@ -112,7 +109,9 @@ void init_app_data(AppData *app) {
 
     // Initialize rules
     init_rules_config(&app->rules_config);
-    load_rules_config(&app->rules_config);
+    load_rules_config(&app->rules_config, &app->matching);
+    // Persist post-load legacy rule migrations (pattern-only -> match_id-backed entries).
+    save_match_entries(&app->matching);
     app->filtered_rules_count = 0;
     init_rule_state(&app->rule_state);
     init_rule_breaker(&app->rule_breaker);

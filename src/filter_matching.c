@@ -23,10 +23,9 @@ void filter_matching(AppData *app, const char *filter) {
     for (int i = 0; i < app->matching.count; i++) {
         MatchEntry *entry = &app->matching.entries[i];
         
-        // Build searchable string: "custom_name original_title class instance"
-        snprintf(searchable, sizeof(searchable), "%s %s %s %s",
-                 entry->custom_name, entry->original_title, 
-                 entry->class_name, entry->instance);
+        snprintf(searchable, sizeof(searchable), "%s %s %s %s %s",
+                 entry->custom_name, entry->original_title,
+                 entry->class_name, entry->instance, entry->type);
         
         // Use has_match for filtering
         if (has_match(filter, searchable)) {

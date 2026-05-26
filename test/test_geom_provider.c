@@ -29,6 +29,8 @@ static int g_move_calls;
 static int g_move_desktop_calls;
 static int g_switch_desktop_calls;
 static int g_flush_calls;
+static int g_show_pattern_overlay_calls;
+static char g_last_pattern_context[128];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {(void)level;(void)file;(void)line;(void)fmt;}
 int has_match(const char *needle, const char *haystack) { return !needle || !needle[0] || (haystack && strstr(haystack, needle)); }
@@ -42,6 +44,18 @@ int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
     return 1;
 }
 void show_confirm_overlay(AppData *app, const char *title, const char *info, void (*on_confirm)(AppData *)) { (void)app;(void)title;(void)info; g_show_confirm_calls++; g_confirm_cb = on_confirm; }
+int selected_match_id_for_pattern_edit(AppData *app) {
+    if (!app || app->filtered_geom_count <= 0) return 0;
+    return app->layouts.records[app->filtered_geom[app->selection.provider_index]].match_id;
+}
+gboolean show_pattern_edit_overlay(AppData *app, int match_id, const char *context_line) {
+    (void)app;
+    if (match_id <= 0) return FALSE;
+    g_show_pattern_overlay_calls++;
+    g_strlcpy(g_last_pattern_context, context_line ? context_line : "",
+              sizeof(g_last_pattern_context));
+    return TRUE;
+}
 void exit_command_mode(AppData *app) { (void)app; }
 void surface_tab(AppData *app, TabMode tab) { if (app) app->current_tab = tab; }
 void cofi_init_provider_defaults(CofiTabProvider *p) { if (p) memset(p, 0, sizeof(*p)); }
@@ -59,7 +73,15 @@ void move_window_to_desktop(Display *display, Window window, int desktop) { (voi
 void switch_to_desktop(Display *display, int desktop) { (void)display;(void)desktop; g_switch_desktop_calls++; }
 int XFlush(Display *display) { (void)display; g_flush_calls++; return 0; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
-int matching_capture_or_get(MatchEntryManager *manager, WindowInfo *windows, int n, const WindowInfo *window) { (void)manager;(void)windows;(void)n;(void)window; return 0; }
+int matching_create_entry(MatchEntryManager *manager, const WindowInfo *window) {
+    (void)window;
+    if (!manager) return -1;
+    return manager->count > 0 ? manager->entries[manager->count - 1].match_id : -1;
+}
+bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
+    if (!entry || !window) return false;
+    return strcmp(entry->original_title, window->title) == 0;
+}
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager;(void)id; return -1; }
 bool match_entry_reassign_live_windows(MatchEntryManager *m, WindowInfo *w, int c) { (void)m;(void)w;(void)c; return false; }
 
@@ -77,20 +99,26 @@ static void reset_app(AppData *app) {
     g_confirm_cb = NULL;
     g_geom_rule_sync_calls = 0;
     g_last_synced_pattern[0] = '\0';
+    g_show_pattern_overlay_calls = 0;
+    g_last_pattern_context[0] = '\0';
 }
 
 static void seed_layouts(AppData *app) {
     app->matching.count = 2;
     app->matching.entries[0].match_id = 11;
     app->matching.entries[0].assigned = 1;
+    app->matching.entries[0].bound_x11_id = 0x111;
     g_strlcpy(app->matching.entries[0].custom_name, "alpha", sizeof(app->matching.entries[0].custom_name));
     g_strlcpy(app->matching.entries[0].original_title, "Alpha Title", sizeof(app->matching.entries[0].original_title));
-    g_strlcpy(app->matching.entries[0].class_name, "Firefox", sizeof(app->matching.entries[0].class_name));
-    g_strlcpy(app->matching.entries[0].instance, "firefox", sizeof(app->matching.entries[0].instance));
     app->matching.entries[1].match_id = 22;
+    app->matching.entries[1].assigned = 1;
+    app->matching.entries[1].bound_x11_id = 0x222;
     g_strlcpy(app->matching.entries[1].original_title, "Beta Title", sizeof(app->matching.entries[1].original_title));
-    g_strlcpy(app->matching.entries[1].class_name, "Code", sizeof(app->matching.entries[1].class_name));
-    g_strlcpy(app->matching.entries[1].instance, "code", sizeof(app->matching.entries[1].instance));
+    app->window_count = 2;
+    app->windows[0].id = 0x111;
+    g_strlcpy(app->windows[0].class_name, "Firefox", sizeof(app->windows[0].class_name));
+    app->windows[1].id = 0x222;
+    g_strlcpy(app->windows[1].class_name, "Code", sizeof(app->windows[1].class_name));
     app->layouts.count = 2;
     app->layouts.records[0] = (LayoutRecord){.match_id=11,.x=10,.y=20,.width=800,.height=600,.desktop=3,.maximized_vert=true,.restore_desktop=true};
     app->layouts.records[1] = (LayoutRecord){.match_id=22,.x=30,.y=40,.width=640,.height=480,.desktop=4,.fullscreen=true,.disabled=true};
@@ -99,7 +127,7 @@ static void seed_layouts(AppData *app) {
 static void test_filter_and_row_format(void) {
     AppData app; CofiRowCells row;
     reset_app(&app); seed_layouts(&app);
-    geom_on_query_changed(&app, "fire");
+    geom_on_query_changed(&app, "alpha");
     ASSERT_TRUE("filter substring on class", app.filtered_geom_count == 1);
     geom_format_row(&app, 0, &row);
     ASSERT_TRUE("row has five cells", row.cell_count == 5);
@@ -134,6 +162,12 @@ static void test_toggles_persist(void) {
     ASSERT_TRUE("Ctrl+T handled", handle_geom_tab_keys(&dis, &app) == TRUE);
     ASSERT_TRUE("Ctrl+T flips disabled", app.layouts.records[0].disabled == true);
     ASSERT_TRUE("Ctrl+T syncs geom rule", g_geom_rule_sync_calls == 1 && strcmp(g_last_synced_pattern, "Alpha Title") == 0);
+
+    GdkEventKey pat = {.keyval = GDK_KEY_p, .state = GDK_CONTROL_MASK};
+    ASSERT_TRUE("Ctrl+P handled", handle_geom_tab_keys(&pat, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+P opens pattern overlay", g_show_pattern_overlay_calls == 1);
+    ASSERT_TRUE("Ctrl+P passes layout context",
+                strcmp(g_last_pattern_context, "Layout: 800x600+10+20 (disabled)") == 0);
 }
 
 static void test_skip_missing_entry_and_empty_store(void) {

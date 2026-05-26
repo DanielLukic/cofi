@@ -93,24 +93,3 @@ bool wildcard_match(const char *pattern, const char *str) {
     // Both should be at the end for a match
     return !*pattern && !*str;
 }
-
-
-bool window_matches_identity_and_title_pattern(const WindowInfo *window,
-                                               const char *class_name,
-                                               const char *instance,
-                                               const char *type,
-                                               const char *title_pattern,
-                                               TitleMatchMode title_mode) {
-    if (!window || !class_name || !instance || !type || !title_pattern) return false;
-
-    if (strcmp(window->class_name, class_name) != 0 ||
-        strcmp(window->instance, instance) != 0 ||
-        strcmp(window->type, type) != 0) {
-        return false;
-    }
-
-    if (title_mode == TITLE_MATCH_MODE_EXACT) {
-        return strcmp(title_pattern, window->title) == 0;
-    }
-    return wildcard_match(title_pattern, window->title);
-}

@@ -5,6 +5,7 @@
 #include "command_parser.h"
 #include "display.h"
 #include "log.h"
+#include "match_entry_config.h"
 #include "overlay_confirm.h"
 #include "overlay_manager.h"
 #include "rules_provider.h"
@@ -78,6 +79,14 @@ static gboolean save_rule_values(AppData *app, int rule_index,
         return FALSE;
     }
 
+    int match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+    if (match_id <= 0) {
+        if (error_label) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Cannot create pattern entry");
+        }
+        return FALSE;
+    }
+
     if (rule_index < 0) {
         if (!add_rule(&app->rules_config, pattern, commands)) {
             if (error_label) {
@@ -85,6 +94,7 @@ static gboolean save_rule_values(AppData *app, int rule_index,
             }
             return FALSE;
         }
+        rule_index = app->rules_config.count - 1;
     } else {
         g_strlcpy(app->rules_config.rules[rule_index].pattern,
                   pattern, sizeof(app->rules_config.rules[rule_index].pattern));
@@ -92,20 +102,56 @@ static gboolean save_rule_values(AppData *app, int rule_index,
                   commands, sizeof(app->rules_config.rules[rule_index].commands));
     }
 
-    save_rules_config(&app->rules_config);
+    app->rules_config.rules[rule_index].match_id = match_id;
+    save_match_entries(&app->matching);
+    if (!save_rules_config(&app->rules_config, &app->matching)) {
+        if (error_label) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Failed to save rules");
+        }
+        return FALSE;
+    }
     return TRUE;
 }
 
-static void create_rule_overlay_form(GtkWidget *parent_container, const char *title,
-                                     const char *pattern, const char *commands,
-                                     int rule_index) {
+static gboolean save_rule_commands_only(AppData *app, int rule_index, const char *commands) {
+    GtkWidget *error_label = g_object_get_data(G_OBJECT(app->dialog_container), "error_label");
+    char validation_error[128] = {0};
+    if (!validate_rule_commands(commands, validation_error, sizeof(validation_error))) {
+        log_warn("Rules: rejected invalid command string '%s' (%s)",
+                 commands ? commands : "", validation_error);
+        if (error_label) {
+            char msg[160];
+            g_snprintf(msg, sizeof(msg), "Invalid commands: %s", validation_error);
+            gtk_label_set_text(GTK_LABEL(error_label), msg);
+        }
+        return FALSE;
+    }
+    if (rule_index < 0 || rule_index >= app->rules_config.count) {
+        if (error_label) {
+            gtk_label_set_text(GTK_LABEL(error_label), "No rule selected");
+        }
+        return FALSE;
+    }
+    g_strlcpy(app->rules_config.rules[rule_index].commands,
+              commands, sizeof(app->rules_config.rules[rule_index].commands));
+    if (!save_rules_config(&app->rules_config, &app->matching)) {
+        if (error_label) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Failed to save rules");
+        }
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void create_rule_add_overlay_form(GtkWidget *parent_container,
+                                         const char *pattern, const char *commands) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_widget_set_margin_left(vbox, 20);
     gtk_widget_set_margin_right(vbox, 20);
     gtk_widget_set_margin_top(vbox, 20);
     gtk_widget_set_margin_bottom(vbox, 20);
 
-    GtkWidget *title_label = gtk_label_new(title);
+    GtkWidget *title_label = gtk_label_new("Add Rule");
     gtk_widget_set_name(title_label, "overlay-title");
     gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
 
@@ -137,6 +183,43 @@ static void create_rule_overlay_form(GtkWidget *parent_container, const char *ti
     g_object_set_data(G_OBJECT(parent_container), "rule_pattern_entry", pattern_entry);
     g_object_set_data(G_OBJECT(parent_container), "rule_commands_entry", commands_entry);
     g_object_set_data(G_OBJECT(parent_container), "error_label", error_label);
+    g_object_set_data(G_OBJECT(parent_container), "rule_index", GINT_TO_POINTER(-1));
+
+    gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
+}
+
+static void create_rule_edit_overlay_form(GtkWidget *parent_container,
+                                          const char *commands, int rule_index) {
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_widget_set_margin_left(vbox, 20);
+    gtk_widget_set_margin_right(vbox, 20);
+    gtk_widget_set_margin_top(vbox, 20);
+    gtk_widget_set_margin_bottom(vbox, 20);
+
+    GtkWidget *title_label = gtk_label_new("Edit Commands");
+    gtk_widget_set_name(title_label, "overlay-title");
+    gtk_box_pack_start(GTK_BOX(vbox), title_label, FALSE, FALSE, 0);
+
+    GtkWidget *commands_label = create_message_label("Commands (comma-separated cofi commands):");
+    gtk_box_pack_start(GTK_BOX(vbox), commands_label, FALSE, FALSE, 0);
+
+    GtkWidget *commands_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(commands_entry), commands ? commands : "");
+    gtk_widget_set_size_request(commands_entry, 360, -1);
+    gtk_box_pack_start(GTK_BOX(vbox), commands_entry, FALSE, FALSE, 0);
+
+    GtkWidget *error_label = gtk_label_new("");
+    gtk_widget_set_halign(error_label, GTK_ALIGN_START);
+    gtk_widget_set_name(error_label, "overlay-error");
+    gtk_box_pack_start(GTK_BOX(vbox), error_label, FALSE, FALSE, 0);
+
+    GtkWidget *inst = create_message_label("Enter=save  Esc=cancel");
+    gtk_box_pack_start(GTK_BOX(vbox), inst, FALSE, FALSE, 0);
+
+    g_object_set_data(G_OBJECT(parent_container), "name_entry", commands_entry);
+    g_object_set_data(G_OBJECT(parent_container), "rule_pattern_entry", NULL);
+    g_object_set_data(G_OBJECT(parent_container), "rule_commands_entry", commands_entry);
+    g_object_set_data(G_OBJECT(parent_container), "error_label", error_label);
     g_object_set_data(G_OBJECT(parent_container), "rule_index", GINT_TO_POINTER(rule_index));
 
     gtk_box_pack_start(GTK_BOX(parent_container), vbox, TRUE, FALSE, 0);
@@ -144,7 +227,7 @@ static void create_rule_overlay_form(GtkWidget *parent_container, const char *ti
 
 void create_rule_add_overlay_content(GtkWidget *parent_container, AppData *app) {
     (void)app;
-    create_rule_overlay_form(parent_container, "Add Rule", "", "", -1);
+    create_rule_add_overlay_form(parent_container, "", "");
 }
 
 void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app) {
@@ -157,8 +240,7 @@ void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app)
 
     Rule *rule = &app->rules_config.rules[config_index];
 
-    create_rule_overlay_form(parent_container, "Edit Rule",
-                             rule->pattern, rule->commands, config_index);
+    create_rule_edit_overlay_form(parent_container, rule->commands, config_index);
 }
 
 static gboolean handle_rule_form_key_press(AppData *app, GdkEventKey *event) {
@@ -179,18 +261,24 @@ static gboolean handle_rule_form_key_press(AppData *app, GdkEventKey *event) {
         return FALSE;
     }
 
-    GtkWidget *pattern_entry = g_object_get_data(G_OBJECT(app->dialog_container), "rule_pattern_entry");
     GtkWidget *commands_entry = g_object_get_data(G_OBJECT(app->dialog_container), "rule_commands_entry");
     int rule_index = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(app->dialog_container), "rule_index"));
 
-    if (!pattern_entry || !commands_entry) {
+    if (!commands_entry) {
         return TRUE;
     }
 
-    const char *pattern = gtk_entry_get_text(GTK_ENTRY(pattern_entry));
     const char *commands = gtk_entry_get_text(GTK_ENTRY(commands_entry));
 
-    if (!save_rule_values(app, rule_index, pattern, commands)) {
+    gboolean ok = FALSE;
+    if (rule_index < 0) {
+        GtkWidget *pattern_entry = g_object_get_data(G_OBJECT(app->dialog_container), "rule_pattern_entry");
+        const char *pattern = pattern_entry ? gtk_entry_get_text(GTK_ENTRY(pattern_entry)) : "";
+        ok = save_rule_values(app, rule_index, pattern, commands);
+    } else {
+        ok = save_rule_commands_only(app, rule_index, commands);
+    }
+    if (!ok) {
         return TRUE;
     }
 
@@ -210,7 +298,7 @@ gboolean handle_rule_edit_key_press(AppData *app, GdkEventKey *event) {
 static void perform_rule_delete(AppData *app) {
     if (s_pending_rule_delete_index >= 0 && s_pending_rule_delete_index < app->rules_config.count) {
         remove_rule(&app->rules_config, s_pending_rule_delete_index);
-        save_rules_config(&app->rules_config);
+        save_rules_config(&app->rules_config, &app->matching);
     }
     s_pending_rule_delete_index = -1;
     refresh_rules_tab(app);
