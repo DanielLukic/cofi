@@ -636,7 +636,6 @@ Rules tab save/edit/delete are persistence-only (`rules.json`): saving a rule do
 
 ## Autostart
 
-Scripts provided for automatic startup:
-
-- **XDG autostart** — `scripts/install-xdg.sh` (installs `.desktop` file to `~/.config/autostart/`)
-- **systemd user service** — `scripts/install-systemd.sh` (enables and starts `cofi.service`)
+The maintained startup path is the systemd user service installed by
+`mise run install` / `make install` or `mise run install-dev` /
+`make install-dev`. The service template is `scripts/cofi.service`.

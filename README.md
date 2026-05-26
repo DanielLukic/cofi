@@ -66,15 +66,8 @@ All delegate flags (`--command`, `--run`, `--workspaces`, `--harpoon`, `--names`
 
 ### Autostart
 
-Install for automatic startup at login:
-
-```bash
-# XDG autostart (desktop entry)
-./scripts/install-xdg.sh
-
-# Or systemd user service
-./scripts/install-systemd.sh
-```
+Install the systemd user service with `mise run install`. See
+[Installation](#installation) for release and development install modes.
 
 ### Command-line Options
 
