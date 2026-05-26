@@ -208,16 +208,16 @@ static void test_terminal_title_prefix_wraps_command_with_safe_quoted_title(void
 static void test_remote_attach_command_builds_ssh_t_path(void) {
     gchar *cmd = projects_build_remote_attach_command(
         PROJECT_BACKEND_TMUX, "tsunami", "tmux", "work api");
-    ASSERT_STR_EQ("remote tmux attach uses ssh -t host bare tool attach-session",
-                  "ssh -t 'tsunami' 'tmux' attach-session -t 'work api'", cmd);
+    ASSERT_STR_EQ("remote tmux attach uses ssh X forwarding and tty",
+                  "ssh -X -t 'tsunami' 'tmux' attach-session -t 'work api'", cmd);
     g_free(cmd);
 }
 
 static void test_remote_new_command_builds_ssh_t_with_cwd(void) {
     gchar *cmd = projects_build_remote_new_command(
         PROJECT_BACKEND_TMUX, "tsunami", "tmux", "work api", "/srv/work");
-    ASSERT_STR_EQ("remote tmux new uses ssh -t host bare tool new with cwd",
-                  "ssh -t 'tsunami' 'tmux' new -A -s 'work api' -c '/srv/work'", cmd);
+    ASSERT_STR_EQ("remote tmux new uses ssh X forwarding and cwd",
+                  "ssh -X -t 'tsunami' 'tmux' new -A -s 'work api' -c '/srv/work'", cmd);
     g_free(cmd);
 }
 
@@ -231,15 +231,15 @@ static void test_folder_terminal_command_cd_and_exec_shell(void) {
 static void test_remote_folder_terminal_command_ssh_cd_and_exec_shell(void) {
     gchar *cmd = projects_build_remote_folder_terminal_command("root@tsunami",
                                                                "/srv/work dir");
-    ASSERT_STR_EQ("remote folder terminal command uses ssh -t with quoted remote shell command",
-                  "ssh -t 'root@tsunami' 'cd '\\''/srv/work dir'\\'' && exec \"${SHELL:-bash}\" -l'",
+    ASSERT_STR_EQ("remote folder terminal command uses ssh X forwarding and tty",
+                  "ssh -X -t 'root@tsunami' 'cd '\\''/srv/work dir'\\'' && exec \"${SHELL:-bash}\" -l'",
                   cmd);
     g_free(cmd);
 }
 
 static void test_remote_cmdline_matcher_matches_tmux_attach(void) {
     const char cmdline[] =
-        "ssh\0-t\0root@tsunami\0tmux\0attach-session\0-t\0work api\0";
+        "ssh\0-X\0-t\0root@tsunami\0tmux\0attach-session\0-t\0work api\0";
 
     ASSERT_TRUE("remote matcher matches tmux attach-session",
                 projects_remote_cmdline_matches_attach(cmdline,

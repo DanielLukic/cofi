@@ -46,12 +46,13 @@ static int build_ssh_argv(const char *host,
                           gchar **argv_out,
                           int argv_cap) {
     if (!host || !host[0] || !remote_argv || !remote_argv[0] ||
-        !argv_out || argv_cap < 8) {
+        !argv_out || argv_cap < 9) {
         return 0;
     }
 
     int idx = 0;
     argv_out[idx++] = "ssh";
+    argv_out[idx++] = "-X";
     argv_out[idx++] = "-o";
     argv_out[idx++] = "BatchMode=yes";
     argv_out[idx++] = "-o";

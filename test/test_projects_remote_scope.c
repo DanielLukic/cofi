@@ -128,11 +128,12 @@ static void test_ssh_argv_builder_keeps_host_and_appends_remote_command(void) {
     gchar *argv[16] = {0};
     int argc = projects_remote_scope_build_ssh_argv_for_test("tsunami", remote_argv, argv, 16);
 
-    ASSERT_TRUE("ssh argv has expected argc", argc == 10);
+    ASSERT_TRUE("ssh argv has expected argc", argc == 11);
     ASSERT_TRUE("ssh argv starts with ssh", strcmp(argv[0], "ssh") == 0);
-    ASSERT_TRUE("ssh argv keeps host at slot 5", strcmp(argv[5], "tsunami") == 0);
-    ASSERT_TRUE("ssh argv command starts after host", strcmp(argv[6], "tmux") == 0);
-    ASSERT_TRUE("ssh argv includes subsequent command words", strcmp(argv[7], "list-sessions") == 0);
+    ASSERT_TRUE("ssh argv enables X forwarding", strcmp(argv[1], "-X") == 0);
+    ASSERT_TRUE("ssh argv keeps host at slot 6", strcmp(argv[6], "tsunami") == 0);
+    ASSERT_TRUE("ssh argv command starts after host", strcmp(argv[7], "tmux") == 0);
+    ASSERT_TRUE("ssh argv includes subsequent command words", strcmp(argv[8], "list-sessions") == 0);
     ASSERT_TRUE("ssh argv is null terminated", argv[argc] == NULL);
 }
 

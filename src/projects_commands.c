@@ -115,9 +115,9 @@ gchar *projects_build_remote_attach_command(ProjectBackend backend,
     gchar *quoted_tool = g_shell_quote(tool_path);
     gchar *quoted_name = g_shell_quote(session_name);
     gchar *command = backend == PROJECT_BACKEND_ZELLIJ
-        ? g_strdup_printf("ssh -t %s %s attach --create %s",
+        ? g_strdup_printf("ssh -X -t %s %s attach --create %s",
                           quoted_host, quoted_tool, quoted_name)
-        : g_strdup_printf("ssh -t %s %s attach-session -t %s",
+        : g_strdup_printf("ssh -X -t %s %s attach-session -t %s",
                           quoted_host, quoted_tool, quoted_name);
     g_free(quoted_name);
     g_free(quoted_tool);
@@ -138,9 +138,9 @@ gchar *projects_build_remote_new_command(ProjectBackend backend,
     gchar *quoted_name = g_shell_quote(session_name);
     gchar *quoted_dir = g_shell_quote(start_dir);
     gchar *command = backend == PROJECT_BACKEND_ZELLIJ
-        ? g_strdup_printf("ssh -t %s bash -lc \"cd %s && %s attach --create %s\"",
+        ? g_strdup_printf("ssh -X -t %s bash -lc \"cd %s && %s attach --create %s\"",
                           quoted_host, quoted_dir, quoted_tool, quoted_name)
-        : g_strdup_printf("ssh -t %s %s new -A -s %s -c %s",
+        : g_strdup_printf("ssh -X -t %s %s new -A -s %s -c %s",
                           quoted_host, quoted_tool, quoted_name, quoted_dir);
     g_free(quoted_dir);
     g_free(quoted_name);
@@ -163,7 +163,7 @@ gchar *projects_build_remote_folder_terminal_command(const char *host, const cha
     gchar *quoted_path = g_shell_quote(path);
     gchar *remote_cmd = g_strdup_printf("cd %s && exec \"${SHELL:-bash}\" -l", quoted_path);
     gchar *quoted_remote_cmd = g_shell_quote(remote_cmd);
-    gchar *command = g_strdup_printf("ssh -t %s %s", quoted_host, quoted_remote_cmd);
+    gchar *command = g_strdup_printf("ssh -X -t %s %s", quoted_host, quoted_remote_cmd);
     g_free(quoted_remote_cmd);
     g_free(remote_cmd);
     g_free(quoted_path);
