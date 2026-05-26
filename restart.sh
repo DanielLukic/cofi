@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PREFIX="${PREFIX:-$HOME/.local}"
+PREFIX="${PREFIX:-/usr/local}"
 BINDIR="$PREFIX/bin"
 INSTALLED="$BINDIR/cofi"
 LOCAL_BIN="$(pwd -P)/cofi"

@@ -53,9 +53,12 @@ mise run rebuild              # full rebuild; required after header changes
 mise run test                 # unit/regression tests
 mise run test-target test_fzf_algo # targeted test binary
 mise run test-integration      # opt-in Xvfb GUI screenshot tests
-mise run install              # copy release binary + install user service
-mise run install-dev          # symlink ~/.local/bin/cofi to this worktree + install service
+mise run install              # copy release binary to /usr/local/bin + install user service
+mise run install-dev          # symlink /usr/local/bin/cofi to this worktree + install service
+mise run install-local        # copy release binary to ~/.local/bin + install user service
+mise run install-dev-local    # symlink ~/.local/bin/cofi to this worktree + install service
 mise run restart              # rebuild and restart, preserving dev symlink installs
+mise run restart-local        # rebuild and restart for ~/.local/bin installs
 systemctl --user restart cofi # restart without rebuild
 journalctl --user -u cofi -f  # tail logs
 ```

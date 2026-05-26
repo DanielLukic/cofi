@@ -28,14 +28,30 @@ run = "python3 scripts/gen_emoji.py"
 description = "Rebuild and restart the user service"
 run = "./restart.sh"
 
+[tasks.restart-local]
+description = "Rebuild and restart the user service using ~/.local/bin"
+run = 'PREFIX="$HOME/.local" ./restart.sh'
+
 [tasks.install]
-description = "Install copied binary and user service"
+description = "Install copied binary to /usr/local/bin and user service"
 run = "make install"
 
 [tasks.install-dev]
-description = "Install dev symlink and user service"
+description = "Install dev symlink to /usr/local/bin and user service"
 run = "make install-dev"
+
+[tasks.install-local]
+description = "Install copied binary to ~/.local/bin and user service"
+run = "make install-local"
+
+[tasks.install-dev-local]
+description = "Install dev symlink to ~/.local/bin and user service"
+run = "make install-dev-local"
 
 [tasks.uninstall]
 description = "Remove installed binary and user service"
 run = "make uninstall"
+
+[tasks.uninstall-local]
+description = "Remove ~/.local/bin binary and user service"
+run = "make uninstall-local"

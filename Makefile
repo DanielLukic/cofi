@@ -74,9 +74,37 @@ clean:
 	rm -f test/test_command_parsing test/test_window_matcher
 
 
-PREFIX ?= $(HOME)/.local
+PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 SYSTEMD_USER_DIR = $(HOME)/.config/systemd/user
+
+.PHONY: check-install-path
+check-install-path:
+	@target="$(BINDIR)/$(TARGET)"; \
+	offenders=""; \
+	seen=""; \
+	old_ifs="$$IFS"; \
+	IFS=:; \
+	for dir in $$PATH; do \
+		[ -n "$$dir" ] || dir=.; \
+		candidate="$$dir/$(TARGET)"; \
+		[ "$$candidate" = "$$target" ] && continue; \
+		[ -e "$$candidate" ] || [ -L "$$candidate" ] || continue; \
+		case ":$$seen:" in *:"$$candidate":*) continue ;; esac; \
+		seen="$${seen}:$$candidate"; \
+		offenders="$${offenders}$${offenders:+ }$$candidate"; \
+	done; \
+	IFS="$$old_ifs"; \
+	if [ -n "$$offenders" ] && [ "$(FORCE)" != "1" ]; then \
+		echo "Refusing to install: another cofi is already on PATH:" >&2; \
+		for path in $$offenders; do echo "  $$path" >&2; done; \
+		echo "Remove the duplicate, choose the matching install target, or rerun with FORCE=1." >&2; \
+		exit 1; \
+	fi; \
+	if [ -n "$$offenders" ]; then \
+		echo "Warning: installing despite duplicate cofi on PATH:" >&2; \
+		for path in $$offenders; do echo "  $$path" >&2; done; \
+	fi
 
 # Install systemd user service
 .PHONY: install-service
@@ -90,6 +118,7 @@ install-service:
 # Install copied binary + systemd user service (release mode)
 .PHONY: install
 install: release
+	$(MAKE) check-install-path PREFIX="$(PREFIX)"
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)/
 	$(MAKE) install-service PREFIX="$(PREFIX)"
@@ -98,10 +127,19 @@ install: release
 # Install symlinked binary + systemd user service (development mode)
 .PHONY: install-dev
 install-dev: $(TARGET)
+	$(MAKE) check-install-path PREFIX="$(PREFIX)"
 	install -d $(BINDIR)
 	ln -sf $(CURDIR)/$(TARGET) $(BINDIR)/$(TARGET)
 	$(MAKE) install-service PREFIX="$(PREFIX)"
 	@echo "Installed dev symlink $(BINDIR)/cofi -> $(CURDIR)/$(TARGET) and enabled systemd user service"
+
+.PHONY: install-local
+install-local:
+	$(MAKE) install PREFIX="$(HOME)/.local"
+
+.PHONY: install-dev-local
+install-dev-local:
+	$(MAKE) install-dev PREFIX="$(HOME)/.local"
 
 # Uninstall binary + systemd service
 .PHONY: uninstall
@@ -111,6 +149,10 @@ uninstall:
 	rm -f $(SYSTEMD_USER_DIR)/cofi.service
 	systemctl --user daemon-reload
 	@echo "Uninstalled cofi"
+
+.PHONY: uninstall-local
+uninstall-local:
+	$(MAKE) uninstall PREFIX="$(HOME)/.local"
 
 # Debug build with debug output enabled
 debug: CFLAGS += -DDEBUG $(XI_DEBUG_CFLAGS)
@@ -520,4 +562,6 @@ clean_tests:
 
 -include $(wildcard src/*.d)
 
-.PHONY: all clean install uninstall debug run test test-integration build_tests clean_tests
+.PHONY: all clean install install-dev install-local install-dev-local install-service \
+	check-install-path uninstall uninstall-local debug run test test-integration \
+	build_tests clean_tests

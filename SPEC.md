@@ -638,4 +638,7 @@ Rules tab save/edit/delete are persistence-only (`rules.json`): saving a rule do
 
 The maintained startup path is the systemd user service installed by
 `mise run install` / `make install` or `mise run install-dev` /
-`make install-dev`. The service template is `scripts/cofi.service`.
+`make install-dev`. These install to `/usr/local/bin` by default. The explicit
+local variants are `mise run install-local` / `make install-local` and
+`mise run install-dev-local` / `make install-dev-local`. The service template is
+`scripts/cofi.service`.

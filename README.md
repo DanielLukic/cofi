@@ -322,7 +322,7 @@ Give windows meaningful custom names for better identification:
 
 ## Installation
 
-Release-style install copies the current build to `~/.local/bin/cofi`, writes the
+Release-style install copies the current build to `/usr/local/bin/cofi`, writes the
 systemd user service, enables it, and restarts cofi:
 
 ```bash
@@ -336,10 +336,22 @@ in the current worktree and restarting the service runs the rebuilt binary:
 mise run install-dev
 ```
 
-`mise run restart` rebuilds and restarts safely. If the installed binary is
-already a dev symlink to the current worktree, it just restarts the service;
-otherwise it runs the release install path so systemd does not keep running a
-stale binary.
+Use the local variants when you intentionally want `~/.local/bin/cofi`:
+
+```bash
+mise run install-local
+mise run install-dev-local
+```
+
+Install targets refuse to proceed when another `cofi` exists elsewhere on
+`PATH`. Remove the duplicate, choose the matching install target, or rerun with
+`FORCE=1` if you really want to keep both.
+
+`mise run restart` rebuilds and restarts safely for the default `/usr/local/bin`
+install. Use `mise run restart-local` for a `~/.local/bin` install. If the
+installed binary is already a dev symlink to the current worktree, it just
+restarts the service; otherwise it runs the release install path so systemd does
+not keep running a stale binary.
 
 To uninstall:
 
