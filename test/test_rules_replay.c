@@ -64,6 +64,7 @@ static void test_replay_selected_rule_matches_all_windows(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    app.rules_config.rules[0].once = FALSE;
     bind_rule_to_pattern(&app, 0, "*Terminal*");
 
     app.filtered_rules_count = 1;
@@ -93,9 +94,11 @@ static void test_replay_all_rules_uses_stored_order(void) {
     app.rules_config.count = 2;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "first");
+    app.rules_config.rules[0].once = FALSE;
     bind_rule_to_pattern(&app, 0, "*Terminal*");
     strcpy(app.rules_config.rules[1].pattern, "*Firefox*");
     strcpy(app.rules_config.rules[1].commands, "second");
+    app.rules_config.rules[1].once = FALSE;
     bind_rule_to_pattern(&app, 1, "*Firefox*");
 
     reset_exec_log();
@@ -118,6 +121,7 @@ static void test_replay_does_not_mutate_transition_rule_state(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    app.rules_config.rules[0].once = FALSE;
     bind_rule_to_pattern(&app, 0, "*Terminal*");
 
     app.rule_state.count = 3;
@@ -143,6 +147,7 @@ static void test_replay_all_includes_tagged_rules(void) {
     app.rules_config.count = 1;
     strcpy(app.rules_config.rules[0].pattern, "*Terminal*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    app.rules_config.rules[0].once = FALSE;
     strcpy(app.rules_config.rules[0].tag, "geom");
     bind_rule_to_pattern(&app, 0, "*Terminal*");
 

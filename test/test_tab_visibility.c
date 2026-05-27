@@ -469,6 +469,12 @@ gboolean replay_selected_filtered_rule(AppData *app) {
     return TRUE;
 }
 
+void rule_toggle_once(Rule *rule) {
+    if (!rule) return;
+    rule->once = !rule->once;
+    rule->applied = 0;
+}
+
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     if (!manager || match_id <= 0) return -1;
     for (int i = 0; i < manager->count; i++) {

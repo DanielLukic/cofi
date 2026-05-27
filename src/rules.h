@@ -61,6 +61,8 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
                            const MatchEntryManager *manager, const WindowInfo *window);
 bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
                          const WindowInfo *window, const char **resolved_pattern);
+void rule_toggle_once(Rule *rule);
+void rules_clear_applied_for_dead_windows(RulesConfig *config, const Window *live_windows, int live_count);
 // Remove all (*, id) entries — one per rule that has ever checked this window.
 void rule_state_remove_window(RuleState *state, Window id);
 

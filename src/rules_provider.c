@@ -37,6 +37,14 @@ static const MatchEntry *entry_for_rule(const AppData *app, const Rule *rule) {
     return &app->matching.entries[idx];
 }
 
+static bool rule_applied_window_is_live(const AppData *app, const Rule *rule) {
+    if (!app || !rule || rule->applied == 0) return false;
+    for (int i = 0; i < app->window_count; i++) {
+        if (app->windows[i].id == rule->applied) return true;
+    }
+    return false;
+}
+
 static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     Rule *rule = rule_at_row(app, raw_idx);
     if (!rule) {
@@ -57,6 +65,13 @@ static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
                  entry->original_title);
     } else {
         snprintf(pattern_buf[row], sizeof(pattern_buf[row]), "%s (orphan)", rule->pattern);
+    }
+    if (rule->once) {
+        if (rule_applied_window_is_live(app, rule)) {
+            g_strlcat(pattern_buf[row], " [once:applied]", sizeof(pattern_buf[row]));
+        } else {
+            g_strlcat(pattern_buf[row], " [once]", sizeof(pattern_buf[row]));
+        }
     }
     out->cells[0].text = pattern_buf[row];
     out->cells[0].width_hint = 40;
@@ -244,6 +259,18 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         return TRUE;
     }
 
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_o || event->keyval == GDK_KEY_O)) {
+        int rule_index = rules_selected_config_index(app);
+        if (rule_index < 0 || rule_index >= app->rules_config.count) {
+            return FALSE;
+        }
+        rule_toggle_once(&app->rules_config.rules[rule_index]);
+        rules_on_query_changed(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
+        update_display(app);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -284,7 +311,7 @@ void rules_provider_register(void) {
     s_rules_provider.on_query_changed = rules_on_query_changed;
     s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
-        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
     s_rules_provider_id = cofi_register_tab_provider(&s_rules_provider);
     if (s_rules_provider_id >= 0) {
         cofi_register_command(&s_rules_command);

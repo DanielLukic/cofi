@@ -208,6 +208,11 @@ void unassign_slot(HarpoonManager *manager, int slot) { (void)manager; (void)slo
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) { (void)manager; (void)slot; (void)window; }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
+void rule_toggle_once(Rule *rule) {
+    if (!rule) return;
+    rule->once = !rule->once;
+    rule->applied = 0;
+}
 int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     (void)manager; (void)w; return -1;
 }

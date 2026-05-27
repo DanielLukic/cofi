@@ -95,6 +95,8 @@ static gboolean save_rule_values(AppData *app, int rule_index,
             return FALSE;
         }
         rule_index = app->rules_config.count - 1;
+        app->rules_config.rules[rule_index].once = true;
+        app->rules_config.rules[rule_index].applied = 0;
     } else {
         g_strlcpy(app->rules_config.rules[rule_index].pattern,
                   pattern, sizeof(app->rules_config.rules[rule_index].pattern));

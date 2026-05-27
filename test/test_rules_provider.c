@@ -103,6 +103,12 @@ void match_entry_manager_init(MatchEntryManager *manager) {
 void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
 }
+void update_display(AppData *app) { (void)app; }
+void rule_toggle_once(Rule *rule) {
+    if (!rule) return;
+    rule->once = !rule->once;
+    rule->applied = 0;
+}
 void show_rule_delete_overlay(AppData *app, int rule_index) {
     (void)app;
     (void)rule_index;
@@ -327,6 +333,24 @@ static void test_ctrl_p_uses_shared_pattern_overlay(void) {
                 strcmp(g_last_pattern_context, "Commands: sb on") == 0);
 }
 
+static void test_ctrl_o_toggles_once_and_clears_applied(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    filter_rules(&app, "");
+    app.current_tab = rules_tab_mode();
+    app.selection.provider_index = 0;
+    app.rules_config.rules[0].once = true;
+    app.rules_config.rules[0].applied = 0x1234;
+
+    GdkEventKey event = {0};
+    event.keyval = GDK_KEY_o;
+    event.state = GDK_CONTROL_MASK;
+    ASSERT_TRUE("Ctrl+O handled in rules tab", handle_rules_tab_keys(&event, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+O toggles once off", app.rules_config.rules[0].once == false);
+    ASSERT_TRUE("Ctrl+O clears applied", app.rules_config.rules[0].applied == 0);
+}
+
 int main(void) {
     printf("Rules provider tests\n");
     printf("====================\n\n");
@@ -343,6 +367,7 @@ int main(void) {
     test_command_metadata();
     test_command_handler_surfaces_tab();
     test_ctrl_p_uses_shared_pattern_overlay();
+    test_ctrl_o_toggles_once_and_clears_applied();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

@@ -51,22 +51,38 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
     RuleWindowState *ws = find_or_add_entry(state, rule_index, window->id);
     if (!ws) return result;
 
-    if (matches && !ws->matched) {
-        // Transition: not-matched → matched: FIRE
+    if (matches) {
+        if (rule->once) {
+            if (rule->applied != 0) {
+                return result;
+            }
+            ((Rule *)rule)->applied = window->id;
+        }
         ws->matched = true;
         result.should_fire = true;
         result.commands = rule->commands;
-    } else if (matches && ws->matched) {
-        // Still matching: suppress
-        result.should_fire = false;
-    } else if (!matches && ws->matched) {
-        // Transition: matched → not-matched: reset
+    } else if (ws->matched) {
         ws->matched = false;
-        result.should_fire = false;
     }
-    // !matches && !ws->matched: no change
 
     return result;
+}
+
+void rule_toggle_once(Rule *rule) {
+    if (!rule) return;
+    rule->once = !rule->once;
+    rule->applied = 0;
+}
+
+void rules_clear_applied_for_dead_windows(RulesConfig *config, const Window *live_windows, int live_count) {
+    if (!config) return;
+    for (int i = 0; i < config->count; i++) {
+        Window applied = config->rules[i].applied;
+        bool found = false;
+        if (applied == 0) continue;
+        for (int j = 0; j < live_count; j++) if (live_windows[j] == applied) { found = true; break; }
+        if (!found) config->rules[i].applied = 0;
+    }
 }
 
 void rule_state_remove_window(RuleState *state, Window id) {

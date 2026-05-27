@@ -18,6 +18,9 @@ int replay_rule_against_open_windows(AppData *app, const Rule *rule) {
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *window = &app->windows[i];
         const char *pattern = NULL;
+        if (rule->once && rule->applied != 0) {
+            continue;
+        }
         if (!rule_matches_window(rule, &app->matching, window, &pattern)) {
             continue;
         }
@@ -25,6 +28,7 @@ int replay_rule_against_open_windows(AppData *app, const Rule *rule) {
         log_info("RULE REPLAY: pattern '%s' matched 0x%lx '%s' -> %s",
                  pattern ? pattern : rule->pattern, window->id, window->title, rule->commands);
         execute_command_background(rule->commands, app, window);
+        ((Rule *)rule)->applied = window->id;
         replayed++;
     }
 

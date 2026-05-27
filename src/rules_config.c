@@ -37,6 +37,8 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     r->match_id = 0;
     r->run_at_start = 0;
     r->tag[0] = '\0';
+    r->once = true;
+    r->applied = 0;
     config->count++;
     return 1;
 }
@@ -178,6 +180,8 @@ int load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
         loaded_rule->run_at_start = cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
         const char *tag = cofi_json_obj_str_or(rule, "tag", "", NULL);
         g_strlcpy(loaded_rule->tag, tag, sizeof(loaded_rule->tag));
+        loaded_rule->once = true;
+        loaded_rule->applied = 0;
         if (manager) {
             int idx = match_entry_find_index_by_match_id(manager, loaded_rule->match_id);
             if (idx >= 0) {

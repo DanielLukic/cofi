@@ -236,6 +236,10 @@ test_rules: test/test_rules.c src/rules_config.o src/rules.o src/match_entry.o s
 test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o
 	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
 
+# Build rules once/ applied-window tracking test
+test_rules_once: test/test_rules_once.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_rules_once test/test_rules_once.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
+
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c src/utf8_columns.o
 	$(CC) $(CFLAGS) -DSCROLLBAR_TEST_STANDALONE -o test/test_scrollbar test/test_scrollbar.c src/utf8_columns.o $(LDFLAGS)

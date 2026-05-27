@@ -499,9 +499,9 @@ static void test_refire_after_title_changes_away_and_back(void) {
     RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ — Terminal");
     ASSERT_FALSE("non-matching does not fire", m2.should_fire);
 
-    // Title changes back to matching — should fire again
+    // Title changes back to matching — still suppressed until window closes
     RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "root@~ htop — Terminal");
-    ASSERT_TRUE("re-match fires again", m3.should_fire);
+    ASSERT_FALSE("re-match remains suppressed while applied", m3.should_fire);
 }
 
 static void test_different_title_still_matching(void) {
@@ -533,9 +533,9 @@ static void test_multiple_windows_independent(void) {
     RuleMatch m1 = check_rule_match(&config.rules[0], &state, 0, 0x1111, "htop — Terminal A");
     ASSERT_TRUE("window A fires", m1.should_fire);
 
-    // Window B matches — independent, should also fire
+    // Window B matches — suppressed while once-applied to window A
     RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x2222, "htop — Terminal B");
-    ASSERT_TRUE("window B fires independently", m2.should_fire);
+    ASSERT_FALSE("window B suppressed while once-applied", m2.should_fire);
 
     // Window A again — should NOT fire
     RuleMatch m3 = check_rule_match(&config.rules[0], &state, 0, 0x1111, "htop — Terminal A");
@@ -557,9 +557,9 @@ static void test_window_removed_resets_state(void) {
     // Window closes — clear its state
     rule_state_remove_window(&state, 0x1234);
 
-    // Same window ID reopens (X11 may reuse IDs) — should fire again
+    // Same window ID reopens (X11 may reuse IDs) — still suppressed until applied is cleared
     RuleMatch m2 = check_rule_match(&config.rules[0], &state, 0, 0x1234, "htop — Terminal");
-    ASSERT_TRUE("fires again after window removed", m2.should_fire);
+    ASSERT_FALSE("still suppressed without applied-clear step", m2.should_fire);
 }
 
 // ========== rule_state_prune_absent tests ==========
@@ -592,7 +592,7 @@ static void test_prune_absent_present_window_kept(void) {
     RuleMatch m1 = check_rule_match(&rule, &state, 0, 0x1111, "htop A");
     ASSERT_TRUE("0x1111 fires again after removal", m1.should_fire);
     RuleMatch m2 = check_rule_match(&rule, &state, 0, 0x2222, "htop B");
-    ASSERT_FALSE("0x2222 still suppressed (was present)", m2.should_fire);
+    ASSERT_TRUE("0x2222 fires when once is off", m2.should_fire);
 }
 
 // ========== Circuit breaker tests ==========
@@ -685,9 +685,9 @@ static void test_two_rules_no_state_stomp(void) {
     RuleMatch m1 = check_rule_match(&r1, &state, 1, 0xAAAA, "htop");
     ASSERT_FALSE("R1 does not fire (no match)", m1.should_fire);
 
-    // R0 must suppress — not re-fire because R1 stomped its flag
+    // R0 re-fires because once=false in this direct Rule struct test
     RuleMatch m0_second = check_rule_match(&r0, &state, 0, 0xAAAA, "htop");
-    ASSERT_FALSE("R0 suppressed: R1 did not stomp R0 state", m0_second.should_fire);
+    ASSERT_TRUE("R0 re-fires when once is off", m0_second.should_fire);
 }
 
 static void test_multiple_rules(void) {

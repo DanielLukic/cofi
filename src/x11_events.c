@@ -418,6 +418,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     live_ids[k] = app->windows[k].id;
                 }
                 rule_state_prune_absent(&app->rule_state, live_ids, app->window_count);
+                rules_clear_applied_for_dead_windows(&app->rules_config, live_ids, app->window_count);
 
                 // Only process if window still exists and is valid
                 if (app->window && GTK_IS_WIDGET(app->window) &&

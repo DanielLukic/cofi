@@ -15,6 +15,8 @@ typedef struct {
     char commands[MAX_COMMANDS_LEN];  // comma-separated cofi commands
     int run_at_start;                 // allow this rule to fire during startup scan
     char tag[MAX_RULE_TAG_LEN];       // optional subsystem tag for UI filtering
+    bool once;                        // in-memory only; default true
+    Window applied;                   // in-memory only; 0 when not applied
 } Rule;
 
 typedef struct {
