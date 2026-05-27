@@ -46,12 +46,9 @@ gboolean apply_window_geometry_restore(Display *display,
 
     // Read current window state so we emit only the delta.
     GeometryState current = {0};
-    current.fullscreen     = get_window_state(display, target->window,
-                                              "_NET_WM_STATE_FULLSCREEN");
-    current.maximized_vert = get_window_state(display, target->window,
-                                              "_NET_WM_STATE_MAXIMIZED_VERT");
-    current.maximized_horz = get_window_state(display, target->window,
-                                              "_NET_WM_STATE_MAXIMIZED_HORZ");
+    current.fullscreen     = window_is_fullscreen(display, target->window);
+    current.maximized_vert = window_is_maximized_vertical(display, target->window);
+    current.maximized_horz = window_is_maximized_horizontal(display, target->window);
     current.desktop        = get_window_desktop(display, target->window);
     if (!get_window_geometry(display, target->window,
                              &current.x, &current.y,
@@ -78,14 +75,11 @@ gboolean apply_window_geometry_restore(Display *display,
     GeometryRestorePlan plan = geometry_restore_plan(&current, &wanted, active_desktop);
 
     if (plan.unset_fullscreen)
-        set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
-                         WINDOW_STATE_UNSET);
+        set_window_fullscreen(display, target->window, WINDOW_STATE_UNSET);
     if (plan.unset_max_vert)
-        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
-                         WINDOW_STATE_UNSET);
+        set_window_maximized_vertical(display, target->window, WINDOW_STATE_UNSET);
     if (plan.unset_max_horz)
-        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
-                         WINDOW_STATE_UNSET);
+        set_window_maximized_horizontal(display, target->window, WINDOW_STATE_UNSET);
     if (plan.do_move)
         xmove_resize_frame_aware(display, target->window,
                                   target->x, target->y, target->width, target->height);
@@ -94,14 +88,11 @@ gboolean apply_window_geometry_restore(Display *display,
     if (plan.do_switch_active_desktop)
         switch_to_desktop(display, target->desktop);
     if (plan.set_fullscreen)
-        set_window_state(display, target->window, "_NET_WM_STATE_FULLSCREEN",
-                         WINDOW_STATE_SET);
+        set_window_fullscreen(display, target->window, WINDOW_STATE_SET);
     if (plan.set_max_vert)
-        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_VERT",
-                         WINDOW_STATE_SET);
+        set_window_maximized_vertical(display, target->window, WINDOW_STATE_SET);
     if (plan.set_max_horz)
-        set_window_state(display, target->window, "_NET_WM_STATE_MAXIMIZED_HORZ",
-                         WINDOW_STATE_SET);
+        set_window_maximized_horizontal(display, target->window, WINDOW_STATE_SET);
 
     if (plan.any)
         XFlush(display);
@@ -144,12 +135,9 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     int desktop = get_window_desktop(app->display, window->id);
-    gboolean maximized_vert = get_window_state(app->display, window->id,
-                                               "_NET_WM_STATE_MAXIMIZED_VERT");
-    gboolean maximized_horz = get_window_state(app->display, window->id,
-                                               "_NET_WM_STATE_MAXIMIZED_HORZ");
-    gboolean fullscreen = get_window_state(app->display, window->id,
-                                           "_NET_WM_STATE_FULLSCREEN");
+    gboolean maximized_vert = window_is_maximized_vertical(app->display, window->id);
+    gboolean maximized_horz = window_is_maximized_horizontal(app->display, window->id);
+    gboolean fullscreen = window_is_fullscreen(app->display, window->id);
     int match_id = 0;
     for (int i = 0; i < app->layouts.count; i++) {
         int idx = match_entry_find_index_by_match_id(&app->matching, app->layouts.records[i].match_id);

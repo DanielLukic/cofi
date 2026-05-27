@@ -161,7 +161,7 @@ static gboolean should_move_window(AppData *app, WindowInfo *win, int current_wo
         return FALSE;
     }
 
-    if (get_window_state(app->display, win->id, "_NET_WM_STATE_STICKY")) {
+    if (window_is_sticky(app->display, win->id)) {
         log_debug("Skipping sticky window (state check): %s", win->title);
         return FALSE;
     }
@@ -231,4 +231,3 @@ gboolean cmd_move_all_to_workspace(AppData *app, WindowInfo *window __attribute_
 
     return move_collected_windows_to_target(app, args, current_workspace);
 }
-

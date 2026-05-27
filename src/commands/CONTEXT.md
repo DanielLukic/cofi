@@ -147,9 +147,9 @@ exposing help/candidate metadata for users.
 - Known exceptions to the thin-adapter intent exist today: `cmd_mouse()` in
   `command_handlers_tiling.c` performs direct X11 pointer/cursor work, and
   `cmd_swap_windows()` in `command_handlers_window.c` contains raw X11 geometry
-  and `_NET_WM_STATE` sequencing. Treat these as cleanup candidates, not
-  patterns to copy into new command handlers.
+  sequencing. Treat these as cleanup candidates, not patterns to copy into new
+  command handlers.
 - Window-state commands express product intent through x11 helpers; raw
-  `_NET_WM_STATE_*` atom names live in `x11/`, not in command handlers.
+  EWMH state atom names live in `x11/`, not in command handlers.
 - Provider command ownership is the boundary that lets disabled tabs remove
   their commands without deleting the command specs from the registry.

@@ -34,30 +34,13 @@ static void apply_maximization_hints(Display *display, Window window_id, TileOpt
 
 // Unmaximize window before tiling
 static void unmaximize_window(Display *display, Window window_id) {
-    gboolean is_max_horz = get_window_state(display, window_id, "_NET_WM_STATE_MAXIMIZED_HORZ");
-    gboolean is_max_vert = get_window_state(display, window_id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    gboolean is_max_horz = window_is_maximized_horizontal(display, window_id);
+    gboolean is_max_vert = window_is_maximized_vertical(display, window_id);
     if (!is_max_horz && !is_max_vert)
         return;
 
     log_debug("Unmaximizing window before tiling");
-
-    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-    Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-
-    XEvent unmaximize_event;
-    memset(&unmaximize_event, 0, sizeof(unmaximize_event));
-    unmaximize_event.type = ClientMessage;
-    unmaximize_event.xclient.window = window_id;
-    unmaximize_event.xclient.message_type = net_wm_state;
-    unmaximize_event.xclient.format = 32;
-    unmaximize_event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
-    unmaximize_event.xclient.data.l[1] = net_wm_state_maximized_horz;
-    unmaximize_event.xclient.data.l[2] = net_wm_state_maximized_vert;
-
-    XSendEvent(display, DefaultRootWindow(display), False,
-               SubstructureRedirectMask | SubstructureNotifyMask, &unmaximize_event);
-    XFlush(display);
+    set_window_maximized(display, window_id, WINDOW_STATE_UNSET);
 }
 
 // Get the work area for the monitor containing the window
@@ -148,18 +131,6 @@ static void apply_window_position(Display *display, Window window_id,
 
 // Apply maximization hints for certain tile modes
 static void apply_maximization_hints(Display *display, Window window_id, TileOption option) {
-    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-    Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    
-    XEvent maximize_event;
-    memset(&maximize_event, 0, sizeof(maximize_event));
-    maximize_event.type = ClientMessage;
-    maximize_event.xclient.window = window_id;
-    maximize_event.xclient.message_type = net_wm_state;
-    maximize_event.xclient.format = 32;
-    maximize_event.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
-    
     switch (option) {
         case TILE_LEFT_HALF:
         case TILE_RIGHT_HALF:
@@ -170,9 +141,7 @@ static void apply_maximization_hints(Display *display, Window window_id, TileOpt
         case TILE_LEFT_THREE_QUARTERS:
         case TILE_RIGHT_THREE_QUARTERS:
             // Maximize vertically for left/right tiles
-            maximize_event.xclient.data.l[1] = net_wm_state_maximized_vert;
-            XSendEvent(display, DefaultRootWindow(display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &maximize_event);
+            set_window_maximized_vertical(display, window_id, WINDOW_STATE_SET);
             log_debug("Applied vertical maximization for left/right tiling");
             break;
             
@@ -185,9 +154,7 @@ static void apply_maximization_hints(Display *display, Window window_id, TileOpt
         case TILE_TOP_THREE_QUARTERS:
         case TILE_BOTTOM_THREE_QUARTERS:
             // Maximize horizontally for top/bottom tiles
-            maximize_event.xclient.data.l[1] = net_wm_state_maximized_horz;
-            XSendEvent(display, DefaultRootWindow(display), False,
-                       SubstructureRedirectMask | SubstructureNotifyMask, &maximize_event);
+            set_window_maximized_horizontal(display, window_id, WINDOW_STATE_SET);
             log_debug("Applied horizontal maximization for top/bottom tiling");
             break;
             
@@ -195,8 +162,6 @@ static void apply_maximization_hints(Display *display, Window window_id, TileOpt
             // No maximization for other tile modes
             break;
     }
-    
-    XFlush(display);
 }
 
 // Apply tiling to window
@@ -208,20 +173,7 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     
     // Handle fullscreen toggle separately
     if (option == TILE_FULLSCREEN) {
-        Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-        Atom net_wm_state_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
-        XEvent fullscreen_event;
-        memset(&fullscreen_event, 0, sizeof(fullscreen_event));
-        fullscreen_event.type = ClientMessage;
-        fullscreen_event.xclient.window = window_id;
-        fullscreen_event.xclient.message_type = net_wm_state;
-        fullscreen_event.xclient.format = 32;
-        fullscreen_event.xclient.data.l[0] = 2; // _NET_WM_STATE_TOGGLE
-        fullscreen_event.xclient.data.l[1] = net_wm_state_fullscreen;
-        
-        XSendEvent(display, DefaultRootWindow(display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &fullscreen_event);
-        XFlush(display);
+        set_window_fullscreen(display, window_id, WINDOW_STATE_TOGGLE);
         log_info("Toggled fullscreen for window");
         return;
     }

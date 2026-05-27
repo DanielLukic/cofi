@@ -103,10 +103,10 @@ in sync with saved records.
 21. `Ctrl+L` toggles whether restore follows the saved desktop, `Ctrl+T`
     toggles layout enablement and syncs geom rules, and `Ctrl+P` opens pattern
     editing with the selected layout geometry as context.
-22. Tiling fullscreen toggles `_NET_WM_STATE_FULLSCREEN`; all other tiling modes
-    unmaximize first, choose the monitor/workarea containing the window, compute
-    target geometry, apply frame and size-hint adjustments, move/resize
-    frame-aware, then optionally set maximization hints.
+22. Tiling fullscreen toggles fullscreen through x11's state-intent helper; all
+    other tiling modes unmaximize first, choose the monitor/workarea containing
+    the window, compute target geometry, apply frame and size-hint adjustments,
+    move/resize frame-aware, then optionally set maximization hints through x11.
 23. Tiling geometry supports half, quarter, two-thirds, three-quarters, center,
     fullscreen, and configurable two-row grid placements, including narrow,
     wide, and wider grid variants.
@@ -122,3 +122,6 @@ in sync with saved records.
   not apply X11 changes and do not keep tagged geom restore rules alive.
 - Layout restore relies on x11 frame-aware movement and state helpers. Keep
   window-manager primitives in `src/x11/`, not in this subsystem.
+- Geometry restore and tiling express fullscreen/maximize changes through x11
+  intent helpers. EWMH atom names stay inside `x11/`; geom owns only restore
+  and tiling policy.

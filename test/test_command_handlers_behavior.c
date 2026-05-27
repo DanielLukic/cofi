@@ -26,7 +26,6 @@ static int show_name_assign_overlay_calls = 0;
 static int dispatch_hotkey_mode_calls = 0;
 static ShowMode last_show_mode = SHOW_MODE_WINDOWS;
 static int set_window_state_intent_calls = 0;
-static int raw_set_window_state_calls = 0;
 static WindowStateAction last_window_state_action = WINDOW_STATE_TOGGLE;
 static Window last_window_state_window = 0;
 static char last_window_state_intent[64] = {0};
@@ -255,15 +254,6 @@ static void record_window_state_intent(const char *intent, Window window,
     last_window_state_intent[sizeof(last_window_state_intent) - 1] = '\0';
 }
 
-void set_window_state(Display *display, Window window, const char *state,
-                      WindowStateAction action) {
-    (void)display; (void)window; (void)state; (void)action;
-    raw_set_window_state_calls++;
-}
-
-void toggle_window_state(Display *display, Window window, const char *state) {
-    set_window_state(display, window, state, WINDOW_STATE_TOGGLE);
-}
 void set_window_maximized(Display *display, Window window, WindowStateAction action) {
     (void)display;
     record_window_state_intent("maximized", window, action);
@@ -308,6 +298,10 @@ gboolean get_window_state(Display *display, Window window, const char *state_nam
     (void)display; (void)window; (void)state_name;
     return FALSE;
 }
+gboolean window_is_hidden(Display *display, Window window) { (void)display; (void)window; return FALSE; }
+gboolean window_is_sticky(Display *display, Window window) { (void)display; (void)window; return FALSE; }
+gboolean window_is_maximized_horizontal(Display *display, Window window) { (void)display; (void)window; return FALSE; }
+gboolean window_is_maximized_vertical(Display *display, Window window) { (void)display; (void)window; return FALSE; }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) {
     (void)display; (void)window;
     if (x) *x = 0;
@@ -550,53 +544,37 @@ static void test_window_state_handler(const char *cmd_name, const char *intent_n
     if (!cmd) return;
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     gboolean missing_window = cmd->handler(&app, NULL, "on");
     ASSERT_TRUE("state command rejects missing window", missing_window == FALSE);
     ASSERT_TRUE("missing window does not touch state", set_window_state_intent_calls == 0);
-    ASSERT_TRUE("missing window does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("no-arg succeeds", cmd->handler(&app, &window, "") == TRUE);
     ASSERT_TRUE("no-arg uses toggle", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
-    ASSERT_TRUE("no-arg does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("toggle succeeds", cmd->handler(&app, &window, "toggle") == TRUE);
     ASSERT_TRUE("toggle uses toggle action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
-    ASSERT_TRUE("toggle does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("on succeeds", cmd->handler(&app, &window, "on") == TRUE);
     ASSERT_TRUE("on uses set action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
-    ASSERT_TRUE("on does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("off succeeds", cmd->handler(&app, &window, "off") == TRUE);
     ASSERT_TRUE("off uses unset action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
-    ASSERT_TRUE("off does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("compact + succeeds", cmd->handler(&app, &window, "+") == TRUE);
     ASSERT_TRUE("compact + uses set action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
-    ASSERT_TRUE("compact + does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("compact - succeeds", cmd->handler(&app, &window, "-") == TRUE);
     ASSERT_TRUE("compact - uses unset action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
-    ASSERT_TRUE("compact - does not use raw atom API", raw_set_window_state_calls == 0);
 
     set_window_state_intent_calls = 0;
-    raw_set_window_state_calls = 0;
     ASSERT_TRUE("invalid arg fails", cmd->handler(&app, &window, "wat") == FALSE);
     ASSERT_TRUE("invalid arg is no-op", set_window_state_intent_calls == 0);
-    ASSERT_TRUE("invalid arg does not use raw atom API", raw_set_window_state_calls == 0);
 
     ASSERT_TRUE("targets expected state intent", strcmp(last_window_state_intent, intent_name) == 0);
     ASSERT_TRUE("targets selected window", last_window_state_window == window.id);

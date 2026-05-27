@@ -64,10 +64,15 @@ const CofiTabProvider *cofi_get_provider(int provider_id) { return provider_id =
 int cofi_register_command(const CommandSpec *spec) { return spec ? 0 : -1; }
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) { if (!manager) return -1; for (int i = 0; i < manager->count; i++) if (manager->entries[i].match_id == match_id) return i; return -1; }
 gboolean get_window_state(Display *display, Window window, const char *state_atom_name) { (void)display;(void)window;(void)state_atom_name; return FALSE; }
+gboolean window_is_fullscreen(Display *display, Window window) { (void)display;(void)window; return FALSE; }
+gboolean window_is_maximized_horizontal(Display *display, Window window) { (void)display;(void)window; return FALSE; }
+gboolean window_is_maximized_vertical(Display *display, Window window) { (void)display;(void)window; return FALSE; }
 int get_window_desktop(Display *display, Window window) { (void)display;(void)window; return 2; }
 int get_current_desktop(Display *display) { (void)display; return 2; }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) { (void)display;(void)window; if (x) *x = 0; if (y) *y = 0; if (w) *w = 100; if (h) *h = 100; return TRUE; }
-void set_window_state(Display *display, Window window, const char *name, WindowStateAction action) { (void)display;(void)window;(void)name;(void)action; g_set_state_calls++; }
+void set_window_fullscreen(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
+void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
+void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
 void xmove_resize_frame_aware(Display *display, Window window, int x, int y, int w, int h) { (void)display;(void)window;(void)x;(void)y;(void)w;(void)h; g_move_calls++; }
 void move_window_to_desktop(Display *display, Window window, int desktop) { (void)display;(void)window;(void)desktop; g_move_desktop_calls++; }
 void switch_to_desktop(Display *display, int desktop) { (void)display;(void)desktop; g_switch_desktop_calls++; }

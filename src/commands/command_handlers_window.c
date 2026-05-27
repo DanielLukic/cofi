@@ -161,7 +161,7 @@ gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args 
         return FALSE;
     }
 
-    if (get_window_state(app->display, window->id, "_NET_WM_STATE_HIDDEN")) {
+    if (window_is_hidden(app->display, window->id)) {
         activate_window(app->display, window->id);
         log_info("CMD: Restored minimized window '%s'", window->title);
     } else {
@@ -379,12 +379,6 @@ typedef struct {
     gboolean max_horz;
 } SwapWindowState;
 
-typedef struct {
-    Atom net_wm_state;
-    Atom max_vert;
-    Atom max_horz;
-} SwapAtoms;
-
 static WindowInfo *find_swap_partner(AppData *app, Window selected_id) {
     for (int i = 0; i < app->filtered_count; i++) {
         if (app->filtered[i].id != selected_id) {
@@ -403,53 +397,29 @@ static gboolean load_swap_state(AppData *app, WindowInfo *window,
         return FALSE;
     }
 
-    state->max_vert = get_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT");
-    state->max_horz = get_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    state->max_vert = window_is_maximized_vertical(app->display, window->id);
+    state->max_horz = window_is_maximized_horizontal(app->display, window->id);
     return TRUE;
 }
 
-static SwapAtoms init_swap_atoms(Display *display) {
-    SwapAtoms atoms;
-    atoms.net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-    atoms.max_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    atoms.max_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    return atoms;
-}
-
-static void send_maximize_change(Display *display, Window window, const SwapAtoms *atoms,
-                                 long action, gboolean set_vert, gboolean set_horz) {
+static void send_maximize_change(Display *display, Window window,
+                                 WindowStateAction action,
+                                 gboolean set_vert, gboolean set_horz) {
     if (!set_vert && !set_horz) {
         return;
     }
 
-    XEvent event;
-    memset(&event, 0, sizeof(event));
-    event.type = ClientMessage;
-    event.xclient.window = window;
-    event.xclient.message_type = atoms->net_wm_state;
-    event.xclient.format = 32;
-    event.xclient.data.l[0] = action;
-
-    if (action == 0) {
-        event.xclient.data.l[1] = atoms->max_vert;
-        event.xclient.data.l[2] = atoms->max_horz;
-        XSendEvent(display, DefaultRootWindow(display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    if (action == WINDOW_STATE_UNSET) {
+        set_window_maximized(display, window, WINDOW_STATE_UNSET);
         return;
     }
 
     if (set_vert) {
-        event.xclient.data.l[1] = atoms->max_vert;
-        event.xclient.data.l[2] = 0;
-        XSendEvent(display, DefaultRootWindow(display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        set_window_maximized_vertical(display, window, action);
     }
 
     if (set_horz) {
-        event.xclient.data.l[1] = atoms->max_horz;
-        event.xclient.data.l[2] = 0;
-        XSendEvent(display, DefaultRootWindow(display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        set_window_maximized_horizontal(display, window, action);
     }
 }
 
@@ -486,9 +456,8 @@ static gboolean prepare_swap_states(AppData *app, WindowInfo *window,
 
 static void run_swap_sequence(AppData *app, const SwapWindowState *first,
                               const SwapWindowState *second) {
-    SwapAtoms atoms = init_swap_atoms(app->display);
-    send_maximize_change(app->display, first->id, &atoms, 0, first->max_vert, first->max_horz);
-    send_maximize_change(app->display, second->id, &atoms, 0, second->max_vert, second->max_horz);
+    send_maximize_change(app->display, first->id, WINDOW_STATE_UNSET, first->max_vert, first->max_horz);
+    send_maximize_change(app->display, second->id, WINDOW_STATE_UNSET, second->max_vert, second->max_horz);
     XFlush(app->display);
     usleep(100000);
 
@@ -496,8 +465,8 @@ static void run_swap_sequence(AppData *app, const SwapWindowState *first,
     XFlush(app->display);
     usleep(50000);
 
-    send_maximize_change(app->display, first->id, &atoms, 1, second->max_vert, second->max_horz);
-    send_maximize_change(app->display, second->id, &atoms, 1, first->max_vert, first->max_horz);
+    send_maximize_change(app->display, first->id, WINDOW_STATE_SET, second->max_vert, second->max_horz);
+    send_maximize_change(app->display, second->id, WINDOW_STATE_SET, first->max_vert, first->max_horz);
     XFlush(app->display);
     usleep(50000);
 

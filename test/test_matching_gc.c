@@ -57,13 +57,42 @@ gboolean get_window_state(Display *display, Window window, const char *state_ato
     return FALSE;
 }
 
-void set_window_state(Display *display, Window window, const char *state_atom_name,
-                      WindowStateAction action) {
+gboolean window_is_fullscreen(Display *display, Window window) {
     (void)display;
     (void)window;
-    (void)state_atom_name;
+    return FALSE;
+}
+
+gboolean window_is_maximized_horizontal(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    return FALSE;
+}
+
+gboolean window_is_maximized_vertical(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    return FALSE;
+}
+
+void set_window_fullscreen(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    (void)window;
     (void)action;
 }
+
+void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    (void)window;
+    (void)action;
+}
+
+void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    (void)window;
+    (void)action;
+}
+
 int get_current_desktop(Display *display) { (void)display; return 0; }
 void switch_to_desktop(Display *display, int desktop) { (void)display; (void)desktop; }
 int get_frame_extents(Display *display, Window window, FrameExtents *extents) {

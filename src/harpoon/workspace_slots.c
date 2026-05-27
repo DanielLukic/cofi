@@ -441,8 +441,8 @@ void assign_workspace_slots(AppData *app) {
         if (win->desktop == -1 && strcmp(win->type, "Normal") != 0) continue;
         if (win->desktop != current_desktop && win->desktop != -1) continue;
         if (win->id == app->own_window_id) continue;
-        if (get_window_state(app->display, win->id, "_NET_WM_STATE_HIDDEN")) continue;
-        if (get_window_state(app->display, win->id, "_NET_WM_STATE_SHADED")) continue;
+        if (window_is_hidden(app->display, win->id)) continue;
+        if (window_is_shaded(app->display, win->id)) continue;
 
         int x, y, w, h;
         if (!get_window_geometry(app->display, win->id, &x, &y, &w, &h)) continue;

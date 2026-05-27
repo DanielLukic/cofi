@@ -53,6 +53,18 @@ int get_window_state(Display *display, Window window, const char *state_name) {
     return 0;
 }
 
+gboolean window_is_hidden(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    return FALSE;
+}
+
+gboolean window_is_shaded(Display *display, Window window) {
+    (void)display;
+    (void)window;
+    return FALSE;
+}
+
 int get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) {
     (void)display;
     for (int i = 0; i < test_geometry_count; i++) {

@@ -449,8 +449,8 @@ gboolean get_window_state(Display *display, Window window, const char *state_ato
     return FALSE;
 }
 
-void set_window_state(Display *display, Window window, const char *state_atom_name,
-                      WindowStateAction action) {
+static void set_window_state(Display *display, Window window, const char *state_atom_name,
+                             WindowStateAction action) {
     Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
     Atom state_atom = XInternAtom(display, state_atom_name, False);
 
@@ -495,6 +495,30 @@ static gboolean valid_window_state_action(WindowStateAction action) {
     return action == WINDOW_STATE_UNSET ||
            action == WINDOW_STATE_SET ||
            action == WINDOW_STATE_TOGGLE;
+}
+
+gboolean window_is_hidden(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_HIDDEN");
+}
+
+gboolean window_is_shaded(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_SHADED");
+}
+
+gboolean window_is_sticky(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_STICKY");
+}
+
+gboolean window_is_fullscreen(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_FULLSCREEN");
+}
+
+gboolean window_is_maximized_horizontal(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
+}
+
+gboolean window_is_maximized_vertical(Display *display, Window window) {
+    return get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
 static void send_window_state_pair(Display *display, Window window,
@@ -569,6 +593,10 @@ void set_window_maximized_vertical(Display *display, Window window, WindowStateA
     set_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT", action);
 }
 
+void set_window_fullscreen(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_FULLSCREEN", action);
+}
+
 void set_window_above(Display *display, Window window, WindowStateAction action) {
     set_window_state(display, window, "_NET_WM_STATE_ABOVE", action);
 }
@@ -601,11 +629,6 @@ void set_window_name(Display *display, Window window, const char *name) {
     XSync(display, False);
 
     log_info("Set window name for 0x%lx to \"%s\"", window, name);
-}
-
-// Toggle window state (add or remove a specific state atom)
-void toggle_window_state(Display *display, Window window, const char *state_atom_name) {
-    set_window_state(display, window, state_atom_name, WINDOW_STATE_TOGGLE);
 }
 
 // Close window by sending WM_DELETE_WINDOW message
@@ -661,58 +684,6 @@ void close_window(Display *display, Window window) {
 
         log_debug("Forcefully destroyed window %lu (no WM_DELETE_WINDOW support)", window);
     }
-}
-
-// Toggle maximize window (both horizontal and vertical)
-void toggle_maximize_window(Display *display, Window window) {
-    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-    Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-
-    if (net_wm_state == None || net_wm_state_maximized_vert == None || net_wm_state_maximized_horz == None) {
-        log_error("Failed to get atoms for window maximize");
-        return;
-    }
-
-    // Check current maximization state
-    gboolean is_maximized_vert = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
-    gboolean is_maximized_horz = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
-    gboolean is_fully_maximized = is_maximized_vert && is_maximized_horz;
-
-    // Send client message to toggle both maximize states
-    XEvent event;
-    memset(&event, 0, sizeof(event));
-    event.type = ClientMessage;
-    event.xclient.type = ClientMessage;
-    event.xclient.send_event = True;
-    event.xclient.display = display;
-    event.xclient.window = window;
-    event.xclient.message_type = net_wm_state;
-    event.xclient.format = 32;
-    event.xclient.data.l[0] = is_fully_maximized ? 0 : 1; // 0 = remove, 1 = add
-    event.xclient.data.l[1] = net_wm_state_maximized_vert;
-    event.xclient.data.l[2] = net_wm_state_maximized_horz;
-    event.xclient.data.l[3] = 1; // Source indication (1 = application)
-    event.xclient.data.l[4] = 0; // Unused
-
-    XSendEvent(display, DefaultRootWindow(display), False,
-               SubstructureRedirectMask | SubstructureNotifyMask, &event);
-    XFlush(display);
-
-    log_debug("Toggled maximize for window %lu (was %s, now %s)",
-              window,
-              is_fully_maximized ? "maximized" : "not maximized",
-              is_fully_maximized ? "not maximized" : "maximized");
-}
-
-// Toggle horizontal maximize only
-void toggle_maximize_horizontal(Display *display, Window window) {
-    toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
-}
-
-// Toggle vertical maximize only
-void toggle_maximize_vertical(Display *display, Window window) {
-    toggle_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
 // Minimize (iconify) a window

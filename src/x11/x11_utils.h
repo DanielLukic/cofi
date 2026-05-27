@@ -60,13 +60,17 @@ typedef enum {
     WINDOW_STATE_TOGGLE = 2,
 } WindowStateAction;
 
-void set_window_state(Display *display, Window window, const char *state_atom_name,
-                      WindowStateAction action);
-void toggle_window_state(Display *display, Window window, const char *state_atom_name);
 gboolean get_window_state(Display *display, Window window, const char *state_atom_name);
+gboolean window_is_hidden(Display *display, Window window);
+gboolean window_is_shaded(Display *display, Window window);
+gboolean window_is_sticky(Display *display, Window window);
+gboolean window_is_fullscreen(Display *display, Window window);
+gboolean window_is_maximized_horizontal(Display *display, Window window);
+gboolean window_is_maximized_vertical(Display *display, Window window);
 void set_window_maximized(Display *display, Window window, WindowStateAction action);
 void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action);
 void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action);
+void set_window_fullscreen(Display *display, Window window, WindowStateAction action);
 void set_window_above(Display *display, Window window, WindowStateAction action);
 void set_window_below(Display *display, Window window, WindowStateAction action);
 void set_window_skip_taskbar(Display *display, Window window, WindowStateAction action);
@@ -78,9 +82,6 @@ void set_window_name(Display *display, Window window, const char *name);
 // Window management functions
 void close_window(Display *display, Window window);
 void minimize_window(Display *display, Window window);
-void toggle_maximize_window(Display *display, Window window);
-void toggle_maximize_horizontal(Display *display, Window window);
-void toggle_maximize_vertical(Display *display, Window window);
 
 // Send _NET_REQUEST_FRAME_EXTENTS to ask the WM to populate _NET_FRAME_EXTENTS.
 // Best-effort: call early so the WM has time to set the property before first restore.

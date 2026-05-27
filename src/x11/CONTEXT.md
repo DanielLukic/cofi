@@ -29,10 +29,14 @@ into application refresh callbacks.
 - `WindowInfo`, `WorkspaceInfo`, `WorkArea`, `FrameExtents`,
   `WindowSizeHints`, and workspace helper types
 - `get_window_list()`, X11 property/window/workspace/state helpers,
-  intent-named state helpers (`set_window_maximized()`,
+  intent-named state query helpers (`window_is_hidden()`,
+  `window_is_shaded()`, `window_is_sticky()`, `window_is_fullscreen()`,
+  `window_is_maximized_horizontal()`, `window_is_maximized_vertical()`),
+  intent-named state mutation helpers (`set_window_maximized()`,
   `set_window_maximized_horizontal()`, `set_window_maximized_vertical()`,
-  `set_window_above()`, `set_window_below()`, `set_window_skip_taskbar()`,
-  `set_window_sticky()`), and frame-aware move/resize helpers
+  `set_window_fullscreen()`, `set_window_above()`, `set_window_below()`,
+  `set_window_skip_taskbar()`, `set_window_sticky()`), and frame-aware
+  move/resize helpers
 - `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
   move helpers, workarea, size-hint, frame-extent, process-window, and workspace
   utility functions
