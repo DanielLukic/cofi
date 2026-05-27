@@ -900,6 +900,30 @@ static void test_layout_save_persists_on_deduped_match_id(void) {
     ASSERT_INT("layout fullscreen persisted", 0, loaded_layouts.records[0].fullscreen);
 }
 
+static void test_layout_save_reuses_existing_entry_without_layout_record(void) {
+    printf("\n--- layout save reuses existing entry without prior layout ---\n");
+
+    AppData app;
+    memset(&app, 0, sizeof(app));
+    match_entry_manager_init(&app.matching);
+    layout_store_init(&app.layouts);
+    app.display = (Display *)0x1;
+
+    app.windows[0] = make_window(0x501, "Geom Existing", "ClassGeom", "instGeom", "Normal");
+    app.window_count = 1;
+
+    int existing_match_id = matching_create_entry(&app.matching, &app.windows[0]);
+    ASSERT_INT("seed entry created", 1, app.matching.count);
+    ASSERT_INT("seed layout count empty", 0, app.layouts.count);
+    ASSERT_INT("seed match id positive", 1, existing_match_id > 0);
+
+    ASSERT_INT("layout save succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("layout save does not duplicate entry", 1, app.matching.count);
+    ASSERT_INT("layout save creates one layout record", 1, app.layouts.count);
+    ASSERT_INT("layout uses existing match id", existing_match_id, app.layouts.records[0].match_id);
+}
+
 static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(void) {
     printf("\n--- layout restore resolve ---\n");
 
@@ -1025,6 +1049,7 @@ int main(void) {
     test_escaped_star_pattern_persists_as_single_char_wildcard();
     test_match_entry_collect_labeled_ids();
     test_layout_save_persists_on_deduped_match_id();
+    test_layout_save_reuses_existing_entry_without_layout_record();
     test_layout_restore_resolve_requires_live_binding_and_saved_layout();
     test_match_entry_gc_is_pure_reference_check();
     test_match_entry_gc_removes_only_unreferenced_ids();

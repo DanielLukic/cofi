@@ -162,6 +162,10 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     if (match_id <= 0) {
+        resolve_existing_match_id_for_window(app, window, &match_id);
+    }
+
+    if (match_id <= 0) {
         match_id = matching_create_entry(&app->matching, window);
     }
     if (match_id <= 0) {
