@@ -13,7 +13,7 @@
 #include <string.h>
 #include <X11/Xlib.h>
 
-#include "../src/app_data.h"
+#include "core/app/app_data.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -54,7 +54,7 @@ WindowInfo *get_selected_window(AppData *app) {
 }
 
 /* ---- Include the module under test ---- */
-#include "../src/repeat_action.c"
+#include "core/repeat_action/repeat_action.c"
 
 /* ---- Helpers ---- */
 

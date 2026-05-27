@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/harpoon.h"
-#include "../src/match_entry.h"
-#include "../src/utils.h"
+#include "harpoon/harpoon.h"
+#include "matching/match_entry.h"
+#include "core/utils/utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

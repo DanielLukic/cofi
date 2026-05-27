@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "../src/hotkey_config.h"
+#include "daemon/hotkey_config.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

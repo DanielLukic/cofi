@@ -4,8 +4,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/harpoon.h"
-#include "../src/harpoon_config.h"
+#include "harpoon/harpoon.h"
+#include "harpoon/harpoon_config.h"
 
 static int pass = 0;
 static int fail = 0;

@@ -3,11 +3,11 @@
 #include <gtk/gtk.h>
 
 // Include command metadata and parser APIs under test.
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
-#include "../src/command_api.h"
-#include "../src/command_parser.h"
-#include "../src/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
+#include "commands/command_api.h"
+#include "commands/command_parser.h"
+#include "providers/cofi_tab_provider.h"
 
 gboolean cmd_run(AppData *app, WindowInfo *window, const char *args);
 

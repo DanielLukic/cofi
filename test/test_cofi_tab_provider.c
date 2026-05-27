@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/daemon_socket.h"
-#include "../src/types.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "daemon/daemon_socket.h"
+#include "core/utils/types.h"
 
 static int s_tests_run = 0;
 static int s_tests_passed = 0;

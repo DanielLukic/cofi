@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/command_parser.h"
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
+#include "commands/command_parser.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

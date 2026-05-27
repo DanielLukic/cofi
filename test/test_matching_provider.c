@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -119,8 +119,8 @@ int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, cons
     return -1;
 }
 
-#include "../src/filter_matching.c"
-#include "../src/matching_provider.c"
+#include "matching/filter_matching.c"
+#include "matching/matching_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

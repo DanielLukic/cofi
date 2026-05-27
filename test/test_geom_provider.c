@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/window_geometry_matching.h"
-#include "../src/x11_utils.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "geom/window_geometry_matching.h"
+#include "x11/x11_utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -85,9 +85,9 @@ bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *windo
 int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager;(void)id; return -1; }
 bool match_entry_reassign_live_windows(MatchEntryManager *m, WindowInfo *w, int c) { (void)m;(void)w;(void)c; return false; }
 
-#include "../src/geom_provider.c"
-#include "../src/geometry_planner.c"
-#include "../src/window_geometry_matching.c"
+#include "geom/geom_provider.c"
+#include "geom/geometry_planner.c"
+#include "geom/window_geometry_matching.c"
 
 static void reset_app(AppData *app) {
     memset(app, 0, sizeof(*app));

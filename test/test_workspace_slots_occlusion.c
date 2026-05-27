@@ -20,8 +20,8 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
-#include "../src/app_data.h"
-#include "../src/workarea.h"
+#include "core/app/app_data.h"
+#include "x11/workarea.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -279,7 +279,7 @@ void XRRFreeCrtcInfo(XRRCrtcInfo *crtc_info) { free(crtc_info); }
  * Returns frame extents from the test table, or 0 (failure) if not found.
  * Windows not in the table get zero insets → content_rect = outer_rect,
  * preserving all existing test behavior unchanged. */
-#include "../src/frame_extents.h"
+#include "x11/frame_extents.h"
 int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
     (void)display;
     for (int i = 0; i < test_fe_count; i++) {
@@ -294,7 +294,7 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
     return 0;
 }
 
-#include "../src/workspace_slots.c"
+#include "harpoon/workspace_slots.c"
 
 /* ==================================================================
  * Test 1: No occlusion — all windows visible, none overlapping.

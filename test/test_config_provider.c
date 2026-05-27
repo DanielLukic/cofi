@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -98,7 +98,7 @@ int apply_config_setting(CofiConfig *config, const char *key, const char *value,
     return 1;
 }
 
-#include "../src/config_provider.c"
+#include "config/config_provider.c"
 
 static void test_filter_and_format_row(void) {
     AppData app = {0};

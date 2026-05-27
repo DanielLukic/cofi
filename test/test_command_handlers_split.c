@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
-#include "../src/command_handlers_window.h"
-#include "../src/command_handlers_workspace.h"
-#include "../src/command_handlers_tiling.h"
-#include "../src/command_handlers_ui.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
+#include "commands/command_handlers_window.h"
+#include "commands/command_handlers_workspace.h"
+#include "commands/command_handlers_tiling.h"
+#include "commands/command_handlers_ui.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

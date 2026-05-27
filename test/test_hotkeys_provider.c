@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -110,7 +110,7 @@ void surface_tab(AppData *app, TabMode tab) {
     g_last_surface_tab = tab;
 }
 
-#include "../src/hotkeys_provider.c"
+#include "daemon/hotkeys_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

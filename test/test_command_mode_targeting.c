@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/command_api.h"
-#include "../src/command_mode.h"
-#include "../src/cofi_tab_provider.h"
+#include "core/app/app_data.h"
+#include "commands/command_api.h"
+#include "commands/command_mode.h"
+#include "providers/cofi_tab_provider.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -42,8 +42,8 @@ int get_max_display_lines_dynamic(AppData *app) { (void)app; return 20; }
 void overlay_scrollbar(GString *s, int t, int v, int o, int c)
     { (void)s; (void)t; (void)v; (void)o; (void)c; }
 
-#include "../src/command_parser.c"
-#include "../src/command_mode.c"
+#include "commands/command_parser.c"
+#include "commands/command_mode.c"
 
 static GtkWidget *g_fake_entry = NULL;
 static GtkWidget *g_fake_label = NULL;

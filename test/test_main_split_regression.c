@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/config.h"
-#include "../src/run_provider.h"
+#include "core/app/app_data.h"
+#include "config/config.h"
+#include "run/run_provider.h"
 
 void filter_config(AppData *app, const char *filter);
 void filter_hotkeys(AppData *app, const char *filter);

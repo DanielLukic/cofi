@@ -3,8 +3,8 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
-#include "../src/app_data.h"
-#include "../src/workarea.h"
+#include "core/app/app_data.h"
+#include "x11/workarea.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -131,7 +131,7 @@ int XRRQueryExtension(Display *display, int *event_base_return, int *error_base_
 #undef DefaultRootWindow
 #define DefaultRootWindow(dpy) ((Window)0)
 
-#include "../src/workspace_slots.c"
+#include "harpoon/workspace_slots.c"
 
 static void test_assign_workspace_slots_keeps_behavior_for_small_sets(void) {
     AppData app = {0};

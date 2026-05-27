@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/config.h"
+#include "config/config.h"
 
 // This is the function we'll implement — pure logic, no AppData/X11 needed.
 // Returns 1 on success, 0 on error. Error message written to err_buf.

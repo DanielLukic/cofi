@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
+#include "core/app/app_data.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -93,8 +93,8 @@ void activate_window(Display *display, Window window_id) {
 }
 
 #define COFI_TESTING
-#include "../src/process_windows.c"
-#include "../src/proc.c"
+#include "x11/process_windows.c"
+#include "proc/proc.c"
 
 static int fake_kill(pid_t pid, int sig) {
     if (g_kill_fail_for_pid == (int)pid) {

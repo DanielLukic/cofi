@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include "../src/command_parser.h"
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
+#include "commands/command_parser.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
 
 // Test structure
 typedef struct {

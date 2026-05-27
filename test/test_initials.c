@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "src/match.h"
+#include "matching/match.h"
 
 int main() {
     const char *test_cases[][2] = {

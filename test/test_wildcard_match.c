@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/window_matcher.h"
+#include "matching/window_matcher.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

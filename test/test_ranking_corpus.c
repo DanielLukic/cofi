@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "../src/app_data.h"
+#include "core/app/app_data.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -83,7 +83,7 @@ void restore_selection(AppData *app)  { (void)app; }
 void validate_selection(AppData *app) { (void)app; }
 
 /* ---- Module under test ---- */
-#include "../src/filter.c"
+#include "matching/filter.c"
 
 /* ---- Fixture ---- */
 

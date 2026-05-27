@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/cofi_tab_provider.h"
-#include "../src/tab_metadata.h"
+#include "providers/cofi_tab_provider.h"
+#include "ui/tab_metadata.h"
 
 #define TEST_PROJECTS_TAB ((TabMode)(TAB_COUNT + 1))
 

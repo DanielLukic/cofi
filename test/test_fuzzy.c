@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/match.h"
-#include "../src/window_info.h"
+#include "matching/match.h"
+#include "x11/window_info.h"
 
 void test_basic_fuzzy_match() {
     printf("\n=== Testing Basic Fuzzy Matching ===\n");

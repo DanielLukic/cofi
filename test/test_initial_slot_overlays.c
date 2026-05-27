@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/window_lifecycle.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "ui/window_lifecycle.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -52,7 +52,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
 }
 
-#include "../src/window_lifecycle.c"
+#include "ui/window_lifecycle.c"
 
 static void init_app(AppData *app, DigitSlotMode mode, TabMode tab, gboolean visible) {
     if (!app) return;

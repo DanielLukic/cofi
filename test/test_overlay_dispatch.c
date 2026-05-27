@@ -3,9 +3,9 @@
 #include <glib.h>
 #include <gdk/gdk.h>
 
-#include "../src/app_data.h"
-#include "../src/overlay_manager.h"
-#include "../src/overlay_hotkey_add.h"
+#include "core/app/app_data.h"
+#include "ui/overlay_manager.h"
+#include "daemon/overlay_hotkey_add.h"
 
 static int pass = 0;
 static int fail = 0;

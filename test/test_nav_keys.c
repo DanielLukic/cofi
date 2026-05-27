@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "../src/nav_keys.h"
+#include "core/nav_keys/nav_keys.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

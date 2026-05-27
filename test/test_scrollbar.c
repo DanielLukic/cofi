@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <glib.h>
-#include "../src/utf8_columns.h"
+#include "core/utils/utf8_columns.h"
 
 // Copy of generate_scrollbar and overlay_scrollbar from display.c for isolated testing.
 // When the real implementation changes, this test must be updated to match.

@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -122,7 +122,7 @@ gboolean replay_selected_filtered_rule(AppData *app) {
     return TRUE;
 }
 
-#include "../src/rules_provider.c"
+#include "rules/rules_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

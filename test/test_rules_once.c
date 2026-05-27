@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/rules.h"
-#include "../src/rules_replay.h"
+#include "core/app/app_data.h"
+#include "rules/rules.h"
+#include "rules/rules_replay.h"
 
 static int pass = 0;
 static int fail = 0;

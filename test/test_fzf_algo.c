@@ -7,13 +7,13 @@
  * Plus additional tests for cofi-specific requirements.
  *
  * Compile and run:
- *   gcc -o test/test_fzf_algo test/test_fzf_algo.c src/fzf_algo.c -lm && ./test/test_fzf_algo
+ *   gcc -o test/test_fzf_algo test/test_fzf_algo.c src/matching/fzf_algo.c -lm && ./test/test_fzf_algo
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "../src/fzf_algo.h"
+#include "matching/fzf_algo.h"
 
 /* --- Scoring constants (must match fzf_algo.c) --- */
 #define SCORE_MATCH         16

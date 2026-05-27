@@ -2,8 +2,8 @@
 #include <string.h>
 #include <glib.h>
 
-#include "../src/app_data.h"
-#include "../src/dynamic_display.h"
+#include "core/app/app_data.h"
+#include "ui/dynamic_display.h"
 
 static int pass = 0;
 static int fail = 0;

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "../src/rules_config.h"
-#include "../src/rules.h"
+#include "rules/rules_config.h"
+#include "rules/rules.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

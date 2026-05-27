@@ -2,7 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../src/projects_remote_store.h"
+#include "projects/projects_remote_store.h"
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;

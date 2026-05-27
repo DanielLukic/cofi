@@ -5,16 +5,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/projects.h"
-#include "../src/projects_commands.h"
-#include "../src/projects_exec.h"
-#include "../src/projects_folder_windows.h"
-#include "../src/projects_parse.h"
-#include "../src/projects_remote_windows.h"
-#include "../src/projects_tmux_windows.h"
-#include "../src/projects_window_env.h"
-#include "../src/projects_zellij_windows.h"
-#include "../src/log.h"
+#include "projects/projects.h"
+#include "projects/projects_commands.h"
+#include "projects/projects_exec.h"
+#include "projects/projects_folder_windows.h"
+#include "projects/projects_parse.h"
+#include "projects/projects_remote_windows.h"
+#include "projects/projects_tmux_windows.h"
+#include "projects/projects_window_env.h"
+#include "projects/projects_zellij_windows.h"
+#include "core/log/log.h"
 
 void activate_window(Display *display, Window window_id) {
     (void)display;
@@ -43,10 +43,10 @@ gboolean process_find_window_for_pid_ancestry(AppData *app,
     return FALSE;
 }
 
-#include "../src/projects_window_env.c"
-#include "../src/projects_remote_windows.c"
-#include "../src/projects_tmux_windows.c"
-#include "../src/projects_zellij_windows.c"
+#include "projects/projects_window_env.c"
+#include "projects/projects_remote_windows.c"
+#include "projects/projects_tmux_windows.c"
+#include "projects/projects_zellij_windows.c"
 
 static int pass = 0;
 static int fail = 0;

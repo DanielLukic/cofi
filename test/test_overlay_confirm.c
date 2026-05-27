@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/overlay_confirm.h"
+#include "core/app/app_data.h"
+#include "ui/overlay_confirm.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

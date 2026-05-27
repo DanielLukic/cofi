@@ -1,0 +1,151 @@
+# Rules
+
+## Purpose
+Rules let users bind saved window identities to cofi command strings so matching
+windows can trigger actions automatically, be replayed manually, and be managed
+from a hidden provider tab.
+
+## Boundary
+
+### Owns
+- The persisted rules list in `~/.config/cofi/rules.json`, including pattern
+  cache, stable `match_id` references, command strings, startup flags, and
+  optional subsystem tags.
+- Rule evaluation policy: resolving a rule through `MatchEntry`, tracking
+  per-rule/per-window transition state, enforcing the `once` flag, and returning
+  command strings to dispatch.
+- In-memory rule state stored on `AppData`: `RuleState`, `RuleBreakerState`,
+  filtered rule rows, filtered config indexes, and `Rule.applied` bookkeeping.
+- The Rules provider tab, including filtering, row formatting, keyboard
+  shortcuts, replay actions, once toggling, and provider command registration.
+- Rule add/edit/delete overlays and validation of comma-separated command
+  strings against the command registry before persistence.
+- Manual replay of selected or all rules against currently open windows.
+
+### Does Not Own
+- Match-entry creation, wildcard matching semantics, or fuzzy matching
+  primitives; rules consume identities and match helpers from `matching/`.
+- Command execution semantics, command parsing rules, or command availability;
+  rules validate and dispatch through the command subsystem.
+- X11 window enumeration, title-change events, dead-window pruning triggers, or
+  event-loop dispatch; x11 invokes rules and supplies live `WindowInfo` data.
+- Geometry restore planning or saved-layout definitions; geom may tag rules and
+  sync restore rules, but rules only stores/evaluates the resulting records.
+- Generic overlay hosting, provider registry internals, tab switching, or display
+  rendering.
+
+## Public Surface
+- `Rule`, `RulesConfig`, `MAX_RULES`, `MAX_PATTERN_LEN`,
+  `MAX_COMMANDS_LEN`, and `MAX_RULE_TAG_LEN`
+- `init_rules_config()`, `save_rules_config()`, `load_rules_config()`,
+  `add_rule()`, `remove_rule()`, `rule_commands_contain_segment()`, and
+  `rules_needs_restore_rule()`
+- `RuleState`, `RuleWindowState`, `RuleBreakerState`, `RuleMatch`,
+  `init_rule_state()`, `check_rule_match()`, `rule_matches_window()`,
+  `rule_toggle_once()`, `rules_clear_applied_for_dead_windows()`,
+  `rule_state_remove_window()`, `init_rule_breaker()`,
+  `rule_breaker_should_fire()`, and `rule_state_prune_absent()`
+- `replay_rule_against_open_windows()`,
+  `replay_all_rules_against_open_windows()`, and
+  `replay_selected_filtered_rule()`
+- `rules_provider_register()`, `rules_tab_mode()`,
+  `handle_rules_tab_keys()`, `filter_rules()`, `rules_selected_rule()`,
+  `rules_selected_config_index()`, and `rules_select_config_index()`
+- `create_rule_add_overlay_content()`, `create_rule_edit_overlay_content()`,
+  `handle_rule_add_key_press()`, `handle_rule_edit_key_press()`, and
+  `show_rule_delete_confirm()`
+
+## Acceptance Criteria
+1. `init_rules_config()` produces an empty rules list, and `add_rule()` appends
+   at most `MAX_RULES` entries with copied pattern/commands, `run_at_start`
+   false, no tag, `once` true, and `applied` cleared.
+2. `remove_rule()` rejects invalid indexes, compacts later rules in order when
+   removing a valid index, and decrements the count.
+3. Saving rules writes `rules.json` with each rule's `match_id`, current pattern
+   cache, command string, `run_at_start`, and non-empty tag; in-memory-only
+   `once` and `applied` state are never persisted.
+4. When saving with a matching manager, a rule with a valid `match_id` writes the
+   matched entry's current original title as the persisted pattern cache.
+5. Loading missing, corrupt, or malformed `rules.json` never crashes callers:
+   missing files load as an empty success, corrupt JSON resets to an empty
+   config, and invalid rule objects are skipped.
+6. Loading legacy pattern-only rules migrates each valid non-empty pattern to a
+   `MatchEntry` and stores the resulting positive `match_id`; legacy rules that
+   cannot be migrated are skipped.
+7. Loading a rule whose saved `match_id` is orphaned falls back to a non-empty
+   saved pattern by creating or reusing a pattern entry; otherwise the rule is
+   skipped.
+8. Loaded rules restore command strings, `run_at_start`, and tags, default
+   missing tags to empty, reset `once` to true, clear `applied`, and normalize
+   the visible pattern from the referenced match entry when available.
+9. Rule matching resolves through `MatchEntry`: a rule with no positive
+   `match_id`, no manager, no window, or a missing entry does not match.
+10. `check_rule_match()` tracks transition state by `(rule_index, window_id)` so
+    different rules evaluating the same window do not stomp each other's matched
+    flag.
+11. A matching rule with `once == false` may fire on repeated evaluations, while
+    a matching rule with `once == true` fires once, stores the applied window id,
+    and suppresses later matches until `applied` is cleared.
+12. A title change away from a rule clears the per-window matched flag, but a
+    once-applied rule remains suppressed until the applied-window bookkeeping is
+    cleared by the dead-window path.
+13. `rules_clear_applied_for_dead_windows()` clears each rule's `applied` id
+    only when that id is absent from the live X11 window list supplied by x11.
+14. `rule_state_prune_absent()` removes transition-state entries for windows not
+    present in the live list and keeps entries for still-live windows.
+15. The circuit breaker rate-limits independently by `(rule_index, window_id)`,
+    allows up to ten fires per one-second burst, suppresses the eleventh fire,
+    and rearms after more than two seconds of quiet.
+16. The circuit breaker fails open when no breaker state is supplied or when the
+    breaker entry table is full.
+17. `rule_toggle_once()` flips the selected rule's `once` flag and always clears
+    `applied` so the new mode starts from an unapplied state.
+18. Manual replay evaluates the chosen rule against every currently open window,
+    dispatches matching command strings through `execute_command_background()`,
+    respects `once`/`applied`, and does not mutate `RuleState` transition flags.
+19. Replaying all rules walks `RulesConfig.rules` in stored order and includes
+    tagged rules even when the provider list would hide them.
+20. `rules_needs_restore_rule()` returns false only when an existing rule has an
+    exact comma-separated `rl` command segment and its wildcard pattern covers
+    the requested title.
+21. `rule_commands_contain_segment()` matches only complete comma-separated
+    command segments after trimming whitespace; substrings such as `url`, `rlx`,
+    or `foorl` do not satisfy an `rl` lookup.
+22. The Rules provider is hidden by default, registers the `rules` and `rs`
+    commands, surfaces the dynamic Rules tab, and keeps cofi open for hotkey
+    auto mode.
+23. Entering the Rules tab sets the placeholder to `Type to filter rules...`
+    and filters all visible rules; each query change refilters and resets
+    provider selection.
+24. Provider filtering searches the resolved match-entry pattern plus command
+    string and hides tagged rules unless `config.rules_show_all_tags` is true.
+25. Provider rows show either the resolved match-entry original title or
+    `<cached pattern> (orphan)`, append `[once]` or `[once:applied]` for once
+    rules, show commands in the second cell, and expose one non-actionable
+    `No rules found` row when empty.
+26. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
+    back to `RulesConfig.rules[]` through `filtered_rule_indices`, not copied row
+    indexes alone.
+27. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
+    selected row, `Ctrl+P` opens pattern edit for the selected match id,
+    `Ctrl+D` opens delete confirmation, `Ctrl+O` toggles once, `Ctrl+X` replays
+    the selected rule, and `Ctrl+Shift+X` replays all rules.
+28. Add Rule requires a non-empty pattern and command string, validates every
+    comma-separated command against the command registry, creates or reuses the
+    pattern match entry, saves both matching and rules, then refreshes the Rules
+    tab.
+29. Edit Commands changes only the command string for the selected config rule;
+    it keeps the pattern and `match_id`, validates commands, saves rules, and
+    refreshes the list.
+30. Delete confirmation displays escaped pattern and command text, removes the
+    pending config rule on confirmation, saves rules, refilters, clamps
+    selection, and refreshes display.
+
+## Notes
+- `Rule.applied` is mutable evaluation state embedded in `RulesConfig` because
+  once-mode suppression needs to survive across event callbacks, but it is not a
+  persisted setting.
+- The x11 event path owns when rule evaluation happens and when dead-window
+  pruning runs. Rules only provides the state transitions those callbacks invoke.
+- Geom-tagged rules are ordinary rule records with a tag; keep the geom bridge
+  explicit so rules does not grow geometry-planning ownership.

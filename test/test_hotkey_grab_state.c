@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "../src/app_data.h"
-#include "../src/app_init.h"
-#include "../src/hotkeys.h"
+#include "core/app/app_data.h"
+#include "core/app/app_init.h"
+#include "daemon/hotkeys.h"
 
 static int pass = 0;
 static int fail = 0;

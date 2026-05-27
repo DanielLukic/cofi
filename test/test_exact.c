@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "src/match.h"
+#include "matching/match.h"
 
 int main() {
     // Exact strings from the screenshot

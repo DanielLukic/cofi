@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/projects_parse.h"
-#include "../src/projects_remote_scope.h"
+#include "core/app/app_data.h"
+#include "projects/projects_parse.h"
+#include "projects/projects_remote_scope.h"
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;

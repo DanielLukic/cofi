@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/overlay_confirm.h"
-#include "../src/overlay_harpoon.h"
-#include "../src/overlay_name.h"
-#include "../src/overlay_sessions.h"
+#include "core/app/app_data.h"
+#include "ui/overlay_confirm.h"
+#include "harpoon/overlay_harpoon.h"
+#include "matching/overlay_name.h"
+#include "sessions/overlay_sessions.h"
 
 static int pass = 0;
 static int fail = 0;

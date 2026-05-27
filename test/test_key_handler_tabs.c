@@ -2,16 +2,16 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/config_provider.h"
-#include "../src/harpoon_provider.h"
-#include "../src/hotkeys_provider.h"
-#include "../src/key_handler.h"
-#include "../src/matching_provider.h"
-#include "../src/rules_provider.h"
-#include "../src/projects_parse.h"
-#include "../src/projects_provider.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "config/config_provider.h"
+#include "harpoon/harpoon_provider.h"
+#include "daemon/hotkeys_provider.h"
+#include "ui/key_handler.h"
+#include "matching/matching_provider.h"
+#include "rules/rules_provider.h"
+#include "projects/projects_parse.h"
+#include "projects/projects_provider.h"
 
 /*
  * Testability strategy:
@@ -538,7 +538,7 @@ gboolean handle_projects_tab_keys(GdkEventKey *event, AppData *app) {
     return FALSE;
 }
 
-#include "../src/key_handler.c"
+#include "ui/key_handler.c"
 
 static void reset_captures(void) {
     g_show_name_edit_calls = 0;

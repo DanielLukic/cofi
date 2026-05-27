@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <glib/gstdio.h>
-#include "../src/detach_launch.h"
+#include "daemon/detach_launch.h"
 
 // Must be compiled with -DCOFI_TESTING
 

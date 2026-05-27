@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_modal.h"
-#include "../src/cofi_tab_provider.h"
+#include "core/app/app_data.h"
+#include "ui/cofi_modal.h"
+#include "providers/cofi_tab_provider.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/calc_provider.c"
+#include "calc/calc_provider.c"
 
 static int pass = 0;
 static int fail = 0;

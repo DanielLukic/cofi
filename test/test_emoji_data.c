@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/emoji_data.h"
+#include "emoji/emoji_data.h"
 
 static int pass = 0;
 static int fail = 0;

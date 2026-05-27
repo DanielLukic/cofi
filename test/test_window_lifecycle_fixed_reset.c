@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -53,7 +53,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
 }
 
-#include "../src/window_lifecycle.c"
+#include "ui/window_lifecycle.c"
 
 static void test_show_window_reinitializes_fixed_window_cache(void) {
     AppData app = {0};

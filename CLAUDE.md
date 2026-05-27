@@ -27,12 +27,13 @@ See also:
 
 1. Branch from `develop`.
 2. Add or update tests for behavior changes when feasible.
-3. Make the change.
-4. Run the relevant tests (`mise run test` unless a narrower subset is clearly enough).
-5. Rebuild and restart cofi for behavior changes so the user can verify the running app.
-6. Wait for user verification before committing unless the user explicitly asks for an earlier checkpoint.
-7. Push the branch and create a PR targeting `develop`.
-8. Wait for user approval before merging.
+3. If behavior, boundary, or public surface changed, update the affected folder's CONTEXT.md in the same commit.
+4. Make the change.
+5. Run the relevant tests (`mise run test` unless a narrower subset is clearly enough).
+6. Rebuild and restart cofi for behavior changes so the user can verify the running app.
+7. Wait for user verification before committing unless the user explicitly asks for an earlier checkpoint.
+8. Push the branch and create a PR targeting `develop`.
+9. Wait for user approval before merging.
 
 ### Subagent Worktrees
 
@@ -69,6 +70,29 @@ journalctl --user -u cofi -f  # tail logs
 - Team/project defaults come from `.linear.conf`.
 - Status flow: Backlog -> Todo -> In Progress -> In Review -> Done.
 - Use issue IDs like `TFD-82` in branches, commits, PRs, and discussion.
+
+## Source Structure & CONTEXT.md
+
+Each `src/<subsystem>/` has a `CONTEXT.md` defining its boundary, public surface, acceptance criteria, and notes. The `CONTEXT.md` is a **live contract, co-equal with code** — a wrong criterion is a bug.
+
+Read the affected folder's `CONTEXT.md` before editing or reviewing code in that folder.
+
+**The main rule.** When a change alters behavior, public surface, or responsibility boundaries, update code and `CONTEXT.md` in the same commit. Never let them silently diverge.
+
+**When to update:**
+- New feature or behavior → add/refine criteria; update Public Surface for new, removed, or changed exports.
+- Bug fix → if the criterion described intended behavior, fix the code; if the criterion was wrong, fix the doc.
+- Behavior-preserving refactor → no `CONTEXT.md` change unless surface or boundary actually moved.
+- Moving code between folders → update both Boundary + Public Surface in the source and destination.
+- Pure docs, build, or test changes → none.
+
+**Divergence:** code and `CONTEXT.md` disagree → fix one, fix the other, same commit. Known-wrong criterion you can't fix now → file a ticket and annotate `(TFD-XXXX)` in the criterion. A stale doc without a ticket is a broken window.
+
+**Anti-patterns:**
+- Call-order criteria ("calls foo() then bar()") — breaks on every refactor; write input → output instead.
+- "This function exists" inventory — criteria describe behavior, not presence.
+- Impossible-input criteria (null after validation, freed-after-close) — test what callers can actually provoke.
+- Cross-folder reach-through with no Note — when a dep forms between subsystems, add a Note in the depending folder.
 
 ## Engineering Standards
 

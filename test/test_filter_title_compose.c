@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/app_data.h"
-#include "../src/filter.h"
+#include "core/app/app_data.h"
+#include "matching/filter.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -20,7 +20,7 @@ void preserve_selection(AppData *app) { (void)app; }
 void restore_selection(AppData *app) { (void)app; }
 void validate_selection(AppData *app) { (void)app; }
 
-#include "../src/filter.c"
+#include "matching/filter.c"
 
 static void reset_app(AppData *app) {
     memset(app, 0, sizeof(*app));

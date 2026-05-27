@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/run_mode.h"
+#include "core/app/app_data.h"
+#include "run/run_mode.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -12,7 +12,7 @@ static int fail = 0;
     else { printf("FAIL: %s\n", name); fail++; } \
 } while (0)
 
-#include "../src/run_mode.c"
+#include "run/run_mode.c"
 
 static void test_extract_run_command_strips_prefix_and_whitespace(void) {
     char command[256];

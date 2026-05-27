@@ -1,0 +1,161 @@
+#include "ui/prefix_tabs.h"
+
+#include "ui/cofi_modal.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_mode.h"
+#include "ui/display.h"
+#include "core/log/log.h"
+#include "core/selection/selection.h"
+#include "ui/tab_switching.h"
+
+#include <gtk/gtk.h>
+
+static gboolean get_core_tab_claim(char prefix, TabMode *target_tab) {
+    if (!target_tab) {
+        return FALSE;
+    }
+
+    /*
+     * Keep this list intentionally small. Provider tab prefixes such as Apps'
+     * '$' and '\' live on CofiTabProvider.tab_prefix_chars; '>' stays here
+     * because Windows is a core surface, not a provider.
+     */
+    switch (prefix) {
+        case '>':
+            *target_tab = TAB_WINDOWS;
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
+static gboolean get_tab_claim(char prefix, const CofiTabProvider **provider_out,
+                              TabMode *target_tab) {
+    if (!target_tab) {
+        return FALSE;
+    }
+    if (provider_out) {
+        *provider_out = NULL;
+    }
+
+    if (get_core_tab_claim(prefix, target_tab)) return TRUE;
+
+    const CofiTabProvider *provider = cofi_get_provider_for_tab_prefix(prefix);
+    if (!provider) return FALSE;
+
+    *target_tab = (TabMode)provider->tab_mode;
+    if (provider_out) {
+        *provider_out = provider;
+    }
+    return TRUE;
+}
+
+void clear_prefix_tab_claim(AppData *app) {
+    if (!app) {
+        return;
+    }
+
+    app->active_prefix_claim = '\0';
+}
+
+gboolean cofi_is_prefix_char(char c) {
+    if (c == ':') return TRUE;
+    if (cofi_get_provider_for_prefix(c) != NULL) return TRUE;
+    TabMode dummy;
+    return get_tab_claim(c, NULL, &dummy);
+}
+
+void cofi_dispatch_prefix(AppData *app, char c) {
+    if (!app) return;
+
+    /* : → command mode */
+    if (c == ':') {
+        app->prefix_origin_tab = app->current_tab;
+        app->active_prefix_claim = ':';
+        enter_command_mode(app);
+        return;
+    }
+
+    /* set origin unconditionally before any tier */
+    app->prefix_origin_tab = app->current_tab;
+    app->active_prefix_claim = c;
+
+    /* provider prefix → modal (e.g. !, =) */
+    const CofiTabProvider *provider = cofi_get_provider_for_prefix(c);
+    if (provider) {
+        cofi_enter_modal(app, provider);
+        return;
+    }
+
+    /* tab claim → tab switch (e.g. $, \\, >) */
+    const CofiTabProvider *tab_provider = NULL;
+    TabMode claimed_tab;
+    if (get_tab_claim(c, &tab_provider, &claimed_tab)) {
+        if (tab_provider && tab_provider->on_tab_prefix) {
+            tab_provider->on_tab_prefix(app, c);
+        }
+        if (app->current_tab == claimed_tab) {
+            /* same-tab toggle: clear entry, reset selection, refresh */
+            app->suppress_entry_change = TRUE;
+            gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+            app->suppress_entry_change = FALSE;
+            if (tab_provider && tab_provider->on_query_changed) {
+                tab_provider->on_query_changed(app, "");
+            } else {
+                reset_selection(app);
+            }
+            update_display(app);
+        } else {
+            app->suppress_entry_change = TRUE;
+            switch_to_tab(app, claimed_tab);
+            app->suppress_entry_change = FALSE;
+        }
+        if (app->mode_indicator)
+            gtk_label_set_text(GTK_LABEL(app->mode_indicator), (char[2]){c, '\0'});
+        return;
+    }
+}
+
+void apply_prefix_tab_claim(AppData *app, const char *entry_text) {
+    if (!app || !entry_text || app->command_mode.state != CMD_MODE_NORMAL) {
+        return;
+    }
+
+    if (entry_text[0] == '\0') {
+        if (app->active_prefix_claim != '\0') {
+            app->suppress_entry_change = TRUE;
+            switch_to_tab(app, app->prefix_origin_tab);
+            app->suppress_entry_change = FALSE;
+            clear_prefix_tab_claim(app);
+        }
+        return;
+    }
+
+    if (cofi_is_prefix_char(entry_text[0])) {
+        if (entry_text[0] == ':') {
+            /* paste path: strip ':' and set remainder as command text */
+            const char *rest = entry_text + 1;
+            if (app->active_prefix_claim == '\0') {
+                app->prefix_origin_tab = app->current_tab;
+                app->active_prefix_claim = ':';
+            }
+            enter_command_mode(app);
+            if (app->entry)
+                gtk_entry_set_text(GTK_ENTRY(app->entry), rest);
+            return;
+        }
+        const CofiTabProvider *provider = cofi_get_provider_for_prefix(entry_text[0]);
+        if (provider && app->active_prefix_claim == '\0') {
+            char *rest = g_strdup(entry_text + 1);
+            cofi_dispatch_prefix(app, entry_text[0]);
+            if (app->entry && rest && rest[0] != '\0')
+                gtk_entry_set_text(GTK_ENTRY(app->entry), rest);
+            g_free(rest);
+            return;
+        }
+        cofi_dispatch_prefix(app, entry_text[0]);
+        return;
+    }
+
+    clear_prefix_tab_claim(app);
+}

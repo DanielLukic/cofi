@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -69,10 +69,10 @@ int get_max_display_lines_dynamic(AppData *app) {
     return 10;
 }
 
-#include "../src/cofi_tab_provider.c"
-#include "../src/run_mode.c"
-#include "../src/run_provider.c"
-#include "../src/selection.c"
+#include "providers/cofi_tab_provider.c"
+#include "run/run_mode.c"
+#include "run/run_provider.c"
+#include "core/selection/selection.c"
 
 static void setup_app(AppData *app) {
     memset(app, 0, sizeof(*app));

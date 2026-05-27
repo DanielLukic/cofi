@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "../src/match.h"
-#include "../src/config.h"
+#include "matching/match.h"
+#include "config/config.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

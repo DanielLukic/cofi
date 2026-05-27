@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "../src/window_info.h"
-#include "../src/app_data.h"
+#include "x11/window_info.h"
+#include "core/app/app_data.h"
 
 // Test result tracking
 static int tests_run = 0;

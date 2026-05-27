@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "../src/layout_store.h"
+#include "geom/layout_store.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

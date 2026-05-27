@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/overlay_manager.h"
-#include "../src/overlay_pattern.h"
+#include "core/app/app_data.h"
+#include "ui/overlay_manager.h"
+#include "matching/overlay_pattern.h"
 
 static int pass = 0;
 static int fail = 0;

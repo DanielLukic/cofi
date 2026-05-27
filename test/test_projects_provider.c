@@ -7,10 +7,10 @@
 
 #include <gtk/gtk.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/slot_store.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "core/slot_store/slot_store.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -311,9 +311,9 @@ const char *projects_slot_payload_for(AppData *app, int visible_idx) {
     return NULL;
 }
 
-#include "../src/cofi_tab_provider.c"
-#include "../src/slot_store.c"
-#include "../src/projects_provider.c"
+#include "providers/cofi_tab_provider.c"
+#include "core/slot_store/slot_store.c"
+#include "projects/projects_provider.c"
 
 static const CofiTabProvider *registered_projects_provider(void) {
     cofi_registry_reset();

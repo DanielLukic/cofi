@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
-#include "../src/tiling.h"
-#include "../src/x11_utils.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
+#include "geom/tiling.h"
+#include "x11/x11_utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

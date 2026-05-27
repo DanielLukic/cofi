@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../src/daemon_socket.h"
+#include "daemon/daemon_socket.h"
 
 static int pass = 0;
 static int fail = 0;

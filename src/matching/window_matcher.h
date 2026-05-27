@@ -1,0 +1,21 @@
+#ifndef WINDOW_MATCHER_H
+#define WINDOW_MATCHER_H
+
+#include <stdbool.h>
+#include "x11/window_info.h"
+
+// Check if two windows match with fuzzy title matching (same class, instance, type, but title can differ)
+bool windows_match_fuzzy(const WindowInfo *window1, const WindowInfo *window2);
+
+// Extract the base part of a title before a dash (e.g., "Firefox - Page 1" -> "Firefox ")
+// Returns the length of the base part, or 0 if no dash found
+int get_title_base_length(const char *title);
+
+// Check if two titles match with fuzzy logic
+bool titles_match_fuzzy(const char *title1, const char *title2);
+
+// Wildcard matching: '*' matches any run of characters, '.' matches any single character.
+// Used by both the rules engine and matching entries.
+bool wildcard_match(const char *pattern, const char *str);
+
+#endif // WINDOW_MATCHER_H

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <X11/Xlib.h>
 #include "test_utils.h"
-#include "../src/history.h"
-#include "../src/x11_utils.h"
+#include "core/history/history.h"
+#include "x11/x11_utils.h"
 
 // Mock X11 functions
 static int mock_active_window_id = 0;

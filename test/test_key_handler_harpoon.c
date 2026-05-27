@@ -2,10 +2,10 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/key_handler.h"
-#include "../src/constants.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "ui/key_handler.h"
+#include "core/utils/constants.h"
 
 /*
  * Testability strategy:
@@ -334,7 +334,7 @@ void preserve_selection(AppData *app) { (void)app; }
 void restore_selection(AppData *app) { (void)app; }
 void apps_launch(const AppEntry *entry) { (void)entry; }
 
-#include "../src/key_handler.c"
+#include "ui/key_handler.c"
 
 static void reset_captures(void) {
     g_hide_calls = 0;

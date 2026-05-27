@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/browser_profiles.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/slot_store.h"
+#include "core/app/app_data.h"
+#include "profiles/browser_profiles.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "core/slot_store/slot_store.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -97,8 +97,8 @@ static gboolean fake_launch_impl(const char *const *argv) {
     return TRUE;
 }
 
-#include "../src/browser_profiles.c"
-#include "../src/profiles_provider.c"
+#include "profiles/browser_profiles.c"
+#include "profiles/profiles_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

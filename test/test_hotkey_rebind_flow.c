@@ -2,9 +2,9 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../src/app_data.h"
-#include "../src/hotkey_config.h"
-#include "../src/overlay_hotkey_add.h"
+#include "core/app/app_data.h"
+#include "daemon/hotkey_config.h"
+#include "daemon/overlay_hotkey_add.h"
 
 static int pass = 0;
 static int fail = 0;

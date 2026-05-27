@@ -4,16 +4,16 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "../src/app_data.h"
-#include "../src/frame_extents.h"
-#include "../src/harpoon.h"
-#include "../src/layout_store.h"
-#include "../src/match_entry.h"
-#include "../src/match_entry_config.h"
-#include "../src/matching_gc.h"
-#include "../src/window_geometry_matching.h"
-#include "../src/x11_utils.h"
-#include "../src/utils.h"
+#include "core/app/app_data.h"
+#include "x11/frame_extents.h"
+#include "harpoon/harpoon.h"
+#include "geom/layout_store.h"
+#include "matching/match_entry.h"
+#include "matching/match_entry_config.h"
+#include "matching/matching_gc.h"
+#include "geom/window_geometry_matching.h"
+#include "x11/x11_utils.h"
+#include "core/utils/utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

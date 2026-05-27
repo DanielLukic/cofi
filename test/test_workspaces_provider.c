@@ -2,9 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -80,7 +80,7 @@ void switch_to_desktop(Display *display, int desktop) {
     g_last_desktop = desktop;
 }
 
-#include "../src/workspaces_provider.c"
+#include "workspaces/workspaces_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

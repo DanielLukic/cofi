@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/builtin_plugins.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_availability.h"
-#include "../src/command_registry.h"
-#include "../src/config.h"
-#include "../src/daemon_socket.h"
-#include "../src/tab_header.h"
+#include "core/app/app_data.h"
+#include "providers/builtin_plugins.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_availability.h"
+#include "commands/command_registry.h"
+#include "config/config.h"
+#include "daemon/daemon_socket.h"
+#include "ui/tab_header.h"
 
 static int pass = 0;
 static int fail = 0;

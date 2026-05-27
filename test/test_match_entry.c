@@ -3,14 +3,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "../src/frame_extents.h"
-#include "../src/layout_store.h"
-#include "../src/match_entry.h"
-#include "../src/match_entry_config.h"
-#include "../src/window_geometry_matching.h"
-#include "../src/window_matcher.h"
-#include "../src/x11_utils.h"
-#include "../src/utils.h"
+#include "x11/frame_extents.h"
+#include "geom/layout_store.h"
+#include "matching/match_entry.h"
+#include "matching/match_entry_config.h"
+#include "geom/window_geometry_matching.h"
+#include "matching/window_matcher.h"
+#include "x11/x11_utils.h"
+#include "core/utils/utils.h"
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 static int g_geom_x = 11;

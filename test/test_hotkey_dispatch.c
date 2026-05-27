@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/hotkey_dispatch.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "daemon/hotkey_dispatch.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -112,7 +112,7 @@ const CofiTabProvider *cofi_get_provider_for_hotkey_mode(int mode) {
     return NULL;
 }
 
-#include "../src/hotkey_dispatch.c"
+#include "daemon/hotkey_dispatch.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

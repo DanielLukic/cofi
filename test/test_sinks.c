@@ -8,7 +8,7 @@
 #include <string.h>
 
 #define COFI_SINKS_PARSER_TEST
-#include "../src/sinks.c"
+#include "sinks/sinks.c"
 
 static int pass = 0;
 static int fail = 0;

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "src/match.h"
+#include "matching/match.h"
 
 int main() {
     // Test if fzy recognizes word boundaries properly

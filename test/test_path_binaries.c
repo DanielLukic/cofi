@@ -4,9 +4,9 @@
 
 #include <glib/gstdio.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/path_binaries.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "projects/path_binaries.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

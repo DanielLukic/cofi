@@ -3,12 +3,12 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/core_commands.h"
-#include "../src/daemon_socket.h"
-#include "../src/tiling.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "commands/core_commands.h"
+#include "daemon/daemon_socket.h"
+#include "geom/tiling.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -482,10 +482,10 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
 #endif
 #define GTK_ENTRY(widget) ((GtkEntry *)(widget))
 
-#include "../src/rules_provider.c"
-#include "../src/tab_switching.c"
-#include "../src/command_handlers_ui.c"
-#include "../src/daemon_socket_runtime.c"
+#include "rules/rules_provider.c"
+#include "ui/tab_switching.c"
+#include "commands/command_handlers_ui.c"
+#include "daemon/daemon_socket_runtime.c"
 
 static void reset_counters(void) {
     entry_clear_calls = 0;

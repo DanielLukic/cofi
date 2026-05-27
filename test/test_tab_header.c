@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
 
 #define TEST_DYNAMIC_TAB  ((TabMode)(TAB_COUNT + 1))
 #define TEST_PROJECTS_TAB ((TabMode)(TAB_COUNT + 2))
@@ -84,7 +84,7 @@ gboolean tab_is_visible(AppData *app, TabMode tab) {
     return app->tab_visibility[tab] != TAB_VIS_HIDDEN;
 }
 
-#include "../src/tab_header.c"
+#include "ui/tab_header.c"
 
 static void init_hidden_tabs(AppData *app) {
     memset(app, 0, sizeof(*app));

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/utf8_columns.h"
+#include "core/utils/utf8_columns.h"
 
 static int pass = 0;
 static int fail = 0;

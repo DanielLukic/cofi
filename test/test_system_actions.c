@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/system_actions.h"
+#include "system_actions/system_actions.h"
 
 static int pass = 0;
 static int fail = 0;

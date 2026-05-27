@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <glib.h>
 
-#include "../src/display_pipeline.h"
+#include "ui/display_pipeline.h"
 
 static int pass = 0;
 static int fail = 0;

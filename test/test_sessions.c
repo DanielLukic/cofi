@@ -4,7 +4,7 @@
 
 #include <glib/gstdio.h>
 
-#include "../src/sessions.h"
+#include "sessions/sessions.h"
 
 static int pass = 0;
 static int fail = 0;

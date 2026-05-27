@@ -1,0 +1,93 @@
+#include "proc/proc_provider.h"
+
+#include "core/app/app_data.h"
+#include "commands/command_mode.h"
+#include "commands/command_registry.h"
+#include "providers/cofi_tab_provider.h"
+#include "core/log/log.h"
+#include "proc/proc.h"
+#include "ui/tab_switching.h"
+
+#include <gtk/gtk.h>
+
+static CofiTabProvider s_proc_provider;
+static int s_proc_provider_id = -1;
+
+static TabMode proc_tab_mode(void) {
+    const CofiTabProvider *provider = cofi_get_provider(s_proc_provider_id);
+    return provider ? (TabMode)provider->tab_mode : TAB_WINDOWS;
+}
+
+static CofiActionStatus proc_provider_on_enter_pressed(AppData *app, int filtered_idx,
+                                                       int raw_idx, const char *entry_text,
+                                                       int modifier_state) {
+    (void)filtered_idx;
+    (void)raw_idx;
+    if (proc_execute_action_with_modifiers(app, entry_text, (guint)modifier_state)) {
+        return COFI_HANDLED_HIDE;
+    }
+    return COFI_NO_OP;
+}
+
+static CofiActionStatus proc_provider_on_command_args(AppData *app, const char *args) {
+    (void)app;
+    if (args && args[0] != '\0') {
+        log_warn("proc: ignoring command args '%s'", args);
+        return COFI_HANDLED_KEEP;
+    }
+    return COFI_NO_OP;
+}
+
+static gboolean proc_command_handler(AppData *app,
+                                     WindowInfo *window __attribute__((unused)),
+                                     const char *args) {
+    exit_command_mode(app);
+    if (app) {
+        app->prefix_origin_tab = app->current_tab;
+    }
+    surface_tab(app, proc_tab_mode());
+    if (args && args[0] != '\0') {
+        proc_provider_on_command_args(app, args);
+    }
+    return FALSE;
+}
+
+static const CommandSpec s_proc_command = {
+    .primary = "proc",
+    .aliases = {"ps", NULL},
+    .owner_provider_id = "proc",
+    .handler = proc_command_handler,
+    .description = "Switch to process manager tab",
+    .help_format = "proc, ps",
+    .keeps_open_on_hotkey_auto = 1
+};
+
+void proc_provider_register(void) {
+    cofi_init_provider_defaults(&s_proc_provider);
+    s_proc_provider_id = -1;
+    s_proc_provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    s_proc_provider.id = "proc";
+    s_proc_provider.display_name = "PROC";
+    s_proc_provider.shortcut_hint = NULL;
+    s_proc_provider.prefix_char = 0;
+    s_proc_provider.required = 0;
+    s_proc_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
+    s_proc_provider.hidden_by_default = 1;
+    s_proc_provider.initial_selection_index = 0;
+    s_proc_provider.row_count = proc_row_count;
+    s_proc_provider.format_row = proc_format_row;
+    s_proc_provider.match_string = proc_match_string;
+    s_proc_provider.row_identity = proc_row_identity;
+    s_proc_provider.on_enter = proc_on_enter;
+    s_proc_provider.on_leave = proc_on_leave;
+    s_proc_provider.on_query_changed = proc_on_query_changed;
+    s_proc_provider.on_tick = proc_on_tick;
+    s_proc_provider.tick_interval_ms = 1500;
+    s_proc_provider.on_enter_pressed = proc_provider_on_enter_pressed;
+    s_proc_provider.on_command_args = proc_provider_on_command_args;
+    s_proc_provider.slot_store_enabled = 0;
+    s_proc_provider_id = cofi_register_tab_provider(&s_proc_provider);
+    if (s_proc_provider_id >= 0) {
+        cofi_register_command(&s_proc_command);
+    }
+}

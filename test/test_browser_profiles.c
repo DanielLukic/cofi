@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/browser_profiles.h"
+#include "profiles/browser_profiles.h"
 
 gboolean detach_launch_argv_array(const char *const *argv) {
     (void)argv;

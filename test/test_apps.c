@@ -17,7 +17,7 @@
 #include <string.h>
 
 /* Pull in match.h for has_match (linked separately). */
-#include "../src/match.h"
+#include "matching/match.h"
 
 /* Stub log_* so apps.c compiles cleanly without the log subsystem. */
 #undef log_trace
@@ -41,7 +41,7 @@
 #include <gio/gdesktopappinfo.h>
 
 /* Include the module under test directly (pure functions only). */
-#include "../src/apps.c"
+#include "apps/apps.c"
 
 /* ---- Test harness ---- */
 

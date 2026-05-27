@@ -2,9 +2,9 @@
 #include <string.h>
 #include <X11/Xlib.h>
 #include "test_utils.h"
-#include "../src/filter.h"
-#include "../src/history.h"
-#include "../src/constants.h"
+#include "matching/filter.h"
+#include "core/history/history.h"
+#include "core/utils/constants.h"
 
 // Mock the history functions since filter.c calls them
 void update_history(AppData *app) {

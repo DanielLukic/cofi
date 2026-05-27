@@ -22,7 +22,7 @@ void log_debug(const char *fmt, ...) { (void)fmt; }
 void log_info(const char *fmt, ...) { (void)fmt; }
 void log_warn(const char *fmt, ...) { (void)fmt; }
 
-#include "../src/calc.c"
+#include "calc/calc.c"
 
 static int pass = 0;
 static int fail = 0;

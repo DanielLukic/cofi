@@ -4,10 +4,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/app_data.h"
-#include "../src/geom_rule_sync.h"
-#include "../src/match_entry.h"
-#include "../src/rules_config.h"
+#include "core/app/app_data.h"
+#include "geom/geom_rule_sync.h"
+#include "matching/match_entry.h"
+#include "rules/rules_config.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

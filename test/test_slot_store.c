@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../src/slot_store.h"
+#include "core/slot_store/slot_store.h"
 
 static int pass = 0;
 static int fail = 0;

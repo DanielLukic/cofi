@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/daemon_socket.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "daemon/daemon_socket.h"
 
 static int pass = 0;
 static int fail = 0;
@@ -223,7 +223,7 @@ gboolean cofi_surface_provider_command(AppData *app, const char *command) {
     return FALSE;
 }
 
-#include "../src/daemon_socket_runtime.c"
+#include "daemon/daemon_socket_runtime.c"
 
 static void reset_mocks(void) {
     show_window_calls = 0;

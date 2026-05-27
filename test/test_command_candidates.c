@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/command_api.h"
-#include "../src/display_pipeline.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/core_commands.h"
+#include "core/app/app_data.h"
+#include "commands/command_api.h"
+#include "ui/display_pipeline.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/core_commands.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -66,9 +66,9 @@ gboolean path_binaries_is_scanning(void) {
     return FALSE;
 }
 
-#include "../src/command_parser.c"
-#include "../src/command_mode.c"
-#include "../src/display.c"
+#include "commands/command_parser.c"
+#include "commands/command_mode.c"
+#include "ui/display.c"
 
 static int lengths_are_sorted(const CommandMode *cmd) {
     for (int i = 1; i < cmd->candidate_count; i++) {

@@ -1,4 +1,4 @@
-#include "../src/app_data.h"
+#include "core/app/app_data.h"
 
 ProjectSessionEntry *projects_selected_session(AppData *app) {
     (void)app;

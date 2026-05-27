@@ -1,0 +1,352 @@
+#include "ui/window_lifecycle.h"
+
+#include <gdk/gdkx.h>
+#include <X11/Xatom.h>
+
+#include "commands/command_mode.h"
+#include "providers/cofi_tab_provider.h"
+#include "config/config.h"
+#include "ui/display.h"
+#include "ui/dynamic_display.h"
+#include "matching/filter.h"
+#include "harpoon/harpoon_config.h"
+#include "core/history/history.h"
+#include "core/log/log.h"
+#include "matching/match_entry.h"
+#include "matching/match_entry_config.h"
+#include "ui/overlay_manager.h"
+#include "ui/cofi_modal.h"
+#include "core/selection/selection.h"
+#include "ui/slot_overlay.h"
+#include "ui/tab_switching.h"
+#include "ui/window_highlight.h"
+#include "x11/window_list.h"
+#include "x11/workspace_utils.h"
+#include "harpoon/workspace_slots.h"
+#include "x11/x11_utils.h"
+
+static gboolean grab_focus_delayed(gpointer data);
+static gboolean show_initial_slot_overlays_idle(gpointer data);
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+static gboolean debug_printscr_suppression_active(AppData *app) {
+    return app && app->debug_printscr_keep_visible_until_us > g_get_monotonic_time();
+}
+#endif
+
+void maybe_show_initial_slot_overlays(AppData *app) {
+    if (!app || !app->window_visible) {
+        return;
+    }
+    if (app->current_tab != TAB_WINDOWS) {
+        return;
+    }
+    if (app->config.digit_slot_mode != DIGIT_MODE_PER_WORKSPACE) {
+        return;
+    }
+
+    assign_workspace_slots(app);
+}
+
+static gboolean show_initial_slot_overlays_idle(gpointer data) {
+    AppData *app = (AppData *)data;
+    app->initial_overlay_idle_id = 0;
+    maybe_show_initial_slot_overlays(app);
+    return FALSE;
+}
+
+gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppData *app) {
+    (void)widget;
+    (void)event;
+    hide_window(app);
+    return TRUE;
+}
+
+gboolean on_focus_out_event(GtkWidget *widget, GdkEventFocus *event, AppData *app) {
+    (void)widget;
+    (void)event;
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    if (debug_printscr_suppression_active(app)) {
+        log_info("Debug PrintScr observer suppressing focus-loss state reset");
+        return FALSE;
+    }
+#endif
+
+    if (app->pending_hotkey_mode < 0) {
+        if (app->command_mode.state == CMD_MODE_COMMAND) {
+            log_debug("Resetting command mode due to focus loss");
+            exit_command_mode(app);
+        } else if (app->command_mode.state == CMD_MODE_MODAL) {
+            log_debug("Resetting modal mode due to focus loss");
+            cofi_exit_modal(app);
+        }
+    }
+
+    if (!app->config.close_on_focus_loss) {
+        return FALSE;
+    }
+
+    if (app->focus_loss_timer > 0) {
+        g_source_remove(app->focus_loss_timer);
+    }
+    app->focus_loss_timer = g_timeout_add(100, (GSourceFunc)check_focus_loss_delayed, app);
+
+    return FALSE;
+}
+
+gboolean check_focus_loss_delayed(AppData *app) {
+    app->focus_loss_timer = 0;
+
+    if (!app->window || !app->window_visible) {
+        return FALSE;
+    }
+
+    if (gtk_window_has_toplevel_focus(GTK_WINDOW(app->window))) {
+        return FALSE;
+    }
+
+#ifdef COFI_DEBUG_PRINTSCR_CAPTURE
+    if (debug_printscr_suppression_active(app)) {
+        log_info("Debug PrintScr observer suppressing focus-loss close");
+        return FALSE;
+    }
+#endif
+
+    log_info("Window lost focus to external application, closing");
+    hide_window(app);
+    return FALSE;
+}
+
+void destroy_window(AppData *app) {
+    if (app->window) {
+        save_config(&app->config);
+        save_harpoon_slots(&app->harpoon);
+
+        gtk_widget_destroy(app->window);
+        app->window = NULL;
+        app->entry = NULL;
+        app->mode_indicator = NULL;
+        app->textview = NULL;
+        app->scrolled = NULL;
+        app->textbuffer = NULL;
+
+        app->command_mode.state = CMD_MODE_NORMAL;
+        app->command_mode.showing_help = FALSE;
+        app->command_mode.command_buffer[0] = '\0';
+        app->command_mode.cursor_pos = 0;
+        app->command_mode.history_index = -1;
+        app->run_mode.history_index = -1;
+        app->run_mode.close_on_exit = FALSE;
+        app->run_mode.suppress_entry_change = FALSE;
+
+        reset_selection(app);
+        log_debug("Selection reset to 0 in destroy_window");
+    }
+}
+
+void hide_window(AppData *app) {
+    if (!app->window || !app->window_visible) {
+        return;
+    }
+
+    log_debug("Hiding window without destroying");
+
+    if (app->entry) {
+        gtk_entry_set_text(GTK_ENTRY(app->entry), "");
+    }
+
+    app->selection.window_scroll_offset = 0;
+    if (app->provider_tick_timer_id > 0) {
+        g_source_remove(app->provider_tick_timer_id);
+        app->provider_tick_timer_id = 0;
+    }
+
+    if (app->command_mode.state == CMD_MODE_COMMAND) {
+        exit_command_mode(app);
+    } else if (app->command_mode.state == CMD_MODE_MODAL) {
+        cofi_exit_modal(app);
+    }
+
+    if (app->mode_indicator) {
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), ">");
+    }
+
+    TabMode previous_tab = app->current_tab;
+    const CofiTabProvider *previous_provider = cofi_get_provider_for_tab(previous_tab);
+    if (previous_provider && previous_provider->on_leave) {
+        previous_provider->on_leave(app);
+    }
+
+    clear_surfaced_tabs(app);
+    app->current_tab = TAB_WINDOWS;
+    app->apps_mode = APPS_MODE_DEFAULT;
+
+    if (app->overlay_active) {
+        hide_overlay(app);
+    }
+
+    if (app->focus_loss_timer > 0) {
+        g_source_remove(app->focus_loss_timer);
+        app->focus_loss_timer = 0;
+    }
+    if (app->focus_grab_timer > 0) {
+        g_source_remove(app->focus_grab_timer);
+        app->focus_grab_timer = 0;
+    }
+    if (app->initial_overlay_idle_id > 0) {
+        g_source_remove(app->initial_overlay_idle_id);
+        app->initial_overlay_idle_id = 0;
+    }
+    destroy_slot_overlays(app);
+
+    save_config(&app->config);
+    save_harpoon_slots(&app->harpoon);
+
+    gtk_widget_hide(app->window);
+    app->window_visible = FALSE;
+
+    log_debug("Window hidden, X11 event processing continues");
+}
+
+static gboolean grab_focus_delayed(gpointer data) {
+    AppData *app = (AppData *)data;
+
+    app->focus_grab_timer = 0;
+
+    if (app->entry && app->window && app->window_visible) {
+        GtkWindow *window = GTK_WINDOW(app->window);
+
+        gtk_window_set_urgency_hint(window, FALSE);
+
+        GdkWindow *gdk_window = gtk_widget_get_window(app->window);
+        if (gdk_window) {
+            Display *display = GDK_WINDOW_XDISPLAY(gdk_window);
+            Window xwindow = GDK_WINDOW_XID(gdk_window);
+            guint32 ts = app->focus_timestamp ? app->focus_timestamp : CurrentTime;
+
+            XRaiseWindow(display, xwindow);
+            gdk_window_focus(gdk_window, ts);
+            XFlush(display);
+
+            gdk_error_trap_push();
+            XSetInputFocus(display, xwindow, RevertToParent, ts);
+            XSync(display, False);
+            int err = gdk_error_trap_pop();
+            if (err != 0) {
+                log_debug("grab_focus_delayed: XSetInputFocus failed (err=%d), retrying", err);
+                app->focus_grab_timer = g_timeout_add(20, grab_focus_delayed, app);
+                return FALSE;
+            }
+        }
+
+        gtk_widget_grab_focus(app->entry);
+    }
+
+    return FALSE;
+}
+
+void ensure_cofi_on_current_workspace(AppData *app) {
+    if (!app || !app->display || app->own_window_id == 0) {
+        return;
+    }
+
+    int current_desktop = get_current_desktop(app->display);
+    if (current_desktop < 0) {
+        return;
+    }
+
+    int actual_format = 0;
+    unsigned long n_items = 0;
+    unsigned char *prop = NULL;
+
+    if (get_x11_property(app->display, app->own_window_id, app->atoms.net_wm_desktop,
+                         XA_CARDINAL, 1, NULL, &actual_format, &n_items, &prop) != COFI_SUCCESS) {
+        return;
+    }
+
+    if (actual_format != 32 || n_items < 1 || !prop) {
+        if (prop) XFree(prop);
+        return;
+    }
+
+    long own_desktop = *(long *)prop;
+    XFree(prop);
+
+    if (own_desktop < 0 || own_desktop == 0xFFFFFFFF) {
+        return;
+    }
+
+    if ((int)own_desktop != current_desktop) {
+        move_window_to_desktop(app->display, app->own_window_id, current_desktop);
+        log_debug("Moved cofi window to current desktop %d", current_desktop + 1);
+    }
+}
+
+void show_window(AppData *app) {
+    if (!app->window) {
+        log_error("Cannot show window - window not created");
+        return;
+    }
+
+    if (app->window_visible) {
+        ensure_cofi_on_current_workspace(app);
+        gtk_window_present(GTK_WINDOW(app->window));
+        return;
+    }
+
+    log_debug("Showing window and refreshing state");
+
+    if (app->mode_indicator) {
+        const char *indicator = ">";
+        if (app->command_mode.state == CMD_MODE_COMMAND) {
+            indicator = ":";
+        } else if (app->command_mode.state == CMD_MODE_MODAL) {
+            indicator = "!";
+        }
+        gtk_label_set_text(GTK_LABEL(app->mode_indicator), indicator);
+    }
+
+    get_window_list(app);
+    if (match_entry_reassign_live_windows(&app->matching, app->windows, app->window_count)) {
+        save_match_entries(&app->matching);
+    }
+
+    if (app->current_tab == TAB_WINDOWS) {
+        reset_selection(app);
+        filter_windows(app, "");
+    } else {
+        const CofiTabProvider *provider = cofi_get_provider_for_tab(app->current_tab);
+        if (provider && provider->on_enter) {
+            provider->on_enter(app);
+            reset_selection(app);
+        }
+    }
+
+    gtk_widget_show_all(app->window);
+    app->window_visible = TRUE;
+    ensure_cofi_on_current_workspace(app);
+
+    app->fixed_cols = 0;
+    app->fixed_rows = 0;
+    init_fixed_window_size(app);
+    app->pending_initial_render = FALSE;
+    update_display(app);
+
+    GtkWindow *window = GTK_WINDOW(app->window);
+    guint32 ts = app->focus_timestamp ? app->focus_timestamp : GDK_CURRENT_TIME;
+    gtk_window_present_with_time(window, ts);
+    gtk_window_set_urgency_hint(window, TRUE);
+    gtk_widget_grab_focus(app->entry);
+
+    if (app->focus_grab_timer > 0) {
+        g_source_remove(app->focus_grab_timer);
+    }
+    app->focus_grab_timer = g_idle_add(grab_focus_delayed, app);
+    if (app->initial_overlay_idle_id > 0) {
+        g_source_remove(app->initial_overlay_idle_id);
+    }
+    app->initial_overlay_idle_id = g_idle_add(show_initial_slot_overlays_idle, app);
+
+    log_debug("Window shown with multi-method focus grab");
+}

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../src/app_data.h"
-#include "../src/command_registry.h"
+#include "core/app/app_data.h"
+#include "commands/command_registry.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -107,7 +107,7 @@ int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
 
-#include "../src/apps_provider.c"
+#include "apps/apps_provider.c"
 
 static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));

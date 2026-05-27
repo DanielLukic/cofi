@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/cofi_json_io.h"
+#include "core/json/cofi_json_io.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

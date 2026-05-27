@@ -1,4 +1,4 @@
-#include "../src/command_api.h"
+#include "commands/command_api.h"
 
 #define STUB_COMMAND_HANDLER(name) \
     gboolean name(AppData *app, WindowInfo *window, const char *args) { \

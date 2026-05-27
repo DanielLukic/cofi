@@ -50,7 +50,7 @@ run_test() {
 # Compile new unit tests if needed
 echo "Compiling unit tests..."
 if [ -f "test/test_filter.c" ]; then
-    gcc -o test/test_filter test/test_filter.c src/filter.c src/match.c src/log.c $(pkg-config --cflags --libs gtk+-3.0 x11) -lm 2>/dev/null || echo "Warning: Failed to compile test_filter"
+    gcc -o test/test_filter test/test_filter.c src/matching/filter.c src/matching/match.c src/core/log/log.c $(pkg-config --cflags --libs gtk+-3.0 x11) -lm 2>/dev/null || echo "Warning: Failed to compile test_filter"
 fi
 
 if [ -f "test/test_history.c" ]; then

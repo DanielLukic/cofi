@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "../src/config.h"
+#include "config/config.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

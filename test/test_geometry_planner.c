@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include "../src/geometry_planner.h"
-#include "../src/frame_extents.h"
+#include "geom/geometry_planner.h"
+#include "x11/frame_extents.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

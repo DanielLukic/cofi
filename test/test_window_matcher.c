@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include "../src/window_matcher.h"
+#include "matching/window_matcher.h"
 
 // Test helper to create a WindowInfo
 WindowInfo create_test_window(Window id, const char *title, const char *class_name, 

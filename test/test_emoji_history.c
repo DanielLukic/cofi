@@ -4,10 +4,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../src/app_data.h"
-#include "../src/command_registry.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/emoji_data.h"
+#include "core/app/app_data.h"
+#include "commands/command_registry.h"
+#include "providers/cofi_tab_provider.h"
+#include "emoji/emoji_data.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -55,7 +55,7 @@ void surface_tab(AppData *app, TabMode tab) {
     (void)tab;
 }
 
-#include "../src/emoji_provider.c"
+#include "emoji/emoji_provider.c"
 
 static void reset_history_state(void) {
     free(s_history_glyphs);

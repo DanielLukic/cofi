@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <gdk/gdkkeysyms.h>
-#include "../src/utils.h"
+#include "core/utils/utils.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

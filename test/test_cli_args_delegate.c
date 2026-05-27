@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cli_args.h"
-#include "../src/command_api.h"
-#include "../src/config.h"
-#include "../src/daemon_socket.h"
+#include "core/app/app_data.h"
+#include "cli/cli_args.h"
+#include "commands/command_api.h"
+#include "config/config.h"
+#include "daemon/daemon_socket.h"
 
 static int pass = 0;
 static int fail = 0;

@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/app_data.h"
-#include "../src/cofi_tab_provider.h"
-#include "../src/command_registry.h"
-#include "../src/selection.h"
+#include "core/app/app_data.h"
+#include "providers/cofi_tab_provider.h"
+#include "commands/command_registry.h"
+#include "core/selection/selection.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -54,9 +54,9 @@ int cofi_register_command(const CommandSpec *spec) {
     return spec ? 0 : -1;
 }
 
-#include "../src/cofi_tab_provider.c"
-#include "../src/selection.c"
-#include "../src/emoji_provider.c"
+#include "providers/cofi_tab_provider.c"
+#include "core/selection/selection.c"
+#include "emoji/emoji_provider.c"
 
 static int s_long_provider_id = -1;
 
