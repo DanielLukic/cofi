@@ -68,12 +68,6 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
     return result;
 }
 
-void rule_toggle_once(Rule *rule) {
-    if (!rule) return;
-    rule->once = !rule->once;
-    rule->applied = 0;
-}
-
 void rules_clear_applied_for_dead_windows(RulesConfig *config, const Window *live_windows, int live_count) {
     if (!config) return;
     for (int i = 0; i < config->count; i++) {

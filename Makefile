@@ -237,8 +237,8 @@ test_rules_replay: test/test_rules_replay.c src/rules_replay.o src/rules.o src/m
 	$(CC) $(CFLAGS) -o test/test_rules_replay test/test_rules_replay.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
 
 # Build rules once/ applied-window tracking test
-test_rules_once: test/test_rules_once.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_rules_once test/test_rules_once.c src/rules_replay.o src/rules.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
+test_rules_once: test/test_rules_once.c src/rules_replay.o src/rules.o src/rules_toggle.o src/match_entry.o src/window_matcher.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_rules_once test/test_rules_once.c src/rules_replay.o src/rules.o src/rules_toggle.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c src/utf8_columns.o
@@ -347,8 +347,8 @@ test_key_handler_core: test/test_key_handler_core.c test/test_projects_key_stubs
 test_key_handler_harpoon: test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o
 	$(CC) $(CFLAGS) -o test/test_key_handler_harpoon test/test_key_handler_harpoon.c test/test_projects_key_stubs.c src/key_handler_harpoon.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o $(LDFLAGS)
 
-test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o
-	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o $(LDFLAGS)
+test_key_handler_tabs: test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/rules_toggle.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o
+	$(CC) $(CFLAGS) -o test/test_key_handler_tabs test/test_key_handler_tabs.c test/command_handler_stubs.c src/key_handler_harpoon.o src/harpoon_provider.o src/config_provider.o src/hotkeys_provider.o src/matching_provider.o src/rules_provider.o src/rules_toggle.o src/prefix_tabs.o src/slot_store.o src/calc.o src/cofi_json_io.o src/tinyexpr.o src/nav_keys.o src/projects_parse.o src/command_registry.o src/dynamic_display.o $(LDFLAGS)
 
 test_nav_keys: test/test_nav_keys.c src/nav_keys.o
 	$(CC) $(CFLAGS) -o test/test_nav_keys test/test_nav_keys.c src/nav_keys.o $(LDFLAGS)
@@ -402,8 +402,8 @@ test_daemon_socket_dispatch: test/test_daemon_socket_dispatch.c src/daemon_socke
 	$(CC) $(CFLAGS) -o test/test_daemon_socket_dispatch test/test_daemon_socket_dispatch.c src/daemon_socket.o src/log.o $(LDFLAGS)
 
 # Build tab visibility safety-net tests
-test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o
-	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o $(LDFLAGS)
+test_tab_visibility: test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o src/rules_toggle.o
+	$(CC) $(CFLAGS) -o test/test_tab_visibility test/test_tab_visibility.c src/daemon_socket.o src/slot_store.o src/cofi_json_io.o src/log.o src/tab_metadata.o src/command_availability.o src/core_commands.o src/command_registry.o src/rules_toggle.o $(LDFLAGS)
 
 # Build tab header overflow tests
 test_tab_header: test/test_tab_header.c src/tab_metadata.o
