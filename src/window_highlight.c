@@ -195,5 +195,5 @@ void highlight_window(AppData *app, Window target) {
     }
 
     hl->active = 1;
-    log_info("Highlight: circle ripple on 0x%lx at (%d,%d)", target, cx, cy);
+    log_debug("Highlight: circle ripple on 0x%lx at (%d,%d)", target, cx, cy);
 }
