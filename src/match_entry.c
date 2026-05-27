@@ -312,6 +312,10 @@ int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     safe_string_copy(entry->type, w->type, sizeof(entry->type));
     escape_title_wildcards(entry->original_title, w->title, MAX_TITLE_LEN);
     entry->assigned = 1;
+    if (!match_entry_matches_window(entry, w)) {
+        log_warn("matching: freshly-created entry %d does not match source window 0x%lx (class='%s' title='%s')",
+                 entry->match_id, w->id, w->class_name, w->title);
+    }
     return entry->match_id;
 }
 

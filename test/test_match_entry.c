@@ -487,6 +487,25 @@ static void test_matching_create_entry_always_creates(void) {
     ASSERT_STR("create captured type", "Normal", manager.entries[0].type);
 }
 
+static void test_matching_create_entry_round_trips_to_source_window(void) {
+    printf("\n--- matching_create_entry round-trips to source window ---\n");
+
+    MatchEntryManager manager;
+    match_entry_manager_init(&manager);
+
+    WindowInfo plain = make_window(1001, "foo", "Bar", "bar", "Normal");
+    int plain_id = matching_create_entry(&manager, &plain);
+    ASSERT_INT("plain entry created", 1, plain_id > 0);
+    ASSERT_INT("plain entry matches source window", 1,
+               (int)match_entry_matches_window(&manager.entries[0], &plain));
+
+    WindowInfo escaped = make_window(1002, "name*with.meta?chars", "EscClass", "esc", "Normal");
+    int escaped_id = matching_create_entry(&manager, &escaped);
+    ASSERT_INT("escaped entry created", 1, escaped_id > plain_id);
+    ASSERT_INT("escaped entry matches source window", 1,
+               (int)match_entry_matches_window(&manager.entries[1], &escaped));
+}
+
 static void test_match_id_persist_and_non_reuse(void) {
     printf("\n--- match_id persistence and non-reuse ---\n");
 
@@ -988,6 +1007,7 @@ int main(void) {
     test_match_if_set_class_instance_type();
     test_same_title_different_class_create_distinct_entries();
     test_matching_create_entry_always_creates();
+    test_matching_create_entry_round_trips_to_source_window();
     test_match_id_persist_and_non_reuse();
     test_load_repairs_malformed_or_duplicate_match_ids();
     test_load_missing_required_fields_and_missing_match_id();
