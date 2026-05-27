@@ -46,6 +46,7 @@ setup_common_config() {
     export NO_AT_BRIDGE=1
     export HOME="$HOME_DIR"
     export XDG_RUNTIME_DIR="$RUNTIME_DIR"
+    export COFI_DISABLE_SYSTEMD_RUN=1
 
     cat > "$HOME_DIR/.config/cofi/options.json" <<'JSON'
 {

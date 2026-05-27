@@ -74,3 +74,6 @@ child processes without blocking the UI.
 - Socket and hotkey paths choose what surface to invoke; providers and command handlers still define behavior.
 - Hotkey add/rebind temporarily calls `cleanup_hotkeys()` so the overlay can capture the key.
 - `detach_launch.*` is shared process infrastructure for run, apps, projects, and profiles.
+- `COFI_DISABLE_SYSTEMD_RUN=1` forces detached launches down the fork+setsid
+  fallback path, used by integration tests whose fake terminal binaries live on
+  the harness `PATH`.

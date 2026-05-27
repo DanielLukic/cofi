@@ -136,7 +136,7 @@ static gboolean detach_launch_properly(const char *const *argv,
                                        gboolean redirect_stdio,
                                        gboolean try_systemd) {
     gchar *srun = g_find_program_in_path("systemd-run");
-    if (try_systemd && srun) {
+    if (try_systemd && srun && g_getenv("COFI_DISABLE_SYSTEMD_RUN") == NULL) {
         g_free(srun);
         srun = NULL;
         char **srun_argv = build_systemd_run_argv(argv);
