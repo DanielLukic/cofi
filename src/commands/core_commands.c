@@ -75,6 +75,7 @@ static const CommandSpec s_core_commands[] = {
     {
         .primary = "hmw",
         .aliases = {"hm", "horizontal-maximize-window", NULL},
+        .compact_suffix = "+-",
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_horizontal_maximize,
         .description = "Toggle horizontal maximize",
@@ -157,6 +158,7 @@ static const CommandSpec s_core_commands[] = {
     {
         .primary = "mw",
         .aliases = {"max", "maximize-window", NULL},
+        .compact_suffix = "+-",
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_maximize_window,
         .description = "Toggle maximize selected window",
@@ -249,6 +251,7 @@ static const CommandSpec s_core_commands[] = {
     {
         .primary = "vmw",
         .aliases = {"vm", "vertical-maximize-window", NULL},
+        .compact_suffix = "+-",
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_vertical_maximize,
         .description = "Toggle vertical maximize",

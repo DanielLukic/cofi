@@ -305,6 +305,15 @@ static void test_window_state_compact_forms(void) {
     check("ew compact +", "ew+", "ew", "+");
     check("ew compact -", "ew-", "ew", "-");
     check("every-workspace compact +", "every-workspace+", "ew", "+");
+    check("mw compact +", "mw+", "mw", "+");
+    check("mw compact -", "mw-", "mw", "-");
+    check("max compact +", "max+", "mw", "+");
+    check("hm compact +", "hm+", "hmw", "+");
+    check("hm compact -", "hm-", "hmw", "-");
+    check("hmw compact +", "hmw+", "hmw", "+");
+    check("vm compact +", "vm+", "vmw", "+");
+    check("vm compact -", "vm-", "vmw", "-");
+    check("vmw compact +", "vmw+", "vmw", "+");
     check("tm compact 0", "tm0", "tm", "0");
     check("tm compact 1", "tm1", "tm", "1");
 }

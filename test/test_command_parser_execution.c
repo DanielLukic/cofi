@@ -75,6 +75,10 @@ static void test_parse_command_for_execution_alias_resolution(void) {
                 parse_command_for_execution("tm0", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "tm") == 0 && strcmp(arg, "0") == 0);
 
+    assert_true("compact mw+ resolves to mw",
+                parse_command_for_execution("mw+", cmd, arg, sizeof(cmd), sizeof(arg)) &&
+                strcmp(cmd, "mw") == 0 && strcmp(arg, "+") == 0);
+
     assert_true("hotkey alias resolves to hotkeys",
                 parse_command_for_execution("hotkey Mod4+w show windows", cmd, arg, sizeof(cmd), sizeof(arg)) &&
                 strcmp(cmd, "hotkeys") == 0 && strcmp(arg, "Mod4+w show windows") == 0);
