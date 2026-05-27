@@ -27,6 +27,8 @@ typedef struct {
     score_t score;
 } ScoredWindow;
 
+static const MatchEntryManager *g_filter_match_manager = NULL;
+
 // Comparison function for qsort
 static int compare_scores(const void *a, const void *b) {
     const ScoredWindow *wa = (const ScoredWindow *)a;
@@ -36,6 +38,15 @@ static int compare_scores(const void *a, const void *b) {
     if (wa->score > wb->score) return -1;
     if (wa->score < wb->score) return 1;
     return 0;
+}
+
+void compose_window_display_title(const MatchEntryManager *manager,
+                                  const WindowInfo *window,
+                                  char *out, size_t out_size) {
+    if (!window || !out || out_size == 0) return;
+    const char *custom_name = manager ? match_entry_get_custom_name(manager, window->id) : NULL;
+    if (custom_name) snprintf(out, out_size, "%s - %s", custom_name, window->title);
+    else snprintf(out, out_size, "%s", window->title);
 }
 
 // Compose the full display string for a window (same content the user sees)
@@ -55,8 +66,10 @@ static void compose_display_string(const WindowInfo *win, char *out, size_t out_
         display_class = win->instance;
     }
 
+    char display_title[MAX_TITLE_LEN];
+    compose_window_display_title(g_filter_match_manager, win, display_title, sizeof(display_title));
     snprintf(out, out_size, "%s %s %s %s",
-             desktop_str, display_instance, win->title, display_class);
+             desktop_str, display_instance, display_title, display_class);
 }
 
 // Return byte offset in 'display' where the TITLE field starts.
@@ -297,20 +310,6 @@ static void prepare_windows_for_filtering(AppData *app) {
         partition_and_reorder(app);
     }
 
-    // Second, update window titles to include custom names for filtering
-    for (int i = 0; i < app->history_count; i++) {
-        const char *custom_name = match_entry_get_custom_name(&app->matching, app->history[i].id);
-        if (custom_name) {
-            // Store original title and create modified title for filtering
-            char original_title[MAX_TITLE_LEN];
-            strncpy(original_title, app->history[i].title, sizeof(original_title) - 1);
-            original_title[sizeof(original_title) - 1] = '\0';
-
-            // Format as "custom_name - original_title"
-            snprintf(app->history[i].title, sizeof(app->history[i].title), "%s - %s", custom_name, original_title);
-        }
-    }
-
     log_trace("After pipeline - history_count=%d", app->history_count);
 }
 
@@ -403,9 +402,11 @@ void filter_windows(AppData *app, const char *filter) {
 
 
     // Step 2: Score and filter windows directly from history
+    g_filter_match_manager = &app->matching;
     ScoredWindow scored_windows[MAX_WINDOWS];
     int scored_count = score_and_filter_windows(app, filter, app->history, 
                                                app->history_count, scored_windows);
+    g_filter_match_manager = NULL;
     
     // Step 3: Sort by score
     sort_scored_windows(scored_windows, scored_count, filter);

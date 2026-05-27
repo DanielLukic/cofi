@@ -21,6 +21,7 @@
 #include "tab_header.h"
 #include "slot_store.h"
 #include "utf8_columns.h"
+#include "filter.h"
 
 extern const char *projects_remote_scope_status_message(void) __attribute__((weak));
 
@@ -220,8 +221,7 @@ static void render_windows_item(gpointer context, gint index,
     utf8_fit_columns(display_instance, DISPLAY_INSTANCE_WIDTH, instance_col, sizeof(instance_col));
 
     char display_title[MAX_TITLE_LEN];
-    strncpy(display_title, win->title, sizeof(display_title) - 1);
-    display_title[sizeof(display_title) - 1] = '\0';
+    compose_window_display_title(&app->matching, win, display_title, sizeof(display_title));
 
     utf8_fit_columns(display_title, WINDOWS_TITLE_WIDTH, title_col, sizeof(title_col));
     utf8_fit_columns(display_class, DISPLAY_CLASS_WIDTH, class_col, sizeof(class_col));

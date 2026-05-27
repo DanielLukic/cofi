@@ -428,6 +428,9 @@ test_initials_ranking: test/test_initials_ranking.c src/fzf_algo.o src/log.o
 test_ranking_corpus: test/test_ranking_corpus.c src/fzf_algo.o src/log.o
 	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c src/fzf_algo.o src/log.o $(LDFLAGS)
 
+test_filter_title_compose: test/test_filter_title_compose.c src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o $(LDFLAGS)
+
 # Build apps tab behavioral tests
 # (includes apps.c directly; tests filter/sort logic with synthetic data, not GIO launch)
 test_apps: test/test_apps.c src/match.o src/log.o src/system_actions.o src/detach_launch.o
