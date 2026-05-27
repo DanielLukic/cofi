@@ -297,6 +297,7 @@ test: $(TEST_TARGETS)
 .PHONY: test-integration
 test-integration: $(TARGET)
 	@test/integration/run_all.sh
+	@test/integration/run_window_state.sh
 
 # Build command parsing test
 test_command_parsing: test/test_command_parsing.c test/command_handler_stubs.c $(command_parser_obj) $(core_commands_obj) $(command_registry_obj) $(cofi_tab_provider_obj)
