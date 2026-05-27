@@ -143,10 +143,10 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
         Window old_id = entry->bound_x11_id;
         int has_valid_binding = 0;
 
-        // Persisted X11 ids are not trusted across restarts; always rebind by title pattern.
+        // At runtime an established binding sticks as long as the window is alive; title pattern is the fallback only when bound_x11_id is dead.
         if (entry->bound_x11_id != 0) {
             const WindowInfo *bound = find_live_window_by_id(windows, window_count, entry->bound_x11_id);
-            if (bound && match_entry_matches_window(entry, bound)) {
+            if (bound) {
                 has_valid_binding = 1;
                 entry->assigned = 1;
             } else {

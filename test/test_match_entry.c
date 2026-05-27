@@ -758,28 +758,31 @@ static void test_save_load_roundtrip_special_chars(void) {
 }
 
 static void test_bound_x11_id_validation_and_rebind(void) {
-    printf("\n--- bound_x11_id ignored on load and rebound by title ---\n");
+    printf("\n--- bound_x11_id: id wins at runtime; pattern fallback after destroy ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
     WindowInfo captured = make_window(200, "Title-A", "ClassA", "instA", "Normal");
     match_entry_assign_custom_name(&mgr, &captured, "name");
 
-    // Same id + drifted title is no longer trusted; rebind is title/mode-based.
+    // Drifted title keeps binding — id wins.
     WindowInfo drifted = make_window(200, "Title-B", "ClassA", "instA", "Normal");
     int changed = match_entry_reassign_live_windows(&mgr, &drifted, 1);
-    ASSERT_INT("drifted title clears stale binding", 1, changed);
-    ASSERT_INT("binding cleared on drifted title", 0, (int)mgr.entries[0].bound_x11_id);
-    ASSERT_INT("entry marked unassigned", 0, mgr.entries[0].assigned);
+    ASSERT_INT("drifted title keeps binding (no churn)", 0, changed);
+    ASSERT_INT("bound_x11_id unchanged after title drift", 200, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("still assigned after title drift", 1, mgr.entries[0].assigned);
 
-    // Reused id with wrong class should be dropped, then rebound by criteria.
-    safe_string_copy(mgr.entries[0].original_title, "Wanted", MAX_TITLE_LEN);
-    WindowInfo windows[2];
-    windows[0] = make_window(200, "Wanted", "OtherClass", "instA", "Normal");
-    windows[1] = make_window(300, "Wanted", "ClassA", "instA", "Normal");
-    changed = match_entry_reassign_live_windows(&mgr, windows, 2);
-    ASSERT_INT("class mismatch on reused id forces fallback rebind", 1, changed);
-    ASSERT_INT("rebound to title+class matching window", 300, (int)mgr.entries[0].bound_x11_id);
+    // After window destruction the binding is cleared, then pattern-based re-resolution runs.
+    changed = match_entry_reassign_live_windows(&mgr, &drifted, 0);
+    ASSERT_INT("destroy clears binding", 1, changed);
+    ASSERT_INT("bound_x11_id zero after destroy", 0, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("unassigned after destroy", 0, mgr.entries[0].assigned);
+
+    WindowInfo successor = make_window(300, "Title-A", "ClassA", "instA", "Normal");
+    changed = match_entry_reassign_live_windows(&mgr, &successor, 1);
+    ASSERT_INT("pattern fallback rebinds to matching successor", 1, changed);
+    ASSERT_INT("rebound to successor id", 300, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("assigned after pattern rebind", 1, mgr.entries[0].assigned);
 }
 
 static void test_startup_load_then_reassign_path(void) {
@@ -990,6 +993,40 @@ static void test_match_entry_gc_is_pure_reference_check(void) {
     ASSERT_INT("unreferenced captured entry removed", -1, match_entry_find_index_by_match_id(&mgr, referenced_id));
 }
 
+static void test_binding_kept_on_title_change(void) {
+    printf("\n--- match_entry_reassign_live_windows: title change keeps binding ---\n");
+
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo w = make_window(0xAAA, "foo", "ClassX", "instX", "Normal");
+    matching_create_entry(&mgr, &w);
+    ASSERT_INT("entry bound to 0xAAA", 1, (int)(mgr.entries[0].bound_x11_id == 0xAAA));
+    ASSERT_STR("original title captured", "foo", mgr.entries[0].original_title);
+
+    safe_string_copy(w.title, "bar", MAX_TITLE_LEN);
+
+    match_entry_reassign_live_windows(&mgr, &w, 1);
+    ASSERT_INT("binding kept on title change (window alive)", 1,
+               (int)(mgr.entries[0].bound_x11_id == 0xAAA));
+    ASSERT_INT("still assigned after title change", 1, mgr.entries[0].assigned);
+}
+
+static void test_binding_cleared_when_window_gone(void) {
+    printf("\n--- match_entry_reassign_live_windows: window gone clears binding ---\n");
+
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo w = make_window(0xAAA, "foo", "ClassX", "instX", "Normal");
+    matching_create_entry(&mgr, &w);
+    ASSERT_INT("entry bound to 0xAAA", 1, (int)(mgr.entries[0].bound_x11_id == 0xAAA));
+
+    match_entry_reassign_live_windows(&mgr, &w, 0);
+    ASSERT_INT("bound_x11_id cleared when window gone", 0, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("entry unassigned when window gone", 0, mgr.entries[0].assigned);
+}
+
 static void test_match_entry_gc_removes_only_unreferenced_ids(void) {
     printf("\n--- match_entry_gc removes only unreferenced ids ---\n");
 
@@ -1053,6 +1090,8 @@ int main(void) {
     test_layout_restore_resolve_requires_live_binding_and_saved_layout();
     test_match_entry_gc_is_pure_reference_check();
     test_match_entry_gc_removes_only_unreferenced_ids();
+    test_binding_kept_on_title_change();
+    test_binding_cleared_when_window_gone();
 
     printf("\n=====================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
