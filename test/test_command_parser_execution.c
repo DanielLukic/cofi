@@ -155,6 +155,127 @@ static void test_next_command_segment(void) {
     assert_true("no more segments", !next_command_segment(&cursor, segment, sizeof(segment)));
 }
 
+typedef struct {
+    int seen;
+    int fail_at;
+    const char *expected[8];
+} SegmentVisitState;
+
+static gboolean record_segment_visit(const char *segment, void *user_data) {
+    SegmentVisitState *state = user_data;
+    if (state->expected[state->seen] && strcmp(segment, state->expected[state->seen]) != 0) {
+        return FALSE;
+    }
+
+    state->seen++;
+    if (state->fail_at > 0 && state->seen >= state->fail_at) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void test_visit_command_segments(void) {
+    SegmentVisitState order_state = {
+        .seen = 0,
+        .fail_at = 0,
+        .expected = {"tm0", "mw+", "jw2", NULL},
+    };
+
+    gboolean ok = visit_command_segments("  tm0, , mw+ , jw2  ",
+                                         record_segment_visit,
+                                         &order_state);
+    assert_true("visit segments in stored order", ok && order_state.seen == 3);
+
+    SegmentVisitState stop_state = {
+        .seen = 0,
+        .fail_at = 2,
+        .expected = {"tm0", "mw+", "jw2", NULL},
+    };
+
+    ok = visit_command_segments("tm0,mw+,jw2", record_segment_visit, &stop_state);
+    assert_true("visit stops on first visitor failure", !ok && stop_state.seen == 2);
+}
+
+typedef struct {
+    const char *segment;
+    const char *primary;
+    const char *arg;
+} ExpectedResolvedSegment;
+
+typedef struct {
+    const ExpectedResolvedSegment *expected;
+    int count;
+    int seen;
+} ResolveChainState;
+
+static gboolean verify_resolved_segment(const char *segment, void *user_data) {
+    ResolveChainState *state = user_data;
+    if (state->seen >= state->count) {
+        return FALSE;
+    }
+
+    const ExpectedResolvedSegment *expected = &state->expected[state->seen];
+    char primary[64] = {0};
+    char arg[64] = {0};
+
+    if (strcmp(segment, expected->segment) != 0) {
+        return FALSE;
+    }
+    if (!parse_command_for_execution(segment, primary, arg, sizeof(primary), sizeof(arg))) {
+        return FALSE;
+    }
+    if (strcmp(primary, expected->primary) != 0 || strcmp(arg, expected->arg) != 0) {
+        return FALSE;
+    }
+
+    state->seen++;
+    return TRUE;
+}
+
+static void assert_rule_chain(const char *label, const char *command,
+                              const ExpectedResolvedSegment *expected,
+                              int count) {
+    ResolveChainState state = {
+        .expected = expected,
+        .count = count,
+        .seen = 0,
+    };
+
+    gboolean ok = visit_command_segments(command, verify_resolved_segment, &state);
+    assert_true(label, ok && state.seen == count);
+}
+
+static void test_tfd826_compound_rule_examples(void) {
+    const ExpectedResolvedSegment tm0_mw_on[] = {
+        {.segment = "tm0", .primary = "tm", .arg = "0"},
+        {.segment = "mw+", .primary = "mw", .arg = "+"},
+    };
+    assert_rule_chain("TFD-826 tm0,mw+ parses ordered segments",
+                      "tm0,mw+", tm0_mw_on, 2);
+
+    const ExpectedResolvedSegment tm1_mw_on[] = {
+        {.segment = "tm1", .primary = "tm", .arg = "1"},
+        {.segment = "mw+", .primary = "mw", .arg = "+"},
+    };
+    assert_rule_chain("TFD-826 tm1,mw+ parses ordered segments",
+                      "tm1,mw+", tm1_mw_on, 2);
+
+    const ExpectedResolvedSegment tm1_tile_left_sticky_on[] = {
+        {.segment = "tm1", .primary = "tm", .arg = "1"},
+        {.segment = "tl", .primary = "tw", .arg = "l"},
+        {.segment = "ew+", .primary = "ew", .arg = "+"},
+    };
+    assert_rule_chain("TFD-826 tm1,tl,ew+ parses ordered segments",
+                      "tm1,tl,ew+", tm1_tile_left_sticky_on, 3);
+
+    const ExpectedResolvedSegment mw_off_tm1[] = {
+        {.segment = "mw-", .primary = "mw", .arg = "-"},
+        {.segment = "tm1", .primary = "tm", .arg = "1"},
+    };
+    assert_rule_chain("TFD-826 mw-,tm1 parses reverse-order segments",
+                      "mw-,tm1", mw_off_tm1, 2);
+}
+
 int main(void) {
     printf("Command parser execution-path tests\n");
     printf("===================================\n\n");
@@ -165,6 +286,8 @@ int main(void) {
 
     test_parse_command_for_execution_alias_resolution();
     test_next_command_segment();
+    test_visit_command_segments();
+    test_tfd826_compound_rule_examples();
 
     printf("\n===================================\n");
     printf("Results: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

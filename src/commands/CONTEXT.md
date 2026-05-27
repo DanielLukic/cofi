@@ -80,7 +80,8 @@ exposing help/candidate metadata for users.
 10. `parse_command_for_execution()` resolves aliases to their primary command
     name but leaves unknown commands unchanged so callers can report them.
 11. Command segmentation treats commas as separators, trims whitespace around
-    each segment, skips empty segments, and visits segments in stored order.
+    each segment, skips empty segments, visits segments in stored order, and
+    returns false immediately when a segment visitor returns false.
 12. `execute_command()` logs user execution and dispatches segments against the
     current selected window.
 13. `execute_command_with_window()` logs hotkey execution and dispatches against
