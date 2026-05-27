@@ -153,33 +153,48 @@ gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args 
     return TRUE;
 }
 
-gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for maximizing");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_BOTH");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "mw [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_BOTH", action);
     return TRUE;
 }
 
-gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for horizontal maximizing");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "hm [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ", action);
     return TRUE;
 }
 
-gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for vertical maximizing");
         return FALSE;
     }
 
-    toggle_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT");
+    WindowStateAction action = WINDOW_STATE_TOGGLE;
+    if (!parse_state_action_arg(args, "vm [toggle|on|off]", &action)) {
+        return FALSE;
+    }
+
+    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT", action);
     return TRUE;
 }
 

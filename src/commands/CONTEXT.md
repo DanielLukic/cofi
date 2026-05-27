@@ -115,9 +115,9 @@ exposing help/candidate metadata for users.
     whether command candidates are visible.
 25. Left and Right wrap the candidate highlight when candidates are visible;
     otherwise they behave as normal cursor motion in the input field.
-26. Built-in window-state commands accept empty/`toggle`, `on`/`+`, and
-    `off`/`-` arguments and reject any other state argument without changing the
-    target window state.
+26. Built-in window-state commands (`ew`, `sb`, `aot`, `ab`, `mw`, `hmw`,
+    `vmw`) accept empty/`toggle`, `on`/`+`, and `off`/`-` arguments and reject
+    any other state argument without changing the target window state.
 27. Built-in window commands fail cleanly when no selected target window is
     available, except commands that intentionally surface an overlay or operate
     without a window.

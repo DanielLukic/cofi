@@ -543,6 +543,9 @@ static void test_window_state_handlers_behavior(void) {
     test_window_state_handler("ab", "_NET_WM_STATE_BELOW");
     test_window_state_handler("aot", "_NET_WM_STATE_ABOVE");
     test_window_state_handler("ew", "_NET_WM_STATE_STICKY");
+    test_window_state_handler("mw", "_NET_WM_STATE_MAXIMIZED_BOTH");
+    test_window_state_handler("hmw", "_NET_WM_STATE_MAXIMIZED_HORZ");
+    test_window_state_handler("vmw", "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
 static void test_layout_command_behavior(void) {
