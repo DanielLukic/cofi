@@ -66,14 +66,6 @@ gboolean path_binaries_is_scanning(void) {
     return FALSE;
 }
 
-void compose_window_display_title(const MatchEntryManager *manager,
-                                  const WindowInfo *window,
-                                  char *out, size_t out_size) {
-    (void)manager;
-    if (!window || !out || out_size == 0) return;
-    snprintf(out, out_size, "%s", window->title);
-}
-
 #include "../src/command_parser.c"
 #include "../src/command_mode.c"
 #include "../src/display.c"

@@ -21,7 +21,7 @@
 #include "tab_header.h"
 #include "slot_store.h"
 #include "utf8_columns.h"
-#include "filter.h"
+#include "window_display_title.h"
 
 extern const char *projects_remote_scope_status_message(void) __attribute__((weak));
 

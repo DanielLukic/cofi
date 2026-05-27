@@ -414,22 +414,22 @@ test_tab_metadata: test/test_tab_metadata.c src/tab_metadata.o
 	$(CC) $(CFLAGS) -o test/test_tab_metadata test/test_tab_metadata.c src/tab_metadata.o $(LDFLAGS)
 
 # Build command-mode candidate strip tests
-test_command_candidates: test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o
-	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o $(LDFLAGS)
+test_command_candidates: test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o src/window_display_title.o src/match_entry.o src/window_matcher.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_command_candidates test/test_command_candidates.c test/command_handler_stubs.c src/cofi_tab_provider.o src/command_availability.o src/core_commands.o src/command_registry.o src/nav_keys.o src/tab_metadata.o src/tab_header.o src/utf8_columns.o src/window_display_title.o src/match_entry.o src/window_matcher.o src/utils.o $(LDFLAGS)
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)
-test_filter_ranking: test/test_filter_ranking.c src/fzf_algo.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_filter_ranking test/test_filter_ranking.c src/fzf_algo.o src/log.o $(LDFLAGS)
+test_filter_ranking: test/test_filter_ranking.c src/fzf_algo.o src/log.o src/window_display_title.o
+	$(CC) $(CFLAGS) -o test/test_filter_ranking test/test_filter_ranking.c src/fzf_algo.o src/log.o src/window_display_title.o $(LDFLAGS)
 
-test_initials_ranking: test/test_initials_ranking.c src/fzf_algo.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_initials_ranking test/test_initials_ranking.c src/fzf_algo.o src/log.o $(LDFLAGS)
+test_initials_ranking: test/test_initials_ranking.c src/fzf_algo.o src/log.o src/window_display_title.o
+	$(CC) $(CFLAGS) -o test/test_initials_ranking test/test_initials_ranking.c src/fzf_algo.o src/log.o src/window_display_title.o $(LDFLAGS)
 
-test_ranking_corpus: test/test_ranking_corpus.c src/fzf_algo.o src/log.o
-	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c src/fzf_algo.o src/log.o $(LDFLAGS)
+test_ranking_corpus: test/test_ranking_corpus.c src/fzf_algo.o src/log.o src/window_display_title.o
+	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c src/fzf_algo.o src/log.o src/window_display_title.o $(LDFLAGS)
 
-test_filter_title_compose: test/test_filter_title_compose.c src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o
-	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o $(LDFLAGS)
+test_filter_title_compose: test/test_filter_title_compose.c src/window_display_title.o src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o
+	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c src/window_display_title.o src/match_entry.o src/window_matcher.o src/fzf_algo.o src/log.o src/utils.o $(LDFLAGS)
 
 # Build apps tab behavioral tests
 # (includes apps.c directly; tests filter/sort logic with synthetic data, not GIO launch)

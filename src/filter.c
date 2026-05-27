@@ -17,6 +17,7 @@
 #include "selection.h"
 #include "x11_utils.h"
 #include "match_entry.h"
+#include "window_display_title.h"
 #include <X11/Xatom.h>
 
 #define UNUSED __attribute__((unused))
@@ -38,15 +39,6 @@ static int compare_scores(const void *a, const void *b) {
     if (wa->score > wb->score) return -1;
     if (wa->score < wb->score) return 1;
     return 0;
-}
-
-void compose_window_display_title(const MatchEntryManager *manager,
-                                  const WindowInfo *window,
-                                  char *out, size_t out_size) {
-    if (!window || !out || out_size == 0) return;
-    const char *custom_name = manager ? match_entry_get_custom_name(manager, window->id) : NULL;
-    if (custom_name) snprintf(out, out_size, "%s - %s", custom_name, window->title);
-    else snprintf(out, out_size, "%s", window->title);
 }
 
 // Compose the full display string for a window (same content the user sees)
