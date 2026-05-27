@@ -97,7 +97,7 @@ const char* match_entry_get_custom_name(const MatchEntryManager *manager, Window
     
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].bound_x11_id == id && manager->entries[i].assigned) {
-            return manager->entries[i].custom_name;
+            return manager->entries[i].custom_name[0] != '\0' ? manager->entries[i].custom_name : NULL;
         }
     }
     return NULL;

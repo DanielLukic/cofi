@@ -155,6 +155,13 @@ static void test_assign_and_get(void) {
     // NULL/empty edge cases
     match_entry_assign_custom_name(&mgr, &w, "");
     ASSERT_INT("empty name ignored", 1, mgr.count);
+    ASSERT_STR("empty assign preserves previous name", "web", match_entry_get_custom_name(&mgr, 100));
+
+    mgr.entries[0].custom_name[0] = '\0';
+    ASSERT_NULL("empty stored custom name returns NULL", match_entry_get_custom_name(&mgr, 100));
+    safe_string_copy(mgr.entries[0].custom_name, "restored", MAX_TITLE_LEN);
+    ASSERT_STR("non-empty stored custom name returns string", "restored",
+               match_entry_get_custom_name(&mgr, 100));
 
     match_entry_assign_custom_name(&mgr, NULL, "test");
     ASSERT_INT("NULL window ignored", 1, mgr.count);
