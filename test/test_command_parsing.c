@@ -97,6 +97,8 @@ int main() {
 
         // Commands without arguments
         {"tm", "tm", "", "Toggle monitor (no arg)"},
+        {"tm0", "tm", "0", "Toggle monitor compact index 0"},
+        {"tm1", "tm", "1", "Toggle monitor compact index 1"},
         {"sb", "sb", "", "Skip taskbar (no arg)"},
         {"sb on", "sb", "on", "Skip taskbar explicit on"},
         {"skip-taskbar off", "skip-taskbar", "off", "Skip taskbar alias explicit off"},

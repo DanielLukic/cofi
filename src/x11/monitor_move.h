@@ -9,6 +9,9 @@
 // Move the selected window to the next monitor
 void move_window_to_next_monitor(AppData *app);
 
+// Move the provided window to the zero-based monitor index
+gboolean move_window_to_monitor_index(AppData *app, WindowInfo *window, int index);
+
 // Move a specific window to the next monitor
 void move_window_to_next_monitor_by_id(Display *display, Window window);
 

@@ -42,6 +42,9 @@ static int g_highlight_calls = 0;
 static Window g_last_highlight_window = 0;
 static int g_activate_calls = 0;
 static Window g_last_activate_window = 0;
+static int g_move_next_monitor_calls = 0;
+static int g_move_monitor_index_calls = 0;
+static int g_last_monitor_index = -1;
 static int g_save_layout_calls = 0;
 static int g_restore_layout_calls = 0;
 static int g_clear_layout_calls = 0;
@@ -194,7 +197,17 @@ void move_window_to_desktop(Display *display, Window window, int desktop) {
     (void)display; (void)window; (void)desktop;
 }
 
-void move_window_to_next_monitor(AppData *app) { (void)app; }
+void move_window_to_next_monitor(AppData *app) {
+    (void)app;
+    g_move_next_monitor_calls++;
+}
+gboolean move_window_to_monitor_index(AppData *app, WindowInfo *window, int index) {
+    (void)app;
+    (void)window;
+    g_move_monitor_index_calls++;
+    g_last_monitor_index = index;
+    return index >= 0 && index < 2;
+}
 void show_workspace_jump_overlay(AppData *app) { (void)app; }
 void show_workspace_rename_overlay(AppData *app, int workspace_index) {
     (void)app; (void)workspace_index;
@@ -548,6 +561,59 @@ static void test_window_state_handlers_behavior(void) {
     test_window_state_handler("vmw", "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
+static void test_toggle_monitor_handler_behavior(void) {
+    AppData app;
+    WindowInfo window;
+    memset(&app, 0, sizeof(app));
+    memset(&window, 0, sizeof(window));
+    window.id = 0xBEEF;
+
+    const CommandSpec *cmd = cofi_command_by_primary("tm");
+    ASSERT_TRUE("toggle-monitor command exists", cmd != NULL);
+    if (!cmd) return;
+
+    g_move_next_monitor_calls = 0;
+    g_move_monitor_index_calls = 0;
+    ASSERT_TRUE("tm rejects missing window", cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("tm missing window is no-op",
+                g_move_next_monitor_calls == 0 && g_move_monitor_index_calls == 0);
+
+    g_move_next_monitor_calls = 0;
+    g_move_monitor_index_calls = 0;
+    ASSERT_TRUE("tm no-arg moves to next monitor", cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("tm no-arg invokes next-monitor helper",
+                g_move_next_monitor_calls == 1 && g_move_monitor_index_calls == 0);
+
+    g_move_next_monitor_calls = 0;
+    g_move_monitor_index_calls = 0;
+    g_last_monitor_index = -1;
+    ASSERT_TRUE("tm0 moves to monitor index 0", cmd->handler(&app, &window, "0") == TRUE);
+    ASSERT_TRUE("tm0 invokes index helper",
+                g_move_next_monitor_calls == 0 && g_move_monitor_index_calls == 1 &&
+                g_last_monitor_index == 0);
+
+    g_move_monitor_index_calls = 0;
+    g_last_monitor_index = -1;
+    ASSERT_TRUE("tm1 moves to monitor index 1", cmd->handler(&app, &window, "1") == TRUE);
+    ASSERT_TRUE("tm1 passes index 1",
+                g_move_monitor_index_calls == 1 && g_last_monitor_index == 1);
+
+    g_move_next_monitor_calls = 0;
+    g_move_monitor_index_calls = 0;
+    ASSERT_TRUE("tm99 rejects out-of-range index", cmd->handler(&app, &window, "99") == FALSE);
+    ASSERT_TRUE("tm99 does not fall back to next monitor",
+                g_move_next_monitor_calls == 0 && g_move_monitor_index_calls == 1);
+
+    g_move_next_monitor_calls = 0;
+    g_move_monitor_index_calls = 0;
+    ASSERT_TRUE("tm-1 rejects negative index", cmd->handler(&app, &window, "-1") == FALSE);
+    ASSERT_TRUE("tm-1 does not invoke helpers",
+                g_move_next_monitor_calls == 0 && g_move_monitor_index_calls == 0);
+
+    ASSERT_TRUE("tmfoo rejects non-numeric arg", cmd->handler(&app, &window, "foo") == FALSE);
+    ASSERT_TRUE("tmfoo does not invoke index helper", g_move_monitor_index_calls == 0);
+}
+
 static void test_layout_command_behavior(void) {
     AppData app;
     WindowInfo window;
@@ -684,6 +750,7 @@ int main(void) {
     test_window_handler_behavior();
     test_harpoon_set_handler_behavior();
     test_window_state_handlers_behavior();
+    test_toggle_monitor_handler_behavior();
     test_layout_command_behavior();
     test_workspace_handler_behavior();
     test_jump_slot_handler_behavior();

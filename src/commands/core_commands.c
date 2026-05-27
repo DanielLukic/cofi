@@ -228,10 +228,11 @@ static const CommandSpec s_core_commands[] = {
     {
         .primary = "tm",
         .aliases = {"toggle-monitor", NULL},
+        .compact_suffix = "0123456789",
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_toggle_monitor,
-        .description = "Move selected window to next monitor",
-        .help_format = "tm, toggle-monitor",
+        .description = "Move selected window to next monitor or monitor N",
+        .help_format = "tm, toggle-monitor [N]",
         .activates = 1
     },
     {

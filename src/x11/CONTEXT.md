@@ -30,7 +30,9 @@ into application refresh callbacks.
   `WindowSizeHints`, and workspace helper types
 - `get_window_list()`, X11 property/window/workspace/state helpers, and
   frame-aware move/resize helpers
-- Monitor move, workarea, size-hint, frame-extent, process-window, and workspace utility functions
+- `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
+  move helpers, workarea, size-hint, frame-extent, process-window, and workspace
+  utility functions
 - `setup_x11_event_monitoring()`, `cleanup_x11_event_monitoring()`,
   `process_x11_events()`, `handle_x11_event()`, `update_current_workspace()`,
   and `set_workspace_switch_state()`
@@ -63,20 +65,23 @@ into application refresh callbacks.
 11. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
    constraints to requested rectangles before geometry callers use them.
 12. Monitor move uses XRandR geometry, preserves maximized/tiled state, wraps to the next monitor, and keeps normal windows within target bounds.
-13. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
+13. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
+   the same geometry/state behavior as next-monitor moves, and return false for
+   negative or out-of-range indices without moving the window.
+14. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
    `/proc/<pid>/status` parent PIDs up to the requested depth.
-14. Event monitoring selects root property/substructure events, watches the X11
+15. Event monitoring selects root property/substructure events, watches the X11
    connection through GLib, subscribes current windows to `PropertyNotify`, and
    cleans up the GLib watch/channel on shutdown.
-15. `_NET_CLIENT_LIST` events refresh AppData's window list, reassign live match
+16. `_NET_CLIENT_LIST` events refresh AppData's window list, reassign live match
    entries, prune rule state for absent windows, refilter using current query
    semantics, and update visible UI only when the cofi window is present.
-16. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
-17. Per-window title changes update cached `WindowInfo` titles and re-evaluate
+17. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
+18. Per-window title changes update cached `WindowInfo` titles and re-evaluate
    matching rules without re-entering rule dispatch.
-18. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
+19. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
    window, relying on geometry planning idempotence for no-op cases.
-19. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
+20. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
    the hotkey binding table or action semantics.
 
 ## Notes

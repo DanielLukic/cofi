@@ -14,6 +14,9 @@
 #include "x11/x11_utils.h"
 
 #include <X11/Xlib.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -32,13 +35,30 @@ gboolean cmd_pull_window(AppData *app, WindowInfo *window, const char *args __at
     return TRUE;
 }
 
-gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args __attribute__((unused))) {
+gboolean cmd_toggle_monitor(AppData *app, WindowInfo *window, const char *args) {
     if (!window) {
         log_warn("No window selected for monitor toggle");
         return FALSE;
     }
 
-    move_window_to_next_monitor(app);
+    if (!args || args[0] == '\0') {
+        move_window_to_next_monitor(app);
+        return TRUE;
+    }
+
+    errno = 0;
+    char *end = NULL;
+    long index = strtol(args, &end, 10);
+    if (errno != 0 || end == args || *end != '\0' || index < 0 || index > INT_MAX) {
+        log_warn("Usage: tm [N] (got '%s')", args);
+        return FALSE;
+    }
+
+    if (!move_window_to_monitor_index(app, window, (int)index)) {
+        log_warn("Failed to move window to monitor %ld", index);
+        return FALSE;
+    }
+
     return TRUE;
 }
 

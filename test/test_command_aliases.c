@@ -305,6 +305,8 @@ static void test_window_state_compact_forms(void) {
     check("ew compact +", "ew+", "ew", "+");
     check("ew compact -", "ew-", "ew", "-");
     check("every-workspace compact +", "every-workspace+", "ew", "+");
+    check("tm compact 0", "tm0", "tm", "0");
+    check("tm compact 1", "tm1", "tm", "1");
 }
 
 static void test_commands_without_compact_form(void) {

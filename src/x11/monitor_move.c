@@ -299,8 +299,9 @@ static int get_window_monitor_xrandr(Display *display, int win_x, int win_y, int
     return current_monitor;
 }
 
-// Move window to next monitor using XRandR
-void move_window_to_next_monitor_with_screen(Display *display, Window window, GdkScreen *screen) {
+static gboolean move_window_to_monitor_with_screen(Display *display, Window window,
+                                                   GdkScreen *screen __attribute__((unused)),
+                                                   int target_monitor) {
     int win_x, win_y, win_width, win_height;
     MonitorInfo *monitors;
     int monitor_count;
@@ -312,18 +313,21 @@ void move_window_to_next_monitor_with_screen(Display *display, Window window, Gd
     // Get current window geometry
     if (!get_window_geometry(display, window, &win_x, &win_y, &win_width, &win_height)) {
         log_error("Failed to get geometry for window 0x%lx", window);
-        return;
+        return FALSE;
     }
-    
-    log_debug("Current window position: (%d, %d), size: %dx%d, maximized: vert=%d, horz=%d", 
-              win_x, win_y, win_width, win_height, is_maximized_vert, is_maximized_horz);
     
     // Get monitor information via XRandR
     monitor_count = get_monitors_xrandr(display, &monitors);
-    if (monitor_count <= 1 || !monitors) {
-        log_info("Only %d monitor(s) detected, cannot move window", monitor_count);
+    if (monitor_count <= 0 || !monitors) {
+        log_info("No monitors detected, cannot move window");
         if (monitors) free(monitors);
-        return;
+        return FALSE;
+    }
+
+    if (target_monitor < 0 || target_monitor >= monitor_count) {
+        log_warn("Monitor index %d out of range (monitor count: %d)", target_monitor, monitor_count);
+        free(monitors);
+        return FALSE;
     }
     
     // Find which monitor the window is currently on
@@ -335,14 +339,11 @@ void move_window_to_next_monitor_with_screen(Display *display, Window window, Gd
         log_debug("Window not clearly on any monitor, using monitor 0");
     }
     
-    // Calculate next monitor (wrap around)
-    int next_monitor = (current_monitor + 1) % monitor_count;
-    
-    log_debug("Moving from monitor %d to monitor %d", current_monitor, next_monitor);
+    log_debug("Moving from monitor %d to monitor %d", current_monitor, target_monitor);
     
     // Get monitor geometries
     MonitorInfo current_geometry = monitors[current_monitor];
-    MonitorInfo next_geometry = monitors[next_monitor];
+    MonitorInfo next_geometry = monitors[target_monitor];
     
     // Get current window state and position info
     get_window_state_and_position(display, window, &is_maximized_vert, &is_maximized_horz,
@@ -401,10 +402,41 @@ void move_window_to_next_monitor_with_screen(Display *display, Window window, Gd
     move_window_to_position(display, window, new_x, new_y, is_maximized_vert, is_maximized_horz);
     
     log_info("Moved window 0x%lx from monitor %d to monitor %d (position: %d,%d -> %d,%d)",
-             window, current_monitor, next_monitor, win_x, win_y, new_x, new_y);
+             window, current_monitor, target_monitor, win_x, win_y, new_x, new_y);
     
     // Clean up
     free(monitors);
+    return TRUE;
+}
+
+// Move window to next monitor using XRandR
+void move_window_to_next_monitor_with_screen(Display *display, Window window, GdkScreen *screen) {
+    int win_x, win_y, win_width, win_height;
+    MonitorInfo *monitors = NULL;
+    int monitor_count;
+
+    if (!get_window_geometry(display, window, &win_x, &win_y, &win_width, &win_height)) {
+        log_error("Failed to get geometry for window 0x%lx", window);
+        return;
+    }
+
+    monitor_count = get_monitors_xrandr(display, &monitors);
+    if (monitor_count <= 1 || !monitors) {
+        log_info("Only %d monitor(s) detected, cannot move window", monitor_count);
+        if (monitors) free(monitors);
+        return;
+    }
+
+    int current_monitor = get_window_monitor_xrandr(display, win_x, win_y, win_width, win_height);
+    if (current_monitor == -1) {
+        current_monitor = 0;
+        log_debug("Window not clearly on any monitor, using monitor 0");
+    }
+
+    int next_monitor = (current_monitor + 1) % monitor_count;
+    free(monitors);
+
+    move_window_to_monitor_with_screen(display, window, screen, next_monitor);
 }
 
 // Move window to next monitor (compatibility function)
@@ -442,4 +474,23 @@ void move_window_to_next_monitor(AppData *app) {
     move_window_to_next_monitor_with_screen(app->display, window_to_activate, screen);
     
     log_info("Moved window to next monitor");
+}
+
+gboolean move_window_to_monitor_index(AppData *app, WindowInfo *window, int index) {
+    if (!app || !window) {
+        log_warn("No window selected for monitor move");
+        return FALSE;
+    }
+
+    if (index < 0) {
+        log_warn("Monitor index %d out of range", index);
+        return FALSE;
+    }
+
+    GdkScreen *screen = NULL;
+    if (app->window) {
+        screen = gtk_window_get_screen(GTK_WINDOW(app->window));
+    }
+
+    return move_window_to_monitor_with_screen(app->display, window->id, screen, index);
 }

@@ -121,15 +121,18 @@ exposing help/candidate metadata for users.
 27. Built-in window commands fail cleanly when no selected target window is
     available, except commands that intentionally surface an overlay or operate
     without a window.
-28. Workspace commands resolve numeric and configured grid-direction arguments
+28. `tm` with no argument moves the target window to the next monitor; with a
+    numeric argument it moves to that zero-based monitor index, and invalid or
+    out-of-range monitor arguments log a warning and return false.
+29. Workspace commands resolve numeric and configured grid-direction arguments
     through x11 workspace helpers; missing arguments surface the appropriate
     workspace overlay instead of guessing.
-29. Tiling commands apply a parsed tile option when an argument is present and
+30. Tiling commands apply a parsed tile option when an argument is present and
     surface the tiling overlay when no option is supplied.
-30. Config `set` validates `key=value` or `key value`, accepts quoted empty
+31. Config `set` validates `key=value` or `key value`, accepts quoted empty
     values, saves config on success, applies disabled-provider changes
     immediately, and surfaces the Config tab.
-31. Help generation includes static navigation/tab/prefix guidance plus
+32. Help generation includes static navigation/tab/prefix guidance plus
     available grouped commands, wraps long descriptions to the requested width,
     and emits unwrapped text when width is zero or invalid.
 
