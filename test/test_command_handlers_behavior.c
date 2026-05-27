@@ -25,10 +25,11 @@ static int tests_passed = 0;
 static int show_name_assign_overlay_calls = 0;
 static int dispatch_hotkey_mode_calls = 0;
 static ShowMode last_show_mode = SHOW_MODE_WINDOWS;
-static int set_window_state_calls = 0;
+static int set_window_state_intent_calls = 0;
+static int raw_set_window_state_calls = 0;
 static WindowStateAction last_window_state_action = WINDOW_STATE_TOGGLE;
 static Window last_window_state_window = 0;
-static char last_window_state_name[64] = {0};
+static char last_window_state_intent[64] = {0};
 static int parse_hotkey_action = 0;
 static int hide_window_calls = 0;
 static int g_assign_workspace_slots_calls = 0;
@@ -244,18 +245,52 @@ void highlight_window(AppData *app, Window target) {
 void apply_tiling(Display *display, Window window, TileOption option, int columns) {
     (void)display; (void)window; (void)option; (void)columns;
 }
-void set_window_state(Display *display, Window window, const char *state,
-                      WindowStateAction action) {
-    (void)display;
-    set_window_state_calls++;
+static void record_window_state_intent(const char *intent, Window window,
+                                       WindowStateAction action) {
+    set_window_state_intent_calls++;
     last_window_state_action = action;
     last_window_state_window = window;
-    strncpy(last_window_state_name, state ? state : "", sizeof(last_window_state_name) - 1);
-    last_window_state_name[sizeof(last_window_state_name) - 1] = '\0';
+    strncpy(last_window_state_intent, intent ? intent : "",
+            sizeof(last_window_state_intent) - 1);
+    last_window_state_intent[sizeof(last_window_state_intent) - 1] = '\0';
+}
+
+void set_window_state(Display *display, Window window, const char *state,
+                      WindowStateAction action) {
+    (void)display; (void)window; (void)state; (void)action;
+    raw_set_window_state_calls++;
 }
 
 void toggle_window_state(Display *display, Window window, const char *state) {
     set_window_state(display, window, state, WINDOW_STATE_TOGGLE);
+}
+void set_window_maximized(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("maximized", window, action);
+}
+void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("maximized_horizontal", window, action);
+}
+void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("maximized_vertical", window, action);
+}
+void set_window_above(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("above", window, action);
+}
+void set_window_below(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("below", window, action);
+}
+void set_window_skip_taskbar(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("skip_taskbar", window, action);
+}
+void set_window_sticky(Display *display, Window window, WindowStateAction action) {
+    (void)display;
+    record_window_state_intent("sticky", window, action);
 }
 void close_window(Display *display, Window window) { (void)display; (void)window; }
 void minimize_window(Display *display, Window window) { (void)display; (void)window; }
@@ -503,7 +538,7 @@ static void test_harpoon_set_handler_behavior(void) {
     ASSERT_TRUE("hs new window save_harpoon_slots called", g_save_harpoon_slots_calls == 1);
 }
 
-static void test_window_state_handler(const char *cmd_name, const char *atom_name) {
+static void test_window_state_handler(const char *cmd_name, const char *intent_name) {
     AppData app;
     WindowInfo window;
     memset(&app, 0, sizeof(app));
@@ -514,51 +549,67 @@ static void test_window_state_handler(const char *cmd_name, const char *atom_nam
     ASSERT_TRUE("window state command exists", cmd != NULL);
     if (!cmd) return;
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     gboolean missing_window = cmd->handler(&app, NULL, "on");
     ASSERT_TRUE("state command rejects missing window", missing_window == FALSE);
-    ASSERT_TRUE("missing window does not touch state", set_window_state_calls == 0);
+    ASSERT_TRUE("missing window does not touch state", set_window_state_intent_calls == 0);
+    ASSERT_TRUE("missing window does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("no-arg succeeds", cmd->handler(&app, &window, "") == TRUE);
-    ASSERT_TRUE("no-arg uses toggle", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("no-arg uses toggle", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("no-arg does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("toggle succeeds", cmd->handler(&app, &window, "toggle") == TRUE);
-    ASSERT_TRUE("toggle uses toggle action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("toggle uses toggle action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_TOGGLE);
+    ASSERT_TRUE("toggle does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("on succeeds", cmd->handler(&app, &window, "on") == TRUE);
-    ASSERT_TRUE("on uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+    ASSERT_TRUE("on uses set action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+    ASSERT_TRUE("on does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("off succeeds", cmd->handler(&app, &window, "off") == TRUE);
-    ASSERT_TRUE("off uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+    ASSERT_TRUE("off uses unset action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+    ASSERT_TRUE("off does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("compact + succeeds", cmd->handler(&app, &window, "+") == TRUE);
-    ASSERT_TRUE("compact + uses set action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+    ASSERT_TRUE("compact + uses set action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_SET);
+    ASSERT_TRUE("compact + does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("compact - succeeds", cmd->handler(&app, &window, "-") == TRUE);
-    ASSERT_TRUE("compact - uses unset action", set_window_state_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+    ASSERT_TRUE("compact - uses unset action", set_window_state_intent_calls == 1 && last_window_state_action == WINDOW_STATE_UNSET);
+    ASSERT_TRUE("compact - does not use raw atom API", raw_set_window_state_calls == 0);
 
-    set_window_state_calls = 0;
+    set_window_state_intent_calls = 0;
+    raw_set_window_state_calls = 0;
     ASSERT_TRUE("invalid arg fails", cmd->handler(&app, &window, "wat") == FALSE);
-    ASSERT_TRUE("invalid arg is no-op", set_window_state_calls == 0);
+    ASSERT_TRUE("invalid arg is no-op", set_window_state_intent_calls == 0);
+    ASSERT_TRUE("invalid arg does not use raw atom API", raw_set_window_state_calls == 0);
 
-    ASSERT_TRUE("targets expected atom", strcmp(last_window_state_name, atom_name) == 0);
+    ASSERT_TRUE("targets expected state intent", strcmp(last_window_state_intent, intent_name) == 0);
     ASSERT_TRUE("targets selected window", last_window_state_window == window.id);
 }
 
 static void test_window_state_handlers_behavior(void) {
-    test_window_state_handler("sb", "_NET_WM_STATE_SKIP_TASKBAR");
-    test_window_state_handler("ab", "_NET_WM_STATE_BELOW");
-    test_window_state_handler("aot", "_NET_WM_STATE_ABOVE");
-    test_window_state_handler("ew", "_NET_WM_STATE_STICKY");
-    test_window_state_handler("mw", "_NET_WM_STATE_MAXIMIZED_BOTH");
-    test_window_state_handler("hmw", "_NET_WM_STATE_MAXIMIZED_HORZ");
-    test_window_state_handler("vmw", "_NET_WM_STATE_MAXIMIZED_VERT");
+    test_window_state_handler("sb", "skip_taskbar");
+    test_window_state_handler("ab", "below");
+    test_window_state_handler("aot", "above");
+    test_window_state_handler("ew", "sticky");
+    test_window_state_handler("mw", "maximized");
+    test_window_state_handler("hmw", "maximized_horizontal");
+    test_window_state_handler("vmw", "maximized_vertical");
 }
 
 static void test_toggle_monitor_handler_behavior(void) {

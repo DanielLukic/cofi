@@ -491,6 +491,100 @@ void set_window_state(Display *display, Window window, const char *state_atom_na
               state_atom_name, action_name, window);
 }
 
+static gboolean valid_window_state_action(WindowStateAction action) {
+    return action == WINDOW_STATE_UNSET ||
+           action == WINDOW_STATE_SET ||
+           action == WINDOW_STATE_TOGGLE;
+}
+
+static void send_window_state_pair(Display *display, Window window,
+                                   const char *state_atom_name_1,
+                                   const char *state_atom_name_2,
+                                   WindowStateAction action) {
+    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom state_atom_1 = XInternAtom(display, state_atom_name_1, False);
+    Atom state_atom_2 = XInternAtom(display, state_atom_name_2, False);
+
+    if (net_wm_state == None || state_atom_1 == None || state_atom_2 == None) {
+        log_error("Failed to get atoms for paired window state manipulation");
+        return;
+    }
+
+    if (!valid_window_state_action(action)) {
+        log_error("Invalid window state action: %d", action);
+        return;
+    }
+
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ClientMessage;
+    event.xclient.type = ClientMessage;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.message_type = net_wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = action;
+    event.xclient.data.l[1] = state_atom_1;
+    event.xclient.data.l[2] = state_atom_2;
+    event.xclient.data.l[3] = 1;
+    event.xclient.data.l[4] = 0;
+
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+
+    const char *action_name = action == WINDOW_STATE_SET ? "set" :
+                              action == WINDOW_STATE_UNSET ? "unset" : "toggle";
+    log_debug("Window states %s + %s %s for window %lu",
+              state_atom_name_1, state_atom_name_2, action_name, window);
+}
+
+void set_window_maximized(Display *display, Window window, WindowStateAction action) {
+    if (!valid_window_state_action(action)) {
+        log_error("Invalid window state action: %d", action);
+        return;
+    }
+
+    WindowStateAction effective_action = action;
+    if (action == WINDOW_STATE_TOGGLE) {
+        gboolean is_maximized_vert = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
+        gboolean is_maximized_horz = get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ");
+        effective_action = (is_maximized_vert && is_maximized_horz)
+            ? WINDOW_STATE_UNSET
+            : WINDOW_STATE_SET;
+    }
+
+    send_window_state_pair(display, window,
+                           "_NET_WM_STATE_MAXIMIZED_VERT",
+                           "_NET_WM_STATE_MAXIMIZED_HORZ",
+                           effective_action);
+}
+
+void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ", action);
+}
+
+void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT", action);
+}
+
+void set_window_above(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_ABOVE", action);
+}
+
+void set_window_below(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_BELOW", action);
+}
+
+void set_window_skip_taskbar(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_SKIP_TASKBAR", action);
+}
+
+void set_window_sticky(Display *display, Window window, WindowStateAction action) {
+    set_window_state(display, window, "_NET_WM_STATE_STICKY", action);
+}
+
 // Force the window title. Sets the modern _NET_WM_NAME (UTF8_STRING) that
 // EWMH-aware panels read, plus the legacy WM_NAME for older readers.
 // XSync flushes the requests and round-trips so the change is on the server

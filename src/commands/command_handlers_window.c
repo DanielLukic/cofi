@@ -96,7 +96,7 @@ gboolean cmd_skip_taskbar(AppData *app, WindowInfo *window, const char *args) {
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_SKIP_TASKBAR", action);
+    set_window_skip_taskbar(app->display, window->id, action);
     return TRUE;
 }
 
@@ -111,7 +111,7 @@ gboolean cmd_always_on_top(AppData *app, WindowInfo *window, const char *args) {
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_ABOVE", action);
+    set_window_above(app->display, window->id, action);
     return TRUE;
 }
 
@@ -126,7 +126,7 @@ gboolean cmd_always_below(AppData *app, WindowInfo *window, const char *args) {
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_BELOW", action);
+    set_window_below(app->display, window->id, action);
     return TRUE;
 }
 
@@ -141,7 +141,7 @@ gboolean cmd_every_workspace(AppData *app, WindowInfo *window, const char *args)
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_STICKY", action);
+    set_window_sticky(app->display, window->id, action);
     return TRUE;
 }
 
@@ -184,7 +184,7 @@ gboolean cmd_maximize_window(AppData *app, WindowInfo *window, const char *args)
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_BOTH", action);
+    set_window_maximized(app->display, window->id, action);
     return TRUE;
 }
 
@@ -199,7 +199,7 @@ gboolean cmd_horizontal_maximize(AppData *app, WindowInfo *window, const char *a
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_HORZ", action);
+    set_window_maximized_horizontal(app->display, window->id, action);
     return TRUE;
 }
 
@@ -214,7 +214,7 @@ gboolean cmd_vertical_maximize(AppData *app, WindowInfo *window, const char *arg
         return FALSE;
     }
 
-    set_window_state(app->display, window->id, "_NET_WM_STATE_MAXIMIZED_VERT", action);
+    set_window_maximized_vertical(app->display, window->id, action);
     return TRUE;
 }
 

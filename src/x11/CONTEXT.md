@@ -28,8 +28,11 @@ into application refresh callbacks.
 - `atom_cache_init()` and `AtomCache`
 - `WindowInfo`, `WorkspaceInfo`, `WorkArea`, `FrameExtents`,
   `WindowSizeHints`, and workspace helper types
-- `get_window_list()`, X11 property/window/workspace/state helpers, and
-  frame-aware move/resize helpers
+- `get_window_list()`, X11 property/window/workspace/state helpers,
+  intent-named state helpers (`set_window_maximized()`,
+  `set_window_maximized_horizontal()`, `set_window_maximized_vertical()`,
+  `set_window_above()`, `set_window_below()`, `set_window_skip_taskbar()`,
+  `set_window_sticky()`), and frame-aware move/resize helpers
 - `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
   move helpers, workarea, size-hint, frame-extent, process-window, and workspace
   utility functions
@@ -58,30 +61,34 @@ into application refresh callbacks.
    workarea when EWMH data is unavailable.
 8. Workspace key/argument resolution maps `1`-`9`, `0`, arrows, and HJKL to
    valid zero-based workspace indices and returns `-1` for invalid or edge moves.
-9. Window state mutations use EWMH client messages for desktop switches, desktop
-   moves, maximize toggles, arbitrary state set/unset/toggle, close, minimize,
-   and title updates, flushing requests before returning.
-10. Frame-extents helpers read `_NET_FRAME_EXTENTS`, expose validity checks, and convert saved frame-space positions to client-space before `XMoveResizeWindow`.
-11. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
+9. Window state mutations use EWMH client messages for desktop switches,
+   desktop moves, intent-owned state set/unset/toggle requests, close,
+   minimize, and title updates, flushing requests before returning. Atom names
+   stay inside x11; callers express state intent.
+10. Full maximize uses one `_NET_WM_STATE` client message with the vertical and
+   horizontal maximize atoms in `data.l[1]` and `data.l[2]`; toggle removes
+   both only when both states are already present and otherwise sets both.
+11. Frame-extents helpers read `_NET_FRAME_EXTENTS`, expose validity checks, and convert saved frame-space positions to client-space before `XMoveResizeWindow`.
+12. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
    constraints to requested rectangles before geometry callers use them.
-12. Monitor move uses XRandR geometry, preserves maximized/tiled state, wraps to the next monitor, and keeps normal windows within target bounds.
-13. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
+13. Monitor move uses XRandR geometry, preserves maximized/tiled state, wraps to the next monitor, and keeps normal windows within target bounds.
+14. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
    the same geometry/state behavior as next-monitor moves, and return false for
    negative or out-of-range indices without moving the window.
-14. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
+15. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
    `/proc/<pid>/status` parent PIDs up to the requested depth.
-15. Event monitoring selects root property/substructure events, watches the X11
+16. Event monitoring selects root property/substructure events, watches the X11
    connection through GLib, subscribes current windows to `PropertyNotify`, and
    cleans up the GLib watch/channel on shutdown.
-16. `_NET_CLIENT_LIST` events refresh AppData's window list, reassign live match
+17. `_NET_CLIENT_LIST` events refresh AppData's window list, reassign live match
    entries, prune rule state for absent windows, refilter using current query
    semantics, and update visible UI only when the cofi window is present.
-17. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
-18. Per-window title changes update cached `WindowInfo` titles and re-evaluate
+18. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
+19. Per-window title changes update cached `WindowInfo` titles and re-evaluate
    matching rules without re-entering rule dispatch.
-19. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
+20. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
    window, relying on geometry planning idempotence for no-op cases.
-20. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
+21. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
    the hotkey binding table or action semantics.
 
 ## Notes
