@@ -81,9 +81,12 @@ in sync with saved records.
     states, and fullscreen state from x11, finds or creates a match entry,
     persists matching entries and layouts, and syncs geom rules only after the
     layout save succeeds.
-13. Restoring geometry resolves the selected window's match id, treats missing
-    bindings or missing layouts as handled no-ops, and reports failure only when
-    an applicable layout cannot be applied.
+13. Restoring geometry first scans enabled layout records in store order and
+    applies the first whose match entry matches the current window title and
+    anchors, rebinding that entry to the current window id. If no saved layout
+    matches the current window, restore falls back to the selected window's
+    existing binding; missing bindings or missing layouts are handled no-ops,
+    and failure is reported only when an applicable layout cannot be applied.
 14. Clearing geometry removes the saved layout for the selected window's match
     id, saves the layout store, runs matching garbage collection, and treats
     missing bindings or missing layout records as handled no-ops.

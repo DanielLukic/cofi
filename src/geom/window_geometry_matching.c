@@ -9,6 +9,8 @@
 #include "x11/monitor_move.h"
 #include "x11/x11_utils.h"
 
+#include <string.h>
+
 gboolean resolve_window_geometry_restore_target(const MatchEntryManager *manager,
                                                 const LayoutStore *store,
                                                 int match_id,
@@ -100,6 +102,51 @@ gboolean apply_window_geometry_restore(Display *display,
     return TRUE;
 }
 
+static void fill_restore_target_from_record(const LayoutRecord *record,
+                                            Window window,
+                                            WindowGeometryRestoreTarget *out) {
+    memset(out, 0, sizeof(*out));
+    out->window = window;
+    out->x = record->x;
+    out->y = record->y;
+    out->width = record->width;
+    out->height = record->height;
+    out->desktop = record->desktop;
+    out->maximized_vert = record->maximized_vert;
+    out->maximized_horz = record->maximized_horz;
+    out->fullscreen = record->fullscreen;
+    out->restore_desktop = record->restore_desktop;
+    out->disabled = record->disabled;
+}
+
+static gboolean resolve_current_title_layout_for_window(AppData *app,
+                                                        const WindowInfo *window,
+                                                        int *match_id_out,
+                                                        int *entry_idx_out,
+                                                        WindowGeometryRestoreTarget *target_out) {
+    if (!app || !window || !match_id_out || !entry_idx_out || !target_out) {
+        return FALSE;
+    }
+
+    for (int i = 0; i < app->layouts.count; i++) {
+        const LayoutRecord *record = &app->layouts.records[i];
+        if (record->match_id <= 0 || record->disabled) continue;
+
+        int idx = match_entry_find_index_by_match_id(&app->matching, record->match_id);
+        if (idx < 0) continue;
+
+        MatchEntry *entry = &app->matching.entries[idx];
+        if (!match_entry_matches_window(entry, window)) continue;
+
+        *match_id_out = record->match_id;
+        *entry_idx_out = idx;
+        fill_restore_target_from_record(record, window->id, target_out);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 static gboolean resolve_existing_match_id_for_window(AppData *app,
                                                      const WindowInfo *window,
                                                      int *match_id_out) {
@@ -186,12 +233,34 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
 gboolean restore_window_geometry_for_window(AppData *app, const WindowInfo *window) {
     if (!app || !window) return FALSE;
     int match_id = 0;
+    int layout_entry_idx = -1;
+    WindowGeometryRestoreTarget target = {0};
+    if (resolve_current_title_layout_for_window(app, window, &match_id,
+                                                &layout_entry_idx, &target)) {
+        if (!apply_window_geometry_restore(app->display, &target)) {
+            log_warn("Failed to apply saved layout for window 0x%lx (match_id=%d)",
+                     window->id, match_id);
+            return FALSE;
+        }
+
+        app->matching.entries[layout_entry_idx].bound_x11_id = window->id;
+        app->matching.entries[layout_entry_idx].assigned = 1;
+        save_match_entries(&app->matching);
+
+        log_info("Restored layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d lock=%d disabled=%d]",
+                 target.window, match_id, target.x, target.y,
+                 target.width, target.height, target.desktop,
+                 target.maximized_vert, target.maximized_horz, target.fullscreen,
+                 target.restore_desktop, target.disabled);
+        return TRUE;
+    }
+
     if (!resolve_existing_match_id_for_window(app, window, &match_id)) {
         log_info("No saved layout binding for window 0x%lx", window->id);
         return TRUE;
     }
 
-    WindowGeometryRestoreTarget target = {0};
+    memset(&target, 0, sizeof(target));
     if (!resolve_window_geometry_restore_target(&app->matching, &app->layouts,
                                                 match_id, &target)) {
         log_info("No saved layout for window 0x%lx (match_id=%d)",

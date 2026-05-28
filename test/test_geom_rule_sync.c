@@ -19,6 +19,12 @@ static int g_geom_y = 22;
 static int g_geom_w = 333;
 static int g_geom_h = 444;
 static int g_geom_desktop = 5;
+static int g_move_calls = 0;
+static Window g_last_moved_window = 0;
+static int g_last_move_x = 0;
+static int g_last_move_y = 0;
+static int g_last_move_w = 0;
+static int g_last_move_h = 0;
 
 WindowInfo *get_selected_window(AppData *app) { (void)app; return NULL; }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *width, int *height) {
@@ -56,8 +62,15 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
 void request_frame_extents(Display *display, Window window) { (void)display; (void)window; }
 void xmove_resize_frame_aware(Display *display, Window window,
                               int frame_x, int frame_y, int width, int height) {
-    (void)display; (void)window; (void)frame_x; (void)frame_y; (void)width; (void)height;
+    (void)display;
+    g_move_calls++;
+    g_last_moved_window = window;
+    g_last_move_x = frame_x;
+    g_last_move_y = frame_y;
+    g_last_move_w = width;
+    g_last_move_h = height;
 }
+int XFlush(Display *display) { (void)display; return 0; }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
 
 #define ASSERT_TRUE(desc, cond) do { \
@@ -324,6 +337,63 @@ static void test_save_geometry_reuses_layout_match_id_for_geom_rule(void) {
                 app.matching.entries[initial_count].type[0] != '\0');
 }
 
+static void test_restore_prefers_current_title_layout_over_stale_binding(void) {
+    AppData app;
+    init_test_app(&app);
+    app.display = (Display *)0x1;
+    app.windows[0] = make_window(0x901, "Stream - Video", "Google-chrome",
+                                 "google-chrome", "Normal");
+    app.window_count = 1;
+
+    app.matching.count = 2;
+    app.matching.next_match_id = 203;
+    app.matching.entries[0] = (MatchEntry){
+        .match_id = 201,
+        .bound_x11_id = 0x901,
+        .assigned = 1
+    };
+    g_strlcpy(app.matching.entries[0].original_title, "New Tab - Google Chrome",
+              sizeof(app.matching.entries[0].original_title));
+    g_strlcpy(app.matching.entries[0].class_name, "Google-chrome",
+              sizeof(app.matching.entries[0].class_name));
+    g_strlcpy(app.matching.entries[0].instance, "google-chrome",
+              sizeof(app.matching.entries[0].instance));
+    g_strlcpy(app.matching.entries[0].type, "Normal",
+              sizeof(app.matching.entries[0].type));
+
+    app.matching.entries[1] = (MatchEntry){
+        .match_id = 202,
+        .bound_x11_id = 0,
+        .assigned = 0
+    };
+    g_strlcpy(app.matching.entries[1].original_title, "Stream*",
+              sizeof(app.matching.entries[1].original_title));
+    g_strlcpy(app.matching.entries[1].class_name, "Google-chrome",
+              sizeof(app.matching.entries[1].class_name));
+    g_strlcpy(app.matching.entries[1].instance, "google-chrome",
+              sizeof(app.matching.entries[1].instance));
+    g_strlcpy(app.matching.entries[1].type, "Normal",
+              sizeof(app.matching.entries[1].type));
+
+    ASSERT_INT("stream layout stored", TRUE,
+               layout_store_set(&app.layouts, 202, 77, 88, 999, 777, 5,
+                                false, false, false, true, false));
+
+    g_move_calls = 0;
+    ASSERT_INT("restore succeeds", TRUE,
+               restore_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("restore applies matching current-title layout once", 1, g_move_calls);
+    ASSERT_INT("restore targets current window", (int)app.windows[0].id,
+               (int)g_last_moved_window);
+    ASSERT_INT("restore uses stream layout x", 77, g_last_move_x);
+    ASSERT_INT("restore uses stream layout y", 88, g_last_move_y);
+    ASSERT_INT("restore uses stream layout width", 999, g_last_move_w);
+    ASSERT_INT("restore uses stream layout height", 777, g_last_move_h);
+    ASSERT_INT("stream entry rebound to current window", (int)app.windows[0].id,
+               (int)app.matching.entries[1].bound_x11_id);
+    ASSERT_INT("stream entry assigned", 1, app.matching.entries[1].assigned);
+}
+
 int main(void) {
     printf("Geom rule sync tests\n");
     printf("====================\n\n");
@@ -337,6 +407,7 @@ int main(void) {
     test_startup_sweeps_stale_rules_before_creating();
     test_wildcard_pattern_verbatim();
     test_save_geometry_reuses_layout_match_id_for_geom_rule();
+    test_restore_prefers_current_title_layout_over_stale_binding();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
     return tests_failed == 0 ? 0 : 1;
