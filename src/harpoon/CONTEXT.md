@@ -105,7 +105,8 @@ activating windows on the current workspace.
 20. In the Harpoon tab, `Ctrl+D` opens delete confirmation for the selected
     actual slot and `Ctrl+P` opens pattern editing with `Slot: <key>` context.
 21. Confirming a Harpoon delete clears the selected slot, runs matching garbage
-    collection, saves Harpoon slots, logs the user action, and refreshes the
+    collection, saves Harpoon slots, logs the user action, rebuilds filtered
+    Harpoon rows without a query reset, restores selection, and refreshes the
     display.
 22. Workspace jump/move overlays render limited workspace grids using current
     workspace names, one-based labels, and visual markers for the user's current

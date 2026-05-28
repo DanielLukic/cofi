@@ -298,6 +298,7 @@ test: $(TEST_TARGETS)
 test-integration: $(TARGET)
 	@test/integration/run_all.sh
 	@test/integration/run_rules_flags.sh
+	@test/integration/run_harpoon_delete.sh
 	@test/integration/run_window_state.sh
 
 # Build command parsing test

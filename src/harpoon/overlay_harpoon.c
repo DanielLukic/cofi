@@ -2,6 +2,8 @@
 
 #include "ui/display.h"
 #include "harpoon/harpoon_config.h"
+#include "harpoon/harpoon_provider.h"
+#include "core/selection/selection.h"
 #include "core/log/log.h"
 #include "matching/match_entry.h"
 #include "matching/matching_gc.h"
@@ -54,6 +56,10 @@ static void perform_harpoon_delete(AppData *app) {
     matching_run_gc(app);
     save_harpoon_slots(&app->harpoon);
     log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
+    const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
+    preserve_selection(app);
+    filter_harpoon(app, query);
+    restore_selection(app);
     update_display(app);
 }
 

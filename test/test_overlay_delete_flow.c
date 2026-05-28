@@ -143,6 +143,25 @@ void filter_windows(AppData *app, const char *query) {
     (void)app; (void)query;
 }
 
+void filter_harpoon(AppData *app, const char *query) {
+    (void)query;
+    app->filtered_harpoon_count = 0;
+    for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
+        if (!app->harpoon.slots[i].assigned) continue;
+        app->filtered_harpoon[app->filtered_harpoon_count] = app->harpoon.slots[i];
+        app->filtered_harpoon_indices[app->filtered_harpoon_count] = i;
+        app->filtered_harpoon_count++;
+    }
+}
+
+void preserve_selection(AppData *app) {
+    (void)app;
+}
+
+void restore_selection(AppData *app) {
+    (void)app;
+}
+
 gboolean sessions_delete_path(const char *path) {
     (void)path;
     g_deleted_session_calls++;
@@ -200,6 +219,7 @@ static void test_harpoon_delete_confirm_flow(void) {
     ASSERT_TRUE("harpoon delete handled", handled == TRUE);
     ASSERT_TRUE("harpoon slot unassigned", g_unassign_calls == 1 && app.harpoon.slots[2].assigned == 0);
     ASSERT_TRUE("harpoon save called", g_save_harpoon_calls == 1);
+    ASSERT_TRUE("harpoon rows rebuilt", app.filtered_harpoon_count == 0);
     ASSERT_TRUE("harpoon UI updated", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
 }
 
