@@ -3,6 +3,7 @@
 
 typedef struct AppData AppData;
 
+int geom_rule_sync_for_layout(AppData *app, int match_id);
 int geom_rule_sync_for_pattern(AppData *app, const char *pattern);
 int geom_rule_sync_all_layout_patterns(AppData *app);
 

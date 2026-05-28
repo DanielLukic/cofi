@@ -39,7 +39,8 @@ in sync with saved records.
   `apply_window_geometry_restore()`, `save_window_geometry_for_window()`,
   `restore_window_geometry_for_window()`, and
   `clear_window_geometry_for_window()`
-- `geom_rule_sync_for_pattern()` and `geom_rule_sync_all_layout_patterns()`
+- `geom_rule_sync_for_layout()`, `geom_rule_sync_for_pattern()`, and
+  `geom_rule_sync_all_layout_patterns()`
 - `geom_provider_register()`, `geom_tab_mode()`, `geom_on_query_changed()`, and
   `handle_geom_tab_keys()`
 - `TileOption`, `apply_tiling()`, `create_tiling_overlay_content()`, and
@@ -86,19 +87,24 @@ in sync with saved records.
 14. Clearing geometry removes the saved layout for the selected window's match
     id, saves the layout store, runs matching garbage collection, and treats
     missing bindings or missing layout records as handled no-ops.
-15. Geom rule sync creates one tagged `geom` rule with command segment `rl` for
-    a pattern that has at least one enabled layout and no existing tagged rule.
-16. Geom rule sync removes tagged geom restore rules when a pattern has no
-    enabled layouts, while leaving user-managed untagged `rl` rules untouched.
-17. Startup sync scans all layout-backed patterns once, creates missing tagged
-    restore rules for enabled layouts, and removes orphan tagged geom rules.
+15. Geom rule sync creates one tagged `geom` rule with command segment `rl` per
+    enabled layout record, keyed by that layout's anchored `match_id`; the rule
+    stores the entry title only as pattern cache/display text.
+16. Geom rule sync removes tagged geom restore rules when their layout is
+    disabled or deleted, while leaving user-managed untagged `rl` rules
+    untouched.
+17. Startup sync scans all layout records, creates missing tagged restore rules
+    for enabled layouts using their layout `match_id`, updates stale pattern
+    cache text, and removes orphan tagged geom rules; stale/orphan rules are
+    swept before per-layout creation so sync converges in one pass even at rule
+    capacity.
 18. The geom provider is hidden by default, registers the `geom`/`layouts`
     command, filters layouts by label, bound class, or geometry string, and
     resets selection whenever the query changes.
 19. Geom provider rows show label, class, geometry, desktop/state flags, and
     binding status; row identity is `geom:<match_id>`.
 20. In the geom tab, Delete or `Ctrl+D` asks for delete confirmation; confirmed
-    delete clears the layout, saves, syncs the pattern, runs matching GC,
+    delete clears the layout, saves, syncs the layout's match id, runs matching GC,
     refilters, clamps selection, and refreshes display.
 21. `Ctrl+L` toggles whether restore follows the saved desktop, `Ctrl+T`
     toggles layout enablement and syncs geom rules, and `Ctrl+P` opens pattern

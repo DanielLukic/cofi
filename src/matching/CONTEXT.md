@@ -92,7 +92,8 @@ stable rows and scores cofi uses to find, name, restore, and target windows.
     the entry is kept.
 13. Pattern-only entries have no class/instance/type anchors, are unassigned,
     reuse an existing identical pattern when present, and get a new stable id
-    only when no identical pattern entry exists.
+    only when no identical pattern entry exists; geom-tagged restore rules do
+    not use this path and instead reuse the saved layout's anchored match id.
 14. Match-entry window matching requires the title pattern to match and every
     non-empty class, instance, and type anchor to match exactly.
 15. Live rebinding keeps an existing bound X11 id while it is present; only dead

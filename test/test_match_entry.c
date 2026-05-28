@@ -80,9 +80,9 @@ void xmove_resize_frame_aware(Display *display, Window window,
     (void)display; (void)window; (void)frame_x; (void)frame_y; (void)width; (void)height;
 }
 int matching_run_gc(AppData *app) { (void)app; return 0; }
-int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
+int geom_rule_sync_for_layout(AppData *app, int match_id) {
     (void)app;
-    (void)pattern;
+    (void)match_id;
     return 1;
 }
 

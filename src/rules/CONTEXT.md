@@ -147,5 +147,6 @@ from a hidden provider tab.
   persisted setting.
 - The x11 event path owns when rule evaluation happens and when dead-window
   pruning runs. Rules only provides the state transitions those callbacks invoke.
-- Geom-tagged rules are ordinary rule records with a tag; keep the geom bridge
-  explicit so rules does not grow geometry-planning ownership.
+- Geom-tagged rules are ordinary rule records with a tag and the layout's
+  anchored `match_id`; keep the geom bridge explicit so rules does not grow
+  geometry-planning ownership.

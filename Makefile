@@ -387,8 +387,8 @@ test_emoji_provider: test/test_emoji_provider.c $(emoji_data_obj) $(fzf_algo_obj
 test_geom_provider: test/test_geom_provider.c $(layout_store_obj) $(cofi_json_io_obj)
 	$(CC) $(CFLAGS) -o test/test_geom_provider test/test_geom_provider.c $(layout_store_obj) $(cofi_json_io_obj) $(LDFLAGS)
 
-test_geom_rule_sync: test/test_geom_rule_sync.c $(geom_rule_sync_obj) $(rules_config_obj) $(match_entry_obj) $(match_entry_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_geom_rule_sync test/test_geom_rule_sync.c $(geom_rule_sync_obj) $(rules_config_obj) $(match_entry_obj) $(match_entry_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_geom_rule_sync: test/test_geom_rule_sync.c $(geom_rule_sync_obj) $(rules_config_obj) $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_geom_rule_sync test/test_geom_rule_sync.c $(geom_rule_sync_obj) $(rules_config_obj) $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
 test_provider_selection: test/test_provider_selection.c $(emoji_data_obj) $(fzf_algo_obj) $(cofi_json_io_obj)
 	$(CC) $(CFLAGS) -o test/test_provider_selection test/test_provider_selection.c $(emoji_data_obj) $(fzf_algo_obj) $(cofi_json_io_obj) $(LDFLAGS)

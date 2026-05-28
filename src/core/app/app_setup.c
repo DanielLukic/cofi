@@ -25,6 +25,7 @@
 #include "ui/gtk_window.h"
 #include "geom/geom_rule_sync.h"
 #include "harpoon/harpoon_config.h"
+#include "matching/matching_gc.h"
 #include "core/history/history.h"
 #include "daemon/hotkeys.h"
 #include "ui/key_handler.h"
@@ -356,6 +357,7 @@ int run_cofi(int argc, char *argv[]) {
     load_harpoon_slots(&app.harpoon);
     layout_store_load(&app.layouts);
     geom_rule_sync_all_layout_patterns(&app);
+    matching_run_gc(&app);
 
     if (!log_level_from_cli && app.config.log_level[0]) {
         int level = parse_log_level(app.config.log_level);

@@ -175,10 +175,7 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
                  window->id, match_id);
         return FALSE;
     }
-    int entry_idx = match_entry_find_index_by_match_id(&app->matching, match_id);
-    if (entry_idx >= 0) {
-        geom_rule_sync_for_pattern(app, app->matching.entries[entry_idx].original_title);
-    }
+    geom_rule_sync_for_layout(app, match_id);
 
     log_info("Saved layout for window 0x%lx (match_id=%d): %d,%d %dx%d desktop=%d state[v=%d h=%d fs=%d lock=%d disabled=%d]",
              window->id, match_id, x, y, width, height, desktop,

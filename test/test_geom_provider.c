@@ -22,7 +22,7 @@ static int g_matching_run_gc_calls;
 static int g_show_confirm_calls;
 static void (*g_confirm_cb)(AppData *);
 static int g_geom_rule_sync_calls;
-static char g_last_synced_pattern[MAX_TITLE_LEN];
+static int g_last_synced_match_id;
 static CofiTabProvider g_registered_provider;
 static int g_set_state_calls;
 static int g_move_calls;
@@ -37,10 +37,10 @@ int has_match(const char *needle, const char *haystack) { return !needle || !nee
 void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 int matching_run_gc(AppData *app) { (void)app; g_matching_run_gc_calls++; return 1; }
-int geom_rule_sync_for_pattern(AppData *app, const char *pattern) {
+int geom_rule_sync_for_layout(AppData *app, int match_id) {
     (void)app;
     g_geom_rule_sync_calls++;
-    g_strlcpy(g_last_synced_pattern, pattern ? pattern : "", sizeof(g_last_synced_pattern));
+    g_last_synced_match_id = match_id;
     return 1;
 }
 void show_confirm_overlay(AppData *app, const char *title, const char *info, void (*on_confirm)(AppData *)) { (void)app;(void)title;(void)info; g_show_confirm_calls++; g_confirm_cb = on_confirm; }
@@ -103,7 +103,7 @@ static void reset_app(AppData *app) {
     g_show_confirm_calls = 0;
     g_confirm_cb = NULL;
     g_geom_rule_sync_calls = 0;
-    g_last_synced_pattern[0] = '\0';
+    g_last_synced_match_id = 0;
     g_show_pattern_overlay_calls = 0;
     g_last_pattern_context[0] = '\0';
 }
@@ -151,7 +151,7 @@ static void test_delete_flow_and_selection_clamp(void) {
     g_confirm_cb(&app);
     ASSERT_TRUE("delete clears record", app.layouts.count == 1);
     ASSERT_TRUE("delete runs gc", g_matching_run_gc_calls == 1);
-    ASSERT_TRUE("delete syncs geom rule", g_geom_rule_sync_calls == 1 && strcmp(g_last_synced_pattern, "Beta Title") == 0);
+    ASSERT_TRUE("delete syncs geom rule", g_geom_rule_sync_calls == 1 && g_last_synced_match_id == 22);
     ASSERT_TRUE("selection clamped", app.selection.provider_index == 0);
 }
 
@@ -166,7 +166,7 @@ static void test_toggles_persist(void) {
     ASSERT_TRUE("Ctrl+L flips restore_desktop", app.layouts.records[0].restore_desktop == false);
     ASSERT_TRUE("Ctrl+T handled", handle_geom_tab_keys(&dis, &app) == TRUE);
     ASSERT_TRUE("Ctrl+T flips disabled", app.layouts.records[0].disabled == true);
-    ASSERT_TRUE("Ctrl+T syncs geom rule", g_geom_rule_sync_calls == 1 && strcmp(g_last_synced_pattern, "Alpha Title") == 0);
+    ASSERT_TRUE("Ctrl+T syncs geom rule", g_geom_rule_sync_calls == 1 && g_last_synced_match_id == 11);
 
     GdkEventKey pat = {.keyval = GDK_KEY_p, .state = GDK_CONTROL_MASK};
     ASSERT_TRUE("Ctrl+P handled", handle_geom_tab_keys(&pat, &app) == TRUE);
