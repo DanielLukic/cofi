@@ -47,8 +47,10 @@ Core selection owns the active row index, selected identity, and scroll offset f
    and records the provider `row_identity()` on provider tabs that expose one.
 7. `restore_selection()` returns to the preserved window ID or provider row
    identity when that row still exists after filtering.
-8. When the preserved row no longer exists, `restore_selection()` falls back
-   to the first filtered window or the provider's clamped initial row.
+8. When the preserved row no longer exists, `restore_selection()` currently
+   falls back to the first filtered window or the provider's clamped initial row.
+   (TFD-835: the intended fallback is the nearest surviving row — same index if
+   still in range, else the previous row — not the top.)
 9. `validate_selection()` clamps Windows-tab selection into
    `[0, filtered_count)` and clears the selected window ID when no filtered
    windows exist.
@@ -62,3 +64,12 @@ Core selection owns the active row index, selected identity, and scroll offset f
 
 ## Notes
 Provider-row selection depends on stable `row_identity()` values. Providers that cannot expose stable identities should expect selection to fall back to their initial row after filtering.
+
+Selection invariant (binding on all tabs): a refresh that does NOT change the
+query/filter membership — data updates, flag toggles, periodic ticks, row
+mutations — MUST preserve selection by identity via
+`preserve_selection()`/`restore_selection()`. Only a genuine query change
+(`on_query_changed`) may move selection to the best/top match. (TFD-835:
+several provider refresh/tick/mutation paths do not yet comply and reset
+selection; restore fallback also jumps to the initial row rather than the
+nearest surviving row.)

@@ -61,6 +61,11 @@ delegate opcodes, command targets, hotkey modes, and row/action callbacks.
     state, generations, and dynamic-tab allocation for tests.
 14. `cofi_register_builtin_plugins()` registers core commands before provider
     tabs, then registers the built-in feature providers in deterministic order.
+15. `on_query_changed` is for genuine query changes only and may select the
+    best/top match. Provider-owned data refresh, periodic tick, and mutation
+    paths must apply the selection-preservation policy (`preserve_selection()`
+    then `restore_selection()`), not `reset_selection()`. (TFD-835 tracks
+    providers not yet compliant.)
 
 ## Notes
 This folder is intentionally only the shared interface and registry. New feature
