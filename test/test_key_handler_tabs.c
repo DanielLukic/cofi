@@ -220,6 +220,11 @@ void move_window_to_desktop(Display *display, Window window, int desktop_index) 
 }
 
 void save_config(const CofiConfig *config) { (void)config; g_save_config_calls++; }
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
+    (void)config;
+    (void)manager;
+    return 1;
+}
 
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 

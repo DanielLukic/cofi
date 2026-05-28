@@ -129,6 +129,9 @@ static void test_save_load_roundtrip(void) {
     original.rules[1].run_at_start = 1;
     strncpy(original.rules[1].tag, "geom", sizeof(original.rules[1].tag) - 1);
     original.rules[1].tag[sizeof(original.rules[1].tag) - 1] = '\0';
+    original.rules[1].once = false;
+    original.rules[1].applied = 0x4321;
+    original.rules[2].new_only = true;
 
     ASSERT_INT("save", 1, save_rules_config(&original));
 
@@ -141,12 +144,17 @@ static void test_save_load_roundtrip(void) {
     ASSERT_STR("loaded commands 1", "ew", loaded.rules[1].commands);
     ASSERT_TRUE("loaded run_at_start 1", loaded.rules[1].run_at_start);
     ASSERT_STR("loaded tag 1", "geom", loaded.rules[1].tag);
+    ASSERT_FALSE("loaded once false survives", loaded.rules[1].once);
+    ASSERT_INT("loaded applied resets", 0, (int)loaded.rules[1].applied);
     ASSERT_STR("loaded pattern 2", "Tsunami*Thunderbird*", loaded.rules[2].pattern);
     ASSERT_STR("loaded commands 2", "sb", loaded.rules[2].commands);
+    ASSERT_TRUE("loaded new_only 2", loaded.rules[2].new_only);
     ASSERT_STR("loaded pattern 3", "*quote\"slash\\<script>*", loaded.rules[3].pattern);
     ASSERT_STR("loaded commands 3", "rl,echo \"hi\"", loaded.rules[3].commands);
     ASSERT_FALSE("loaded run_at_start defaults false when saved false", loaded.rules[0].run_at_start);
     ASSERT_FALSE("loaded run_at_start remains false on third rule", loaded.rules[2].run_at_start);
+    ASSERT_TRUE("loaded once defaults true when saved true", loaded.rules[0].once);
+    ASSERT_FALSE("loaded new_only defaults false when saved false", loaded.rules[0].new_only);
     ASSERT_STR("loaded empty tag defaults to empty string", "", loaded.rules[0].tag);
 
     char cmd[600];
@@ -212,6 +220,8 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     ASSERT_INT("load legacy file", 1, load_rules_config(&config));
     ASSERT_INT("legacy count", 1, config.count);
     ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
+    ASSERT_TRUE("legacy once defaults true", config.rules[0].once);
+    ASSERT_FALSE("legacy new_only defaults false", config.rules[0].new_only);
     ASSERT_STR("legacy tag defaults empty", "", config.rules[0].tag);
     ASSERT_TRUE("legacy migration sets match_id", config.rules[0].match_id > 0);
 
@@ -463,6 +473,88 @@ static void test_no_refire_same_title(void) {
     ASSERT_FALSE("same title does not refire", m2.should_fire);
 }
 
+static void test_once_false_fires_only_on_match_transition(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*htop*", "sb,ab,ew");
+    config.rules[0].once = false;
+
+    RuleState state;
+    init_rule_state(&state);
+
+    RuleMatch first = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+    RuleMatch second = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                        "root@~ htop — Terminal");
+    RuleMatch third = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+
+    ASSERT_TRUE("once=false transition first match fires", first.should_fire);
+    ASSERT_FALSE("once=false continuous match does not refire second", second.should_fire);
+    ASSERT_FALSE("once=false continuous match does not refire third", third.should_fire);
+}
+
+static void test_once_true_fires_only_on_first_match_transition(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*htop*", "sb,ab,ew");
+
+    RuleState state;
+    init_rule_state(&state);
+
+    RuleMatch first = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+    RuleMatch second = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                        "root@~ htop — Terminal");
+    RuleMatch third = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+
+    ASSERT_TRUE("once=true transition first match fires", first.should_fire);
+    ASSERT_FALSE("once=true continuous match does not refire second", second.should_fire);
+    ASSERT_FALSE("once=true continuous match does not refire third", third.should_fire);
+}
+
+static void test_once_false_refires_after_leave_and_reenter(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*htop*", "sb,ab,ew");
+    config.rules[0].once = false;
+
+    RuleState state;
+    init_rule_state(&state);
+
+    RuleMatch first = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+    RuleMatch away = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                      "root@~ — Terminal");
+    RuleMatch second = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                        "root@~ htop — Terminal");
+
+    ASSERT_TRUE("once=false first episode fires", first.should_fire);
+    ASSERT_FALSE("once=false non-match clears without firing", away.should_fire);
+    ASSERT_TRUE("once=false re-entering match fires again", second.should_fire);
+}
+
+static void test_once_true_does_not_refire_after_leave_and_reenter(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    add_rule(&config, "*htop*", "sb,ab,ew");
+
+    RuleState state;
+    init_rule_state(&state);
+
+    RuleMatch first = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                       "root@~ htop — Terminal");
+    RuleMatch away = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                      "root@~ — Terminal");
+    RuleMatch second = check_rule_match(&config.rules[0], &state, 0, 0x1234,
+                                        "root@~ htop — Terminal");
+
+    ASSERT_TRUE("once=true first episode fires", first.should_fire);
+    ASSERT_FALSE("once=true non-match clears without firing", away.should_fire);
+    ASSERT_FALSE("once=true re-entering match stays suppressed", second.should_fire);
+}
+
 static void test_startup_suppression_still_seeds_matched_state(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -592,7 +684,7 @@ static void test_prune_absent_present_window_kept(void) {
     RuleMatch m1 = check_rule_match(&rule, &state, 0, 0x1111, "htop A");
     ASSERT_TRUE("0x1111 fires again after removal", m1.should_fire);
     RuleMatch m2 = check_rule_match(&rule, &state, 0, 0x2222, "htop B");
-    ASSERT_TRUE("0x2222 fires when once is off", m2.should_fire);
+    ASSERT_FALSE("0x2222 continuous match remains suppressed", m2.should_fire);
 }
 
 // ========== Circuit breaker tests ==========
@@ -685,9 +777,9 @@ static void test_two_rules_no_state_stomp(void) {
     RuleMatch m1 = check_rule_match(&r1, &state, 1, 0xAAAA, "htop");
     ASSERT_FALSE("R1 does not fire (no match)", m1.should_fire);
 
-    // R0 re-fires because once=false in this direct Rule struct test
+    // R0 stays suppressed because R1 must not clear R0's matched transition state.
     RuleMatch m0_second = check_rule_match(&r0, &state, 0, 0xAAAA, "htop");
-    ASSERT_TRUE("R0 re-fires when once is off", m0_second.should_fire);
+    ASSERT_FALSE("R0 continuous match stays suppressed after R1 check", m0_second.should_fire);
 }
 
 static void test_multiple_rules(void) {
@@ -784,6 +876,10 @@ int main(void) {
     test_match_fires_on_matching_title();
     test_no_fire_on_non_matching_title();
     test_no_refire_same_title();
+    test_once_false_fires_only_on_match_transition();
+    test_once_true_fires_only_on_first_match_transition();
+    test_once_false_refires_after_leave_and_reenter();
+    test_once_true_does_not_refire_after_leave_and_reenter();
     test_startup_suppression_still_seeds_matched_state();
     test_refire_after_title_changes_away_and_back();
     test_different_title_still_matching();

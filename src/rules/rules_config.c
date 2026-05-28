@@ -38,6 +38,7 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     r->run_at_start = 0;
     r->tag[0] = '\0';
     r->once = true;
+    r->new_only = false;
     r->applied = 0;
     config->count++;
     return 1;
@@ -78,6 +79,10 @@ int save_rules_config(const RulesConfig *config, const MatchEntryManager *manage
         json_builder_add_string_value(builder, config->rules[i].commands);
         json_builder_set_member_name(builder, "run_at_start");
         json_builder_add_boolean_value(builder, config->rules[i].run_at_start);
+        json_builder_set_member_name(builder, "once");
+        json_builder_add_boolean_value(builder, config->rules[i].once);
+        json_builder_set_member_name(builder, "new_only");
+        json_builder_add_boolean_value(builder, config->rules[i].new_only);
         if (config->rules[i].tag[0] != '\0') {
             json_builder_set_member_name(builder, "tag");
             json_builder_add_string_value(builder, config->rules[i].tag);
@@ -178,9 +183,10 @@ int load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
         Rule *loaded_rule = &config->rules[config->count - 1];
         loaded_rule->match_id = match_id;
         loaded_rule->run_at_start = cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
+        loaded_rule->once = cofi_json_obj_bool_or(rule, "once", TRUE, NULL);
+        loaded_rule->new_only = cofi_json_obj_bool_or(rule, "new_only", FALSE, NULL);
         const char *tag = cofi_json_obj_str_or(rule, "tag", "", NULL);
         g_strlcpy(loaded_rule->tag, tag, sizeof(loaded_rule->tag));
-        loaded_rule->once = true;
         loaded_rule->applied = 0;
         if (manager) {
             int idx = match_entry_find_index_by_match_id(manager, loaded_rule->match_id);

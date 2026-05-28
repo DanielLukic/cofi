@@ -45,6 +45,29 @@ static bool rule_applied_window_is_live(const AppData *app, const Rule *rule) {
     return false;
 }
 
+static void format_rule_flags(AppData *app, const Rule *rule, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    out[0] = '\0';
+    if (!rule) {
+        g_strlcpy(out, "-", out_size);
+        return;
+    }
+
+    if (rule->once) {
+        if (rule_applied_window_is_live(app, rule)) {
+            g_strlcat(out, "Ø", out_size);
+        } else {
+            g_strlcat(out, "O", out_size);
+        }
+    }
+    if (rule->new_only) {
+        g_strlcat(out, "N", out_size);
+    }
+    if (out[0] == '\0') {
+        g_strlcpy(out, "-", out_size);
+    }
+}
+
 static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     Rule *rule = rule_at_row(app, raw_idx);
     if (!rule) {
@@ -54,29 +77,26 @@ static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
         return;
     }
 
-    out->cell_count = 2;
+    out->cell_count = 3;
     const MatchEntry *entry = entry_for_rule(app, rule);
     static char pattern_buf[MAX_RULES][MAX_TITLE_LEN + 32];
+    static char flags_buf[MAX_RULES][8];
     int row = raw_idx;
     if (row < 0) row = 0;
     if (row >= MAX_RULES) row = MAX_RULES - 1;
+    format_rule_flags(app, rule, flags_buf[row], sizeof(flags_buf[row]));
     if (entry) {
         snprintf(pattern_buf[row], sizeof(pattern_buf[row]), "%s",
                  entry->original_title);
     } else {
         snprintf(pattern_buf[row], sizeof(pattern_buf[row]), "%s (orphan)", rule->pattern);
     }
-    if (rule->once) {
-        if (rule_applied_window_is_live(app, rule)) {
-            g_strlcat(pattern_buf[row], " [once:applied]", sizeof(pattern_buf[row]));
-        } else {
-            g_strlcat(pattern_buf[row], " [once]", sizeof(pattern_buf[row]));
-        }
-    }
-    out->cells[0].text = pattern_buf[row];
-    out->cells[0].width_hint = 40;
-    out->cells[1].text = rule->commands;
-    out->cells[1].width_hint = 64;
+    out->cells[0].text = flags_buf[row];
+    out->cells[0].width_hint = 6;
+    out->cells[1].text = pattern_buf[row];
+    out->cells[1].width_hint = 40;
+    out->cells[2].text = rule->commands;
+    out->cells[2].width_hint = 64;
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
@@ -266,7 +286,27 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
             return FALSE;
         }
         rule_toggle_once(&app->rules_config.rules[rule_index]);
-        rules_on_query_changed(app, gtk_entry_get_text(GTK_ENTRY(app->entry)));
+        save_rules_config(&app->rules_config, &app->matching);
+        const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
+        preserve_selection(app);
+        rules_on_query_changed(app, query);
+        restore_selection(app);
+        update_display(app);
+        return TRUE;
+    }
+
+    if ((event->state & GDK_CONTROL_MASK) &&
+        (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N)) {
+        int rule_index = rules_selected_config_index(app);
+        if (rule_index < 0 || rule_index >= app->rules_config.count) {
+            return FALSE;
+        }
+        rule_toggle_new_only(&app->rules_config.rules[rule_index]);
+        save_rules_config(&app->rules_config, &app->matching);
+        const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
+        preserve_selection(app);
+        rules_on_query_changed(app, query);
+        restore_selection(app);
         update_display(app);
         return TRUE;
     }
@@ -311,7 +351,7 @@ void rules_provider_register(void) {
     s_rules_provider.on_query_changed = rules_on_query_changed;
     s_rules_provider.handle_key = handle_rules_tab_keys;
     s_rules_provider.shortcut_hint =
-        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+N=new  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
     s_rules_provider_id = cofi_register_tab_provider(&s_rules_provider);
     if (s_rules_provider_id >= 0) {
         cofi_register_command(&s_rules_command);

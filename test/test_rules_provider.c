@@ -23,11 +23,15 @@ static int tests_passed = 0;
 static int g_reset_selection_calls;
 static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
+static int g_save_rules_calls;
+static int g_preserve_selection_calls;
+static int g_restore_selection_calls;
 static TabMode g_last_surface_tab = -1;
 static CofiTabProvider g_registered_provider;
 static int g_show_pattern_overlay_calls;
 static int g_selected_pattern_match_id;
 static char g_last_pattern_context[128];
+static char g_preserved_provider_id[256];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -38,8 +42,30 @@ int has_match(const char *needle, const char *haystack) {
 }
 
 void reset_selection(AppData *app) {
-    (void)app;
     g_reset_selection_calls++;
+    if (app) app->selection.provider_index = 0;
+}
+
+void preserve_selection(AppData *app) {
+    g_preserve_selection_calls++;
+    g_preserved_provider_id[0] = '\0';
+    if (!app || !g_registered_provider.row_identity) return;
+    const char *id = g_registered_provider.row_identity(app, app->selection.provider_index);
+    if (id) {
+        g_strlcpy(g_preserved_provider_id, id, sizeof(g_preserved_provider_id));
+    }
+}
+
+void restore_selection(AppData *app) {
+    g_restore_selection_calls++;
+    if (!app || !g_registered_provider.row_identity || g_preserved_provider_id[0] == '\0') return;
+    for (int i = 0; i < app->filtered_rules_count; i++) {
+        const char *id = g_registered_provider.row_identity(app, i);
+        if (id && strcmp(id, g_preserved_provider_id) == 0) {
+            app->selection.provider_index = i;
+            return;
+        }
+    }
 }
 
 void exit_command_mode(AppData *app) {
@@ -109,6 +135,16 @@ void rule_toggle_once(Rule *rule) {
     rule->once = !rule->once;
     rule->applied = 0;
 }
+void rule_toggle_new_only(Rule *rule) {
+    if (!rule) return;
+    rule->new_only = !rule->new_only;
+}
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
+    (void)config;
+    (void)manager;
+    g_save_rules_calls++;
+    return 1;
+}
 void show_rule_delete_overlay(AppData *app, int rule_index) {
     (void)app;
     (void)rule_index;
@@ -130,10 +166,14 @@ static void reset_state(AppData *app) {
     g_reset_selection_calls = 0;
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
+    g_save_rules_calls = 0;
+    g_preserve_selection_calls = 0;
+    g_restore_selection_calls = 0;
     g_last_surface_tab = -1;
     g_show_pattern_overlay_calls = 0;
     g_selected_pattern_match_id = 0;
     g_last_pattern_context[0] = '\0';
+    g_preserved_provider_id[0] = '\0';
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
 }
 
@@ -173,9 +213,10 @@ static void test_filter_and_format_row(void) {
 
     memset(&row, 0, sizeof(row));
     rules_format_row(&app, 0, &row);
-    ASSERT_TRUE("row has two cells", row.cell_count == 2);
-    ASSERT_TRUE("row pattern text", strcmp(row.cells[0].text, "*firefox*") == 0);
-    ASSERT_TRUE("row command text", strcmp(row.cells[1].text, "ew off") == 0);
+    ASSERT_TRUE("row has three cells", row.cell_count == 3);
+    ASSERT_TRUE("row flags text", strcmp(row.cells[0].text, "-") == 0);
+    ASSERT_TRUE("row pattern text", strcmp(row.cells[1].text, "*firefox*") == 0);
+    ASSERT_TRUE("row command text", strcmp(row.cells[2].text, "ew off") == 0);
     ASSERT_TRUE("row is actionable", row.row_flags == COFI_ROW_ACTIONABLE);
 }
 
@@ -281,7 +322,49 @@ static void test_orphan_rule_row_fallback_indicator(void) {
 
     memset(&row, 0, sizeof(row));
     rules_format_row(&app, 0, &row);
-    ASSERT_TRUE("orphan row marks fallback", strcmp(row.cells[0].text, "*firefox* (orphan)") == 0);
+    ASSERT_TRUE("orphan row marks fallback", strcmp(row.cells[1].text, "*firefox* (orphan)") == 0);
+}
+
+static void test_rule_flag_rendering(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+
+    filter_rules(&app, "");
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("no flags render dash", strcmp(row.cells[0].text, "-") == 0);
+
+    app.rules_config.rules[0].once = true;
+    filter_rules(&app, "");
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("once flag renders O", strcmp(row.cells[0].text, "O") == 0);
+    ASSERT_TRUE("once not appended to pattern", strcmp(row.cells[1].text, "*term*") == 0);
+
+    app.rules_config.rules[0].once = false;
+    app.rules_config.rules[0].new_only = true;
+    filter_rules(&app, "");
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("new-only flag renders N", strcmp(row.cells[0].text, "N") == 0);
+
+    app.rules_config.rules[0].once = true;
+    app.rules_config.rules[0].new_only = true;
+    app.rules_config.rules[0].applied = 0;
+    filter_rules(&app, "");
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("once and new-only flags concatenate", strcmp(row.cells[0].text, "ON") == 0);
+
+    app.window_count = 1;
+    app.windows[0].id = 0x1234;
+    app.rules_config.rules[0].applied = 0x1234;
+    filter_rules(&app, "");
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("applied once flag renders marker", strcmp(row.cells[0].text, "ØN") == 0);
 }
 
 static void test_command_metadata(void) {
@@ -298,6 +381,8 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider command handler set", s_rules_command.handler != NULL);
     ASSERT_TRUE("rules provider tab is dynamic",
                 g_registered_provider.tab_mode >= TAB_COUNT);
+    ASSERT_TRUE("rules provider hint includes new-only toggle",
+                strstr(g_registered_provider.shortcut_hint, "Ctrl+N=new") != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -335,13 +420,14 @@ static void test_ctrl_p_uses_shared_pattern_overlay(void) {
 
 static void test_ctrl_o_toggles_once_and_clears_applied(void) {
     AppData app;
+    CofiRowCells row;
     reset_state(&app);
     seed_rules(&app);
+    app.rules_config.rules[0].once = true;
+    app.rules_config.rules[0].applied = 0x1234;
     filter_rules(&app, "");
     app.current_tab = rules_tab_mode();
     app.selection.provider_index = 0;
-    app.rules_config.rules[0].once = true;
-    app.rules_config.rules[0].applied = 0x1234;
 
     GdkEventKey event = {0};
     event.keyval = GDK_KEY_o;
@@ -349,6 +435,42 @@ static void test_ctrl_o_toggles_once_and_clears_applied(void) {
     ASSERT_TRUE("Ctrl+O handled in rules tab", handle_rules_tab_keys(&event, &app) == TRUE);
     ASSERT_TRUE("Ctrl+O toggles once off", app.rules_config.rules[0].once == false);
     ASSERT_TRUE("Ctrl+O clears applied", app.rules_config.rules[0].applied == 0);
+    ASSERT_TRUE("Ctrl+O saves rules", g_save_rules_calls == 1);
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("Ctrl+O rebuilds filtered row flags", strcmp(row.cells[0].text, "-") == 0);
+    ASSERT_TRUE("Ctrl+O preserves provider selection", app.selection.provider_index == 0);
+    ASSERT_TRUE("Ctrl+O wraps refresh in preserve/restore",
+                g_preserve_selection_calls == 1 && g_restore_selection_calls == 1);
+}
+
+static void test_ctrl_n_toggles_new_only_without_clearing_applied(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    rules_provider_register();
+    filter_rules(&app, "");
+    app.current_tab = rules_tab_mode();
+    app.selection.provider_index = 1;
+    app.rules_config.rules[1].once = true;
+    app.rules_config.rules[1].new_only = false;
+    app.rules_config.rules[1].applied = 0x1234;
+
+    GdkEventKey event = {0};
+    event.keyval = GDK_KEY_n;
+    event.state = GDK_CONTROL_MASK;
+    ASSERT_TRUE("Ctrl+N handled in rules tab", handle_rules_tab_keys(&event, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+N toggles new-only on", app.rules_config.rules[1].new_only == true);
+    ASSERT_TRUE("Ctrl+N leaves once unchanged", app.rules_config.rules[1].once == true);
+    ASSERT_TRUE("Ctrl+N leaves applied unchanged", app.rules_config.rules[1].applied == 0x1234);
+    ASSERT_TRUE("Ctrl+N saves rules", g_save_rules_calls == 1);
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 1, &row);
+    ASSERT_TRUE("Ctrl+N rebuilds selected filtered row flags", strcmp(row.cells[0].text, "ON") == 0);
+    ASSERT_TRUE("Ctrl+N preserves provider selection after reset", app.selection.provider_index == 1);
+    ASSERT_TRUE("Ctrl+N wraps refresh in preserve/restore",
+                g_preserve_selection_calls == 1 && g_restore_selection_calls == 1);
 }
 
 int main(void) {
@@ -364,10 +486,12 @@ int main(void) {
     test_search_still_hides_tagged_rules_when_toggle_off();
     test_selected_rule_and_config_index();
     test_orphan_rule_row_fallback_indicator();
+    test_rule_flag_rendering();
     test_command_metadata();
     test_command_handler_surfaces_tab();
     test_ctrl_p_uses_shared_pattern_overlay();
     test_ctrl_o_toggles_once_and_clears_applied();
+    test_ctrl_n_toggles_new_only_without_clearing_applied();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

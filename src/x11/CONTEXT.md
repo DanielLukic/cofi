@@ -84,9 +84,11 @@ into application refresh callbacks.
 16. Event monitoring selects root property/substructure events, watches the X11
    connection through GLib, subscribes current windows to `PropertyNotify`, and
    cleans up the GLib watch/channel on shutdown.
-17. `_NET_CLIENT_LIST` events refresh AppData's window list, reassign live match
-   entries, prune rule state for absent windows, refilter using current query
-   semantics, and update visible UI only when the cofi window is present.
+17. `_NET_CLIENT_LIST` events snapshot previous window ids, refresh AppData's
+   window list, compute newly-added window ids for rule trigger gating, reassign
+   live match entries, prune rule state for absent windows, refilter using
+   current query semantics, and update visible UI only when the cofi window is
+   present.
 18. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
 19. Per-window title changes update cached `WindowInfo` titles and re-evaluate
    matching rules without re-entering rule dispatch.

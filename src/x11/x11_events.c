@@ -197,8 +197,18 @@ static void prune_subscribed_windows(AppData *app) {
     subscribed_count = write;
 }
 
+static bool window_id_in_list(Window id, const Window *ids, int count) {
+    for (int i = 0; i < count; i++) {
+        if (ids[i] == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Apply rules to all windows (checks state machine — only fires on transitions)
-static void apply_rules_to_windows(AppData *app) {
+static void apply_rules_to_windows(AppData *app, RuleTrigger trigger,
+                                   const Window *new_window_ids, int new_window_count) {
     if (app->rules_config.count == 0) return;
     if (app->in_rule_dispatch) {
         log_debug("RULE: apply_rules_to_windows skipped — re-entry during rule dispatch");
@@ -208,7 +218,11 @@ static void apply_rules_to_windows(AppData *app) {
     gint64 now_ms = g_get_monotonic_time() / 1000;
     for (int i = 0; i < app->window_count; i++) {
         WindowInfo *w = &app->windows[i];
+        bool is_new_window = window_id_in_list(w->id, new_window_ids, new_window_count);
         for (int r = 0; r < app->rules_config.count; r++) {
+            if (!rule_trigger_allows(&app->rules_config.rules[r], trigger, is_new_window)) {
+                continue;
+            }
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
             if (match.should_fire) {
@@ -264,6 +278,10 @@ static void handle_window_title_change(AppData *app, Window id) {
         // Check rules against updated title
         gint64 now_ms = g_get_monotonic_time() / 1000;
         for (int r = 0; r < app->rules_config.count; r++) {
+            if (!rule_trigger_allows(&app->rules_config.rules[r],
+                                     RULE_TRIGGER_TITLE_CHANGE, false)) {
+                continue;
+            }
             RuleMatch match = check_rule_match(
                 &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
             if (match.should_fire) {
@@ -303,7 +321,7 @@ void setup_x11_event_monitoring(AppData *app) {
 
     // Subscribe to property changes on existing windows (for title change rules)
     subscribe_to_window_properties(app);
-    apply_rules_to_windows(app);
+    apply_rules_to_windows(app, RULE_TRIGGER_STARTUP, NULL, 0);
     app->initial_window_population_done = TRUE;
 
     log_debug("X11 event monitoring setup complete");
@@ -387,10 +405,24 @@ void handle_x11_event(AppData *app, XEvent *event) {
             if (prop_event->atom == app->atoms.net_client_list) {
                 log_debug("_NET_CLIENT_LIST changed - updating window list");
                 
+                Window previous_ids[MAX_WINDOWS];
+                int previous_count = app->window_count;
+                for (int i = 0; i < previous_count; i++) {
+                    previous_ids[i] = app->windows[i].id;
+                }
+
                 // Get new window list
                 int old_count = app->window_count;
                 get_window_list(app);
                 log_trace("Window count changed from %d to %d", old_count, app->window_count);
+
+                Window added_ids[MAX_WINDOWS];
+                int added_count = 0;
+                for (int i = 0; i < app->window_count; i++) {
+                    if (!window_id_in_list(app->windows[i].id, previous_ids, previous_count)) {
+                        added_ids[added_count++] = app->windows[i].id;
+                    }
+                }
 
                 // Log current windows for debugging
                 for (int i = 0; i < app->window_count; i++) {
@@ -409,7 +441,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 // Subscribe to per-window property changes and apply rules
                 prune_subscribed_windows(app);
                 subscribe_to_window_properties(app);
-                apply_rules_to_windows(app);
+                apply_rules_to_windows(app, RULE_TRIGGER_CLIENT_LIST, added_ids, added_count);
 
                 // Grace-count rule state pruning: tolerate one transient absence
                 // (e.g. WM unmap/remap during maximize toggle) before dropping state.

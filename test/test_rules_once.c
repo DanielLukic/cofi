@@ -81,25 +81,32 @@ static void test_clear_on_window_close_rearms(void) {
 
     live_ids[0] = 0x7777;
     rules_clear_applied_for_dead_windows(&app.rules_config, live_ids, 1);
+    rule_state_remove_window(&state, w.id);
     RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
-    ASSERT_TRUE("fire again after applied cleared", second.should_fire == true);
+    ASSERT_TRUE("fire again after applied and transition state cleared", second.should_fire == true);
 }
 
-static void test_once_false_fires_repeatedly(void) {
+static void test_once_false_refires_only_after_leave_and_reenter(void) {
     AppData app;
     RuleState state;
     WindowInfo w;
+    WindowInfo nonmatch;
     memset(&app, 0, sizeof(app));
     init_rule_state(&state);
     match_entry_manager_init(&app.matching);
     seed_window(&w, 0xABCD, "Terminal");
+    seed_window(&nonmatch, 0xABCD, "Editor");
     seed_rule(&app, 0, "*Terminal*", "sb on");
     app.rules_config.rules[0].once = false;
 
     RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
     RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
+    RuleMatch away = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &nonmatch);
+    RuleMatch third = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
     ASSERT_TRUE("once=false first fire", first.should_fire == true);
-    ASSERT_TRUE("once=false second fire", second.should_fire == true);
+    ASSERT_TRUE("once=false continuous match suppressed", second.should_fire == false);
+    ASSERT_TRUE("once=false non-match clears state without firing", away.should_fire == false);
+    ASSERT_TRUE("once=false re-entering match fires", third.should_fire == true);
 }
 
 static void test_toggle_once_clears_applied(void) {
@@ -137,7 +144,7 @@ int main(void) {
 
     test_fires_once_then_suppresses();
     test_clear_on_window_close_rearms();
-    test_once_false_fires_repeatedly();
+    test_once_false_refires_only_after_leave_and_reenter();
     test_toggle_once_clears_applied();
     test_replay_respects_once();
 

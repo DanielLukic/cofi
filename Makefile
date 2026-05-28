@@ -297,6 +297,7 @@ test: $(TEST_TARGETS)
 .PHONY: test-integration
 test-integration: $(TARGET)
 	@test/integration/run_all.sh
+	@test/integration/run_rules_flags.sh
 	@test/integration/run_window_state.sh
 
 # Build command parsing test
@@ -362,6 +363,9 @@ test_rules_replay: test/test_rules_replay.c $(rules_replay_obj) $(rules_obj) $(m
 # Build rules once/ applied-window tracking test
 test_rules_once: test/test_rules_once.c $(rules_replay_obj) $(rules_obj) $(rules_toggle_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_rules_once test/test_rules_once.c $(rules_replay_obj) $(rules_obj) $(rules_toggle_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj) $(LDFLAGS)
+
+test_rules_new_only: test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_rules_new_only test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj) $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c $(utf8_columns_obj)

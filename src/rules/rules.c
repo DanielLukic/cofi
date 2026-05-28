@@ -42,6 +42,16 @@ bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
     return match_entry_matches_window(entry, window);
 }
 
+bool rule_trigger_allows(const Rule *rule, RuleTrigger trigger, bool is_new_window) {
+    if (!rule || !rule->new_only) {
+        return true;
+    }
+    if (trigger == RULE_TRIGGER_CLIENT_LIST && is_new_window) {
+        return true;
+    }
+    return false;
+}
+
 RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
                            const MatchEntryManager *manager, const WindowInfo *window) {
     RuleMatch result = {false, NULL};
@@ -52,6 +62,9 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
     if (!ws) return result;
 
     if (matches) {
+        if (ws->matched) {
+            return result;
+        }
         if (rule->once) {
             if (rule->applied != 0) {
                 return result;

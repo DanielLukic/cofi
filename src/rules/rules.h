@@ -18,6 +18,12 @@
 #define RULE_BREAKER_BURST_WINDOW_MS 1000LL
 #define RULE_BREAKER_QUIET_RESET_MS  2000LL
 
+typedef enum {
+    RULE_TRIGGER_STARTUP,
+    RULE_TRIGGER_CLIENT_LIST,
+    RULE_TRIGGER_TITLE_CHANGE
+} RuleTrigger;
+
 // Per-(rule_index, window_id) match state
 typedef struct {
     int    rule_index;
@@ -61,7 +67,9 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
                            const MatchEntryManager *manager, const WindowInfo *window);
 bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
                          const WindowInfo *window, const char **resolved_pattern);
+bool rule_trigger_allows(const Rule *rule, RuleTrigger trigger, bool is_new_window);
 void rule_toggle_once(Rule *rule);
+void rule_toggle_new_only(Rule *rule);
 void rules_clear_applied_for_dead_windows(RulesConfig *config, const Window *live_windows, int live_count);
 // Remove all (*, id) entries — one per rule that has ever checked this window.
 void rule_state_remove_window(RuleState *state, Window id);

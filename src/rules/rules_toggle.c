@@ -5,3 +5,8 @@ void rule_toggle_once(Rule *rule) {
     rule->once = !rule->once;
     rule->applied = 0;
 }
+
+void rule_toggle_new_only(Rule *rule) {
+    if (!rule) return;
+    rule->new_only = !rule->new_only;
+}

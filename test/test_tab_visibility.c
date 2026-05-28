@@ -52,6 +52,11 @@ void gtk_entry_set_placeholder_text(GtkEntry *entry, const gchar *text) {
     (void)text;
 }
 
+const gchar *gtk_entry_get_text(GtkEntry *entry) {
+    (void)entry;
+    return "";
+}
+
 void gtk_widget_grab_focus(GtkWidget *widget) {
     (void)widget;
 }
@@ -65,6 +70,14 @@ void gtk_text_buffer_set_text(GtkTextBuffer *buffer, const gchar *text, gint len
 void reset_selection(AppData *app) {
     (void)app;
     reset_selection_calls++;
+}
+
+void preserve_selection(AppData *app) {
+    (void)app;
+}
+
+void restore_selection(AppData *app) {
+    (void)app;
 }
 
 void update_display(AppData *app) {
@@ -467,6 +480,12 @@ int replay_all_rules_against_open_windows(AppData *app) {
 gboolean replay_selected_filtered_rule(AppData *app) {
     (void)app;
     return TRUE;
+}
+
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
+    (void)config;
+    (void)manager;
+    return 1;
 }
 
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
