@@ -65,7 +65,8 @@ delegate opcodes, command targets, hotkey modes, and row/action callbacks.
     best/top match. Provider-owned data refresh, periodic tick, and mutation
     paths must apply the selection-preservation policy (`preserve_selection()`
     then `restore_selection()`), not `reset_selection()`. (TFD-835 tracks
-    providers not yet compliant.)
+    providers not yet compliant.) (authoritative rule: `docs/architecture.md` §
+    Cross-cutting invariants)
 
 ## Notes
 This folder is intentionally only the shared interface and registry. New feature

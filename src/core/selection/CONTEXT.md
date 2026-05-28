@@ -73,3 +73,6 @@ mutations — MUST preserve selection by identity via
 several provider refresh/tick/mutation paths do not yet comply and reset
 selection; restore fallback also jumps to the initial row rather than the
 nearest surviving row.)
+
+The binding statement for this invariant lives in `docs/architecture.md` §
+Cross-cutting invariants.
