@@ -1,7 +1,6 @@
 #include "rules/rules_config.h"
 #include "core/json/cofi_json_io.h"
 #include "core/log/log.h"
-#include "matching/window_matcher.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,14 +233,4 @@ bool rule_commands_contain_segment(const char *commands, const char *segment) {
         p = (*end == ',') ? end + 1 : end;
     }
     return false;
-}
-
-bool rules_needs_restore_rule(const RulesConfig *config, const char *window_title) {
-    if (!config || !window_title) return false;
-    for (int i = 0; i < config->count; i++) {
-        if (rule_commands_contain_segment(config->rules[i].commands, "rl") &&
-            wildcard_match(config->rules[i].pattern, window_title))
-            return false;
-    }
-    return true;
 }

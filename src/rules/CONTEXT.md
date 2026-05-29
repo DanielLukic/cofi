@@ -38,8 +38,7 @@ from a hidden provider tab.
 - `Rule`, `RulesConfig`, `MAX_RULES`, `MAX_PATTERN_LEN`,
   `MAX_COMMANDS_LEN`, and `MAX_RULE_TAG_LEN`
 - `init_rules_config()`, `save_rules_config()`, `load_rules_config()`,
-  `add_rule()`, `remove_rule()`, `rule_commands_contain_segment()`, and
-  `rules_needs_restore_rule()`
+  `add_rule()`, `remove_rule()`, and `rule_commands_contain_segment()`
 - `RuleTrigger`, `RuleState`, `RuleWindowState`, `RuleBreakerState`, `RuleMatch`,
   `init_rule_state()`, `check_rule_match()`, `rule_matches_window()`,
   `rule_trigger_allows()`, `rule_toggle_once()`, `rule_toggle_new_only()`,
@@ -117,42 +116,39 @@ from a hidden provider tab.
     respects `once`/`applied`, and does not mutate `RuleState` transition flags.
 21. Replaying all rules walks `RulesConfig.rules` in stored order and includes
     tagged rules even when the provider list would hide them.
-22. `rules_needs_restore_rule()` returns false only when an existing rule has an
-    exact comma-separated `rl` command segment and its wildcard pattern covers
-    the requested title.
-23. `rule_commands_contain_segment()` matches only complete comma-separated
+22. `rule_commands_contain_segment()` matches only complete comma-separated
     command segments after trimming whitespace; substrings such as `url`, `rlx`,
     or `foorl` do not satisfy an `rl` lookup.
-24. The Rules provider is hidden by default, registers the `rules` and `rs`
+23. The Rules provider is hidden by default, registers the `rules` and `rs`
     commands, surfaces the dynamic Rules tab, and keeps cofi open for hotkey
     auto mode.
-25. Entering the Rules tab sets the placeholder to `Type to filter rules...`
+24. Entering the Rules tab sets the placeholder to `Type to filter rules...`
     and filters all visible rules into rows with a leading flags cell; each
     query change refilters and resets provider selection.
-26. Provider filtering searches the resolved match-entry pattern plus command
+25. Provider filtering searches the resolved match-entry pattern plus command
     string and hides tagged rules unless `config.rules_show_all_tags` is true.
-27. Provider rows use three cells: flags, the resolved match-entry original
+26. Provider rows use three cells: flags, the resolved match-entry original
     title or `<cached pattern> (orphan)`, and command string. The flags cell
     renders `O` for once, `Ø` when once is applied to a live window, `N` for
     `new_only`, concatenates set flags, and renders `-` when no flags are set;
     empty lists expose one non-actionable `No rules found` row.
-28. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
+27. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
     back to `RulesConfig.rules[]` through `filtered_rule_indices`, not copied row
     indexes alone.
-29. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
+28. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
     selected row, `Ctrl+P` opens pattern edit for the selected match id,
     `Ctrl+D` opens delete confirmation, `Ctrl+O` toggles once and persists it
     without moving selection, `Ctrl+N` toggles `new_only` and persists it
     without moving selection, `Ctrl+X` replays the selected rule, and
     `Ctrl+Shift+X` replays all rules.
-30. Add Rule requires a non-empty pattern and command string, validates every
+29. Add Rule requires a non-empty pattern and command string, validates every
     comma-separated command against the command registry, creates or reuses the
     pattern match entry, saves both matching and rules, then refreshes the Rules
     tab.
-31. Edit Commands changes only the command string for the selected config rule;
+30. Edit Commands changes only the command string for the selected config rule;
     it keeps the pattern and `match_id`, validates commands, saves rules, and
     refreshes the list.
-32. Delete confirmation displays escaped pattern and command text, removes the
+31. Delete confirmation displays escaped pattern and command text, removes the
     pending config rule on confirmation, saves rules, refilters, clamps
     selection, and refreshes display.
 
