@@ -337,6 +337,64 @@ static void test_save_geometry_reuses_layout_match_id_for_geom_rule(void) {
                 app.matching.entries[initial_count].type[0] != '\0');
 }
 
+static void test_save_geometry_ignores_stale_bound_identity(void) {
+    AppData app;
+    init_test_app(&app);
+    app.display = (Display *)0x1;
+    app.windows[0] = make_window(0x801, "Terminal", "Alacritty", "alacritty", "Normal");
+    app.window_count = 1;
+
+    int terminal_match_id = matching_create_entry(&app.matching, &app.windows[0]);
+    ASSERT_INT("terminal identity created", 1, terminal_match_id > 0);
+    ASSERT_INT("terminal layout stored", TRUE,
+               layout_store_set(&app.layouts, terminal_match_id, 1, 2, 300, 200, 0,
+                                false, false, false, true, false));
+
+    g_strlcpy(app.windows[0].title, "invoicing",
+              sizeof(app.windows[0].title));
+    g_geom_x = 51;
+    g_geom_y = 62;
+    g_geom_w = 700;
+    g_geom_h = 500;
+
+    ASSERT_INT("save with changed title succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("save creates a current-title identity instead of reusing stale binding",
+               2, app.matching.count);
+    ASSERT_INT("save keeps old layout and adds current-title layout", 2, app.layouts.count);
+
+    const LayoutRecord *terminal_layout = layout_store_get(&app.layouts, terminal_match_id);
+    ASSERT_TRUE("terminal layout still exists", terminal_layout != NULL);
+    if (terminal_layout) {
+        ASSERT_INT("terminal layout x unchanged", 1, terminal_layout->x);
+        ASSERT_INT("terminal layout y unchanged", 2, terminal_layout->y);
+        ASSERT_INT("terminal layout width unchanged", 300, terminal_layout->width);
+        ASSERT_INT("terminal layout height unchanged", 200, terminal_layout->height);
+    }
+
+    int current_idx = -1;
+    for (int i = 0; i < app.matching.count; i++) {
+        if (strcmp(app.matching.entries[i].original_title, "invoicing") == 0) {
+            current_idx = i;
+            break;
+        }
+    }
+    ASSERT_TRUE("current-title identity created", current_idx >= 0);
+    if (current_idx < 0) {
+        return;
+    }
+
+    int current_match_id = app.matching.entries[current_idx].match_id;
+    const LayoutRecord *current_layout = layout_store_get(&app.layouts, current_match_id);
+    ASSERT_TRUE("current-title layout exists", current_layout != NULL);
+    if (current_layout) {
+        ASSERT_INT("current-title layout x captured", g_geom_x, current_layout->x);
+        ASSERT_INT("current-title layout y captured", g_geom_y, current_layout->y);
+        ASSERT_INT("current-title layout width captured", g_geom_w, current_layout->width);
+        ASSERT_INT("current-title layout height captured", g_geom_h, current_layout->height);
+    }
+}
+
 static void test_restore_prefers_current_title_layout_over_stale_binding(void) {
     AppData app;
     init_test_app(&app);
@@ -407,6 +465,7 @@ int main(void) {
     test_startup_sweeps_stale_rules_before_creating();
     test_wildcard_pattern_verbatim();
     test_save_geometry_reuses_layout_match_id_for_geom_rule();
+    test_save_geometry_ignores_stale_bound_identity();
     test_restore_prefers_current_title_layout_over_stale_binding();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);

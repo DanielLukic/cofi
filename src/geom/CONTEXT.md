@@ -78,9 +78,11 @@ in sync with saved records.
     `geometry_restore_plan()` for the delta, emits only the planned X11 calls,
     and flushes only when at least one operation is planned.
 12. Saving geometry captures current x/y/width/height, desktop, maximized
-    states, and fullscreen state from x11, finds or creates a match entry,
-    persists matching entries and layouts, and syncs geom rules only after the
-    layout save succeeds.
+    states, and fullscreen state from x11, reuses only a saved layout whose
+    match entry matches the current title and anchors or an existing matching
+    current-title entry, otherwise creates a current-title match entry, persists
+    matching entries and layouts, and syncs geom rules only after the layout
+    save succeeds.
 13. Restoring geometry first scans enabled layout records in store order and
     applies the first whose match entry matches the current window title and
     anchors, rebinding that entry to the current window id. If no saved layout

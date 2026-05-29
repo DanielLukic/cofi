@@ -197,7 +197,13 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
     }
 
     if (match_id <= 0) {
-        resolve_existing_match_id_for_window(app, window, &match_id);
+        for (int i = 0; i < app->matching.count; i++) {
+            if (!match_entry_matches_window(&app->matching.entries[i], window)) continue;
+            match_id = app->matching.entries[i].match_id;
+            app->matching.entries[i].bound_x11_id = window->id;
+            app->matching.entries[i].assigned = 1;
+            break;
+        }
     }
 
     if (match_id <= 0) {
