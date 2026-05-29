@@ -89,8 +89,10 @@ main_testable_obj = src/core/app/main_testable.o
 match_obj = src/matching/match.o
 match_entry_obj = src/matching/match_entry.o
 match_entry_config_obj = src/matching/match_entry_config.o
-matching_gc_obj = src/matching/matching_gc.o
+matching_gc_obj = src/core/app/matching_gc.o
 matching_provider_obj = src/matching/matching_provider.o
+names_store_obj = src/names/names_store.o
+names_provider_obj = src/names/names_provider.o
 nav_keys_obj = src/core/nav_keys/nav_keys.o
 key_handler_obj = src/ui/key_handler.o
 overlay_confirm_obj = src/ui/overlay_confirm.o
@@ -100,7 +102,7 @@ overlay_hotkey_add_policy_obj = src/daemon/overlay_hotkey_add_policy.o
 overlay_hotkey_edit_obj = src/daemon/overlay_hotkey_edit.o
 overlay_dispatch_obj = src/ui/overlay_dispatch.o
 overlay_manager_obj = src/ui/overlay_manager.o
-overlay_name_obj = src/matching/overlay_name.o
+overlay_names_obj = src/names/overlay_names.o
 overlay_pattern_obj = src/matching/overlay_pattern.o
 overlay_rules_obj = src/rules/overlay_rules.o
 overlay_sessions_obj = src/sessions/overlay_sessions.o
@@ -136,23 +138,25 @@ tab_switching_obj = src/ui/tab_switching.o
 tinyexpr_obj = src/core/utils/tinyexpr.o
 utf8_columns_obj = src/core/utils/utf8_columns.o
 utils_obj = src/core/utils/utils.o
-window_display_title_obj = src/matching/window_display_title.o
+window_display_title_obj = src/ui/window_display_title.o
+window_filter_obj = src/ui/window_filter.o
 window_geometry_matching_obj = src/geom/window_geometry_matching.o
 window_highlight_obj = src/ui/window_highlight.o
 window_lifecycle_obj = src/ui/window_lifecycle.o
 window_matcher_obj = src/matching/window_matcher.o
 
-core_app_objs = $(app_init_obj)
+core_app_objs = $(app_init_obj) $(matching_gc_obj)
 core_json_objs = $(cofi_json_io_obj)
 core_utils_objs = $(tinyexpr_obj) $(utf8_columns_obj) $(utils_obj)
 core_log_objs = $(log_obj)
 core_nav_keys_objs = $(nav_keys_obj)
-matching_objs = $(fzf_algo_obj) $(match_obj) $(match_entry_obj) $(match_entry_config_obj) $(matching_gc_obj) $(matching_provider_obj) $(overlay_name_obj) $(overlay_pattern_obj) $(window_display_title_obj) $(window_matcher_obj)
+matching_objs = $(fzf_algo_obj) $(match_obj) $(match_entry_obj) $(match_entry_config_obj) $(matching_provider_obj) $(overlay_pattern_obj) $(window_matcher_obj)
+names_objs = $(names_store_obj) $(names_provider_obj) $(overlay_names_obj)
 rules_objs = $(rules_obj) $(rules_config_obj) $(rules_provider_obj) $(rules_replay_obj) $(rules_toggle_obj) $(overlay_rules_obj)
 harpoon_objs = $(harpoon_obj) $(harpoon_config_obj) $(harpoon_provider_obj) $(key_handler_harpoon_obj) $(prefix_tabs_obj)
 geom_objs = $(geom_provider_obj) $(geometry_planner_obj) $(geom_rule_sync_obj) $(layout_store_obj) $(tiling_obj) $(tiling_overlay_obj) $(window_geometry_matching_obj)
 daemon_objs = $(daemon_socket_obj) $(daemon_socket_runtime_obj) $(detach_launch_obj) $(hotkey_config_obj) $(hotkey_dispatch_obj) $(hotkey_grab_state_obj) $(hotkeys_obj) $(hotkeys_provider_obj) $(overlay_hotkey_add_obj) $(overlay_hotkey_add_policy_obj) $(overlay_hotkey_edit_obj)
-ui_objs = $(cofi_modal_obj) $(display_obj) $(display_pipeline_obj) $(dynamic_display_obj) $(gtk_utils_obj) $(gtk_window_obj) $(key_handler_obj) $(overlay_confirm_obj) $(overlay_dispatch_obj) $(overlay_manager_obj) $(prefix_tabs_obj) $(slot_overlay_obj) $(tab_header_obj) $(tab_metadata_obj) $(tab_switching_obj) $(window_highlight_obj) $(window_lifecycle_obj)
+ui_objs = $(cofi_modal_obj) $(display_obj) $(display_pipeline_obj) $(dynamic_display_obj) $(gtk_utils_obj) $(gtk_window_obj) $(key_handler_obj) $(overlay_confirm_obj) $(overlay_dispatch_obj) $(overlay_manager_obj) $(prefix_tabs_obj) $(slot_overlay_obj) $(tab_header_obj) $(tab_metadata_obj) $(tab_switching_obj) $(window_display_title_obj) $(window_filter_obj) $(window_highlight_obj) $(window_lifecycle_obj)
 commands_objs = $(command_availability_obj) $(command_handlers_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_parser_obj) $(command_registry_obj) $(core_commands_obj)
 providers_objs = $(builtin_plugins_obj) $(cofi_tab_provider_obj)
 calc_objs = $(calc_obj) $(tinyexpr_obj)
@@ -294,6 +298,9 @@ TEST_BINARIES = $(filter-out test_detach_survival_bin,$(TEST_TARGETS:test/%=%)) 
 test: $(TEST_TARGETS)
 	cd test && TEST_BINARIES="$(TEST_BINARIES)" ./run_tests.sh
 
+test_matching_boundaries: test/test_matching_boundaries
+	chmod +x test/test_matching_boundaries
+
 .PHONY: test-integration
 test-integration: $(TARGET)
 	@test/integration/run_all.sh
@@ -329,8 +336,8 @@ test_fzf_algo: test/test_fzf_algo.c $(fzf_algo_obj)
 	$(CC) $(CFLAGS) -o test/test_fzf_algo test/test_fzf_algo.c $(fzf_algo_obj) $(LDFLAGS)
 
 # Build named window test
-test_match_entry: test/test_match_entry.c $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_match_entry: test/test_match_entry.c $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(names_store_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_match_entry test/test_match_entry.c $(match_entry_obj) $(match_entry_config_obj) $(layout_store_obj) $(window_geometry_matching_obj) $(geometry_planner_obj) $(window_matcher_obj) $(names_store_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
 # Build match scoring test (fzy algorithm)
 test_match_scoring: test/test_match_scoring.c $(match_obj)
@@ -410,8 +417,8 @@ test_overlay_dispatch: test/test_overlay_dispatch.c $(overlay_hotkey_add_policy_
 
 # Build overlay delete-flow behavior tests
 # (tests harpoon delete confirm/cancel lifecycle with stubs)
-test_overlay_delete_flow: test/test_overlay_delete_flow.c $(overlay_harpoon_obj) $(overlay_name_obj) $(overlay_sessions_obj) $(overlay_confirm_obj)
-	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c $(overlay_harpoon_obj) $(overlay_name_obj) $(overlay_sessions_obj) $(overlay_confirm_obj) $(LDFLAGS)
+test_overlay_delete_flow: test/test_overlay_delete_flow.c $(overlay_harpoon_obj) $(overlay_names_obj) $(overlay_sessions_obj) $(overlay_confirm_obj)
+	$(CC) $(CFLAGS) -o test/test_overlay_delete_flow test/test_overlay_delete_flow.c $(overlay_harpoon_obj) $(overlay_names_obj) $(overlay_sessions_obj) $(overlay_confirm_obj) $(LDFLAGS)
 
 # Build shared confirm overlay tests
 test_overlay_confirm: test/test_overlay_confirm.c $(overlay_confirm_obj) $(gtk_utils_obj) $(log_obj)
@@ -456,8 +463,8 @@ test_command_handlers_split: test/test_command_handlers_split.c test/command_han
 	$(CC) $(CFLAGS) -o test/test_command_handlers_split test/test_command_handlers_split.c test/command_handler_stubs.c $(core_commands_obj) $(command_registry_obj) $(LDFLAGS)
 
 # Build command handler behavior regression tests
-test_command_handlers_behavior: test/test_command_handlers_behavior.c $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(core_commands_obj) $(command_registry_obj) $(command_availability_obj) $(slot_store_obj) $(match_entry_obj) $(rules_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(utils_obj) $(log_obj)
-	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(core_commands_obj) $(command_registry_obj) $(command_availability_obj) $(slot_store_obj) $(match_entry_obj) $(rules_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(utils_obj) $(log_obj) $(LDFLAGS)
+test_command_handlers_behavior: test/test_command_handlers_behavior.c $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(core_commands_obj) $(command_registry_obj) $(command_availability_obj) $(slot_store_obj) $(match_entry_obj) $(names_store_obj) $(rules_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(utils_obj) $(log_obj)
+	$(CC) $(CFLAGS) -o test/test_command_handlers_behavior test/test_command_handlers_behavior.c $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(core_commands_obj) $(command_registry_obj) $(command_availability_obj) $(slot_store_obj) $(match_entry_obj) $(names_store_obj) $(rules_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(utils_obj) $(log_obj) $(LDFLAGS)
 
 # Build proc parser/behavior tests
 test_proc: test/test_proc.c
@@ -556,8 +563,8 @@ test_initials_ranking: test/test_initials_ranking.c $(fzf_algo_obj) $(log_obj) $
 test_ranking_corpus: test/test_ranking_corpus.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj)
 	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
 
-test_filter_title_compose: test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(window_matcher_obj) $(fzf_algo_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(window_matcher_obj) $(fzf_algo_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_filter_title_compose: test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
 # Build apps tab behavioral tests
 # (includes apps.c directly; tests filter/sort logic with synthetic data, not GIO launch)
@@ -594,6 +601,9 @@ test_hotkeys_provider: test/test_hotkeys_provider.c
 
 test_matching_provider: test/test_matching_provider.c
 	$(CC) $(CFLAGS) -o test/test_matching_provider test/test_matching_provider.c $(LDFLAGS)
+
+test_names_provider: test/test_names_provider.c
+	$(CC) $(CFLAGS) -o test/test_names_provider test/test_names_provider.c $(LDFLAGS)
 
 test_rules_provider: test/test_rules_provider.c
 	$(CC) $(CFLAGS) -o test/test_rules_provider test/test_rules_provider.c $(LDFLAGS)
@@ -653,17 +663,20 @@ test_layout_store: test/test_layout_store.c $(layout_store_obj) $(cofi_json_io_o
 test_cofi_json_io: test/test_cofi_json_io.c $(cofi_json_io_obj) $(log_obj)
 	$(CC) $(CFLAGS) -o test/test_cofi_json_io test/test_cofi_json_io.c $(cofi_json_io_obj) $(log_obj) $(LDFLAGS)
 
+test_names_store: test/test_names_store.c $(names_store_obj) $(match_entry_obj) $(match_entry_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_names_store test/test_names_store.c $(names_store_obj) $(match_entry_obj) $(match_entry_config_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+
 test_geometry_planner: test/test_geometry_planner.c $(geometry_planner_obj)
 	$(CC) $(CFLAGS) -o test/test_geometry_planner test/test_geometry_planner.c $(geometry_planner_obj) $(LDFLAGS)
 
 test_window_matcher: test/test_window_matcher.c $(window_matcher_obj) $(log_obj)
 	$(CC) $(CFLAGS) -o test/test_window_matcher test/test_window_matcher.c $(window_matcher_obj) $(log_obj) $(LDFLAGS)
 
-test_harpoon_integration: test/test_harpoon_integration.c $(harpoon_obj) $(harpoon_config_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c $(harpoon_obj) $(harpoon_config_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_harpoon_integration: test/test_harpoon_integration.c $(harpoon_obj) $(harpoon_config_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(names_store_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_harpoon_integration test/test_harpoon_integration.c $(harpoon_obj) $(harpoon_config_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(names_store_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
-test_matching_gc: test/test_matching_gc.c $(harpoon_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(slot_store_obj) $(window_geometry_matching_obj) $(geom_rule_sync_obj) $(rules_config_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c $(harpoon_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(slot_store_obj) $(window_geometry_matching_obj) $(geom_rule_sync_obj) $(rules_config_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_matching_gc: test/test_matching_gc.c $(harpoon_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(names_store_obj) $(slot_store_obj) $(window_geometry_matching_obj) $(geom_rule_sync_obj) $(rules_config_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_matching_gc test/test_matching_gc.c $(harpoon_obj) $(layout_store_obj) $(matching_gc_obj) $(match_entry_obj) $(match_entry_config_obj) $(names_store_obj) $(slot_store_obj) $(window_geometry_matching_obj) $(geom_rule_sync_obj) $(rules_config_obj) $(geometry_planner_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
 test_event_sequence: test/test_event_sequence.c $(harpoon_obj) $(match_entry_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_event_sequence test/test_event_sequence.c $(harpoon_obj) $(match_entry_obj) $(slot_store_obj) $(window_matcher_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)

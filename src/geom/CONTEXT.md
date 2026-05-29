@@ -24,8 +24,8 @@ in sync with saved records.
 - X11/EWMH primitives such as move/resize, desktop switching, frame extents,
   size hints, workarea queries, and window state messages; geom calls x11 for
   those operations.
-- Match-entry identity semantics, matching garbage collection policy, or custom
-  naming/pattern editing beyond using match ids and requesting sync after edits.
+- Match-entry identity semantics, matching garbage collection policy, names, or
+  pattern editing beyond using match ids and requesting sync after edits.
 - General command parsing, overlay hosting, provider registry behavior, or UI
   rendering outside geom-specific rows and tiling overlay content.
 
@@ -104,10 +104,11 @@ in sync with saved records.
     swept before per-layout creation so sync converges in one pass even at rule
     capacity.
 18. The geom provider is hidden by default, registers the `geom`/`layouts`
-    command, filters layouts by label, bound class, or geometry string, and
+    command, filters layouts by pattern, bound class, or geometry string, and
     resets selection whenever the query changes.
-19. Geom provider rows show label, class, geometry, desktop/state flags, and
-    binding status; row identity is `geom:<match_id>`.
+19. Geom provider rows show pattern, class, geometry, desktop/state flags, and
+    binding status; row identity is `geom:<match_id>`. Geom rows do not look up
+    Names records.
 20. In the geom tab, Delete or `Ctrl+D` asks for delete confirmation; confirmed
     delete clears the layout, saves, syncs the layout's match id, runs matching GC,
     refilters, clamps selection, and refreshes display.

@@ -10,6 +10,7 @@
 #include "geom/geom_provider.h"
 #include "daemon/hotkeys_provider.h"
 #include "matching/matching_provider.h"
+#include "names/names_provider.h"
 #include "proc/proc_provider.h"
 #include "profiles/profiles_provider.h"
 #include "rules/rules_provider.h"
@@ -28,6 +29,7 @@ void cofi_register_builtin_plugins(void) {
     geom_provider_register();
     hotkeys_provider_register();
     matching_provider_register();
+    names_provider_register();
     rules_provider_register();
     workspaces_provider_register();
     sinks_provider_register();

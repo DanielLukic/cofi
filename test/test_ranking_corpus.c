@@ -74,8 +74,10 @@ void update_history(AppData *app)        { (void)app; }
 void partition_and_reorder(AppData *app) { (void)app; }
 int  get_current_desktop(Display *d)     { (void)d; return mock_desktop; }
 
-const char *match_entry_get_custom_name(const MatchEntryManager *m, Window id) {
-    (void)m; (void)id; return NULL;
+const char *names_get_for_window(const NamesStore *store,
+                                 const MatchEntryManager *manager,
+                                 const WindowInfo *window) {
+    (void)store; (void)manager; (void)window; return NULL;
 }
 
 void preserve_selection(AppData *app) { (void)app; }
@@ -83,7 +85,7 @@ void restore_selection(AppData *app)  { (void)app; }
 void validate_selection(AppData *app) { (void)app; }
 
 /* ---- Module under test ---- */
-#include "matching/filter.c"
+#include "ui/window_filter.c"
 
 /* ---- Fixture ---- */
 

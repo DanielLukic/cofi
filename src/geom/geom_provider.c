@@ -7,7 +7,7 @@
 #include "geom/geom_rule_sync.h"
 #include "core/log/log.h"
 #include "matching/match.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "ui/overlay_confirm.h"
 #include "matching/overlay_pattern.h"
 #include "core/selection/selection.h"
@@ -90,7 +90,7 @@ static void geom_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     format_geom(record, geometry, sizeof(geometry));
     format_state_flags(record, desktop_flags, sizeof(desktop_flags));
 
-    const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
+    const char *label = entry->original_title;
     const char *class_name = geom_class_for_entry(app, entry);
     out->cell_count = 5;
     out->cells[0].text = label;
@@ -114,7 +114,7 @@ static const char *geom_match_string(AppData *app, int raw_idx) {
 
     char geometry[64];
     format_geom(record, geometry, sizeof(geometry));
-    const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
+    const char *label = entry->original_title;
     g_snprintf(searchable, sizeof(searchable), "%s %s %s",
                label, geom_class_for_entry(app, entry), geometry);
     return searchable;
@@ -145,7 +145,7 @@ void geom_on_query_changed(AppData *app, const char *query) {
 
         char searchable[1024];
         char geometry[64];
-        const char *label = entry->custom_name[0] ? entry->custom_name : entry->original_title;
+        const char *label = entry->original_title;
         format_geom(record, geometry, sizeof(geometry));
         g_snprintf(searchable, sizeof(searchable), "%s %s %s",
                    label, geom_class_for_entry(app, entry), geometry);

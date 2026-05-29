@@ -7,6 +7,7 @@
 #include "core/log/log.h"
 #include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
+#include "names/names_store.h"
 #include "x11/monitor_move.h"
 #include "ui/overlay_manager.h"
 #include "core/slot_store/slot_store.h"
@@ -250,8 +251,7 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args) {
 
         memcpy(inline_label, label_start, copy_len);
         inline_label[copy_len] = '\0';
-        match_entry_assign_custom_name(&app->matching, window, inline_label);
-        save_match_entries(&app->matching);
+        names_assign_window(app, window, inline_label);
         hide_window(app);
         log_info("CMD: Assigned inline name '%s' to window 0x%lx", inline_label, window->id);
         return TRUE;

@@ -13,7 +13,7 @@
 #include "commands/command_mode.h"
 #include "daemon/daemon_socket.h"
 #include "ui/display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "core/log/log.h"
 #include "core/selection/selection.h"
 #include "ui/tab_switching.h"
@@ -181,6 +181,9 @@ void daemon_socket_dispatch_opcode(AppData *app, uint8_t opcode) {
             show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_MATCHING:
+            show_provider_for_opcode(app, opcode);
+            break;
+        case COFI_OPCODE_NAMES:
             show_provider_for_opcode(app, opcode);
             break;
         case COFI_OPCODE_APPLICATIONS:

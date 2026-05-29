@@ -2,7 +2,7 @@
 
 #include "commands/command_mode.h"
 #include "ui/display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "ui/key_handler.h"
 #include "core/log/log.h"
 #include "ui/cofi_modal.h"

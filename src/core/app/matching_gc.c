@@ -1,10 +1,11 @@
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 
 #include "core/app/app_data.h"
 #include "geom/layout_store.h"
 #include "core/log/log.h"
 #include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
+#include "names/names_store.h"
 
 int matching_run_gc(AppData *app) {
     if (!app) {
@@ -21,8 +22,8 @@ int matching_run_gc(AppData *app) {
         referenced_ids[referenced_count++] = app->harpoon.slots[i].match_id;
     }
 
-    referenced_count += match_entry_collect_labeled_ids(
-        &app->matching,
+    referenced_count += names_store_collect_ids(
+        &app->names,
         referenced_ids + referenced_count,
         (int)(sizeof(referenced_ids) / sizeof(referenced_ids[0])) - referenced_count);
 

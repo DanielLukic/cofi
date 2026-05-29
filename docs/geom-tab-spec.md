@@ -25,7 +25,7 @@ Surface `layout_store` records as a tab so the user can see, manage, and delete 
 
 | # | Cell | Width | Source |
 |---|---|---|---|
-| 0 | label | 25 | `MatchEntry.custom_name` if set, else `MatchEntry.original_title` |
+| 0 | label | 25 | `MatchEntry.original_title` pattern only |
 | 1 | class | 18 | `MatchEntry.class_name` |
 | 2 | geometry | 18 | `"WxH+X+Y"` from `LayoutRecord` |
 | 3 | desktop + state | 14 | `"d=N [V][H][F][L][D]"` — V/H/F = max-vert/horz/full; **L** = workspace-locked (restore_desktop=true); **D** = disabled |

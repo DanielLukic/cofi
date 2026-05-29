@@ -2,7 +2,7 @@
 #include <string.h>
 #include <X11/Xlib.h>
 #include "test_utils.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "core/history/history.h"
 #include "core/utils/constants.h"
 

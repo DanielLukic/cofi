@@ -32,8 +32,8 @@ static void reset_and_register_builtins(void) {
 static void test_builtin_registration_shape(void) {
     reset_and_register_builtins();
 
-    ASSERT_EQ("all builtin providers registered", cofi_provider_count(), 16);
-    ASSERT_EQ("core plus provider commands registered", cofi_command_count(), 44);
+    ASSERT_EQ("all builtin providers registered", cofi_provider_count(), 17);
+    ASSERT_EQ("core plus provider commands registered", cofi_command_count(), 45);
 
     int providers_have_valid_shape = 1;
     for (int i = 0; i < cofi_provider_count(); i++) {
@@ -119,6 +119,25 @@ static void test_builtin_delegate_and_hotkey_disablement(void) {
                 cofi_get_provider_for_hotkey_mode(SHOW_MODE_HARPOON));
 }
 
+static void test_names_provider_registration(void) {
+    reset_and_register_builtins();
+
+    int names_id = cofi_get_provider_id("names");
+    ASSERT_TRUE("names provider registered", names_id >= 0);
+    ASSERT_NOT_NULL("names delegate resolves",
+                    cofi_get_provider_for_delegate_opcode(COFI_OPCODE_NAMES));
+
+    const CommandSpec *names = cofi_command_for_token("nm");
+    ASSERT_NOT_NULL("names alias resolves", names);
+    ASSERT_TRUE("names alias resolves to names",
+                names && strcmp(names->primary, "names") == 0);
+
+    const CommandSpec *matching = cofi_command_for_token("m");
+    ASSERT_NOT_NULL("matching alias still resolves", matching);
+    ASSERT_TRUE("matching alias remains matching",
+                matching && strcmp(matching->primary, "matching") == 0);
+}
+
 static void test_command_registration_rejects_collisions(void) {
     reset_and_register_builtins();
 
@@ -145,6 +164,7 @@ int main(void) {
     test_builtin_registration_shape();
     test_builtin_disabled_provider_hides_command_and_tab();
     test_builtin_delegate_and_hotkey_disablement();
+    test_names_provider_registration();
     test_command_registration_rejects_collisions();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);

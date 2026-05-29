@@ -420,8 +420,6 @@ bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *windo
     if (!entry || !window) return false;
     return strcmp(entry->original_title, window->title) == 0;
 }
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
 int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     (void)manager; (void)w; return -1;
@@ -469,7 +467,6 @@ void filter_matching(AppData *app, const char *filter) {
 
 MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
 int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
-void matching_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 
 void filter_config(AppData *app, const char *filter) {
     (void)app;

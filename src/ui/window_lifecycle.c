@@ -8,7 +8,7 @@
 #include "config/config.h"
 #include "ui/display.h"
 #include "ui/dynamic_display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "harpoon/harpoon_config.h"
 #include "core/history/history.h"
 #include "core/log/log.h"

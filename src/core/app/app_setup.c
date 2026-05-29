@@ -25,7 +25,7 @@
 #include "ui/gtk_window.h"
 #include "geom/geom_rule_sync.h"
 #include "harpoon/harpoon_config.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "core/history/history.h"
 #include "daemon/hotkeys.h"
 #include "ui/key_handler.h"

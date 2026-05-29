@@ -7,8 +7,9 @@
 #include "harpoon/harpoon.h"
 #include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
+#include "names/names_store.h"
 #include "geom/layout_store.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "core/log/log.h"
 #include "core/utils/utils.h"
 #include "x11/x11_utils.h"
@@ -96,16 +97,19 @@ void init_app_data(AppData *app) {
     app->confirm_overlay.info = NULL;
     app->confirm_overlay.on_confirm = NULL;
 
-    // Initialize named windows manager
+    // Initialize matching identities and name records
     match_entry_manager_init(&app->matching);
+    names_store_init(&app->names);
     layout_store_init(&app->layouts);
     app->filtered_matching_count = 0;
+    app->filtered_names_count = 0;
     app->harpoon.matching = &app->matching;
     app->harpoon.windows = app->windows;
     app->harpoon.window_count = &app->window_count;
     
-    // Load named windows from configuration
+    // Load matching identities and name records from configuration
     load_match_entries(&app->matching);
+    names_store_load(&app->names);
 
     // Initialize rules
     init_rules_config(&app->rules_config);

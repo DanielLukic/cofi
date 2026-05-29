@@ -50,7 +50,8 @@ overrides, and daemon-delegation requests before the main application starts.
 13. `--windows` and `-W` delegate startup to the Windows tab opcode.
 14. `--workspaces` and `-w` delegate startup to the Workspaces tab opcode.
 15. `--harpoon` delegates startup to the Harpoon tab opcode.
-16. `--matching` and `--names` delegate startup to the Matching tab opcode.
+16. `--matching` delegates startup to the Matching tab opcode and `--names`
+    delegates startup to the Names tab opcode.
 17. `--show NAME` delegates startup through the generic show-tab opcode and
    copies `NAME` into `app->startup_delegate_tab_name`.
 18. `--command` and `-c` delegate startup to command mode and set

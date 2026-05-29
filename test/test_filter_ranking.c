@@ -33,9 +33,11 @@ void partition_and_reorder(AppData *app) { (void)app; }
 /* x11_utils.c */
 int get_current_desktop(Display *d)      { (void)d; return mock_current_desktop; }
 
-/* match_entry.c */
-const char *match_entry_get_custom_name(const MatchEntryManager *manager, Window id) {
-    (void)manager; (void)id; return NULL;
+/* names_store.c */
+const char *names_get_for_window(const NamesStore *store,
+                                 const MatchEntryManager *manager,
+                                 const WindowInfo *window) {
+    (void)store; (void)manager; (void)window; return NULL;
 }
 
 /* selection.c */
@@ -44,7 +46,7 @@ void restore_selection(AppData *app)   { (void)app; }
 void validate_selection(AppData *app)  { (void)app; }
 
 /* ---- Module under test ---- */
-#include "matching/filter.c"
+#include "ui/window_filter.c"
 
 /* ---- Helpers ---- */
 

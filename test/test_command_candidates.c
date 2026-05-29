@@ -43,6 +43,14 @@ gint get_window_slot(const HarpoonManager *manager, Window id) {
     (void)id;
     return -1;
 }
+const char *names_get_for_window(const NamesStore *store,
+                                 const MatchEntryManager *manager,
+                                 const WindowInfo *window) {
+    (void)store;
+    (void)manager;
+    (void)window;
+    return NULL;
+}
 char slot_for_payload(const SlotStore *store, const char *tab_id, const char *payload) {
     (void)store;
     (void)tab_id;

@@ -70,7 +70,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### Entry & dispatch
 
 - **`src/main.c`** — argv parse, decide daemon vs delegate, GTK setup, daemon bootstrap, handoff to UI surface.
-- **`src/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
+- **`src/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--matching`, `--names`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
 - **`src/command_registry.c`** — command storage and lookup registry: primary names, aliases, compact suffixes, handlers, help text, activation policy, keep-open policy, and explicit owner.
 - **`src/core_commands.c`** — built-in core command registration. Provider-owned commands register from their provider modules.
 - **`src/builtin_plugins.c`** — compiled-in plugin/provider registration list used during startup.
@@ -81,7 +81,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### IPC
 
 - **`src/daemon_socket.c`** — protocol primitives (path resolution, bind, connect, send, accept).
-- **`src/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_MATCHING`, `_COMMAND`, `_RUN`, `_APPLICATIONS`).
+- **`src/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_MATCHING`, `_NAMES`, `_COMMAND`, `_RUN`, `_APPLICATIONS`).
 
 ### X11
 
@@ -115,12 +115,13 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 ### Data & filtering
 
 - **`src/history.c`** — MRU list; `partition_and_reorder` splits by type/desktop.
-- **`src/filter.c`** — fzf-style scoring, search/MRU/native ordering modes.
+- **`src/ui/window_filter.c`** — Windows-tab filtering, search/MRU/native ordering modes, workspace bias, and display-title search strings.
 - **`src/fzf_algo.c`** — the scoring algorithm.
 - **`src/match.c`** — match-stage classification (exact / prefix / initials / fuzzy).
 - **`src/harpoon.c`** — 36 persistent slot assignments (`~/.config/cofi/harpoon.json`).
 - **`src/workspace_slots.c`** — per-workspace auto-numbered slots (column-major).
-- **`src/match_entry.c`** + `src/window_matcher.c` — user-assigned names + matching rules.
+- **`src/match_entry.c`** + `src/window_matcher.c` — pure matching identities and match-entry pattern/anchor evaluation.
+- **`src/names_store.c`** + `src/names_provider.c` — user-assigned custom names keyed one-to-one by match id.
 - **`src/rules.c`** + `src/rules_config.c` — rule-based window classification.
 - **`src/sessions.c`** — live cancellable `rg` search over Claude/Codex JSONL session files; groups raw matches into session rows and applies `terms | refine` filtering without a persistent index.
 
@@ -157,6 +158,7 @@ These are the rules that don't live in any one file but must hold across the sys
 - **Rules-as-policy boundary.** Auto-apply behaviors on window-appear/title-change (geom restore, sticky, always-above, workspace pin) attach via the rules engine, not bespoke triggers. A single execution path keeps the fire-once + circuit-breaker + idempotency invariants in one place — fixes there pay off everywhere. Geom auto-restore is the canonical example: layout payload in `layouts.json` keyed by match_id; trigger via `pattern → rl` rule.
 - **Tolerant persistence I/O.** All JSON reads through `cofi_json_io` (migration in progress, see [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md)) treat unknown fields as forward-compat, missing/wrong-type as `present == FALSE` + fallback, corrupt files as `log_error` + empty-load. Stores never abort on bad input. Atomic save via tmp+rename in the same directory.
 - **Selection-by-identity on non-query refresh.** Any list refresh that does not change the query/filter membership — data updates, flag toggles, tick callbacks, row mutations — must preserve the selected row by calling `preserve_selection()` before the refresh and `restore_selection()` after; only a genuine `on_query_changed` path may move selection to the best/top match. When the selected row is gone after refresh, the fallback is the nearest surviving row (same index if in range, else previous), not the top. See `src/core/selection/CONTEXT.md` criteria 6–8 and TFD-835 for known non-compliant paths.
+- **Single owner per match id.** Each persisted `match_id` has exactly one owning subsystem record: Harpoon slot, Names record, geom layout, rule, or another explicit owner. `MatchEntry` itself is pure identity and not an owner label store. The Names subsystem owns custom names as a one-to-one `match_id -> custom_name` store and contributes those ids as matching-GC roots.
 
 ## Build & test
 

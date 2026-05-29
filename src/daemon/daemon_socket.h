@@ -15,6 +15,7 @@
 #define COFI_OPCODE_RUN 6
 #define COFI_OPCODE_APPLICATIONS 7
 #define COFI_OPCODE_SHOW_TAB 8
+#define COFI_OPCODE_NAMES 9
 
 int daemon_socket_is_valid_opcode(uint8_t opcode);
 const char *daemon_socket_opcode_name(uint8_t opcode);

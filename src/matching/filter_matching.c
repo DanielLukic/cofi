@@ -5,12 +5,12 @@
 #include <string.h>
 #include <stdio.h>
 
-// Filter named windows based on search text
+// Filter match entries based on search text
 void filter_matching(AppData *app, const char *filter) {
     app->filtered_matching_count = 0;
     
     if (!filter || !*filter) {
-        // No filter - show all named windows
+        // No filter - show all match entries
         for (int i = 0; i < app->matching.count; i++) {
             app->filtered_matching[app->filtered_matching_count] = app->matching.entries[i];
             app->filtered_matching_count++;
@@ -23,8 +23,8 @@ void filter_matching(AppData *app, const char *filter) {
     for (int i = 0; i < app->matching.count; i++) {
         MatchEntry *entry = &app->matching.entries[i];
         
-        snprintf(searchable, sizeof(searchable), "%s %s %s %s %s",
-                 entry->custom_name, entry->original_title,
+        snprintf(searchable, sizeof(searchable), "%s %s %s %s",
+                 entry->original_title,
                  entry->class_name, entry->instance, entry->type);
         
         // Use has_match for filtering

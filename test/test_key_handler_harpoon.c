@@ -281,8 +281,6 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     }
     return -1;
 }
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) { (void)manager; (void)custom_name; return -1; }
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) { (void)manager; (void)index; }
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
 int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     if (!manager || !w) return -1;
@@ -298,7 +296,6 @@ int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
 void filter_matching(AppData *app, const char *filter) { (void)app; (void)filter; }
 MatchEntry *matching_selected_entry(AppData *app) { (void)app; return NULL; }
 int matching_selected_manager_index(AppData *app) { (void)app; return -1; }
-void matching_select_custom_name(AppData *app, const char *custom_name) { (void)app; (void)custom_name; }
 void show_harpoon_delete_overlay(AppData *app, int slot) { (void)app; (void)slot; }
 const char *get_next_enum_value(const char *key, const char *current_value) { (void)key; (void)current_value; return NULL; }
 int apply_config_setting(CofiConfig *config, const char *key, const char *value, char *err_buf, size_t err_size) {

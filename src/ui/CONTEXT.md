@@ -10,6 +10,8 @@ short-lived visual affordances.
 ### Owns
 - GTK widget helpers, popup sizing, positioning, focus, lifecycle, and text updates.
 - Row rendering for the Windows tab and generic provider-backed tabs.
+- Windows-tab filtering, display-title composition, match tiers, workspace
+  biasing, and alt-tab selection handoff.
 - Tab visibility, tab cycling, prefix-triggered tab/modal dispatch, and tab
   header formatting.
 - Top-level key routing before feature-specific provider handlers run.
@@ -27,12 +29,15 @@ short-lived visual affordances.
   backend abstractions; those live in `x11/`.
 - Geometry planning or durable move/resize policy; those live in `geom/` and
   feature command handlers.
-- Matching/ranking policy, command execution semantics, or feature persistence.
+- Low-level matching/ranking primitives, command execution semantics, or
+  feature persistence.
 - Feature-specific overlay content and key handling beyond dispatching to it.
 
 ## Public Surface
 - `display.h`, `display_pipeline.h`, `dynamic_display.h`: display refresh,
   render pipeline, sizing, scrollbars, `activate_window`.
+- `window_filter.h`, `window_display_title.h`: Windows-tab filtering,
+  alt-tab selection, and title composition with Names display prefixes.
 - `key_handler.h`: `on_key_press`, `on_entry_changed`, `handle_navigation_keys`.
 - `tab_switching.h`, `tab_header.h`, `tab_metadata.h`, `prefix_tabs.h`,
   `cofi_modal.h`: tab visibility, header formatting, prefixes, and modals.
@@ -101,6 +106,17 @@ short-lived visual affordances.
 23. `activate_window()` switches to the target window's desktop when the
     `_NET_WM_DESKTOP` property is available, sends `_NET_ACTIVE_WINDOW`, raises
     the window with `XMapRaised`, and flushes the X11 command stream.
+24. Empty Windows queries preserve current window order, expose every current
+    window in `filtered`, and apply the configured alt-tab selection policy.
+25. Non-empty Windows queries score against the same display string users see:
+    desktop label, display instance/class, and title with any custom name prefix
+    resolved from the Names store.
+26. Workspace bias promotes current-workspace windows only within compatible
+    score tiers; it must not let a weaker tier outrank a stronger direct match.
+27. Filtering records the selected window id after sorting so later refreshes
+    can preserve selection when that window is still present.
+28. Display-title composition prefixes a custom name from the Names store as
+    `<custom name> - <window title>` and otherwise returns the original title.
 
 ## Notes
 `activate_window()` performs raw X11 desktop switching, activation messaging,

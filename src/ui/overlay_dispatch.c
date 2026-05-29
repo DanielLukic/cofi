@@ -8,7 +8,7 @@
 #include "daemon/overlay_hotkey_add.h"
 #include "daemon/overlay_hotkey_edit.h"
 #include "ui/overlay_manager.h"
-#include "matching/overlay_name.h"
+#include "names/overlay_names.h"
 #include "matching/overlay_pattern.h"
 #include "rules/overlay_rules.h"
 #include "projects/overlay_projects.h"
@@ -176,8 +176,8 @@ void show_name_pattern_edit_overlay(AppData *app) {
     show_pattern_edit_overlay(app, match_id, NULL);
 }
 
-void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
-    show_name_delete_confirm(app, custom_name, manager_index);
+void show_name_delete_overlay(AppData *app, const char *custom_name, int match_id) {
+    show_name_delete_confirm(app, custom_name, match_id);
 }
 
 void show_rule_add_overlay(AppData *app) {

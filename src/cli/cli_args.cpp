@@ -60,7 +60,7 @@ void print_usage(const char *prog_name) {
     printf("  --workspaces         Delegate to Workspaces tab\n");
     printf("  --harpoon            Delegate to Harpoon tab\n");
     printf("  --matching           Delegate to Matching tab\n");
-    printf("  --names              Alias for --matching\n");
+    printf("  --names              Delegate to Names tab\n");
     printf("  --show NAME          Surface any tab by name (e.g. --show emoji, --show projects)\n");
     printf("  --command            Delegate to command mode (':' prompt)\n");
     printf("  --run                Delegate to run mode ('!' prompt)\n");
@@ -130,7 +130,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     auto workspaces_opt = op.add<Switch>("w", "workspaces", "Delegate to the Workspaces tab");
     auto harpoon_opt = op.add<Switch>("", "harpoon", "Delegate to the Harpoon tab");
     auto matching_opt = op.add<Switch>("", "matching", "Delegate to the Matching tab");
-    auto names_opt = op.add<Switch>("", "names", "Alias for --matching");
+    auto names_opt = op.add<Switch>("", "names", "Delegate to Names tab");
     auto show_opt = op.add<Value<std::string>>("", "show", "Surface any tab by name");
     auto command_opt = op.add<Switch>("c", "command", "Delegate to command mode (with ':' prompt)");
     auto run_opt = op.add<Switch>("", "run", "Delegate to run mode (with '!' prompt)");
@@ -227,7 +227,7 @@ int parse_command_line(int argc, char *argv[], AppData *app, char **log_file, in
     }
 
     if (names_opt->is_set()) {
-        set_startup_delegate(app, COFI_OPCODE_MATCHING);
+        set_startup_delegate(app, COFI_OPCODE_NAMES);
     }
 
     if (show_opt->is_set()) {

@@ -16,7 +16,7 @@
 static int s_show_tab_client_fd = -1;
 
 int daemon_socket_is_valid_opcode(uint8_t opcode) {
-    return opcode >= COFI_OPCODE_WINDOWS && opcode <= COFI_OPCODE_SHOW_TAB;
+    return opcode >= COFI_OPCODE_WINDOWS && opcode <= COFI_OPCODE_NAMES;
 }
 
 const char *daemon_socket_opcode_name(uint8_t opcode) {
@@ -37,6 +37,8 @@ const char *daemon_socket_opcode_name(uint8_t opcode) {
             return "applications";
         case COFI_OPCODE_SHOW_TAB:
             return "show_tab";
+        case COFI_OPCODE_NAMES:
+            return "names";
         default:
             return "invalid";
     }

@@ -154,63 +154,39 @@ static void test_init(void) {
     tests_passed++;
 }
 
-static void test_assign_and_get(void) {
-    printf("\n--- match_entry_assign_custom_name / match_entry_get_custom_name ---\n");
+static void test_create_entry_captures_identity(void) {
+    printf("\n--- matching_create_entry captures identity ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "Firefox - Home", "Firefox", "Navigator", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "browser");
+    int match_id = matching_create_entry(&mgr, &w);
 
-    ASSERT_INT("count after assign", 1, mgr.count);
-    ASSERT_NOT_NULL("custom name not NULL", match_entry_get_custom_name(&mgr, 100));
-    ASSERT_STR("custom name value", "browser", match_entry_get_custom_name(&mgr, 100));
-
-    // Update existing
-    match_entry_assign_custom_name(&mgr, &w, "web");
-    ASSERT_INT("count unchanged after update", 1, mgr.count);
-    ASSERT_STR("updated name", "web", match_entry_get_custom_name(&mgr, 100));
-
-    // Non-existent window
-    ASSERT_NULL("unassigned window returns NULL", match_entry_get_custom_name(&mgr, 999));
-
-    // NULL/empty edge cases
-    match_entry_assign_custom_name(&mgr, &w, "");
-    ASSERT_INT("empty name ignored", 1, mgr.count);
-    ASSERT_STR("empty assign preserves previous name", "web", match_entry_get_custom_name(&mgr, 100));
-
-    mgr.entries[0].custom_name[0] = '\0';
-    ASSERT_NULL("empty stored custom name returns NULL", match_entry_get_custom_name(&mgr, 100));
-    safe_string_copy(mgr.entries[0].custom_name, "restored", MAX_TITLE_LEN);
-    ASSERT_STR("non-empty stored custom name returns string", "restored",
-               match_entry_get_custom_name(&mgr, 100));
-
-    match_entry_assign_custom_name(&mgr, NULL, "test");
-    ASSERT_INT("NULL window ignored", 1, mgr.count);
-
-    match_entry_assign_custom_name(NULL, &w, "test");
-    // Should not crash
-    printf("PASS: NULL manager does not crash\n");
-    tests_passed++;
-
-    // Zero window id
-    ASSERT_NULL("id 0 returns NULL", match_entry_get_custom_name(&mgr, 0));
-    ASSERT_NULL("NULL manager returns NULL", match_entry_get_custom_name(NULL, 100));
+    ASSERT_INT("match id positive", 1, match_id > 0);
+    ASSERT_INT("count after create", 1, mgr.count);
+    ASSERT_STR("title captured", "Firefox - Home", mgr.entries[0].original_title);
+    ASSERT_STR("class captured", "Firefox", mgr.entries[0].class_name);
+    ASSERT_STR("instance captured", "Navigator", mgr.entries[0].instance);
+    ASSERT_STR("type captured", "Normal", mgr.entries[0].type);
+    ASSERT_INT("bound x11 id captured", 100, (int)mgr.entries[0].bound_x11_id);
+    ASSERT_INT("assigned", 1, mgr.entries[0].assigned);
+    ASSERT_INT("NULL create rejected", -1, matching_create_entry(NULL, &w));
+    ASSERT_INT("NULL window rejected", -1, matching_create_entry(&mgr, NULL));
 }
 
-static void test_is_window_already_named(void) {
+static void test_is_window_already_bound(void) {
     printf("\n--- match_entry_is_bound_window ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(200, "Terminal", "gnome-terminal", "gnome-terminal", "Normal");
-    ASSERT_INT("not named initially", 0, match_entry_is_bound_window(&mgr, 200));
+    ASSERT_INT("not bound initially", 0, match_entry_is_bound_window(&mgr, 200));
 
-    match_entry_assign_custom_name(&mgr, &w, "term");
-    ASSERT_INT("named after assign", 1, match_entry_is_bound_window(&mgr, 200));
-    ASSERT_INT("different window not named", 0, match_entry_is_bound_window(&mgr, 201));
+    matching_create_entry(&mgr, &w);
+    ASSERT_INT("bound after create", 1, match_entry_is_bound_window(&mgr, 200));
+    ASSERT_INT("different window not bound", 0, match_entry_is_bound_window(&mgr, 201));
 }
 
 static void test_find_by_index(void) {
@@ -221,8 +197,8 @@ static void test_find_by_index(void) {
 
     WindowInfo w1 = make_window(10, "A", "ClassA", "instA", "Normal");
     WindowInfo w2 = make_window(20, "B", "ClassB", "instB", "Normal");
-    match_entry_assign_custom_name(&mgr, &w1, "first");
-    match_entry_assign_custom_name(&mgr, &w2, "second");
+    matching_create_entry(&mgr, &w1);
+    matching_create_entry(&mgr, &w2);
 
     ASSERT_INT("find first", 0, match_entry_find_index_by_window(&mgr, 10));
     ASSERT_INT("find second", 1, match_entry_find_index_by_window(&mgr, 20));
@@ -231,26 +207,8 @@ static void test_find_by_index(void) {
     ASSERT_INT("find NULL mgr", -1, match_entry_find_index_by_window(NULL, 10));
 }
 
-static void test_find_by_name(void) {
-    printf("\n--- match_entry_find_index_by_custom_name ---\n");
-
-    MatchEntryManager mgr;
-    match_entry_manager_init(&mgr);
-
-    WindowInfo w1 = make_window(10, "A", "ClassA", "instA", "Normal");
-    WindowInfo w2 = make_window(20, "B", "ClassB", "instB", "Normal");
-    match_entry_assign_custom_name(&mgr, &w1, "alpha");
-    match_entry_assign_custom_name(&mgr, &w2, "beta");
-
-    ASSERT_INT("find alpha", 0, match_entry_find_index_by_custom_name(&mgr, "alpha"));
-    ASSERT_INT("find beta", 1, match_entry_find_index_by_custom_name(&mgr, "beta"));
-    ASSERT_INT("find missing", -1, match_entry_find_index_by_custom_name(&mgr, "gamma"));
-    ASSERT_INT("find NULL name", -1, match_entry_find_index_by_custom_name(&mgr, NULL));
-    ASSERT_INT("find NULL mgr", -1, match_entry_find_index_by_custom_name(NULL, "alpha"));
-}
-
 static void test_delete(void) {
-    printf("\n--- match_entry_delete_custom_name ---\n");
+    printf("\n--- match_entry_delete ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
@@ -258,55 +216,33 @@ static void test_delete(void) {
     WindowInfo w1 = make_window(10, "A", "ClassA", "instA", "Normal");
     WindowInfo w2 = make_window(20, "B", "ClassB", "instB", "Normal");
     WindowInfo w3 = make_window(30, "C", "ClassC", "instC", "Normal");
-    match_entry_assign_custom_name(&mgr, &w1, "first");
-    match_entry_assign_custom_name(&mgr, &w2, "second");
-    match_entry_assign_custom_name(&mgr, &w3, "third");
+    matching_create_entry(&mgr, &w1);
+    matching_create_entry(&mgr, &w2);
+    matching_create_entry(&mgr, &w3);
 
     ASSERT_INT("count is 3", 3, mgr.count);
 
     // Delete middle
-    match_entry_delete_custom_name(&mgr, 1);
+    match_entry_delete(&mgr, 1);
     ASSERT_INT("count after delete middle", 2, mgr.count);
-    ASSERT_STR("first still there", "first", mgr.entries[0].custom_name);
-    ASSERT_STR("third shifted to index 1", "third", mgr.entries[1].custom_name);
+    ASSERT_STR("first still there", "A", mgr.entries[0].original_title);
+    ASSERT_STR("third shifted to index 1", "C", mgr.entries[1].original_title);
 
     // Delete first
-    match_entry_delete_custom_name(&mgr, 0);
+    match_entry_delete(&mgr, 0);
     ASSERT_INT("count after delete first", 1, mgr.count);
-    ASSERT_STR("third now at index 0", "third", mgr.entries[0].custom_name);
+    ASSERT_STR("third now at index 0", "C", mgr.entries[0].original_title);
 
     // Delete last
-    match_entry_delete_custom_name(&mgr, 0);
+    match_entry_delete(&mgr, 0);
     ASSERT_INT("count after delete last", 0, mgr.count);
 
     // Edge cases: invalid indices
-    match_entry_delete_custom_name(&mgr, -1);
-    match_entry_delete_custom_name(&mgr, 0);
-    match_entry_delete_custom_name(&mgr, 100);
-    match_entry_delete_custom_name(NULL, 0);
+    match_entry_delete(&mgr, -1);
+    match_entry_delete(&mgr, 0);
+    match_entry_delete(&mgr, 100);
+    match_entry_delete(NULL, 0);
     printf("PASS: invalid delete indices do not crash\n");
-    tests_passed++;
-}
-
-static void test_update_name(void) {
-    printf("\n--- match_entry_update_custom_name ---\n");
-
-    MatchEntryManager mgr;
-    match_entry_manager_init(&mgr);
-
-    WindowInfo w = make_window(10, "A", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "original");
-
-    match_entry_update_custom_name(&mgr, 0, "updated");
-    ASSERT_STR("name updated", "updated", mgr.entries[0].custom_name);
-    ASSERT_INT("count unchanged", 1, mgr.count);
-
-    // Edge cases
-    match_entry_update_custom_name(&mgr, -1, "bad");
-    match_entry_update_custom_name(&mgr, 99, "bad");
-    match_entry_update_custom_name(&mgr, 0, NULL);
-    match_entry_update_custom_name(NULL, 0, "bad");
-    printf("PASS: invalid update args do not crash\n");
     tests_passed++;
 }
 
@@ -317,7 +253,7 @@ static void test_get_by_index(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(10, "A", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "test");
+    matching_create_entry(&mgr, &w);
 
     ASSERT_NOT_NULL("valid index returns entry", match_entry_get_by_index(&mgr, 0));
     ASSERT_NULL("out of bounds returns NULL", match_entry_get_by_index(&mgr, 1));
@@ -325,15 +261,14 @@ static void test_get_by_index(void) {
     ASSERT_NULL("NULL manager returns NULL", match_entry_get_by_index(NULL, 0));
 }
 
-static void test_reassign_names(void) {
+static void test_reassign_entries(void) {
     printf("\n--- match_entry_reassign_live_windows ---\n");
 
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
 
-    // Assign a name to window 100
     WindowInfo w_orig = make_window(100, "Terminal - bash", "gnome-terminal", "gnome-terminal-server", "Normal");
-    match_entry_assign_custom_name(&mgr, &w_orig, "term");
+    matching_create_entry(&mgr, &w_orig);
     ASSERT_INT("assigned to 100", 1, mgr.entries[0].assigned);
 
     // Now window 100 is gone, but window 200 matches the same class/instance/type
@@ -345,7 +280,7 @@ static void test_reassign_names(void) {
     ASSERT_INT("reassignment happened", 1, changed);
     ASSERT_INT("reassigned to 200", 1, (mgr.entries[0].bound_x11_id == 200));
     ASSERT_INT("still assigned", 1, mgr.entries[0].assigned);
-    ASSERT_STR("name preserved", "term", mgr.entries[0].custom_name);
+    ASSERT_STR("pattern preserved", "Terminal - bash", mgr.entries[0].original_title);
 
     // If window still exists, no reassignment needed
     changed = match_entry_reassign_live_windows(&mgr, windows, 2);
@@ -363,7 +298,7 @@ static void test_reassign_no_match(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w_orig = make_window(100, "Terminal", "gnome-terminal", "gnome-terminal-server", "Normal");
-    match_entry_assign_custom_name(&mgr, &w_orig, "term");
+    matching_create_entry(&mgr, &w_orig);
 
     // No matching windows at all
     WindowInfo windows[1];
@@ -371,7 +306,7 @@ static void test_reassign_no_match(void) {
     match_entry_reassign_live_windows(&mgr, windows, 1);
 
     ASSERT_INT("orphaned (unassigned)", 0, mgr.entries[0].assigned);
-    ASSERT_STR("name still there", "term", mgr.entries[0].custom_name);
+    ASSERT_STR("pattern still there", "Terminal", mgr.entries[0].original_title);
 }
 
 static void test_reassign_skip_already_named(void) {
@@ -383,8 +318,8 @@ static void test_reassign_skip_already_named(void) {
     // Two windows with same class
     WindowInfo w1 = make_window(100, "Terminal - tab1", "gnome-terminal", "gnome-terminal-server", "Normal");
     WindowInfo w2 = make_window(200, "Terminal - tab2", "gnome-terminal", "gnome-terminal-server", "Normal");
-    match_entry_assign_custom_name(&mgr, &w1, "tab1");
-    match_entry_assign_custom_name(&mgr, &w2, "tab2");
+    matching_create_entry(&mgr, &w1);
+    matching_create_entry(&mgr, &w2);
 
     // Now only window 200 remains - window 100 is gone
     WindowInfo remaining[1];
@@ -406,7 +341,7 @@ static void test_wildcard_in_title(void) {
 
     // Capture escapes '*' to '.' so literal asterisks do not become broad '*' matches.
     WindowInfo w = make_window(100, "test*file", "Class", "inst", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "myfile");
+    matching_create_entry(&mgr, &w);
 
     ASSERT_STR("asterisk escaped to dot on capture", "test.file", mgr.entries[0].original_title);
 }
@@ -418,7 +353,7 @@ static void test_reassign_wildcard_characterization(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "term-*", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "term");
+    matching_create_entry(&mgr, &w);
     ASSERT_STR("capture escapes wildcard star", "term-.", mgr.entries[0].original_title);
 
     mgr.entries[0].bound_x11_id = 999;
@@ -443,7 +378,7 @@ static void test_match_if_set_class_instance_type(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "term-1", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "term");
+    matching_create_entry(&mgr, &w);
     ASSERT_STR("create captures class", "ClassA", mgr.entries[0].class_name);
     ASSERT_STR("create captures instance", "instA", mgr.entries[0].instance);
     ASSERT_STR("create captures type", "Normal", mgr.entries[0].type);
@@ -545,14 +480,14 @@ static void test_match_id_persist_and_non_reuse(void) {
 
     WindowInfo w1 = make_window(10, "A", "ClassA", "instA", "Normal");
     WindowInfo w2 = make_window(20, "B", "ClassB", "instB", "Normal");
-    match_entry_assign_custom_name(&mgr, &w1, "first");
-    match_entry_assign_custom_name(&mgr, &w2, "second");
+    matching_create_entry(&mgr, &w1);
+    matching_create_entry(&mgr, &w2);
     int first_id = mgr.entries[0].match_id;
     int second_id = mgr.entries[1].match_id;
 
-    match_entry_delete_custom_name(&mgr, 0);
+    match_entry_delete(&mgr, 0);
     WindowInfo w3 = make_window(30, "C", "ClassC", "instC", "Normal");
-    match_entry_assign_custom_name(&mgr, &w3, "third");
+    matching_create_entry(&mgr, &w3);
     int third_id = mgr.entries[1].match_id;
 
     ASSERT_INT("second id remains stable", second_id, mgr.entries[0].match_id);
@@ -761,7 +696,7 @@ static void test_save_load_roundtrip_special_chars(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(501, "Title", "Class", "inst", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "name + extras !@#$%^&*()");
+    matching_create_entry(&mgr, &w);
     safe_string_copy(mgr.entries[0].original_title, "Orig [brackets] / path", MAX_TITLE_LEN);
     safe_string_copy(mgr.entries[0].class_name, "", sizeof(mgr.entries[0].class_name));
     safe_string_copy(mgr.entries[0].instance, "inst-special", sizeof(mgr.entries[0].instance));
@@ -773,7 +708,6 @@ static void test_save_load_roundtrip_special_chars(void) {
     MatchEntryManager loaded;
     load_match_entries(&loaded);
     ASSERT_INT("roundtrip loads one entry", 1, loaded.count);
-    ASSERT_STR("custom_name roundtrip", "name + extras !@#$%^&*()", loaded.entries[0].custom_name);
     ASSERT_STR("original_title roundtrip", "Orig [brackets] / path", loaded.entries[0].original_title);
     ASSERT_STR("class_name roundtrip empty", "", loaded.entries[0].class_name);
     ASSERT_STR("instance roundtrip populated", "inst-special", loaded.entries[0].instance);
@@ -786,7 +720,7 @@ static void test_bound_x11_id_validation_and_rebind(void) {
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
     WindowInfo captured = make_window(200, "Title-A", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &captured, "name");
+    matching_create_entry(&mgr, &captured);
 
     // Drifted title keeps binding — id wins.
     WindowInfo drifted = make_window(200, "Title-B", "ClassA", "instA", "Normal");
@@ -815,7 +749,7 @@ static void test_startup_load_then_reassign_path(void) {
     MatchEntryManager mgr;
     match_entry_manager_init(&mgr);
     WindowInfo w = make_window(100, "Wanted", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "name");
+    matching_create_entry(&mgr, &w);
     save_match_entries(&mgr);
 
     MatchEntryManager loaded;
@@ -838,7 +772,7 @@ static void test_escaped_star_pattern_persists_as_single_char_wildcard(void) {
     match_entry_manager_init(&mgr);
 
     WindowInfo w = make_window(100, "cofi*Terminal", "ClassA", "instA", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "term");
+    matching_create_entry(&mgr, &w);
     save_match_entries(&mgr);
 
     MatchEntryManager loaded;
@@ -857,32 +791,6 @@ static void test_escaped_star_pattern_persists_as_single_char_wildcard(void) {
     safe_string_copy(loaded.entries[0].original_title, "cofi.Terminal", MAX_TITLE_LEN);
     changed = match_entry_reassign_live_windows(&loaded, &changed_title, 1);
     ASSERT_INT("single-char wildcard pattern does not match changed title", 0, loaded.entries[0].assigned);
-}
-
-static void test_match_entry_collect_labeled_ids(void) {
-    printf("\n--- match_entry_collect_labeled_ids returns only labeled entries ---\n");
-
-    MatchEntryManager mgr;
-    WindowInfo windows[MAX_WINDOWS] = {0};
-    match_entry_manager_init(&mgr);
-
-    WindowInfo unlabeled = make_window(100, "Unlabeled", "ClassA", "instA", "Normal");
-    WindowInfo labeled_a = make_window(200, "Labeled A", "ClassB", "instB", "Normal");
-    WindowInfo labeled_b = make_window(300, "Labeled B", "ClassC", "instC", "Normal");
-    windows[0] = unlabeled;
-    windows[1] = labeled_a;
-    windows[2] = labeled_b;
-
-    matching_create_entry(&mgr, &unlabeled);
-    match_entry_assign_custom_name(&mgr, &labeled_a, "keep-a");
-    match_entry_assign_custom_name(&mgr, &labeled_b, "keep-b");
-
-    int referenced_ids[MAX_WINDOWS] = {0};
-    int count = match_entry_collect_labeled_ids(&mgr, referenced_ids, MAX_WINDOWS);
-
-    ASSERT_INT("two labeled ids collected", 2, count);
-    ASSERT_INT("first labeled id collected", mgr.entries[1].match_id, referenced_ids[0]);
-    ASSERT_INT("second labeled id collected", mgr.entries[2].match_id, referenced_ids[1]);
 }
 
 static void test_layout_save_persists_on_deduped_match_id(void) {
@@ -959,7 +867,7 @@ static void test_layout_restore_resolve_requires_live_binding_and_saved_layout(v
     layout_store_init(&store);
 
     WindowInfo w = make_window(0x444, "Restore Me", "ClassR", "instR", "Normal");
-    match_entry_assign_custom_name(&mgr, &w, "restore");
+    matching_create_entry(&mgr, &w);
     ASSERT_INT("layout record stored", TRUE,
                layout_store_set(&store, mgr.entries[0].match_id, 70, 80, 900, 700, 2,
                                 true, false, true, false, true));
@@ -1004,7 +912,7 @@ static void test_match_entry_gc_is_pure_reference_check(void) {
     windows[2] = referenced;
 
     int unlabeled_id = matching_create_entry(&mgr, &unlabeled);
-    match_entry_assign_custom_name(&mgr, &labeled, "labeled");
+    matching_create_entry(&mgr, &labeled);
     int referenced_id = matching_create_entry(&mgr, &referenced);
 
     ASSERT_INT("three entries captured before gc", 3, mgr.count);
@@ -1012,7 +920,7 @@ static void test_match_entry_gc_is_pure_reference_check(void) {
                match_entry_gc(&mgr, NULL, 0));
     ASSERT_INT("count after empty-reference gc", 0, mgr.count);
     ASSERT_INT("unlabeled entry removed", -1, match_entry_find_index_by_match_id(&mgr, unlabeled_id));
-    ASSERT_INT("labeled entry removed", -1, match_entry_find_index_by_custom_name(&mgr, "labeled"));
+    ASSERT_INT("second entry removed", -1, match_entry_find_index_by_match_id(&mgr, 2));
     ASSERT_INT("unreferenced captured entry removed", -1, match_entry_find_index_by_match_id(&mgr, referenced_id));
 }
 
@@ -1065,7 +973,7 @@ static void test_match_entry_gc_removes_only_unreferenced_ids(void) {
     windows[2] = referenced;
 
     int unlabeled_id = matching_create_entry(&mgr, &unlabeled);
-    match_entry_assign_custom_name(&mgr, &labeled, "keep");
+    matching_create_entry(&mgr, &labeled);
     int referenced_id = matching_create_entry(&mgr, &referenced);
     int referenced_ids[] = {mgr.entries[1].match_id, referenced_id};
 
@@ -1074,7 +982,7 @@ static void test_match_entry_gc_removes_only_unreferenced_ids(void) {
                match_entry_gc(&mgr, referenced_ids, 2));
     ASSERT_INT("count after gc", 2, mgr.count);
     ASSERT_INT("unlabeled entry removed", -1, match_entry_find_index_by_match_id(&mgr, unlabeled_id));
-    ASSERT_INT("labeled entry kept", 1, match_entry_find_index_by_custom_name(&mgr, "keep") >= 0);
+    ASSERT_INT("referenced second entry kept", 1, match_entry_find_index_by_match_id(&mgr, referenced_ids[0]) >= 0);
     ASSERT_INT("referenced entry kept", 1, match_entry_find_index_by_match_id(&mgr, referenced_id) >= 0);
 }
 
@@ -1083,14 +991,12 @@ int main(void) {
     printf("==========================\n");
 
     test_init();
-    test_assign_and_get();
-    test_is_window_already_named();
+    test_create_entry_captures_identity();
+    test_is_window_already_bound();
     test_find_by_index();
-    test_find_by_name();
     test_delete();
-    test_update_name();
     test_get_by_index();
-    test_reassign_names();
+    test_reassign_entries();
     test_reassign_no_match();
     test_reassign_skip_already_named();
     test_wildcard_in_title();
@@ -1107,7 +1013,6 @@ int main(void) {
     test_bound_x11_id_validation_and_rebind();
     test_startup_load_then_reassign_path();
     test_escaped_star_pattern_persists_as_single_char_wildcard();
-    test_match_entry_collect_labeled_ids();
     test_layout_save_persists_on_deduped_match_id();
     test_layout_save_reuses_existing_entry_without_layout_record();
     test_layout_restore_resolve_requires_live_binding_and_saved_layout();

@@ -9,7 +9,8 @@
 #include "geom/layout_store.h"
 #include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
+#include "names/names_store.h"
 #include "core/utils/utils.h"
 
 static int tests_run = 0;
@@ -66,6 +67,7 @@ static void init_gc_app(AppData *app) {
     match_entry_manager_init(&app->matching);
     init_harpoon_manager(&app->harpoon);
     layout_store_init(&app->layouts);
+    names_store_init(&app->names);
     app->harpoon.matching = &app->matching;
     app->harpoon.windows = app->windows;
     app->harpoon.window_count = &app->window_count;
@@ -178,7 +180,7 @@ static void test_unassign_gc_removes_unlabeled_unreferenced_entry(void) {
     app.windows[0] = make_window(0x901, "Harpoon Me", "Kitty", "kitty", "Normal");
     assign_window_to_slot(&app.harpoon, 1, &app.windows[0]);
     ASSERT_TRUE("gc test created one match entry", app.matching.count == 1);
-    ASSERT_TRUE("gc test entry is unlabeled", app.matching.entries[0].custom_name[0] == '\0');
+    ASSERT_TRUE("gc test entry has no name record", app.names.count == 0);
 
     unassign_slot(&app.harpoon, 1);
     ASSERT_TRUE("gc removes unlabeled unreferenced entry",
@@ -197,12 +199,15 @@ static void test_gc_keeps_labeled_entry_without_harpoon_reference(void) {
     app.window_count = 1;
     app.windows[0] = make_window(0x902, "Keep Me", "Kitty", "kitty", "Normal");
     assign_window_to_slot(&app.harpoon, 2, &app.windows[0]);
-    safe_string_copy(app.matching.entries[0].custom_name, "named", sizeof(app.matching.entries[0].custom_name));
+    ASSERT_TRUE("name root stored",
+                names_store_set(&app.names, app.harpoon.slots[2].match_id, "named") == true);
 
     unassign_slot(&app.harpoon, 2);
-    ASSERT_TRUE("labeled entry survives gc", matching_run_gc(&app) == 0);
-    ASSERT_TRUE("labeled entry remains present", app.matching.count == 1);
-    ASSERT_TRUE("labeled entry name preserved", strcmp(app.matching.entries[0].custom_name, "named") == 0);
+    ASSERT_TRUE("named entry survives gc", matching_run_gc(&app) == 0);
+    ASSERT_TRUE("named entry remains present", app.matching.count == 1);
+    ASSERT_TRUE("name record preserved",
+                strcmp(names_store_get_by_match_id(&app.names, app.matching.entries[0].match_id),
+                       "named") == 0);
 }
 
 static void test_gc_keeps_layout_only_entry_without_harpoon_reference(void) {

@@ -37,7 +37,8 @@ See `CLAUDE.md` for the contributor contract and the full recursive
 - `emoji/` - emoji data, ranking, history, and provider tab.
 - `geom/` - saved layouts, geometry restore planning, tiling, and geom-rule synchronization.
 - `harpoon/` - persistent window slots, provider slot key handling, and per-workspace visible-window digit slots.
-- `matching/` - fuzzy ranking, match entries, custom names, pattern editing, and matching garbage collection.
+- `matching/` - fuzzy ranking, pure match-entry identities, and pattern editing.
+- `names/` - custom names keyed one-to-one by match id, Names provider, and name overlays.
 - `proc/` - process-list provider and process actions.
 - `profiles/` - browser profile discovery and provider tab.
 - `projects/` - tmux/zellij sessions, project folders, remote project scope, and PATH binary cache.

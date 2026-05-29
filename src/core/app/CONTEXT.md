@@ -10,12 +10,15 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 - The top-level `run_cofi()` startup, delegation, daemon binding, GTK main-loop, and shutdown sequence.
 - Application shell construction: the top-level GTK window, text view, entry, overlay root, and event signal wiring.
 - Baseline initialization of shared state fields before feature subsystems use them.
+- App-level matching GC orchestration across owner roots such as Harpoon slots,
+  Names records, saved layouts, and rules.
 - Startup ordering between CLI parsing, provider registration, X11 connection, config load, data enumeration, UI setup, hotkeys, and daemon monitoring.
 - The tiny C entrypoint that delegates `main()` to `run_cofi()`.
 
 ### Does Not Own
 - The behavior of feature subsystems stored inside `AppData`, such as matching, rules, harpoon, projects, calc, or sinks.
-- Window filtering, ranking, activation semantics, or provider row behavior beyond invoking their initialization hooks in order.
+- Window filtering, ranking, activation semantics, or provider row behavior
+  beyond invoking their initialization hooks in order.
 - The daemon socket wire format, hotkey binding model, config schema, or X11 event processing internals.
 - Command-line option parsing semantics beyond acting on the parsed `AppData` and setup outputs.
 - Rendering row contents, tab-specific UI behavior, or overlay business logic after the shell is wired.
@@ -28,6 +31,7 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 - `init_tab_visibility()`, `apply_provider_default_visibility()`
 - `init_app_data()`, `init_x11_connection()`, `init_workspaces()`
 - `init_window_list()`, `init_history_from_windows()`
+- `matching_run_gc()`
 - `setup_application()`, `on_textview_size_allocate_for_fixed_init()`
 - `run_cofi()`
 
@@ -85,6 +89,9 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 16. Normal shutdown after `gtk_main()` cleans up hotkeys, daemon monitoring,
     daemon socket cleanup registration, signal handlers, window highlight,
     X11 event monitoring, the X display connection, and any opened log file.
+17. `matching_run_gc()` collects live match ids from Harpoon slots, Names
+    records, layout records, and rule match ids, delegates removal to the
+    matching primitive, and saves matching only when entries were removed.
 
 ## Notes
 `AppData` is a shared state container, not a license for cross-subsystem reach-through. New feature behavior should still live behind the owning subsystem's API and only add fields here when state truly must be process-wide.

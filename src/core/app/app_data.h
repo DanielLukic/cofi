@@ -10,6 +10,7 @@
 #include "config/config.h"
 #include "x11/atom_cache.h"
 #include "matching/match_entry.h"
+#include "names/names_store.h"
 #include "harpoon/workspace_slots.h"
 #include "ui/slot_overlay.h"
 #include "ui/window_highlight.h"
@@ -164,9 +165,14 @@ typedef struct AppData {
     int filtered_harpoon_indices[MAX_HARPOON_SLOTS];  // Actual slot indices for filtered items
     int filtered_harpoon_count;
 
-    // Names tab data
+    // Matching tab data
     MatchEntry filtered_matching[MAX_WINDOWS];
     int filtered_matching_count;
+
+    // Names tab data
+    NameRecord filtered_names[MAX_WINDOWS];
+    int filtered_names_indices[MAX_WINDOWS];
+    int filtered_names_count;
 
     // Layouts tab data
     int filtered_geom[MAX_WINDOWS];    // Indices into layouts.records
@@ -259,7 +265,8 @@ typedef struct AppData {
     Display *display;
     AtomCache atoms;                        // Cached X11 atoms
     HarpoonManager harpoon;                 // Harpoon number assignments
-    MatchEntryManager matching;            // Custom window matching registry
+    MatchEntryManager matching;            // Pure window matching identity registry
+    NamesStore names;                      // Custom names by match_id
     LayoutStore layouts;                    // Saved window layouts by stable match_id
     CofiConfig config;                      // Unified configuration settings
     WorkspaceSlotManager workspace_slots;   // Per-workspace window slot assignments

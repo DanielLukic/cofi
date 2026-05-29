@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail=0
+
+if rg -n '#include "names/' src/matching; then
+    echo "FAIL: src/matching must not include names/"
+    fail=1
+fi
+
+if [[ "$fail" -eq 0 ]]; then
+    echo "PASS: src/matching has no names/ includes"
+fi
+
+exit "$fail"

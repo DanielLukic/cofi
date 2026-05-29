@@ -11,7 +11,7 @@
 #include <string.h>
 #include "core/log/log.h"
 #include "x11/window_list.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "ui/display.h"
 #include "x11/x11_utils.h"
 #include "harpoon/harpoon.h"

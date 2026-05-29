@@ -57,54 +57,12 @@ void match_entry_manager_init(MatchEntryManager *manager) {
         manager->entries[i].class_name[0] = '\0';
         manager->entries[i].instance[0] = '\0';
         manager->entries[i].type[0] = '\0';
-        manager->entries[i].custom_name[0] = '\0';
         manager->entries[i].original_title[0] = '\0';
     }
 }
 
-void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
-    if (!manager || !window || !custom_name || strlen(custom_name) == 0) return;
-
-    for (int i = 0; i < manager->count; i++) {
-        MatchEntry *entry = &manager->entries[i];
-        if (entry->custom_name[0] == '\0') continue;
-        if (!match_entry_matches_window(entry, window)) continue;
-        safe_string_copy(entry->custom_name, custom_name, MAX_TITLE_LEN);
-        entry->bound_x11_id = window->id;
-        entry->assigned = 1;
-        log_info("Updated custom name for window 0x%lx to '%s'", window->id, custom_name);
-        return;
-    }
-
-    int match_id = matching_create_entry(manager, window);
-    if (match_id <= 0) {
-        log_error("Cannot add more named windows, limit reached");
-        return;
-    }
-
-    int idx = match_entry_find_index_by_match_id(manager, match_id);
-    if (idx >= 0) {
-        MatchEntry *entry = &manager->entries[idx];
-        safe_string_copy(entry->custom_name, custom_name, MAX_TITLE_LEN);
-        entry->bound_x11_id = window->id;
-        entry->assigned = 1;
-        log_info("Assigned custom name '%s' to window 0x%lx", custom_name, window->id);
-    }
-}
-
-const char* match_entry_get_custom_name(const MatchEntryManager *manager, Window id) {
-    if (!manager || id == 0) return NULL;
-    
-    for (int i = 0; i < manager->count; i++) {
-        if (manager->entries[i].bound_x11_id == id && manager->entries[i].assigned) {
-            return manager->entries[i].custom_name[0] != '\0' ? manager->entries[i].custom_name : NULL;
-        }
-    }
-    return NULL;
-}
-
 int match_entry_is_bound_window(const MatchEntryManager *manager, Window id) {
-    return match_entry_get_custom_name(manager, id) != NULL;
+    return match_entry_find_index_by_window(manager, id) >= 0;
 }
 
 bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *window) {
@@ -129,7 +87,7 @@ bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *windo
 bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *windows, int window_count) {
     if (!manager || !windows) return false;
     
-    log_trace("match_entry_reassign_live_windows: checking %d windows against %d named entries",
+    log_trace("match_entry_reassign_live_windows: checking %d windows against %d entries",
              window_count, manager->count);
     
     int config_changed = 0;
@@ -138,8 +96,8 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
     for (int i = 0; i < manager->count; i++) {
         MatchEntry *entry = &manager->entries[i];
 
-        log_trace("Checking named entry %d: bound 0x%lx (%s), assigned=%d",
-                  i, entry->bound_x11_id, entry->custom_name, entry->assigned);
+        log_trace("Checking match entry %d: bound 0x%lx (%s), assigned=%d",
+                  i, entry->bound_x11_id, entry->original_title, entry->assigned);
         Window old_id = entry->bound_x11_id;
         int has_valid_binding = 0;
 
@@ -157,8 +115,8 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
         }
 
         if (!has_valid_binding) {
-            log_trace("Window 0x%lx with name '%s' is unbound or invalid, looking for replacement",
-                      old_id, entry->custom_name);
+            log_trace("Window 0x%lx for pattern '%s' is unbound or invalid, looking for replacement",
+                      old_id, entry->original_title);
             log_trace("Looking for title pattern '%s'",
                       entry->original_title);
 
@@ -166,46 +124,27 @@ bool match_entry_reassign_live_windows(MatchEntryManager *manager, WindowInfo *w
             entry->bound_x11_id = 0;
 
             for (int j = 0; j < window_count; j++) {
-                if (match_entry_is_bound_window(manager, windows[j].id)) {
-                    log_trace("Window 0x%lx already has a custom name, skipping", windows[j].id);
-                    continue;
-                }
-
                 if (match_entry_matches_window(entry, &windows[j])) {
                     entry->bound_x11_id = windows[j].id;
                     entry->assigned = 1;
                     config_changed = 1;
-                    log_info("Automatically reassigned name '%s' from window 0x%lx to 0x%lx",
-                             entry->custom_name, old_id, windows[j].id);
+                    log_info("Automatically rebound match entry %d from window 0x%lx to 0x%lx",
+                             entry->match_id, old_id, windows[j].id);
                     break;
                 }
             }
 
             if (!entry->assigned) {
-                log_trace("Could not find matching window for name '%s', marked as orphaned",
-                          entry->custom_name);
+                log_trace("Could not find matching window for match entry %d, marked as orphaned",
+                          entry->match_id);
             }
         }
     }
     
     if (config_changed) {
-        log_debug("Named windows were automatically reassigned");
+        log_debug("Match entries were automatically rebound");
     }
     return config_changed;
-}
-
-int match_entry_collect_labeled_ids(const MatchEntryManager *manager, int *out, int max) {
-    if (!manager || !out || max <= 0) return 0;
-
-    int count = 0;
-    for (int i = 0; i < manager->count && count < max; i++) {
-        if (manager->entries[i].custom_name[0] == '\0' || manager->entries[i].match_id <= 0) {
-            continue;
-        }
-        out[count++] = manager->entries[i].match_id;
-    }
-
-    return count;
 }
 
 int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int referenced_count) {
@@ -221,18 +160,18 @@ int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int re
 
         log_info("GC removing unreferenced match entry %d (match_id=%d)",
                  i, entry->match_id);
-        match_entry_delete_custom_name(manager, i);
+        match_entry_delete(manager, i);
         removed++;
     }
 
     return removed;
 }
 
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
+void match_entry_delete(MatchEntryManager *manager, int index) {
     if (!manager || index < 0 || index >= manager->count) return;
     
-    log_info("Deleting custom name '%s' for window 0x%lx",
-            manager->entries[index].custom_name, manager->entries[index].bound_x11_id);
+    log_info("Deleting match entry %d for window 0x%lx",
+            manager->entries[index].match_id, manager->entries[index].bound_x11_id);
     
     // Move all entries after this one back by one position
     for (int i = index; i < manager->count - 1; i++) {
@@ -246,17 +185,9 @@ void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
     manager->entries[manager->count - 1].class_name[0] = '\0';
     manager->entries[manager->count - 1].instance[0] = '\0';
     manager->entries[manager->count - 1].type[0] = '\0';
+    manager->entries[manager->count - 1].original_title[0] = '\0';
     
     manager->count--;
-}
-
-void match_entry_update_custom_name(MatchEntryManager *manager, int index, const char *new_name) {
-    if (!manager || index < 0 || index >= manager->count || !new_name) return;
-    
-    log_info("Updating custom name from '%s' to '%s' for window 0x%lx",
-            manager->entries[index].custom_name, new_name, manager->entries[index].bound_x11_id);
-    
-    safe_string_copy(manager->entries[index].custom_name, new_name, MAX_TITLE_LEN);
 }
 
 MatchEntry* match_entry_get_by_index(MatchEntryManager *manager, int index) {
@@ -279,17 +210,6 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     if (!manager || match_id <= 0) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].match_id == match_id) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
-    if (!manager || !custom_name) return -1;
-
-    for (int i = 0; i < manager->count; i++) {
-        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) {
             return i;
         }
     }

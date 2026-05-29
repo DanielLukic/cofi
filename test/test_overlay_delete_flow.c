@@ -4,7 +4,7 @@
 #include "core/app/app_data.h"
 #include "ui/overlay_confirm.h"
 #include "harpoon/overlay_harpoon.h"
-#include "matching/overlay_name.h"
+#include "names/overlay_names.h"
 #include "sessions/overlay_sessions.h"
 
 static int pass = 0;
@@ -19,12 +19,12 @@ static int g_hide_overlay_calls = 0;
 static int g_update_display_calls = 0;
 static int g_unassign_calls = 0;
 static int g_save_harpoon_calls = 0;
-static int g_save_match_entries_calls = 0;
+static int g_save_names_calls = 0;
 static int g_deleted_session_calls = 0;
 static int g_removed_session_calls = 0;
 
 #define TEST_HARPOON_TAB ((TabMode)(TAB_COUNT + 1))
-#define TEST_MATCHING_TAB ((TabMode)(TAB_COUNT + 2))
+#define TEST_NAMES_TAB ((TabMode)(TAB_COUNT + 2))
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -94,53 +94,75 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     return -1;
 }
 
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
-    if (!manager || !custom_name) return -1;
-    for (int i = 0; i < manager->count; i++) {
-        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) return i;
+void filter_windows(AppData *app, const char *query) {
+    (void)app; (void)query;
+}
+
+bool names_assign_window(AppData *app, WindowInfo *window, const char *name) {
+    (void)app; (void)window; (void)name;
+    return true;
+}
+
+bool names_store_save(const NamesStore *store) {
+    (void)store;
+    g_save_names_calls++;
+    return true;
+}
+
+bool names_store_set(NamesStore *store, int match_id, const char *name) {
+    if (!store || store->count >= MAX_WINDOWS) return false;
+    for (int i = 0; i < store->count; i++) {
+        if (store->records[i].match_id == match_id) {
+            g_strlcpy(store->records[i].custom_name, name ? name : "",
+                      sizeof(store->records[i].custom_name));
+            return true;
+        }
     }
-    return -1;
+    store->records[store->count].match_id = match_id;
+    g_strlcpy(store->records[store->count].custom_name, name ? name : "",
+              sizeof(store->records[store->count].custom_name));
+    store->count++;
+    return true;
 }
 
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
-    if (!manager || index < 0 || index >= manager->count) return;
-    for (int i = index; i < manager->count - 1; i++) {
-        manager->entries[i] = manager->entries[i + 1];
+NameRecord *names_store_find_by_custom_name(NamesStore *store, const char *name) {
+    if (!store || !name) return NULL;
+    for (int i = 0; i < store->count; i++) {
+        if (strcmp(store->records[i].custom_name, name) == 0) return &store->records[i];
     }
-    manager->count--;
+    return NULL;
 }
 
-void save_match_entries(const MatchEntryManager *manager) {
-    (void)manager;
-    g_save_match_entries_calls++;
+bool names_store_remove_by_match_id(NamesStore *store, int match_id) {
+    if (!store) return false;
+    for (int i = 0; i < store->count; i++) {
+        if (store->records[i].match_id != match_id) continue;
+        for (int j = i; j < store->count - 1; j++) {
+            store->records[j] = store->records[j + 1];
+        }
+        store->count--;
+        return true;
+    }
+    return false;
 }
 
-void filter_matching(AppData *app, const char *filter) {
-    (void)filter;
-    app->filtered_matching_count = app->matching.count;
-    for (int i = 0; i < app->matching.count; i++) app->filtered_matching[i] = app->matching.entries[i];
+NameRecord *names_selected_record(AppData *app) {
+    if (!app || app->filtered_names_count <= 0) return NULL;
+    return &app->filtered_names[0];
 }
 
-MatchEntry *matching_selected_entry(AppData *app) {
-    if (!app || app->filtered_matching_count <= 0) return NULL;
-    return &app->filtered_matching[0];
-}
-
-void match_entry_assign_custom_name(MatchEntryManager *manager, const WindowInfo *window, const char *custom_name) {
-    (void)manager; (void)window; (void)custom_name;
-}
-
-void match_entry_update_custom_name(MatchEntryManager *manager, int index, const char *new_name) {
-    (void)manager; (void)index; (void)new_name;
-}
-
-int matching_selected_manager_index(AppData *app) {
+int names_selected_store_index(AppData *app) {
     (void)app;
     return 0;
 }
 
-void filter_windows(AppData *app, const char *query) {
-    (void)app; (void)query;
+void names_on_query_changed(AppData *app, const char *query) {
+    (void)query;
+    app->filtered_names_count = app->names.count;
+    for (int i = 0; i < app->names.count; i++) {
+        app->filtered_names[i] = app->names.records[i];
+        app->filtered_names_indices[i] = i;
+    }
 }
 
 void filter_harpoon(AppData *app, const char *query) {
@@ -183,7 +205,7 @@ void sessions_provider_rename_path(AppData *app, const char *path, const char *n
 }
 
 TabMode harpoon_tab_mode(void) { return TEST_HARPOON_TAB; }
-TabMode matching_tab_mode(void) { return TEST_MATCHING_TAB; }
+TabMode names_tab_mode(void) { return TEST_NAMES_TAB; }
 
 static GdkEventKey key_confirm_y(void) {
     GdkEventKey event;
@@ -197,7 +219,7 @@ static void reset_counters(void) {
     g_update_display_calls = 0;
     g_unassign_calls = 0;
     g_save_harpoon_calls = 0;
-    g_save_match_entries_calls = 0;
+    g_save_names_calls = 0;
     g_deleted_session_calls = 0;
     g_removed_session_calls = 0;
 }
@@ -228,18 +250,20 @@ static void test_name_delete_confirm_flow(void) {
     memset(&app, 0, sizeof(app));
     app.entry = gtk_entry_new();
     app.selection.provider_index = 1;
-    app.matching.count = 2;
-    strcpy(app.matching.entries[0].custom_name, "alpha");
-    strcpy(app.matching.entries[1].custom_name, "beta");
+    app.names.count = 2;
+    app.names.records[0].match_id = 10;
+    strcpy(app.names.records[0].custom_name, "alpha");
+    app.names.records[1].match_id = 11;
+    strcpy(app.names.records[1].custom_name, "beta");
 
     reset_counters();
-    show_name_delete_confirm(&app, "beta", 1);
+    show_name_delete_confirm(&app, "beta", 11);
     GdkEventKey ev = key_confirm_y();
     gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
 
     ASSERT_TRUE("name delete handled", handled == TRUE);
-    ASSERT_TRUE("name removed", app.matching.count == 1 && strcmp(app.matching.entries[0].custom_name, "alpha") == 0);
-    ASSERT_TRUE("name delete persisted", g_save_match_entries_calls == 1);
+    ASSERT_TRUE("name removed", app.names.count == 1 && strcmp(app.names.records[0].custom_name, "alpha") == 0);
+    ASSERT_TRUE("name delete persisted", g_save_names_calls == 1);
     ASSERT_TRUE("name delete updated UI", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
 }
 

@@ -10,8 +10,9 @@
 #include "geom/layout_store.h"
 #include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "geom/window_geometry_matching.h"
+#include "names/names_store.h"
 #include "x11/x11_utils.h"
 #include "core/utils/utils.h"
 
@@ -132,6 +133,7 @@ static void init_app(AppData *app) {
     match_entry_manager_init(&app->matching);
     init_harpoon_manager(&app->harpoon);
     layout_store_init(&app->layouts);
+    names_store_init(&app->names);
     app->harpoon.matching = &app->matching;
     app->harpoon.windows = app->windows;
     app->harpoon.window_count = &app->window_count;
@@ -185,7 +187,10 @@ static void test_matching_gc_composes_label_harpoon_and_layout_consumers(void) {
     app.windows[3] = make_window(0x604, "Bare", "Kitty", "kitty-d", "Normal");
     app.windows[4] = make_window(0x605, "Rules", "Kitty", "kitty-e", "Normal");
 
-    match_entry_assign_custom_name(&app.matching, &app.windows[0], "named");
+    int named_match_id = matching_create_entry(&app.matching, &app.windows[0]);
+    ASSERT_TRUE("named entry captured", named_match_id > 0);
+    ASSERT_TRUE("name root stored",
+                names_store_set(&app.names, named_match_id, "named") == true);
     assign_window_to_slot(&app.harpoon, 1, &app.windows[1]);
     int layout_match_id = matching_create_entry(&app.matching, &app.windows[2]);
     int bare_match_id = matching_create_entry(&app.matching, &app.windows[3]);
@@ -205,7 +210,9 @@ static void test_matching_gc_composes_label_harpoon_and_layout_consumers(void) {
 
     ASSERT_TRUE("gc removes only bare entry", matching_run_gc(&app) == 1);
     ASSERT_TRUE("four referenced entries remain", app.matching.count == 4);
-    ASSERT_TRUE("named entry survives", match_entry_find_index_by_custom_name(&app.matching, "named") >= 0);
+    ASSERT_TRUE("named entry survives", match_entry_find_index_by_match_id(&app.matching, named_match_id) >= 0);
+    ASSERT_TRUE("name record survives",
+                strcmp(names_store_get_by_match_id(&app.names, named_match_id), "named") == 0);
     ASSERT_TRUE("harpoon entry survives", find_match_id_by_window(&app, 0x602) > 0);
     ASSERT_TRUE("layout-only entry survives", match_entry_find_index_by_match_id(&app.matching, layout_match_id) >= 0);
     ASSERT_TRUE("rules-only entry survives", match_entry_find_index_by_match_id(&app.matching, rules_match_id) >= 0);

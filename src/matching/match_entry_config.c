@@ -94,8 +94,6 @@ void save_match_entries(const MatchEntryManager *manager) {
         json_builder_add_int_value(builder, entry->match_id);
         json_builder_set_member_name(builder, "bound_x11_id");
         json_builder_add_int_value(builder, (gint64)entry->bound_x11_id);
-        json_builder_set_member_name(builder, "custom_name");
-        json_builder_add_string_value(builder, entry->custom_name);
         json_builder_set_member_name(builder, "original_title");
         json_builder_add_string_value(builder, entry->original_title);
         json_builder_set_member_name(builder, "class_name");
@@ -152,9 +150,6 @@ void load_match_entries(MatchEntryManager *manager) {
             memset(&entry, 0, sizeof(entry));
             entry.match_id = cofi_json_obj_int_or(entry_obj, "match_id", 0, NULL);
             entry.bound_x11_id = 0;
-            g_strlcpy(entry.custom_name,
-                      cofi_json_obj_str_or(entry_obj, "custom_name", "", NULL),
-                      sizeof(entry.custom_name));
             g_strlcpy(entry.original_title,
                       cofi_json_obj_str_or(entry_obj, "original_title", "", NULL),
                       sizeof(entry.original_title));

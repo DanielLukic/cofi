@@ -9,6 +9,7 @@
 #include "daemon/hotkeys_provider.h"
 #include "ui/key_handler.h"
 #include "matching/matching_provider.h"
+#include "names/names_provider.h"
 #include "rules/rules_provider.h"
 #include "projects/projects_parse.h"
 #include "projects/projects_provider.h"
@@ -30,10 +31,10 @@ static int fail = 0;
 static int g_show_name_edit_calls;
 static int g_show_pattern_edit_calls;
 static int g_last_name_edit_index;
-static MatchEntry g_last_name_edit_named;
+static NameRecord g_last_name_edit_named;
 
 static int g_show_name_delete_calls;
-static int g_last_name_delete_manager_index;
+static int g_last_name_delete_match_id;
 static char g_last_matching_delete_custom_name[MAX_TITLE_LEN];
 
 static int g_show_harpoon_delete_calls;
@@ -69,6 +70,7 @@ static gboolean g_stub_has_selected_folder;
 #define TEST_HOTKEYS_TAB  ((TabMode)(TAB_COUNT + 5))
 #define TEST_RULES_TAB    ((TabMode)(TAB_COUNT + 6))
 #define TEST_APPS_TAB     ((TabMode)(TAB_COUNT + 7))
+#define TEST_NAMES_TAB    ((TabMode)(TAB_COUNT + 8))
 
 static int g_show_overlay_calls;
 static OverlayType g_last_overlay_type;
@@ -80,6 +82,8 @@ static int g_get_next_enum_calls;
 static char g_last_get_next_enum_key[64];
 static char g_last_get_next_enum_value[64];
 static int g_last_provider_tab_lookup = -1;
+
+gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app);
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level; (void)file; (void)line; (void)fmt;
@@ -126,23 +130,26 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
+    static CofiTabProvider names_provider;
     static CofiTabProvider projects_provider;
     static CofiTabProvider harpoon_provider;
     memset(&matching_provider, 0, sizeof(matching_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
+    memset(&names_provider, 0, sizeof(names_provider));
     memset(&projects_provider, 0, sizeof(projects_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     g_last_provider_tab_lookup = tab_mode;
     matching_provider.tab_mode = TEST_MATCHING_TAB;
-    matching_provider.handle_key = handle_matching_tab_keys;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     config_provider.handle_key = handle_config_tab_keys;
     hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     hotkeys_provider.handle_key = handle_hotkeys_tab_keys;
     rules_provider.tab_mode = TEST_RULES_TAB;
     rules_provider.handle_key = handle_rules_tab_keys;
+    names_provider.tab_mode = TEST_NAMES_TAB;
+    names_provider.handle_key = handle_names_tab_keys;
     projects_provider.tab_mode = TEST_PROJECTS_TAB;
     projects_provider.handle_key = handle_projects_tab_keys;
     harpoon_provider.tab_mode = TEST_HARPOON_TAB;
@@ -153,6 +160,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TEST_CONFIG_TAB) return &config_provider;
     if (tab_mode == TEST_HOTKEYS_TAB) return &hotkeys_provider;
     if (tab_mode == TEST_RULES_TAB) return &rules_provider;
+    if (tab_mode == TEST_NAMES_TAB) return &names_provider;
     if (tab_mode == TEST_HARPOON_TAB) return &harpoon_provider;
 
     switch ((TabMode)tab_mode) {
@@ -167,17 +175,20 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
     static CofiTabProvider config_provider;
     static CofiTabProvider hotkeys_provider;
     static CofiTabProvider rules_provider;
+    static CofiTabProvider names_provider;
     static CofiTabProvider harpoon_provider;
     (void)provider_id;
     memset(&matching_provider, 0, sizeof(matching_provider));
     memset(&config_provider, 0, sizeof(config_provider));
     memset(&hotkeys_provider, 0, sizeof(hotkeys_provider));
     memset(&rules_provider, 0, sizeof(rules_provider));
+    memset(&names_provider, 0, sizeof(names_provider));
     memset(&harpoon_provider, 0, sizeof(harpoon_provider));
     matching_provider.tab_mode = TEST_MATCHING_TAB;
     config_provider.tab_mode = TEST_CONFIG_TAB;
     hotkeys_provider.tab_mode = TEST_HOTKEYS_TAB;
     rules_provider.tab_mode = TEST_RULES_TAB;
+    names_provider.tab_mode = TEST_NAMES_TAB;
     harpoon_provider.tab_mode = TEST_HARPOON_TAB;
     if (g_last_provider_tab_lookup == TEST_HARPOON_TAB)
         return &harpoon_provider;
@@ -185,6 +196,8 @@ const CofiTabProvider *cofi_get_provider(int provider_id) {
         return &config_provider;
     if (g_last_provider_tab_lookup == TEST_HOTKEYS_TAB)
         return &hotkeys_provider;
+    if (g_last_provider_tab_lookup == TEST_NAMES_TAB)
+        return &names_provider;
     return g_last_provider_tab_lookup == TEST_RULES_TAB ? &rules_provider : &matching_provider;
 }
 
@@ -231,8 +244,8 @@ void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 void show_name_edit_overlay(AppData *app) {
     g_show_name_edit_calls++;
     g_last_name_edit_index = app ? app->selection.provider_index : -1;
-    if (app && app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_matching_count) {
-        g_last_name_edit_named = app->filtered_matching[app->selection.provider_index];
+    if (app && app->selection.provider_index >= 0 && app->selection.provider_index < app->filtered_names_count) {
+        g_last_name_edit_named = app->filtered_names[app->selection.provider_index];
     } else {
         memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
     }
@@ -250,10 +263,10 @@ gboolean show_pattern_edit_overlay(AppData *app, int match_id, const char *conte
     return TRUE;
 }
 
-void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {
+void show_name_delete_overlay(AppData *app, const char *custom_name, int match_id) {
     (void)app;
     g_show_name_delete_calls++;
-    g_last_name_delete_manager_index = manager_index;
+    g_last_name_delete_match_id = match_id;
     strncpy(g_last_matching_delete_custom_name,
             custom_name ? custom_name : "",
             sizeof(g_last_matching_delete_custom_name) - 1);
@@ -264,16 +277,6 @@ int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id
     if (!manager) return -1;
     for (int i = 0; i < manager->count; i++) {
         if (manager->entries[i].bound_x11_id == id) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int match_entry_find_index_by_custom_name(const MatchEntryManager *manager, const char *custom_name) {
-    if (!manager || !custom_name) return -1;
-    for (int i = 0; i < manager->count; i++) {
-        if (strcmp(manager->entries[i].custom_name, custom_name) == 0) {
             return i;
         }
     }
@@ -293,14 +296,6 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     return -1;
 }
 
-void match_entry_delete_custom_name(MatchEntryManager *manager, int index) {
-    if (!manager || index < 0 || index >= manager->count) return;
-    for (int i = index; i < manager->count - 1; i++) {
-        manager->entries[i] = manager->entries[i + 1];
-    }
-    manager->count--;
-}
-
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; g_save_match_entries_calls++; }
 
 void filter_matching(AppData *app, const char *filter) {
@@ -309,6 +304,35 @@ void filter_matching(AppData *app, const char *filter) {
     for (int i = 0; i < app->matching.count; i++) {
         app->filtered_matching[i] = app->matching.entries[i];
     }
+}
+
+gboolean handle_names_tab_keys(GdkEventKey *event, AppData *app) {
+    if (!app || app->current_tab != TEST_NAMES_TAB) return FALSE;
+    if (event->keyval == GDK_KEY_e && (event->state & GDK_CONTROL_MASK)) {
+        if (app->filtered_names_count <= 0) return FALSE;
+        show_name_edit_overlay(app);
+        return TRUE;
+    }
+    if (event->keyval == GDK_KEY_d && (event->state & GDK_CONTROL_MASK)) {
+        if (app->filtered_names_count <= 0 ||
+            app->selection.provider_index < 0 ||
+            app->selection.provider_index >= app->filtered_names_count) {
+            return FALSE;
+        }
+        NameRecord *record = &app->filtered_names[app->selection.provider_index];
+        show_name_delete_overlay(app, record->custom_name, record->match_id);
+        return TRUE;
+    }
+    if (event->keyval == GDK_KEY_p && (event->state & GDK_CONTROL_MASK)) {
+        if (app->filtered_names_count <= 0 ||
+            app->selection.provider_index < 0 ||
+            app->selection.provider_index >= app->filtered_names_count) {
+            return FALSE;
+        }
+        NameRecord *record = &app->filtered_names[app->selection.provider_index];
+        return show_pattern_edit_overlay(app, record->match_id, record->custom_name);
+    }
+    return FALSE;
 }
 
 void show_harpoon_delete_overlay(AppData *app, int slot) {
@@ -552,7 +576,7 @@ static void reset_captures(void) {
     memset(&g_last_name_edit_named, 0, sizeof(g_last_name_edit_named));
 
     g_show_name_delete_calls = 0;
-    g_last_name_delete_manager_index = -1;
+    g_last_name_delete_match_id = -1;
     g_last_matching_delete_custom_name[0] = '\0';
 
     g_show_harpoon_delete_calls = 0;
@@ -628,12 +652,13 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_MATCHING_TAB;
-    app.filtered_matching_count = 2;
+    app.current_tab = TEST_NAMES_TAB;
+    app.filtered_names_count = 2;
     app.selection.provider_index = 1;
-    strcpy(app.filtered_matching[0].custom_name, "alpha");
-    strcpy(app.filtered_matching[1].custom_name, "beta");
-    app.filtered_matching[1].bound_x11_id = (Window)0xBEEF;
+    app.filtered_names[0].match_id = 11;
+    strcpy(app.filtered_names[0].custom_name, "alpha");
+    app.filtered_names[1].match_id = 22;
+    strcpy(app.filtered_names[1].custom_name, "beta");
 
     GdkEventKey ev = make_key(GDK_KEY_e, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -643,7 +668,7 @@ static void test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named(void) {
     ASSERT_TRUE("Ctrl+e on Names overlay targets selected index", g_last_name_edit_index == 1);
     ASSERT_TRUE("Ctrl+e on Names overlay targets selected named entry",
                 strcmp(g_last_name_edit_named.custom_name, "beta") == 0 &&
-                g_last_name_edit_named.bound_x11_id == (Window)0xBEEF);
+                g_last_name_edit_named.match_id == 22);
 }
 
 static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
@@ -651,16 +676,16 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_MATCHING_TAB;
-    app.matching.count = 2;
-    app.matching.entries[0].match_id = 11;
-    strcpy(app.matching.entries[0].custom_name, "alpha");
-    app.matching.entries[1].match_id = 22;
-    strcpy(app.matching.entries[1].custom_name, "beta");
-    app.filtered_matching_count = 1;
+    app.current_tab = TEST_NAMES_TAB;
+    app.names.count = 2;
+    app.names.records[0].match_id = 11;
+    strcpy(app.names.records[0].custom_name, "alpha");
+    app.names.records[1].match_id = 22;
+    strcpy(app.names.records[1].custom_name, "beta");
+    app.filtered_names_count = 1;
     app.selection.provider_index = 0;
-    app.filtered_matching[0].match_id = 22;
-    strcpy(app.filtered_matching[0].custom_name, "beta");
+    app.filtered_names[0].match_id = 22;
+    strcpy(app.filtered_names[0].custom_name, "beta");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -669,26 +694,27 @@ static void test_ctrl_d_names_tab_shows_delete_confirm_overlay(void) {
     ASSERT_TRUE("Ctrl+d on Names shows delete-confirm overlay",
                 g_show_name_delete_calls == 1 &&
                 strcmp(g_last_matching_delete_custom_name, "beta") == 0 &&
-                g_last_name_delete_manager_index == 1);
+                g_last_name_delete_match_id == 22);
     ASSERT_TRUE("Ctrl+d on Names does not delete immediately",
-                app.matching.count == 2 && g_save_match_entries_calls == 0);
+                app.names.count == 2 && g_save_match_entries_calls == 0);
 }
 
-static void test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry(void) {
+static void test_ctrl_p_names_tab_shows_pattern_overlay_for_selected_name(void) {
     AppData app;
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_MATCHING_TAB;
-    app.filtered_matching_count = 1;
+    app.current_tab = TEST_NAMES_TAB;
+    app.filtered_names_count = 1;
     app.selection.provider_index = 0;
-    strcpy(app.filtered_matching[0].custom_name, "beta");
+    app.filtered_names[0].match_id = 101;
+    strcpy(app.filtered_names[0].custom_name, "billing");
 
     GdkEventKey ev = make_key(GDK_KEY_p, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
 
-    ASSERT_TRUE("Ctrl+p on Matching handled", handled == TRUE);
-    ASSERT_TRUE("Ctrl+p on Matching shows pattern edit overlay",
+    ASSERT_TRUE("Ctrl+p on Names handled", handled == TRUE);
+    ASSERT_TRUE("Ctrl+p on Names shows pattern edit overlay",
                 g_show_pattern_edit_calls == 1);
 }
 
@@ -697,12 +723,12 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     init_app(&app);
     reset_captures();
 
-    app.current_tab = TEST_MATCHING_TAB;
-    app.matching.count = 0;
-    app.filtered_matching_count = 1;
+    app.current_tab = TEST_NAMES_TAB;
+    app.names.count = 0;
+    app.filtered_names_count = 1;
     app.selection.provider_index = 0;
-    app.filtered_matching[0].bound_x11_id = (Window)0xDEAD;
-    strcpy(app.filtered_matching[0].custom_name, "orphan");
+    app.filtered_names[0].match_id = 44;
+    strcpy(app.filtered_names[0].custom_name, "orphan");
 
     GdkEventKey ev = make_key(GDK_KEY_d, GDK_CONTROL_MASK);
     gboolean handled = on_key_press(NULL, &ev, &app);
@@ -711,7 +737,7 @@ static void test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_in
     ASSERT_TRUE("Ctrl+d on unresolved Names row still shows overlay",
                 g_show_name_delete_calls == 1 &&
                 strcmp(g_last_matching_delete_custom_name, "orphan") == 0 &&
-                g_last_name_delete_manager_index == -1);
+                g_last_name_delete_match_id == 44);
 }
 
 static void test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot(void) {
@@ -1161,7 +1187,7 @@ int main(int argc, char **argv) {
 
     test_ctrl_e_names_tab_shows_edit_overlay_for_selected_named();
     test_ctrl_d_names_tab_shows_delete_confirm_overlay();
-    test_ctrl_p_matching_tab_shows_pattern_overlay_for_selected_entry();
+    test_ctrl_p_names_tab_shows_pattern_overlay_for_selected_name();
     test_ctrl_d_names_tab_shows_overlay_even_without_resolved_manager_index();
     test_ctrl_d_harpoon_tab_delete_overlay_only_for_assigned_slot();
     test_ctrl_e_harpoon_tab_is_noop();

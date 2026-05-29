@@ -425,23 +425,29 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an inline hides window", hide_window_calls == 1);
     ASSERT_TRUE("an inline does not open overlay", show_name_assign_overlay_calls == 0);
     ASSERT_TRUE("an inline creates/updates match entry", inline_idx >= 0);
-    ASSERT_TRUE("an inline sets custom name",
-                inline_idx >= 0 && strcmp(app.matching.entries[inline_idx].custom_name, "mywin") == 0);
+    ASSERT_TRUE("an inline creates one name record", app.names.count == 1);
+    ASSERT_TRUE("an inline stores custom name by match id",
+                inline_idx >= 0 &&
+                strcmp(names_store_get_by_match_id(&app.names,
+                                                   app.matching.entries[inline_idx].match_id),
+                       "mywin") == 0);
 
-    app.matching.entries[inline_idx].custom_name[0] = '\0';
     int count_before_relabel = app.matching.count;
+    int names_before_relabel = app.names.count;
     hide_window_calls = 0;
     g_save_match_entries_calls = 0;
     gboolean relabel_result = cmd->handler(&app, &window, "bar");
-    int relabel_idx = match_entry_find_index_by_custom_name(&app.matching, "bar");
 
     ASSERT_TRUE("an relabel after clear returns TRUE", relabel_result == TRUE);
-    ASSERT_TRUE("an relabel creates fresh entry", app.matching.count == count_before_relabel + 1);
+    ASSERT_TRUE("an relabel reuses matching identity", app.matching.count == count_before_relabel);
+    ASSERT_TRUE("an relabel updates existing name record", app.names.count == names_before_relabel);
     ASSERT_TRUE("an relabel persists entries", g_save_match_entries_calls == 1);
     ASSERT_TRUE("an relabel hides window", hide_window_calls == 1);
-    ASSERT_TRUE("an relabel stores new name", relabel_idx >= 0);
-    ASSERT_TRUE("an relabel keeps cleared entry unlabeled",
-                app.matching.entries[inline_idx].custom_name[0] == '\0');
+    ASSERT_TRUE("an relabel stores new name",
+                inline_idx >= 0 &&
+                strcmp(names_store_get_by_match_id(&app.names,
+                                                   app.matching.entries[inline_idx].match_id),
+                       "bar") == 0);
 
     show_name_assign_overlay_calls = 0;
     hide_window_calls = 0;

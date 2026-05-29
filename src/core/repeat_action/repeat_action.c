@@ -1,7 +1,7 @@
 #include "core/repeat_action/repeat_action.h"
 #include "core/app/app_data.h"
 #include "ui/display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "core/selection/selection.h"
 #include "ui/window_highlight.h"
 #include "x11/x11_events.h"

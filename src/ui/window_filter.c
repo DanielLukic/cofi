@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include "core/app/app_data.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "x11/window_info.h"
 #include "core/history/history.h"
 #include "core/log/log.h"
@@ -17,7 +17,7 @@
 #include "core/selection/selection.h"
 #include "x11/x11_utils.h"
 #include "matching/match_entry.h"
-#include "matching/window_display_title.h"
+#include "ui/window_display_title.h"
 #include <X11/Xatom.h>
 
 #define UNUSED __attribute__((unused))
@@ -29,6 +29,7 @@ typedef struct {
 } ScoredWindow;
 
 static const MatchEntryManager *g_filter_match_manager = NULL;
+static const NamesStore *g_filter_names_store = NULL;
 
 // Comparison function for qsort
 static int compare_scores(const void *a, const void *b) {
@@ -59,7 +60,8 @@ static void compose_display_string(const WindowInfo *win, char *out, size_t out_
     }
 
     char display_title[MAX_TITLE_LEN];
-    compose_window_display_title(g_filter_match_manager, win, display_title, sizeof(display_title));
+    compose_window_display_title(g_filter_match_manager, g_filter_names_store,
+                                 win, display_title, sizeof(display_title));
     snprintf(out, out_size, "%s %s %s %s",
              desktop_str, display_instance, display_title, display_class);
 }
@@ -395,10 +397,12 @@ void filter_windows(AppData *app, const char *filter) {
 
     // Step 2: Score and filter windows directly from history
     g_filter_match_manager = &app->matching;
+    g_filter_names_store = &app->names;
     ScoredWindow scored_windows[MAX_WINDOWS];
     int scored_count = score_and_filter_windows(app, filter, app->history, 
                                                app->history_count, scored_windows);
     g_filter_match_manager = NULL;
+    g_filter_names_store = NULL;
     
     // Step 3: Sort by score
     sort_scored_windows(scored_windows, scored_count, filter);

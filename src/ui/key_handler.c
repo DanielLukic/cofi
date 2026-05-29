@@ -8,7 +8,7 @@
 #include "providers/cofi_tab_provider.h"
 #include "commands/command_mode.h"
 #include "ui/display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "matching/filter_matching.h"
 #include "harpoon/harpoon_provider.h"
 #include "harpoon/key_handler_harpoon.h"

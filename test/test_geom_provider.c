@@ -113,7 +113,6 @@ static void seed_layouts(AppData *app) {
     app->matching.entries[0].match_id = 11;
     app->matching.entries[0].assigned = 1;
     app->matching.entries[0].bound_x11_id = 0x111;
-    g_strlcpy(app->matching.entries[0].custom_name, "alpha", sizeof(app->matching.entries[0].custom_name));
     g_strlcpy(app->matching.entries[0].original_title, "Alpha Title", sizeof(app->matching.entries[0].original_title));
     app->matching.entries[1].match_id = 22;
     app->matching.entries[1].assigned = 1;
@@ -132,11 +131,11 @@ static void seed_layouts(AppData *app) {
 static void test_filter_and_row_format(void) {
     AppData app; CofiRowCells row;
     reset_app(&app); seed_layouts(&app);
-    geom_on_query_changed(&app, "alpha");
-    ASSERT_TRUE("filter substring on class", app.filtered_geom_count == 1);
+    geom_on_query_changed(&app, "Alpha");
+    ASSERT_TRUE("filter substring on pattern", app.filtered_geom_count == 1);
     geom_format_row(&app, 0, &row);
     ASSERT_TRUE("row has five cells", row.cell_count == 5);
-    ASSERT_TRUE("row label uses custom_name", strcmp(row.cells[0].text, "alpha") == 0);
+    ASSERT_TRUE("row label uses pattern", strcmp(row.cells[0].text, "Alpha Title") == 0);
     ASSERT_TRUE("row includes flags", strstr(row.cells[3].text, "V") && strstr(row.cells[3].text, "L"));
 }
 

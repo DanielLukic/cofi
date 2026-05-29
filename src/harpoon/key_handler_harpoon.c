@@ -7,7 +7,7 @@
 #include "harpoon/harpoon_config.h"
 #include "core/log/log.h"
 #include "matching/match_entry_config.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "core/selection/selection.h"
 #include "core/slot_store/slot_store.h"
 #include "ui/window_highlight.h"

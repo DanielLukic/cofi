@@ -6,7 +6,7 @@
 #include "providers/cofi_tab_provider.h"
 #include "config/config.h"
 #include "ui/display.h"
-#include "matching/filter.h"
+#include "ui/window_filter.h"
 #include "core/log/log.h"
 #include "core/selection/selection.h"
 #include "ui/tab_metadata.h"

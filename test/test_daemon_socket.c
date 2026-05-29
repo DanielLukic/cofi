@@ -50,7 +50,7 @@ static void test_opcode_validation(void) {
     ASSERT_TRUE("opcode applications valid", daemon_socket_is_valid_opcode(COFI_OPCODE_APPLICATIONS));
     ASSERT_TRUE("opcode show-tab valid", daemon_socket_is_valid_opcode(COFI_OPCODE_SHOW_TAB));
     ASSERT_TRUE("opcode 0 reserved invalid", !daemon_socket_is_valid_opcode(COFI_OPCODE_RESERVED));
-    ASSERT_TRUE("opcode 9 invalid", !daemon_socket_is_valid_opcode(9));
+    ASSERT_TRUE("opcode 250 invalid", !daemon_socket_is_valid_opcode(250));
 }
 
 static void test_socket_path_derivation(void) {
@@ -130,6 +130,7 @@ static void test_socket_level_delivery_harness(void) {
             COFI_OPCODE_WORKSPACES,
             COFI_OPCODE_HARPOON,
             COFI_OPCODE_MATCHING,
+            COFI_OPCODE_NAMES,
             COFI_OPCODE_COMMAND,
             COFI_OPCODE_RUN,
             COFI_OPCODE_APPLICATIONS
@@ -148,6 +149,7 @@ static void test_socket_level_delivery_harness(void) {
         COFI_OPCODE_WORKSPACES,
         COFI_OPCODE_HARPOON,
         COFI_OPCODE_MATCHING,
+        COFI_OPCODE_NAMES,
         COFI_OPCODE_COMMAND,
         COFI_OPCODE_RUN,
         COFI_OPCODE_APPLICATIONS

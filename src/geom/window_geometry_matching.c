@@ -4,7 +4,7 @@
 #include "geom/geom_rule_sync.h"
 #include "geom/layout_store.h"
 #include "core/log/log.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "matching/match_entry_config.h"
 #include "x11/monitor_move.h"
 #include "x11/x11_utils.h"

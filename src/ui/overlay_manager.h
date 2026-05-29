@@ -25,7 +25,7 @@ void show_harpoon_delete_overlay(AppData *app, int slot_index);
 void show_name_assign_overlay(AppData *app);
 void show_name_edit_overlay(AppData *app);
 void show_name_pattern_edit_overlay(AppData *app);
-void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index);
+void show_name_delete_overlay(AppData *app, const char *custom_name, int match_id);
 void show_rule_add_overlay(AppData *app);
 void show_rule_edit_overlay(AppData *app);
 void show_rule_delete_overlay(AppData *app, int rule_index);

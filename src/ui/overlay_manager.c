@@ -6,7 +6,7 @@
 #include "ui/overlay_dispatch.h"
 #include "ui/overlay_confirm.h"
 #include "harpoon/overlay_harpoon.h"
-#include "matching/overlay_name.h"
+#include "names/overlay_names.h"
 extern void show_window(AppData *app);
 static gboolean on_overlay_key_press(GtkWidget *widget,
                                      GdkEventKey *event,

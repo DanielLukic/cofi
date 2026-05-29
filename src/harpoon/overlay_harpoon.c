@@ -6,7 +6,7 @@
 #include "core/selection/selection.h"
 #include "core/log/log.h"
 #include "matching/match_entry.h"
-#include "matching/matching_gc.h"
+#include "core/app/matching_gc.h"
 #include "ui/overlay_confirm.h"
 
 extern void unassign_slot(HarpoonManager *harpoon, int slot);
