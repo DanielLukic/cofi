@@ -52,11 +52,11 @@ activating windows on the current workspace.
    positive `match_id`, marks the slot assigned, and mirrors the payload into
    the shared slot store under the `windows` tab id.
 3. Assigning a window already represented in another Harpoon slot clears the old
-   slot before assigning the new one, so one window identity has at most one
-   active Harpoon slot.
+   slot and deletes that old slot's owned match entry before assigning the new
+   one, so one window identity has at most one active Harpoon slot.
 4. Pressing the same assignment shortcut on a slot already matching the selected
-   window toggles that slot off, runs matching garbage collection, and persists
-   both matching entries and Harpoon slots.
+   window toggles that slot off, deletes that slot's owned match entry, and
+   persists both matching entries and Harpoon slots.
 5. Window slot recall returns the live bound X11 window when available; if the
    binding is stale, it reassigns live windows through the matching manager
    before deciding whether the slot can be activated.
@@ -104,10 +104,10 @@ activating windows on the current workspace.
     position.
 20. In the Harpoon tab, `Ctrl+D` opens delete confirmation for the selected
     actual slot and `Ctrl+P` opens pattern editing with `Slot: <key>` context.
-21. Confirming a Harpoon delete clears the selected slot, runs matching garbage
-    collection, saves Harpoon slots, logs the user action, rebuilds filtered
-    Harpoon rows without a query reset, restores selection, and refreshes the
-    display.
+21. Confirming a Harpoon delete clears the selected slot, deletes that slot's
+    owned match entry, saves matching entries and Harpoon slots, logs the user
+    action, rebuilds filtered Harpoon rows without a query reset, restores
+    selection, and refreshes the display.
 22. Workspace jump/move overlays render limited workspace grids using current
     workspace names, one-based labels, and visual markers for the user's current
     workspace and the selected window's workspace.

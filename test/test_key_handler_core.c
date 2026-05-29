@@ -410,6 +410,9 @@ void save_harpoon_slots(const HarpoonManager *manager) { (void)manager; }
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     (void)manager; (void)match_id; return -1;
 }
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    (void)manager; (void)match_id;
+}
 void save_config(const CofiConfig *config) { (void)config; }
 void show_name_edit_overlay(AppData *app) { (void)app; }
 void show_name_delete_overlay(AppData *app, const char *custom_name, int manager_index) {

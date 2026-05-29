@@ -41,6 +41,9 @@ int match_entry_gc(MatchEntryManager *manager, const int *referenced_ids, int re
 // Delete a match entry by index.
 void match_entry_delete(MatchEntryManager *manager, int index);
 
+// Delete a match entry by stable match id. Missing ids are a no-op.
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id);
+
 // Get entry by index.
 MatchEntry* match_entry_get_by_index(MatchEntryManager *manager, int index);
 

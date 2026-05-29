@@ -2,6 +2,8 @@
 set -euo pipefail
 
 fail=0
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$repo_root"
 
 if rg -n '#include "names/' src/matching; then
     echo "FAIL: src/matching must not include names/"
@@ -10,6 +12,17 @@ fi
 
 if [[ "$fail" -eq 0 ]]; then
     echo "PASS: src/matching has no names/ includes"
+fi
+
+gc_callers="$(rg -l -g '*.c' -g '*.h' 'matching_run_gc\(' src | grep -v '^src/core/app/' || true)"
+if [[ -n "$gc_callers" ]]; then
+    echo "$gc_callers"
+    echo "FAIL: per-action matching_run_gc callers must not remain outside core/app"
+    fail=1
+fi
+
+if [[ "$fail" -eq 0 ]]; then
+    echo "PASS: matching_run_gc is app-level startup-only"
 fi
 
 exit "$fail"

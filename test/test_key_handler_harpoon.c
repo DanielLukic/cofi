@@ -46,6 +46,8 @@ static const CofiTabProvider *g_provider_for_tab;
 static CofiTabProvider g_sinks_provider;
 static CofiTabProvider g_ctrl_n_provider;
 static int g_matching_run_gc_calls;
+static int g_delete_by_match_id_calls;
+static int g_last_deleted_match_id;
 
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
@@ -239,6 +241,26 @@ void unassign_slot(HarpoonManager *manager, int slot) {
 
 int matching_run_gc(AppData *app) { (void)app; g_matching_run_gc_calls++; return 0; }
 
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    int idx = -1;
+    if (manager) {
+        for (int i = 0; i < manager->count; i++) {
+            if (manager->entries[i].match_id == match_id) {
+                idx = i;
+                break;
+            }
+        }
+    }
+    if (idx < 0) return;
+    g_delete_by_match_id_calls++;
+    g_last_deleted_match_id = match_id;
+    for (int i = idx; i < manager->count - 1; i++) {
+        manager->entries[i] = manager->entries[i + 1];
+    }
+    memset(&manager->entries[manager->count - 1], 0, sizeof(manager->entries[0]));
+    manager->count--;
+}
+
 void assign_window_to_slot(HarpoonManager *manager, int slot, const WindowInfo *window) {
     if (!manager || !window || slot < 0 || slot >= MAX_HARPOON_SLOTS || !manager->matching) return;
     int match_id = 0;
@@ -356,6 +378,8 @@ static void reset_captures(void) {
     g_ctrl_n_recall_calls = 0;
     g_provider_for_tab = NULL;
     g_matching_run_gc_calls = 0;
+    g_delete_by_match_id_calls = 0;
+    g_last_deleted_match_id = 0;
 }
 
 static void init_app(AppData *app) {
@@ -410,6 +434,10 @@ static void test_ctrl_1_second_press_unassigns_same_window(void) {
 
     ASSERT_TRUE("Ctrl+1 re-press handled", handled == TRUE);
     ASSERT_TRUE("Ctrl+1 re-press unassigns slot 1", app.harpoon.slots[1].assigned == 0);
+    ASSERT_TRUE("Ctrl+1 re-press deletes owned match entry",
+                g_delete_by_match_id_calls == 1 &&
+                g_last_deleted_match_id > 0 &&
+                app.matching.count == 0);
 }
 
 static void test_ctrl_j_without_shift_not_assignment(void) {
@@ -464,6 +492,13 @@ static void test_ctrl_5_reassigns_existing_window_from_old_slot(void) {
     ASSERT_TRUE("Reassignment clears old slot 3", app.harpoon.slots[3].assigned == 0);
     ASSERT_TRUE("Reassignment sets new slot 5", app.harpoon.slots[5].assigned == 1);
     ASSERT_TRUE("Reassignment new slot 5 resolves selected window", get_slot_window(&app.harpoon, 5) == x);
+    ASSERT_TRUE("Reassignment deletes displaced old match entry",
+                g_delete_by_match_id_calls == 1 &&
+                g_last_deleted_match_id == 44 &&
+                match_entry_find_index_by_match_id(&app.matching, 44) == -1);
+    ASSERT_TRUE("Reassignment keeps new slot match entry",
+                app.harpoon.slots[5].match_id > 0 &&
+                match_entry_find_index_by_match_id(&app.matching, app.harpoon.slots[5].match_id) >= 0);
 }
 
 static void test_alt_1_workspaces_mode_switches_workspace(void) {

@@ -6,8 +6,8 @@
 #include "harpoon/harpoon.h"
 #include "harpoon/harpoon_config.h"
 #include "core/log/log.h"
+#include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
-#include "core/app/matching_gc.h"
 #include "core/selection/selection.h"
 #include "core/slot_store/slot_store.h"
 #include "ui/window_highlight.h"
@@ -58,26 +58,32 @@ gboolean harpoon_assign_or_toggle_window(AppData *app, WindowInfo *selected_wind
     }
 
     if (target_entry && match_entry_matches_window(target_entry, selected_window)) {
+        int match_id = app->harpoon.slots[slot].match_id;
         unassign_slot(&app->harpoon, slot);
-        matching_run_gc(app);
+        match_entry_delete_by_match_id(&app->matching, match_id);
         log_info("Unassigned window '%s' from slot %d", selected_window->title, slot);
     } else {
+        int replaced_slot_match_id = app->harpoon.slots[slot].assigned
+                                   ? app->harpoon.slots[slot].match_id
+                                   : 0;
         for (int i = 0; i < MAX_HARPOON_SLOTS; i++) {
             if (i == slot) continue;
             if (!app->harpoon.slots[i].assigned || app->harpoon.slots[i].match_id <= 0) continue;
+            int old_match_id = app->harpoon.slots[i].match_id;
             int idx = match_entry_find_index_by_match_id(&app->matching, app->harpoon.slots[i].match_id);
             if (idx < 0) continue;
             if (match_entry_matches_window(&app->matching.entries[idx], selected_window)) {
                 unassign_slot(&app->harpoon, i);
+                match_entry_delete_by_match_id(&app->matching, old_match_id);
             }
         }
+        match_entry_delete_by_match_id(&app->matching, replaced_slot_match_id);
         assign_window_to_slot(&app->harpoon, slot, selected_window);
         int new_idx = match_entry_find_index_by_match_id(&app->matching, app->harpoon.slots[slot].match_id);
         if (new_idx >= 0) {
             app->matching.entries[new_idx].bound_x11_id = selected_window->id;
             app->matching.entries[new_idx].assigned = 1;
         }
-        matching_run_gc(app);
         log_info("Assigned window '%s' to slot %d", selected_window->title, slot);
     }
 

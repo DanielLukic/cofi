@@ -7,7 +7,7 @@
 #include "geom/geom_rule_sync.h"
 #include "core/log/log.h"
 #include "matching/match.h"
-#include "core/app/matching_gc.h"
+#include "matching/match_entry_config.h"
 #include "ui/overlay_confirm.h"
 #include "matching/overlay_pattern.h"
 #include "core/selection/selection.h"
@@ -176,7 +176,8 @@ static void geom_delete_confirmed(AppData *app) {
         return;
     }
     geom_rule_sync_for_layout(app, match_id);
-    matching_run_gc(app);
+    match_entry_delete_by_match_id(&app->matching, match_id);
+    save_match_entries(&app->matching);
     const char *query = "";
     if (app->entry) {
         query = gtk_entry_get_text(GTK_ENTRY(app->entry));

@@ -90,8 +90,9 @@ in sync with saved records.
     existing binding; missing bindings or missing layouts are handled no-ops,
     and failure is reported only when an applicable layout cannot be applied.
 14. Clearing geometry removes the saved layout for the selected window's match
-    id, saves the layout store, runs matching garbage collection, and treats
-    missing bindings or missing layout records as handled no-ops.
+    id, saves the layout store, deletes that layout's owned match entry, saves
+    matching entries, and treats missing bindings or missing layout records as
+    handled no-ops.
 15. Geom rule sync creates one tagged `geom` rule with command segment `rl` per
     enabled layout record, keyed by that layout's anchored `match_id`; the rule
     stores the entry title only as pattern cache/display text.
@@ -110,8 +111,9 @@ in sync with saved records.
     binding status; row identity is `geom:<match_id>`. Geom rows do not look up
     Names records.
 20. In the geom tab, Delete or `Ctrl+D` asks for delete confirmation; confirmed
-    delete clears the layout, saves, syncs the layout's match id, runs matching GC,
-    refilters, clamps selection, and refreshes display.
+    delete clears the layout, saves, syncs the layout's match id, deletes that
+    layout's owned match entry, saves matching entries, refilters, clamps
+    selection, and refreshes display.
 21. `Ctrl+L` toggles whether restore follows the saved desktop, `Ctrl+T`
     toggles layout enablement and syncs geom rules, and `Ctrl+P` opens pattern
     editing with the selected layout geometry as context.

@@ -42,8 +42,8 @@ that higher layers use to find, restore, name, and target windows.
   `match_entry_gc()`,
   `match_entry_get_by_index()`, `match_entry_find_index_by_window()`,
   `match_entry_find_index_by_match_id()`,
-  `match_entry_matches_window()`, `matching_create_entry()`, and
-  `matching_create_pattern_entry()`
+  `match_entry_matches_window()`, `match_entry_delete_by_match_id()`,
+  `matching_create_entry()`, and `matching_create_pattern_entry()`
 - `save_match_entries()` and `load_match_entries()`
 - `windows_match_fuzzy()`, `titles_match_fuzzy()`,
   `get_title_base_length()`, and `wildcard_match()`
@@ -90,8 +90,9 @@ that higher layers use to find, restore, name, and target windows.
     `match_id`, not by live X11 id.
 12. Match entries are pure identity records and never own custom display names;
     names are stored in `names.json` by `src/names/`.
-13. Deleting a match entry compacts later entries, clears the vacated tail slot,
-    and never reuses the removed match id.
+13. Deleting a match entry by index or stable match id compacts later entries,
+    clears the vacated tail slot, never reuses the removed match id, and treats
+    a missing match id as a no-op.
 14. Loading `matching.json` initializes an empty manager first, tolerates missing
     files, restores saved entries up to `MAX_WINDOWS`, and normalizes missing or
     duplicate match ids to fresh positive ids.
@@ -110,8 +111,9 @@ that higher layers use to find, restore, name, and target windows.
     edit keys, and only supports browsing/filtering identity rows.
 20. Name assignment is owned by `src/names/`; matching only allocates or updates
     the identity entry requested by that subsystem.
-21. Name editing and deletion are owned by `src/names/` and must not mutate
-    `matching.json` except indirectly through matching GC removing unowned ids.
+21. Name editing and deletion are owned by `src/names/`; name deletion may
+    delete that name record's owned match entry, while name editing must not
+    mutate `matching.json`.
 22. Pattern editing refuses missing or orphaned targets with an explanatory
     confirmation overlay; successful edits save matching and refresh the active
     Matching, Rules, Geom, or Harpoon view as appropriate.

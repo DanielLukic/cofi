@@ -20,6 +20,8 @@ static int g_update_display_calls = 0;
 static int g_unassign_calls = 0;
 static int g_save_harpoon_calls = 0;
 static int g_save_names_calls = 0;
+static int g_save_match_calls = 0;
+static int g_delete_by_match_id_calls = 0;
 static int g_deleted_session_calls = 0;
 static int g_removed_session_calls = 0;
 
@@ -84,6 +86,30 @@ void save_harpoon_slots(const HarpoonManager *harpoon) {
 int matching_run_gc(AppData *app) {
     (void)app;
     return 0;
+}
+
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    g_delete_by_match_id_calls++;
+    int idx = -1;
+    if (manager) {
+        for (int i = 0; i < manager->count; i++) {
+            if (manager->entries[i].match_id == match_id) {
+                idx = i;
+                break;
+            }
+        }
+    }
+    if (idx < 0) return;
+    for (int i = idx; i < manager->count - 1; i++) {
+        manager->entries[i] = manager->entries[i + 1];
+    }
+    memset(&manager->entries[manager->count - 1], 0, sizeof(manager->entries[0]));
+    manager->count--;
+}
+
+void save_match_entries(const MatchEntryManager *manager) {
+    (void)manager;
+    g_save_match_calls++;
 }
 
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
@@ -220,6 +246,8 @@ static void reset_counters(void) {
     g_unassign_calls = 0;
     g_save_harpoon_calls = 0;
     g_save_names_calls = 0;
+    g_save_match_calls = 0;
+    g_delete_by_match_id_calls = 0;
     g_deleted_session_calls = 0;
     g_removed_session_calls = 0;
 }
@@ -240,6 +268,11 @@ static void test_harpoon_delete_confirm_flow(void) {
 
     ASSERT_TRUE("harpoon delete handled", handled == TRUE);
     ASSERT_TRUE("harpoon slot unassigned", g_unassign_calls == 1 && app.harpoon.slots[2].assigned == 0);
+    ASSERT_TRUE("harpoon delete removes owned match entry",
+                g_delete_by_match_id_calls == 1 &&
+                app.matching.count == 0 &&
+                match_entry_find_index_by_match_id(&app.matching, 12) == -1);
+    ASSERT_TRUE("harpoon delete persists matching", g_save_match_calls == 1);
     ASSERT_TRUE("harpoon save called", g_save_harpoon_calls == 1);
     ASSERT_TRUE("harpoon rows rebuilt", app.filtered_harpoon_count == 0);
     ASSERT_TRUE("harpoon UI updated", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
@@ -255,6 +288,11 @@ static void test_name_delete_confirm_flow(void) {
     strcpy(app.names.records[0].custom_name, "alpha");
     app.names.records[1].match_id = 11;
     strcpy(app.names.records[1].custom_name, "beta");
+    app.matching.count = 2;
+    app.matching.entries[0].match_id = 10;
+    strcpy(app.matching.entries[0].original_title, "Alpha");
+    app.matching.entries[1].match_id = 11;
+    strcpy(app.matching.entries[1].original_title, "Beta");
 
     reset_counters();
     show_name_delete_confirm(&app, "beta", 11);
@@ -263,6 +301,12 @@ static void test_name_delete_confirm_flow(void) {
 
     ASSERT_TRUE("name delete handled", handled == TRUE);
     ASSERT_TRUE("name removed", app.names.count == 1 && strcmp(app.names.records[0].custom_name, "alpha") == 0);
+    ASSERT_TRUE("name delete removes owned match entry",
+                g_delete_by_match_id_calls == 1 &&
+                app.matching.count == 1 &&
+                match_entry_find_index_by_match_id(&app.matching, 11) == -1 &&
+                match_entry_find_index_by_match_id(&app.matching, 10) >= 0);
+    ASSERT_TRUE("name delete persists matching", g_save_match_calls == 1);
     ASSERT_TRUE("name delete persisted", g_save_names_calls == 1);
     ASSERT_TRUE("name delete updated UI", g_update_display_calls == 1 && g_hide_overlay_calls == 1);
 }

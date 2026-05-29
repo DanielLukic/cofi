@@ -4,7 +4,6 @@
 #include "geom/geom_rule_sync.h"
 #include "geom/layout_store.h"
 #include "core/log/log.h"
-#include "core/app/matching_gc.h"
 #include "matching/match_entry_config.h"
 #include "x11/monitor_move.h"
 #include "x11/x11_utils.h"
@@ -304,7 +303,8 @@ gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window
     }
 
     layout_store_save(&app->layouts);
-    matching_run_gc(app);
+    match_entry_delete_by_match_id(&app->matching, match_id);
+    save_match_entries(&app->matching);
     log_info("Cleared saved layout for window 0x%lx (match_id=%d)", window->id, match_id);
     return TRUE;
 }

@@ -246,6 +246,33 @@ static void test_delete(void) {
     tests_passed++;
 }
 
+static void test_delete_by_match_id(void) {
+    printf("\n--- match_entry_delete_by_match_id ---\n");
+
+    MatchEntryManager mgr;
+    match_entry_manager_init(&mgr);
+
+    WindowInfo w1 = make_window(10, "A", "ClassA", "instA", "Normal");
+    WindowInfo w2 = make_window(20, "B", "ClassB", "instB", "Normal");
+    WindowInfo w3 = make_window(30, "C", "ClassC", "instC", "Normal");
+    int first_id = matching_create_entry(&mgr, &w1);
+    int second_id = matching_create_entry(&mgr, &w2);
+    int third_id = matching_create_entry(&mgr, &w3);
+
+    ASSERT_INT("count is 3", 3, mgr.count);
+    match_entry_delete_by_match_id(&mgr, second_id);
+    ASSERT_INT("count drops after match-id delete", 2, mgr.count);
+    ASSERT_INT("deleted id is gone", -1, match_entry_find_index_by_match_id(&mgr, second_id));
+    ASSERT_INT("first id remains", 1, match_entry_find_index_by_match_id(&mgr, first_id) >= 0);
+    ASSERT_INT("third id remains", 1, match_entry_find_index_by_match_id(&mgr, third_id) >= 0);
+    ASSERT_STR("third shifted but id retained", "C", mgr.entries[1].original_title);
+
+    match_entry_delete_by_match_id(&mgr, 999);
+    match_entry_delete_by_match_id(&mgr, -1);
+    match_entry_delete_by_match_id(NULL, first_id);
+    ASSERT_INT("missing match-id delete is idempotent", 2, mgr.count);
+}
+
 static void test_get_by_index(void) {
     printf("\n--- match_entry_get_by_index ---\n");
 
@@ -1013,6 +1040,7 @@ int main(void) {
     test_is_window_already_bound();
     test_find_by_index();
     test_delete();
+    test_delete_by_match_id();
     test_get_by_index();
     test_reassign_entries();
     test_reassign_no_match();

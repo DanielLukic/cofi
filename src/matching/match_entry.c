@@ -189,6 +189,16 @@ void match_entry_delete(MatchEntryManager *manager, int index) {
     manager->count--;
 }
 
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    if (!manager || match_id <= 0) return;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) {
+            match_entry_delete(manager, i);
+            return;
+        }
+    }
+}
+
 MatchEntry* match_entry_get_by_index(MatchEntryManager *manager, int index) {
     if (!manager || index < 0 || index >= manager->count) return NULL;
     return &manager->entries[index];

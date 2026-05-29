@@ -75,9 +75,10 @@ presentation data.
 13. `Ctrl+E` opens the selected Names row for custom-name editing, `Ctrl+P`
     opens matching pattern editing for that name record's `match_id`, and
     `Ctrl+D` asks for delete confirmation before removing the name record.
-14. Name editing updates only `names.json`; name deletion removes only the
-    `NameRecord`, saves names, runs matching GC, refilters with
-    preserve/restore selection, and refreshes display.
+14. Name editing updates only `names.json`; name deletion removes the
+    `NameRecord`, saves names, deletes that record's owned match entry, saves
+    matching entries, refilters with preserve/restore selection, and refreshes
+    display.
 15. Names may import matching to resolve identity records and allocate match ids;
     matching identity code must not depend on names.
 
@@ -85,8 +86,8 @@ presentation data.
 - Names is a first-class owner of match ids. Each name record owns exactly one
   match id, and that match id may be distinct from Harpoon, geom, or rules
   entries that also happen to match the same live X11 window.
-- App-level `matching_run_gc()` collects name roots through
-  `names_store_collect_ids()`; the lower-level matching subsystem does not
-  import names.
+- App-level startup `matching_run_gc()` collects name roots through
+  `names_store_collect_ids()` as a crash/legacy-data seatbelt; normal name
+  deletion removes the owned match entry directly.
 - Legacy `custom_name` fields in `matching.json` are intentionally ignored; no
   migration is performed.

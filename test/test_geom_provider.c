@@ -22,6 +22,9 @@ static int tests_passed = 0;
 static int g_reset_selection_calls;
 static int g_update_display_calls;
 static int g_matching_run_gc_calls;
+static int g_save_match_calls;
+static int g_delete_by_match_id_calls;
+static int g_last_deleted_match_id;
 static int g_show_confirm_calls;
 static void (*g_confirm_cb)(AppData *);
 static int g_geom_rule_sync_calls;
@@ -65,6 +68,25 @@ int has_match(const char *needle, const char *haystack) { return !needle || !nee
 void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
 void update_display(AppData *app) { (void)app; g_update_display_calls++; }
 int matching_run_gc(AppData *app) { (void)app; g_matching_run_gc_calls++; return 1; }
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    g_delete_by_match_id_calls++;
+    g_last_deleted_match_id = match_id;
+    int idx = -1;
+    if (manager) {
+        for (int i = 0; i < manager->count; i++) {
+            if (manager->entries[i].match_id == match_id) {
+                idx = i;
+                break;
+            }
+        }
+    }
+    if (idx < 0) return;
+    for (int i = idx; i < manager->count - 1; i++) {
+        manager->entries[i] = manager->entries[i + 1];
+    }
+    memset(&manager->entries[manager->count - 1], 0, sizeof(manager->entries[0]));
+    manager->count--;
+}
 int geom_rule_sync_for_layout(AppData *app, int match_id) {
     (void)app;
     g_geom_rule_sync_calls++;
@@ -105,7 +127,7 @@ void xmove_resize_frame_aware(Display *display, Window window, int x, int y, int
 void move_window_to_desktop(Display *display, Window window, int desktop) { (void)display;(void)window;(void)desktop; g_move_desktop_calls++; }
 void switch_to_desktop(Display *display, int desktop) { (void)display;(void)desktop; g_switch_desktop_calls++; }
 int XFlush(Display *display) { (void)display; g_flush_calls++; return 0; }
-void save_match_entries(const MatchEntryManager *manager) { (void)manager; }
+void save_match_entries(const MatchEntryManager *manager) { (void)manager; g_save_match_calls++; }
 int matching_create_entry(MatchEntryManager *manager, const WindowInfo *window) {
     (void)window;
     if (!manager) return -1;
@@ -115,7 +137,13 @@ bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *windo
     if (!entry || !window) return false;
     return strcmp(entry->original_title, window->title) == 0;
 }
-int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) { (void)manager;(void)id; return -1; }
+int match_entry_find_index_by_window(const MatchEntryManager *manager, Window id) {
+    if (!manager || id == 0) return -1;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].bound_x11_id == id) return i;
+    }
+    return -1;
+}
 bool match_entry_reassign_live_windows(MatchEntryManager *m, WindowInfo *w, int c) { (void)m;(void)w;(void)c; return false; }
 
 #include "geom/geom_provider.c"
@@ -128,6 +156,9 @@ static void reset_app(AppData *app) {
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
     g_matching_run_gc_calls = 0;
+    g_save_match_calls = 0;
+    g_delete_by_match_id_calls = 0;
+    g_last_deleted_match_id = 0;
     g_show_confirm_calls = 0;
     g_confirm_cb = NULL;
     g_geom_rule_sync_calls = 0;
@@ -177,9 +208,31 @@ static void test_delete_flow_and_selection_clamp(void) {
     ASSERT_TRUE("delete asks confirm", g_show_confirm_calls == 1 && g_confirm_cb != NULL);
     g_confirm_cb(&app);
     ASSERT_TRUE("delete clears record", app.layouts.count == 1);
-    ASSERT_TRUE("delete runs gc", g_matching_run_gc_calls == 1);
+    ASSERT_TRUE("delete removes owned match entry",
+                g_delete_by_match_id_calls == 1 &&
+                g_last_deleted_match_id == 22 &&
+                app.matching.count == 1 &&
+                match_entry_find_index_by_match_id(&app.matching, 22) == -1 &&
+                match_entry_find_index_by_match_id(&app.matching, 11) >= 0);
+    ASSERT_TRUE("delete persists matching", g_save_match_calls == 1);
     ASSERT_TRUE("delete syncs geom rule", g_geom_rule_sync_calls == 1 && g_last_synced_match_id == 22);
     ASSERT_TRUE("selection clamped", app.selection.provider_index == 0);
+}
+
+static void test_clear_window_geometry_deletes_owned_entry(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    WindowInfo window = {.id = 0x111};
+    g_strlcpy(window.title, "Alpha Title", sizeof(window.title));
+    ASSERT_TRUE("geometry clear handled", clear_window_geometry_for_window(&app, &window) == TRUE);
+    ASSERT_TRUE("geometry clear removes layout", app.layouts.count == 1 &&
+                app.layouts.records[0].match_id == 22);
+    ASSERT_TRUE("geometry clear removes owned match entry",
+                g_delete_by_match_id_calls == 1 &&
+                g_last_deleted_match_id == 11 &&
+                app.matching.count == 1 &&
+                match_entry_find_index_by_match_id(&app.matching, 11) == -1 &&
+                match_entry_find_index_by_match_id(&app.matching, 22) >= 0);
+    ASSERT_TRUE("geometry clear persists matching", g_save_match_calls == 1);
 }
 
 static void test_toggles_persist(void) {
@@ -229,6 +282,7 @@ int main(void) {
     geom_provider_register();
     test_filter_and_row_format();
     test_delete_flow_and_selection_clamp();
+    test_clear_window_geometry_deletes_owned_entry();
     test_toggles_persist();
     test_skip_missing_entry_and_empty_store();
     test_apply_respects_flags();

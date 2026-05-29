@@ -296,6 +296,11 @@ int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int mat
     return -1;
 }
 
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    (void)manager;
+    (void)match_id;
+}
+
 void save_match_entries(const MatchEntryManager *manager) { (void)manager; g_save_match_entries_calls++; }
 
 void filter_matching(AppData *app, const char *filter) {

@@ -10,8 +10,8 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 - The top-level `run_cofi()` startup, delegation, daemon binding, GTK main-loop, and shutdown sequence.
 - Application shell construction: the top-level GTK window, text view, entry, overlay root, and event signal wiring.
 - Baseline initialization of shared state fields before feature subsystems use them.
-- App-level matching GC orchestration across owner roots such as Harpoon slots,
-  Names records, saved layouts, and rules.
+- Startup-only matching GC orchestration across owner roots such as Harpoon
+  slots, Names records, saved layouts, and rules.
 - Startup ordering between CLI parsing, provider registration, X11 connection, config load, data enumeration, UI setup, hotkeys, and daemon monitoring.
 - The tiny C entrypoint that delegates `main()` to `run_cofi()`.
 
@@ -90,9 +90,10 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 16. Normal shutdown after `gtk_main()` cleans up hotkeys, daemon monitoring,
     daemon socket cleanup registration, signal handlers, window highlight,
     X11 event monitoring, the X display connection, and any opened log file.
-17. `matching_run_gc()` collects live match ids from Harpoon slots, Names
-    records, layout records, and rule match ids, delegates removal to the
-    matching primitive, and saves matching only when entries were removed.
+17. `matching_run_gc()` is a startup-only crash/legacy-data seatbelt: it
+    collects live match ids from Harpoon slots, Names records, layout records,
+    and rule match ids, delegates removal to the matching primitive, and saves
+    matching only when entries were removed.
 
 ## Notes
 `AppData` is a shared state container, not a license for cross-subsystem reach-through. New feature behavior should still live behind the owning subsystem's API and only add fields here when state truly must be process-wide.

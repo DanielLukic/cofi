@@ -6,7 +6,7 @@
 #include "core/selection/selection.h"
 #include "core/log/log.h"
 #include "matching/match_entry.h"
-#include "core/app/matching_gc.h"
+#include "matching/match_entry_config.h"
 #include "ui/overlay_confirm.h"
 
 extern void unassign_slot(HarpoonManager *harpoon, int slot);
@@ -52,8 +52,10 @@ static void perform_harpoon_delete(AppData *app) {
         return;
     }
 
+    int match_id = app->harpoon.slots[slot_index].match_id;
     unassign_slot(&app->harpoon, slot_index);
-    matching_run_gc(app);
+    match_entry_delete_by_match_id(&app->matching, match_id);
+    save_match_entries(&app->matching);
     save_harpoon_slots(&app->harpoon);
     log_info("USER: Deleted harpoon assignment for slot %d", slot_index);
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";

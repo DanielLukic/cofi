@@ -5,8 +5,8 @@
 #include "core/log/log.h"
 #include "core/selection/selection.h"
 #include "ui/window_filter.h"
+#include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
-#include "core/app/matching_gc.h"
 #include "names/names_provider.h"
 #include "names/names_store.h"
 #include "ui/display.h"
@@ -162,7 +162,8 @@ static void perform_name_delete(AppData *app) {
 
     if (match_id > 0 && names_store_remove_by_match_id(&app->names, match_id)) {
         names_store_save(&app->names);
-        matching_run_gc(app);
+        match_entry_delete_by_match_id(&app->matching, match_id);
+        save_match_entries(&app->matching);
     } else {
         log_warn("Delete target unresolved for '%s'", s_name_delete_custom_name);
     }
