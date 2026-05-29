@@ -302,7 +302,11 @@ gboolean clear_window_geometry_for_window(AppData *app, const WindowInfo *window
         return TRUE;
     }
 
-    layout_store_save(&app->layouts);
+    if (!layout_store_save(&app->layouts)) {
+        log_warn("geom: layout save failed after clear; skipping rule sync");
+        return FALSE;
+    }
+    geom_rule_remove_for_match_id(app, match_id);
     match_entry_delete_by_match_id(&app->matching, match_id);
     save_match_entries(&app->matching);
     log_info("Cleared saved layout for window 0x%lx (match_id=%d)", window->id, match_id);

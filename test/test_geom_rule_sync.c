@@ -8,6 +8,7 @@
 #include "geom/geom_rule_sync.h"
 #include "geom/window_geometry_matching.h"
 #include "matching/match_entry.h"
+#include "matching/match_entry_config.h"
 #include "rules/rules_config.h"
 #include "x11/frame_extents.h"
 #include "x11/x11_utils.h"
@@ -155,6 +156,18 @@ static int count_geom_rules(const RulesConfig *config, const char *pattern) {
     return count;
 }
 
+static int count_geom_rules_by_match_id(const RulesConfig *config, int match_id) {
+    int count = 0;
+    for (int i = 0; i < config->count; i++) {
+        if (strcmp(config->rules[i].tag, "geom") == 0 &&
+            config->rules[i].match_id == match_id &&
+            rule_commands_contain_segment(config->rules[i].commands, "rl")) {
+            count++;
+        }
+    }
+    return count;
+}
+
 static int find_geom_rule_index_by_pattern(const RulesConfig *config, const char *pattern) {
     for (int i = 0; i < config->count; i++) {
         if (strcmp(config->rules[i].tag, "geom") == 0 &&
@@ -247,6 +260,63 @@ static void test_untagged_rule_untouched(void) {
     ASSERT_TRUE("untagged rl rule remains", app.rules_config.count == 2);
     ASSERT_TRUE("sync still manages tagged rule independently",
                 count_geom_rules(&app.rules_config, "Browser") == 1);
+
+    app.layouts.records[0].disabled = true;
+    geom_rule_sync_for_pattern(&app, "Browser");
+    ASSERT_TRUE("disabled layout removes only tagged geom rule",
+                count_geom_rules(&app.rules_config, "Browser") == 0);
+    ASSERT_TRUE("untagged user rl rule survives disabled-layout sync",
+                app.rules_config.count == 1 &&
+                app.rules_config.rules[0].tag[0] == '\0' &&
+                rule_commands_contain_segment(app.rules_config.rules[0].commands, "rl"));
+}
+
+static void test_remove_geom_rule_by_match_id_is_selective(void) {
+    AppData app;
+    init_test_app(&app);
+    add_rule(&app.rules_config, "Target", "rl");
+    app.rules_config.rules[0].match_id = 401;
+    g_strlcpy(app.rules_config.rules[0].tag, "geom",
+              sizeof(app.rules_config.rules[0].tag));
+    add_rule(&app.rules_config, "User Target", "rl");
+    app.rules_config.rules[1].match_id = 401;
+    add_rule(&app.rules_config, "Other Geom", "rl");
+    app.rules_config.rules[2].match_id = 402;
+    g_strlcpy(app.rules_config.rules[2].tag, "geom",
+              sizeof(app.rules_config.rules[2].tag));
+    add_rule(&app.rules_config, "Non Restore", "noop");
+    app.rules_config.rules[3].match_id = 401;
+    g_strlcpy(app.rules_config.rules[3].tag, "geom",
+              sizeof(app.rules_config.rules[3].tag));
+
+    ASSERT_INT("remove geom rule returns removed", 1,
+               geom_rule_remove_for_match_id(&app, 401));
+    ASSERT_INT("target tagged geom rule removed", 0,
+               count_geom_rules_by_match_id(&app.rules_config, 401));
+    ASSERT_TRUE("untagged user rl rule remains",
+                app.rules_config.count == 3 &&
+                app.rules_config.rules[0].match_id == 401 &&
+                app.rules_config.rules[0].tag[0] == '\0' &&
+                rule_commands_contain_segment(app.rules_config.rules[0].commands, "rl"));
+    ASSERT_INT("other tagged geom rule remains", 1,
+               count_geom_rules_by_match_id(&app.rules_config, 402));
+    ASSERT_TRUE("non-restore geom-tagged rule remains",
+                app.rules_config.rules[2].match_id == 401 &&
+                strcmp(app.rules_config.rules[2].tag, "geom") == 0 &&
+                !rule_commands_contain_segment(app.rules_config.rules[2].commands, "rl"));
+
+    RulesConfig saved_rules;
+    load_rules_config(&saved_rules, NULL);
+    ASSERT_INT("removed target rule stays removed on disk", 0,
+               count_geom_rules_by_match_id(&saved_rules, 401));
+    ASSERT_INT("other geom rule persisted", 1,
+               count_geom_rules_by_match_id(&saved_rules, 402));
+
+    int count_after_remove = app.rules_config.count;
+    ASSERT_INT("remove absent geom rule no-ops", 0,
+               geom_rule_remove_for_match_id(&app, 999));
+    ASSERT_INT("absent remove keeps rule count", count_after_remove,
+               app.rules_config.count);
 }
 
 static void test_startup_heal_create_and_delete(void) {
@@ -452,6 +522,45 @@ static void test_restore_prefers_current_title_layout_over_stale_binding(void) {
     ASSERT_INT("stream entry assigned", 1, app.matching.entries[1].assigned);
 }
 
+static void test_clear_geometry_removes_tagged_geom_rule_and_entry(void) {
+    AppData app;
+    init_test_app(&app);
+    add_layout_with_pattern(&app, 301, "Clear Me", false);
+    app.matching.entries[0].bound_x11_id = 0xA01;
+    app.window_count = 1;
+    app.windows[0] = make_window(0xA01, "Clear Me", "Class301", "inst301", "Normal");
+
+    ASSERT_INT("initial geom rule created", 1,
+               geom_rule_sync_for_layout(&app, 301));
+    ASSERT_INT("tagged geom rule initially exists", 1,
+               count_geom_rules_by_match_id(&app.rules_config, 301));
+
+    ASSERT_INT("clear geometry succeeds", TRUE,
+               clear_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_TRUE("clear geometry removes layout",
+                layout_store_get(&app.layouts, 301) == NULL);
+    ASSERT_INT("clear geometry removes tagged geom rule", 0,
+               count_geom_rules_by_match_id(&app.rules_config, 301));
+    ASSERT_INT("clear geometry deletes owned match entry", -1,
+               match_entry_find_index_by_match_id(&app.matching, 301));
+
+    LayoutStore saved_layouts;
+    layout_store_init(&saved_layouts);
+    layout_store_load(&saved_layouts);
+    ASSERT_TRUE("cleared layout is persisted",
+                layout_store_get(&saved_layouts, 301) == NULL);
+
+    MatchEntryManager saved_matching;
+    load_match_entries(&saved_matching);
+    ASSERT_INT("deleted match entry is persisted", -1,
+               match_entry_find_index_by_match_id(&saved_matching, 301));
+
+    RulesConfig saved_rules;
+    load_rules_config(&saved_rules, NULL);
+    ASSERT_INT("removed tagged geom rule is persisted", 0,
+               count_geom_rules_by_match_id(&saved_rules, 301));
+}
+
 int main(void) {
     printf("Geom rule sync tests\n");
     printf("====================\n\n");
@@ -461,12 +570,14 @@ int main(void) {
     test_delete_layout_refcount_behavior();
     test_disable_enable_roundtrip();
     test_untagged_rule_untouched();
+    test_remove_geom_rule_by_match_id_is_selective();
     test_startup_heal_create_and_delete();
     test_startup_sweeps_stale_rules_before_creating();
     test_wildcard_pattern_verbatim();
     test_save_geometry_reuses_layout_match_id_for_geom_rule();
     test_save_geometry_ignores_stale_bound_identity();
     test_restore_prefers_current_title_layout_over_stale_binding();
+    test_clear_geometry_removes_tagged_geom_rule_and_entry();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
     return tests_failed == 0 ? 0 : 1;

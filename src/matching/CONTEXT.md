@@ -80,7 +80,7 @@ that higher layers use to find, restore, name, and target windows.
     pattern. Consumers that own pattern-only identities, such as rules, keep
     ownership one-to-one by storing their own match id; geom-tagged restore
     rules do not use this path and instead reuse the saved layout's anchored
-    match id.
+    match id as the geom restore identity.
 9. Match-entry window matching requires the title pattern to match and every
     non-empty class, instance, and type anchor to match exactly.
 10. Live rebinding keeps an existing bound X11 id while it is present; only dead

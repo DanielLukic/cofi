@@ -85,6 +85,11 @@ int geom_rule_sync_for_layout(AppData *app, int match_id) {
     (void)match_id;
     return 1;
 }
+int geom_rule_remove_for_match_id(AppData *app, int match_id) {
+    (void)app;
+    (void)match_id;
+    return 1;
+}
 
 static int tests_passed = 0;
 static int tests_failed = 0;

@@ -175,7 +175,7 @@ static void geom_delete_confirmed(AppData *app) {
         log_warn("geom: layout save failed after delete; skipping rule sync");
         return;
     }
-    geom_rule_sync_for_layout(app, match_id);
+    geom_rule_remove_for_match_id(app, match_id);
     match_entry_delete_by_match_id(&app->matching, match_id);
     save_match_entries(&app->matching);
     const char *query = "";

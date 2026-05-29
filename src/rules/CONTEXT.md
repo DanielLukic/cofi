@@ -164,6 +164,8 @@ from a hidden provider tab.
   `once` flag is persisted; `applied` is not.
 - The x11 event path owns when rule evaluation happens and when dead-window
   pruning runs. Rules only provides the state transitions those callbacks invoke.
-- Geom-tagged rules are ordinary rule records with a tag and the layout's
-  anchored `match_id`; keep the geom bridge explicit so rules does not grow
-  geometry-planning ownership.
+- Geom-tagged rules are ordinary rule records for matching and evaluation, but
+  their lifecycle is geom-owned: `sl`, `cl`, and `:geom` actions create,
+  update, or remove them alongside layout ownership. Advanced Rules mutations
+  are non-owner edits; if they remove a tagged geom rule, geom startup sync may
+  recreate it from the layout.

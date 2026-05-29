@@ -14,9 +14,9 @@ in sync with saved records.
   operations are necessary for a current-versus-target layout.
 - Window layout capture, restore, clear, provider display, delete/toggle actions,
   and tiling option calculation.
-- One-way geom-to-rules synchronization: enabled layout records cause tagged
-  `geom` restore rules to exist, and disabled/deleted records remove those
-  tagged rules when no enabled layout remains.
+- One-way geom-to-rules synchronization: each layout is keyed by its owning
+  tagged `geom` restore rule's match id, enabled layout records cause those
+  rules to exist, and disabled/deleted records remove those tagged rules.
 
 ### Does Not Own
 - Rule definition semantics, rule replay order, rule matching, or user-managed
@@ -39,8 +39,9 @@ in sync with saved records.
   `apply_window_geometry_restore()`, `save_window_geometry_for_window()`,
   `restore_window_geometry_for_window()`, and
   `clear_window_geometry_for_window()`
-- `geom_rule_sync_for_layout()`, `geom_rule_sync_for_pattern()`, and
-  `geom_rule_sync_all_layout_patterns()`
+- `geom_rule_sync_for_layout()`, `geom_rule_sync_for_pattern()`,
+  `geom_rule_sync_all_layout_patterns()`, and
+  `geom_rule_remove_for_match_id()`
 - `geom_provider_register()`, `geom_tab_mode()`, `geom_on_query_changed()`, and
   `handle_geom_tab_keys()`
 - `TileOption`, `apply_tiling()`, `create_tiling_overlay_content()`, and
@@ -81,8 +82,8 @@ in sync with saved records.
     states, and fullscreen state from x11, reuses only a saved layout whose
     match entry matches the current title and anchors or an existing matching
     current-title entry, otherwise creates a current-title match entry, persists
-    matching entries and layouts, and syncs geom rules only after the layout
-    save succeeds.
+    matching entries and layouts, and creates or updates the owning tagged geom
+    restore rule for the layout's match id only after the layout save succeeds.
 13. Restoring geometry first scans enabled layout records in store order and
     applies the first whose match entry matches the current window title and
     anchors, rebinding that entry to the current window id. If no saved layout
@@ -90,12 +91,14 @@ in sync with saved records.
     existing binding; missing bindings or missing layouts are handled no-ops,
     and failure is reported only when an applicable layout cannot be applied.
 14. Clearing geometry removes the saved layout for the selected window's match
-    id, saves the layout store, deletes that layout's owned match entry, saves
+    id, saves the layout store, removes that layout's tagged geom restore rule
+    directly by match id, deletes that layout's owned match entry, saves
     matching entries, and treats missing bindings or missing layout records as
     handled no-ops.
 15. Geom rule sync creates one tagged `geom` rule with command segment `rl` per
-    enabled layout record, keyed by that layout's anchored `match_id`; the rule
-    stores the entry title only as pattern cache/display text.
+    enabled layout record, keyed by that layout's anchored `match_id`; layout
+    geometry and its owning tagged restore rule share that identity, and geom
+    creates no parallel match entry for the rule.
 16. Geom rule sync removes tagged geom restore rules when their layout is
     disabled or deleted, while leaving user-managed untagged `rl` rules
     untouched.
@@ -111,8 +114,9 @@ in sync with saved records.
     binding status; row identity is `geom:<match_id>`. Geom rows do not look up
     Names records.
 20. In the geom tab, Delete or `Ctrl+D` asks for delete confirmation; confirmed
-    delete clears the layout, saves, syncs the layout's match id, deletes that
-    layout's owned match entry, saves matching entries, refilters, clamps
+    delete has the same owner lifecycle as command clear: clears the layout,
+    saves, removes the tagged geom restore rule directly by match id, deletes
+    that layout's owned match entry, saves matching entries, refilters, clamps
     selection, and refreshes display.
 21. `Ctrl+L` toggles whether restore follows the saved desktop, `Ctrl+T`
     toggles layout enablement and syncs geom rules, and `Ctrl+P` opens pattern

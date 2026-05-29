@@ -102,6 +102,26 @@ int geom_rule_sync_for_layout(AppData *app, int match_id) {
     return changed ? 1 : 0;
 }
 
+int geom_rule_remove_for_match_id(AppData *app, int match_id) {
+    if (!app || match_id <= 0) {
+        return 0;
+    }
+
+    int existing_idx = find_geom_restore_rule_index(&app->rules_config, match_id);
+    if (existing_idx < 0) {
+        return 0;
+    }
+
+    if (!remove_rule(&app->rules_config, existing_idx)) {
+        log_warn("geom sync: failed removing tagged restore rule for match_id=%d", match_id);
+        return 0;
+    }
+
+    save_rules_config(&app->rules_config, &app->matching);
+    log_info("geom sync: removed tagged restore rule for match_id=%d", match_id);
+    return 1;
+}
+
 static bool layout_pattern_matches(const AppData *app, int match_id, const char *pattern) {
     if (!app || match_id <= 0 || !pattern || pattern[0] == '\0') {
         return false;

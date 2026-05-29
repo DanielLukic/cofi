@@ -29,6 +29,8 @@ static int g_show_confirm_calls;
 static void (*g_confirm_cb)(AppData *);
 static int g_geom_rule_sync_calls;
 static int g_last_synced_match_id;
+static int g_geom_rule_remove_calls;
+static int g_last_removed_rule_match_id;
 static CofiTabProvider g_registered_provider;
 static int g_set_state_calls;
 static int g_move_calls;
@@ -91,6 +93,12 @@ int geom_rule_sync_for_layout(AppData *app, int match_id) {
     (void)app;
     g_geom_rule_sync_calls++;
     g_last_synced_match_id = match_id;
+    return 1;
+}
+int geom_rule_remove_for_match_id(AppData *app, int match_id) {
+    (void)app;
+    g_geom_rule_remove_calls++;
+    g_last_removed_rule_match_id = match_id;
     return 1;
 }
 void show_confirm_overlay(AppData *app, const char *title, const char *info, void (*on_confirm)(AppData *)) { (void)app;(void)title;(void)info; g_show_confirm_calls++; g_confirm_cb = on_confirm; }
@@ -163,6 +171,8 @@ static void reset_app(AppData *app) {
     g_confirm_cb = NULL;
     g_geom_rule_sync_calls = 0;
     g_last_synced_match_id = 0;
+    g_geom_rule_remove_calls = 0;
+    g_last_removed_rule_match_id = 0;
     g_show_pattern_overlay_calls = 0;
     g_last_pattern_context[0] = '\0';
 }
@@ -215,7 +225,8 @@ static void test_delete_flow_and_selection_clamp(void) {
                 match_entry_find_index_by_match_id(&app.matching, 22) == -1 &&
                 match_entry_find_index_by_match_id(&app.matching, 11) >= 0);
     ASSERT_TRUE("delete persists matching", g_save_match_calls == 1);
-    ASSERT_TRUE("delete syncs geom rule", g_geom_rule_sync_calls == 1 && g_last_synced_match_id == 22);
+    ASSERT_TRUE("delete removes geom rule directly",
+                g_geom_rule_remove_calls == 1 && g_last_removed_rule_match_id == 22);
     ASSERT_TRUE("selection clamped", app.selection.provider_index == 0);
 }
 
@@ -232,6 +243,8 @@ static void test_clear_window_geometry_deletes_owned_entry(void) {
                 app.matching.count == 1 &&
                 match_entry_find_index_by_match_id(&app.matching, 11) == -1 &&
                 match_entry_find_index_by_match_id(&app.matching, 22) >= 0);
+    ASSERT_TRUE("geometry clear removes geom rule directly",
+                g_geom_rule_remove_calls == 1 && g_last_removed_rule_match_id == 11);
     ASSERT_TRUE("geometry clear persists matching", g_save_match_calls == 1);
 }
 
