@@ -53,6 +53,6 @@ bool match_entry_matches_window(const MatchEntry *entry, const WindowInfo *windo
 
 // Create a new match entry for a live window and return its stable match_id.
 int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w);
-int matching_find_or_create_pattern_entry(MatchEntryManager *manager, const char *pattern);
+int matching_create_pattern_entry(MatchEntryManager *manager, const char *pattern);
 
 #endif // MATCH_ENTRY_H

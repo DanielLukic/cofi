@@ -70,11 +70,13 @@ from a hidden provider tab.
    missing files load as an empty success, corrupt JSON resets to an empty
    config, and invalid rule objects are skipped.
 6. Loading legacy pattern-only rules migrates each valid non-empty pattern to a
-   `MatchEntry` and stores the resulting positive `match_id`; legacy rules that
-   cannot be migrated are skipped.
+   rule-owned `MatchEntry` and stores the resulting positive `match_id`; two
+   legacy rules with the same pattern still get distinct match ids. Legacy
+   rules that cannot be migrated are skipped.
 7. Loading a rule whose saved `match_id` is orphaned falls back to a non-empty
-   saved pattern by creating or reusing a pattern entry; otherwise the rule is
-   skipped.
+   saved pattern by creating a fresh rule-owned pattern entry; otherwise the
+   rule is skipped. Startup persists the repaired rule `match_id` with matching
+   entries so repeated loads do not leak new orphan-fallback entries.
 8. Loaded rules restore command strings, `run_at_start`, `once`, `new_only`,
    and tags, default missing `once` to true, missing `new_only` to false, and
    missing tags to empty, clear `applied`, and normalize the visible pattern
@@ -142,9 +144,10 @@ from a hidden provider tab.
     without moving selection, `Ctrl+X` replays the selected rule, and
     `Ctrl+Shift+X` replays all rules.
 29. Add Rule requires a non-empty pattern and command string, validates every
-    comma-separated command against the command registry, creates or reuses the
-    pattern match entry, saves both matching and rules, then refreshes the Rules
-    tab.
+    comma-separated command against the command registry, creates a fresh
+    rule-owned pattern match entry, saves both matching and rules, then
+    refreshes the Rules tab. Two same-pattern rules remain independent because
+    each stores its own match id.
 30. Edit Commands changes only the command string for the selected config rule;
     it keeps the pattern and `match_id`, validates commands, saves rules, and
     refreshes the list.

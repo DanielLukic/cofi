@@ -43,7 +43,7 @@ that higher layers use to find, restore, name, and target windows.
   `match_entry_get_by_index()`, `match_entry_find_index_by_window()`,
   `match_entry_find_index_by_match_id()`,
   `match_entry_matches_window()`, `matching_create_entry()`, and
-  `matching_find_or_create_pattern_entry()`
+  `matching_create_pattern_entry()`
 - `save_match_entries()` and `load_match_entries()`
 - `windows_match_fuzzy()`, `titles_match_fuzzy()`,
   `get_title_base_length()`, and `wildcard_match()`
@@ -76,9 +76,11 @@ that higher layers use to find, restore, name, and target windows.
     source window via `match_entry_matches_window()`; a mismatch logs a WARN but
     the entry is kept.
 8. Pattern-only entries have no class/instance/type anchors, are unassigned,
-    reuse an existing identical pattern when present, and get a new stable id
-    only when no identical pattern entry exists; geom-tagged restore rules do
-    not use this path and instead reuse the saved layout's anchored match id.
+    and always get a fresh stable id even when another entry has the same
+    pattern. Consumers that own pattern-only identities, such as rules, keep
+    ownership one-to-one by storing their own match id; geom-tagged restore
+    rules do not use this path and instead reuse the saved layout's anchored
+    match id.
 9. Match-entry window matching requires the title pattern to match and every
     non-empty class, instance, and type anchor to match exactly.
 10. Live rebinding keeps an existing bound X11 id while it is present; only dead

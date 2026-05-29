@@ -44,7 +44,7 @@ static void reset_exec_log(void) {
 }
 
 static void bind_rule_to_pattern(AppData *app, int rule_index, const char *pattern) {
-    int match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+    int match_id = matching_create_pattern_entry(&app->matching, pattern);
     app->rules_config.rules[rule_index].match_id = match_id;
 }
 

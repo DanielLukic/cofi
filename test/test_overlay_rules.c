@@ -59,7 +59,7 @@ int save_rules_config(const RulesConfig *config, const MatchEntryManager *manage
     return 1;
 }
 
-int matching_find_or_create_pattern_entry(MatchEntryManager *mgr, const char *pattern) {
+int matching_create_pattern_entry(MatchEntryManager *mgr, const char *pattern) {
     (void)mgr;
     (void)pattern;
     return 1;

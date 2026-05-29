@@ -20,7 +20,7 @@ static RuleMatch check_rule_match_for_title(const Rule *rule, RuleState *state, 
     window.type[0] = '\0';
 
     if (rule->match_id <= 0 || match_entry_find_index_by_match_id(&g_matching, rule->match_id) < 0) {
-        int match_id = matching_find_or_create_pattern_entry(&g_matching, rule->pattern);
+        int match_id = matching_create_pattern_entry(&g_matching, rule->pattern);
         ((Rule *)rule)->match_id = match_id;
     }
 
@@ -230,6 +230,104 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     system(cmd);
 }
 
+static void test_load_legacy_duplicate_patterns_get_distinct_match_ids(void) {
+    char tmpdir[] = "/tmp/cofi_rules_legacy_dupes_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+    match_entry_manager_init(&g_matching);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open duplicate legacy rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\"pattern\": \"*shared*\", \"commands\": \"sb on\"},\n"
+            "    {\"pattern\": \"*shared*\", \"commands\": \"ew off\"}\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    RulesConfig config;
+    init_rules_config(&config);
+    ASSERT_INT("load duplicate legacy rules", 1, load_rules_config(&config));
+    ASSERT_INT("duplicate legacy rule count", 2, config.count);
+    ASSERT_INT("duplicate legacy creates two entries", 2, g_matching.count);
+    ASSERT_TRUE("duplicate legacy rules have distinct ids",
+                config.rules[0].match_id > 0 &&
+                config.rules[1].match_id > 0 &&
+                config.rules[0].match_id != config.rules[1].match_id);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
+static void test_orphan_fallback_persists_repaired_match_id(void) {
+    char tmpdir[] = "/tmp/cofi_rules_orphan_idempotent_XXXXXX";
+    if (!mkdtemp(tmpdir)) {
+        printf("FAIL: mkdtemp\n");
+        tests_failed++;
+        return;
+    }
+    setenv("HOME", tmpdir, 1);
+
+    char path[600];
+    snprintf(path, sizeof(path), "%s/.config", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", tmpdir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi/rules.json", tmpdir);
+
+    FILE *file = fopen(path, "w");
+    if (!file) {
+        printf("FAIL: open orphan fallback rules.json\n");
+        tests_failed++;
+        return;
+    }
+    fprintf(file,
+            "{\n"
+            "  \"rules\": [\n"
+            "    {\"match_id\": 999, \"pattern\": \"*orphan*\", \"commands\": \"sb on\"}\n"
+            "  ]\n"
+            "}\n");
+    fclose(file);
+
+    match_entry_manager_init(&g_matching);
+    RulesConfig first;
+    init_rules_config(&first);
+    ASSERT_INT("first orphan fallback load", 1, load_rules_config(&first));
+    ASSERT_INT("first orphan fallback creates one entry", 1, g_matching.count);
+    ASSERT_TRUE("first orphan fallback repairs rule id",
+                first.count == 1 && first.rules[0].match_id > 0 && first.rules[0].match_id != 999);
+    int repaired_id = first.rules[0].match_id;
+    ASSERT_INT("first save repaired rules", 1, save_rules_config(&first));
+
+    RulesConfig persisted;
+    init_rules_config(&persisted);
+    ASSERT_INT("reload repaired rules file", 1, load_rules_config(&persisted));
+    ASSERT_INT("second load does not add another entry", 1, g_matching.count);
+    ASSERT_INT("repaired id survives reload", repaired_id, persisted.rules[0].match_id);
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
+    system(cmd);
+}
+
 static void test_load_rules_json_with_special_chars(void) {
     char tmpdir[] = "/tmp/cofi_rules_special_XXXXXX";
     if (!mkdtemp(tmpdir)) {
@@ -413,6 +511,25 @@ static void test_load_legacy_empty_pattern_skips_without_creating_entry(void) {
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir);
     system(cmd);
+}
+
+static void test_same_pattern_rules_get_distinct_match_entries(void) {
+    RulesConfig config;
+    init_rules_config(&config);
+    match_entry_manager_init(&g_matching);
+
+    ASSERT_INT("add same-pattern rule 0", 1, add_rule(&config, "*shared*", "sb on"));
+    ASSERT_INT("add same-pattern rule 1", 1, add_rule(&config, "*shared*", "ew off"));
+    config.rules[0].match_id = matching_create_pattern_entry(&g_matching, config.rules[0].pattern);
+    config.rules[1].match_id = matching_create_pattern_entry(&g_matching, config.rules[1].pattern);
+
+    ASSERT_INT("same-pattern add creates two entries", 2, g_matching.count);
+    ASSERT_TRUE("same-pattern rules own distinct ids",
+                config.rules[0].match_id > 0 &&
+                config.rules[1].match_id > 0 &&
+                config.rules[0].match_id != config.rules[1].match_id);
+    ASSERT_STR("same-pattern entry 0 stored", "*shared*", g_matching.entries[0].original_title);
+    ASSERT_STR("same-pattern entry 1 stored", "*shared*", g_matching.entries[1].original_title);
 }
 
 // ========== Rule matching state machine tests ==========
@@ -829,10 +946,13 @@ int main(void) {
     test_save_load_roundtrip();
     test_load_missing_file();
     test_load_legacy_file_defaults_run_at_start_false();
+    test_load_legacy_duplicate_patterns_get_distinct_match_ids();
+    test_orphan_fallback_persists_repaired_match_id();
     test_load_rules_json_with_special_chars();
     test_load_skips_rules_missing_required_fields();
     test_load_corrupt_json_returns_empty();
     test_load_legacy_empty_pattern_skips_without_creating_entry();
+    test_same_pattern_rules_get_distinct_match_entries();
 
     // Matching state machine tests
     printf("\n--- Matching ---\n");

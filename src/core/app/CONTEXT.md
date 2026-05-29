@@ -63,7 +63,8 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 8. `init_app_data()` also performs early disk I/O before X11 is opened: it
    loads hotkey config with default fallback and missing-file save behavior,
    loads match entries, loads rules config, immediately re-saves match entries
-   after legacy rule migration, and loads calculator history.
+   and rules config after legacy/orphan rule migration, and loads calculator
+   history.
 9. `init_tab_visibility()` starts every tab hidden except the Windows tab,
    which is pinned; `apply_provider_default_visibility()` pins enabled
    providers that are not hidden by default.

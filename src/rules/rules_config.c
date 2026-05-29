@@ -147,14 +147,14 @@ int load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
                 log_warn("rules_config: cannot migrate legacy pattern '%s' without matching manager", pattern);
                 continue;
             }
-            match_id = matching_find_or_create_pattern_entry(manager, pattern);
+            match_id = matching_create_pattern_entry(manager, pattern);
             if (match_id <= 0) {
                 log_warn("rules_config: failed to migrate legacy rule pattern '%s'", pattern);
                 continue;
             }
         } else if (manager && match_entry_find_index_by_match_id(manager, match_id) < 0) {
             if (has_pattern && pattern[0] != '\0') {
-                int fallback_match_id = matching_find_or_create_pattern_entry(manager, pattern);
+                int fallback_match_id = matching_create_pattern_entry(manager, pattern);
                 if (fallback_match_id > 0) {
                     match_id = fallback_match_id;
                 } else {

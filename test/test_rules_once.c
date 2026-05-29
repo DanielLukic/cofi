@@ -43,7 +43,7 @@ static void seed_rule(AppData *app, int idx, const char *pattern, const char *co
     if (app->rules_config.count <= idx) app->rules_config.count = idx + 1;
     g_strlcpy(rule->pattern, pattern, sizeof(rule->pattern));
     g_strlcpy(rule->commands, commands, sizeof(rule->commands));
-    rule->match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+    rule->match_id = matching_create_pattern_entry(&app->matching, pattern);
     rule->once = true;
     rule->applied = 0;
 }

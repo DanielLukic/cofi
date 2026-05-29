@@ -173,7 +173,6 @@ void match_entry_delete(MatchEntryManager *manager, int index) {
     log_info("Deleting match entry %d for window 0x%lx",
             manager->entries[index].match_id, manager->entries[index].bound_x11_id);
     
-    // Move all entries after this one back by one position
     for (int i = index; i < manager->count - 1; i++) {
         manager->entries[i] = manager->entries[i + 1];
     }
@@ -239,19 +238,8 @@ int matching_create_entry(MatchEntryManager *manager, const WindowInfo *w) {
     return entry->match_id;
 }
 
-int matching_find_or_create_pattern_entry(MatchEntryManager *manager, const char *pattern) {
+int matching_create_pattern_entry(MatchEntryManager *manager, const char *pattern) {
     if (!manager || !pattern || pattern[0] == '\0') return -1;
-
-    for (int i = 0; i < manager->count; i++) {
-        MatchEntry *entry = &manager->entries[i];
-        if (entry->class_name[0] != '\0' || entry->instance[0] != '\0' || entry->type[0] != '\0') {
-            continue;
-        }
-        if (strcmp(entry->original_title, pattern) != 0) {
-            continue;
-        }
-        return entry->match_id;
-    }
 
     if (manager->count >= MAX_WINDOWS) {
         return -1;

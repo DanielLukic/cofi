@@ -79,7 +79,7 @@ static gboolean save_rule_values(AppData *app, int rule_index,
         return FALSE;
     }
 
-    int match_id = matching_find_or_create_pattern_entry(&app->matching, pattern);
+    int match_id = matching_create_pattern_entry(&app->matching, pattern);
     if (match_id <= 0) {
         if (error_label) {
             gtk_label_set_text(GTK_LABEL(error_label), "Cannot create pattern entry");

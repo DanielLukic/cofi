@@ -452,6 +452,24 @@ static void test_matching_create_entry_always_creates(void) {
     ASSERT_STR("create captured type", "Normal", manager.entries[0].type);
 }
 
+static void test_matching_create_pattern_entry_always_creates(void) {
+    printf("\n--- matching_create_pattern_entry always creates ---\n");
+
+    MatchEntryManager manager;
+    match_entry_manager_init(&manager);
+
+    int id1 = matching_create_pattern_entry(&manager, "*shared*");
+    int id2 = matching_create_pattern_entry(&manager, "*shared*");
+
+    ASSERT_INT("first pattern entry succeeds", 1, id1 > 0);
+    ASSERT_INT("second pattern entry gets distinct id", 1, id2 > id1);
+    ASSERT_INT("same pattern creates two entries", 2, manager.count);
+    ASSERT_STR("first pattern stored", "*shared*", manager.entries[0].original_title);
+    ASSERT_STR("second pattern stored", "*shared*", manager.entries[1].original_title);
+    ASSERT_STR("pattern entry has no class anchor", "", manager.entries[0].class_name);
+    ASSERT_INT("pattern entry is unassigned", 0, manager.entries[0].assigned);
+}
+
 static void test_matching_create_entry_round_trips_to_source_window(void) {
     printf("\n--- matching_create_entry round-trips to source window ---\n");
 
@@ -1004,6 +1022,7 @@ int main(void) {
     test_match_if_set_class_instance_type();
     test_same_title_different_class_create_distinct_entries();
     test_matching_create_entry_always_creates();
+    test_matching_create_pattern_entry_always_creates();
     test_matching_create_entry_round_trips_to_source_window();
     test_match_id_persist_and_non_reuse();
     test_load_repairs_malformed_or_duplicate_match_ids();

@@ -114,8 +114,9 @@ void init_app_data(AppData *app) {
     // Initialize rules
     init_rules_config(&app->rules_config);
     load_rules_config(&app->rules_config, &app->matching);
-    // Persist post-load legacy rule migrations (pattern-only -> match_id-backed entries).
+    // Persist repaired ids so repeated loads don't create new fallback entries.
     save_match_entries(&app->matching);
+    save_rules_config(&app->rules_config, &app->matching);
     app->filtered_rules_count = 0;
     init_rule_state(&app->rule_state);
     init_rule_breaker(&app->rule_breaker);

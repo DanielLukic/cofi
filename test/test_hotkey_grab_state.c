@@ -84,6 +84,11 @@ gboolean load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
     (void)manager;
     return TRUE;
 }
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *manager) {
+    (void)config;
+    (void)manager;
+    return 1;
+}
 void init_rule_state(RuleState *state) { (void)state; }
 void init_rule_breaker(RuleBreakerState *breaker) { (void)breaker; }
 void init_command_mode(CommandMode *cmd) { (void)cmd; }
