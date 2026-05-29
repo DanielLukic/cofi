@@ -1,6 +1,13 @@
 #!/bin/bash
 set -u
 
+UNIT_TEST_HOME="$(mktemp -d /tmp/cofi-unit-tests-home.XXXXXX)"
+cleanup_unit_test_home() {
+    rm -rf "$UNIT_TEST_HOME"
+}
+trap cleanup_unit_test_home EXIT
+export HOME="$UNIT_TEST_HOME"
+
 if [ -z "${TEST_BINARIES:-}" ]; then
     echo "ERROR: TEST_BINARIES is not set"
     exit 1

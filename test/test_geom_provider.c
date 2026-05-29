@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "core/app/app_data.h"
 #include "providers/cofi_tab_provider.h"
@@ -31,6 +34,31 @@ static int g_switch_desktop_calls;
 static int g_flush_calls;
 static int g_show_pattern_overlay_calls;
 static char g_last_pattern_context[128];
+static char g_test_home[512];
+
+static void set_test_home(void) {
+    char tmpdir[] = "/tmp/cofi_geom_provider_XXXXXX";
+    char *dir = mkdtemp(tmpdir);
+    if (!dir) {
+        return;
+    }
+    g_strlcpy(g_test_home, dir, sizeof(g_test_home));
+    setenv("HOME", dir, 1);
+    char path[512];
+    snprintf(path, sizeof(path), "%s/.config", dir);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%s/.config/cofi", dir);
+    mkdir(path, 0755);
+}
+
+static void cleanup_test_home(void) {
+    if (g_test_home[0] == '\0') {
+        return;
+    }
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", g_test_home);
+    system(cmd);
+}
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {(void)level;(void)file;(void)line;(void)fmt;}
 int has_match(const char *needle, const char *haystack) { return !needle || !needle[0] || (haystack && strstr(haystack, needle)); }
@@ -197,6 +225,7 @@ static void test_apply_respects_flags(void) {
 int main(void) {
     printf("Geom provider tests\n");
     printf("===================\n\n");
+    set_test_home();
     geom_provider_register();
     test_filter_and_row_format();
     test_delete_flow_and_selection_clamp();
@@ -204,5 +233,6 @@ int main(void) {
     test_skip_missing_entry_and_empty_store();
     test_apply_respects_flags();
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
+    cleanup_test_home();
     return tests_passed == tests_run ? 0 : 1;
 }
