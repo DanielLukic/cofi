@@ -136,6 +136,10 @@ exposing help/candidate metadata for users.
 32. Help generation includes static navigation/tab/prefix guidance plus
     available grouped commands, wraps long descriptions to the requested width,
     and emits unwrapped text when width is zero or invalid.
+33. `cmd_assign_name` requires a selected window and the Windows tab; a
+    non-empty (whitespace-trimmed) inline label delegates to
+    `names_assign_window()` and hides cofi, while empty input opens the
+    name-assignment overlay instead.
 
 ## Notes
 - `command_mode.*` currently lives here because it is named `command_*` and
@@ -144,6 +148,8 @@ exposing help/candidate metadata for users.
 - Command handlers are intentionally thin adapters. If a handler grows feature
   policy, move that policy to the owning feature subsystem and keep the command
   as a dispatch surface.
+- `cmd_assign_name` delegates name persistence to `names_assign_window()` in
+  `src/names/`; the command handler holds no name-persistence logic of its own.
 - Known exceptions to the thin-adapter intent exist today: `cmd_mouse()` in
   `command_handlers_tiling.c` performs direct X11 pointer/cursor work, and
   `cmd_swap_windows()` in `command_handlers_window.c` contains raw X11 geometry
