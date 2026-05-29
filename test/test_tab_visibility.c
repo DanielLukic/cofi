@@ -488,6 +488,11 @@ int save_rules_config(const RulesConfig *config, const MatchEntryManager *manage
     return 1;
 }
 
+gint get_display_columns(AppData *app) {
+    (void)app;
+    return 120;
+}
+
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) {
     if (!manager || match_id <= 0) return -1;
     for (int i = 0; i < manager->count; i++) {

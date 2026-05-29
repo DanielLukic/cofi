@@ -129,11 +129,14 @@ from a hidden provider tab.
     query change refilters and resets provider selection.
 25. Provider filtering searches the resolved match-entry pattern plus command
     string and hides tagged rules unless `config.rules_show_all_tags` is true.
-26. Provider rows use three cells: flags, the resolved match-entry original
-    title or `<cached pattern> (orphan)`, and command string. The flags cell
-    renders `O` for once, `Ø` when once is applied to a live window, `N` for
-    `new_only`, concatenates set flags, and renders `-` when no flags are set;
-    empty lists expose one non-actionable `No rules found` row.
+26. Provider rows use three cells by default: flags, the resolved match-entry
+    original title or `<cached pattern> (orphan)`, and command string. In
+    show-all-tags advanced mode, rows append a trailing tag cell that renders
+    the rule tag or `-` when empty and shrink the command cell as needed so the
+    tag cell fits. The flags cell renders `O` for once, `Ø` when once is
+    applied to a live window, `N` for `new_only`, concatenates set flags, and
+    renders `-` when no flags are set; empty lists expose one non-actionable
+    `No rules found` row.
 27. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
     back to `RulesConfig.rules[]` through `filtered_rule_indices`, not copied row
     indexes alone.

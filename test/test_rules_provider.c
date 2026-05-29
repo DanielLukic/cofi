@@ -26,6 +26,7 @@ static int g_surface_tab_calls;
 static int g_save_rules_calls;
 static int g_preserve_selection_calls;
 static int g_restore_selection_calls;
+static int g_display_columns = 120;
 static TabMode g_last_surface_tab = -1;
 static CofiTabProvider g_registered_provider;
 static int g_show_pattern_overlay_calls;
@@ -130,6 +131,10 @@ void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
 }
 void update_display(AppData *app) { (void)app; }
+gint get_display_columns(AppData *app) {
+    (void)app;
+    return g_display_columns;
+}
 void rule_toggle_once(Rule *rule) {
     if (!rule) return;
     rule->once = !rule->once;
@@ -169,6 +174,7 @@ static void reset_state(AppData *app) {
     g_save_rules_calls = 0;
     g_preserve_selection_calls = 0;
     g_restore_selection_calls = 0;
+    g_display_columns = 120;
     g_last_surface_tab = -1;
     g_show_pattern_overlay_calls = 0;
     g_selected_pattern_match_id = 0;
@@ -280,6 +286,74 @@ static void test_filter_shows_tagged_rules_when_enabled(void) {
     filter_rules(&app, "");
 
     ASSERT_TRUE("show_all_tags includes tagged rule", app.filtered_rules_count == 2);
+}
+
+static void test_advanced_row_shows_tag_column(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 1;
+
+    filter_rules(&app, "fire");
+
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("advanced row has tag column", row.cell_count == 4);
+    ASSERT_TRUE("advanced row renders tag",
+                row.cell_count > 3 && row.cells[3].text &&
+                strcmp(row.cells[3].text, "geom") == 0);
+    ASSERT_TRUE("advanced row shrinks commands to fit tag", row.cells[2].width_hint == 57);
+    ASSERT_TRUE("advanced row tag width", row.cells[3].width_hint == 12);
+}
+
+static void test_advanced_row_renders_empty_tag_dash(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    app.config.rules_show_all_tags = 1;
+
+    filter_rules(&app, "term");
+
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("advanced untagged row has tag column", row.cell_count == 4);
+    ASSERT_TRUE("advanced untagged row renders dash",
+                row.cell_count > 3 && row.cells[3].text &&
+                strcmp(row.cells[3].text, "-") == 0);
+}
+
+static void test_advanced_row_commands_width_has_floor(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    app.config.rules_show_all_tags = 1;
+    g_display_columns = 70;
+
+    filter_rules(&app, "term");
+
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("advanced row command width floors at twenty", row.cells[2].width_hint == 20);
+}
+
+static void test_default_row_hides_tag_column(void) {
+    AppData app;
+    CofiRowCells row;
+    reset_state(&app);
+    seed_rules(&app);
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 0;
+
+    filter_rules(&app, "term");
+
+    memset(&row, 0, sizeof(row));
+    rules_format_row(&app, 0, &row);
+    ASSERT_TRUE("default row stays three cells", row.cell_count == 3);
+    ASSERT_TRUE("default row keeps command width", row.cells[2].width_hint == 64);
 }
 
 static void test_search_still_hides_tagged_rules_when_toggle_off(void) {
@@ -483,6 +557,10 @@ int main(void) {
     test_on_enter_filters_all_rules();
     test_filter_hides_tagged_rules_by_default();
     test_filter_shows_tagged_rules_when_enabled();
+    test_advanced_row_shows_tag_column();
+    test_advanced_row_renders_empty_tag_dash();
+    test_advanced_row_commands_width_has_floor();
+    test_default_row_hides_tag_column();
     test_search_still_hides_tagged_rules_when_toggle_off();
     test_selected_rule_and_config_index();
     test_orphan_rule_row_fallback_indicator();

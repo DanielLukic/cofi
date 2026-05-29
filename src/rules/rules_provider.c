@@ -9,6 +9,7 @@
 #include "rules/rules_replay.h"
 #include "core/selection/selection.h"
 #include "ui/tab_switching.h"
+#include "ui/dynamic_display.h"
 #include "matching/match_entry.h"
 
 #include <stdio.h>
@@ -77,7 +78,8 @@ static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
         return;
     }
 
-    out->cell_count = 3;
+    bool show_tags = app && app->config.rules_show_all_tags;
+    out->cell_count = show_tags ? 4 : 3;
     const MatchEntry *entry = entry_for_rule(app, rule);
     static char pattern_buf[MAX_RULES][MAX_TITLE_LEN + 32];
     static char flags_buf[MAX_RULES][8];
@@ -97,6 +99,17 @@ static void rules_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     out->cells[1].width_hint = 40;
     out->cells[2].text = rule->commands;
     out->cells[2].width_hint = 64;
+    if (show_tags) {
+        /* selection "> " + flags + pattern + tag + 3 cell separators */
+        const int fixed_total = 2 + 6 + 40 + 12 + 3;
+        int command_w = get_display_columns(app) - fixed_total;
+        if (command_w < 20) {
+            command_w = 20;
+        }
+        out->cells[2].width_hint = command_w;
+        out->cells[3].text = rule->tag[0] ? rule->tag : "-";
+        out->cells[3].width_hint = 12;
+    }
     out->row_flags = COFI_ROW_ACTIONABLE;
 }
 
