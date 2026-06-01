@@ -10,6 +10,15 @@
 #include "core/log/log.h"
 #include "core/utils/utils.h"
 
+bool window_id_in_list(Window id, const Window *ids, int count) {
+    for (int i = 0; i < count; i++) {
+        if (ids[i] == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Get list of all windows using _NET_CLIENT_LIST
 void get_window_list(AppData *app) {
     app->window_count = 0;

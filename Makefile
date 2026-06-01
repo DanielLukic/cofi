@@ -68,6 +68,7 @@ display_pipeline_obj = src/ui/display_pipeline.o
 dynamic_display_obj = src/ui/dynamic_display.o
 emoji_data_obj = src/emoji/emoji_data.o
 fzf_algo_obj = src/matching/fzf_algo.o
+frame_extents_obj = src/x11/frame_extents.o
 geom_provider_obj = src/geom/geom_provider.o
 geom_rule_sync_obj = src/geom/geom_rule_sync.o
 geometry_planner_obj = src/geom/geometry_planner.o
@@ -124,6 +125,7 @@ projects_window_env_obj = src/projects/projects_window_env.o
 projects_zellij_windows_obj = src/projects/projects_zellij_windows.o
 rules_obj = src/rules/rules.o
 rules_config_obj = src/rules/rules_config.o
+rules_dispatch_obj = src/rules/rules_dispatch.o
 rules_provider_obj = src/rules/rules_provider.o
 rules_replay_obj = src/rules/rules_replay.o
 rules_toggle_obj = src/rules/rules_toggle.o
@@ -142,8 +144,10 @@ window_display_title_obj = src/ui/window_display_title.o
 window_filter_obj = src/ui/window_filter.o
 window_geometry_matching_obj = src/geom/window_geometry_matching.o
 window_highlight_obj = src/ui/window_highlight.o
+window_list_obj = src/x11/window_list.o
 window_lifecycle_obj = src/ui/window_lifecycle.o
 window_matcher_obj = src/matching/window_matcher.o
+x11_utils_obj = src/x11/x11_utils.o
 
 core_app_objs = $(app_init_obj) $(matching_gc_obj)
 core_json_objs = $(cofi_json_io_obj)
@@ -152,7 +156,7 @@ core_log_objs = $(log_obj)
 core_nav_keys_objs = $(nav_keys_obj)
 matching_objs = $(fzf_algo_obj) $(match_obj) $(match_entry_obj) $(match_entry_config_obj) $(matching_provider_obj) $(overlay_pattern_obj) $(window_matcher_obj)
 names_objs = $(names_store_obj) $(names_provider_obj) $(overlay_names_obj)
-rules_objs = $(rules_obj) $(rules_config_obj) $(rules_provider_obj) $(rules_replay_obj) $(rules_toggle_obj) $(overlay_rules_obj)
+rules_objs = $(rules_obj) $(rules_config_obj) $(rules_dispatch_obj) $(rules_provider_obj) $(rules_replay_obj) $(rules_toggle_obj) $(overlay_rules_obj)
 harpoon_objs = $(harpoon_obj) $(harpoon_config_obj) $(harpoon_provider_obj) $(key_handler_harpoon_obj) $(prefix_tabs_obj)
 geom_objs = $(geom_provider_obj) $(geometry_planner_obj) $(geom_rule_sync_obj) $(layout_store_obj) $(tiling_obj) $(tiling_overlay_obj) $(window_geometry_matching_obj)
 daemon_objs = $(daemon_socket_obj) $(daemon_socket_runtime_obj) $(detach_launch_obj) $(hotkey_config_obj) $(hotkey_dispatch_obj) $(hotkey_grab_state_obj) $(hotkeys_obj) $(hotkeys_provider_obj) $(overlay_hotkey_add_obj) $(overlay_hotkey_add_policy_obj) $(overlay_hotkey_edit_obj)
@@ -374,6 +378,9 @@ test_rules_once: test/test_rules_once.c $(rules_replay_obj) $(rules_obj) $(rules
 
 test_rules_new_only: test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_rules_new_only test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(utils_obj) $(LDFLAGS)
+
+test_rules_dispatch: test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_rules_dispatch test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj) $(LDFLAGS)
 
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c $(utf8_columns_obj)

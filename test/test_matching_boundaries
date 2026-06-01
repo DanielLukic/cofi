@@ -25,4 +25,27 @@ if [[ "$fail" -eq 0 ]]; then
     echo "PASS: matching_run_gc is app-level startup-only"
 fi
 
+x11_forbidden_patterns=(
+    'check_rule_match'
+    'rule_breaker_'
+)
+
+for pattern in "${x11_forbidden_patterns[@]}"; do
+    if rg -n "$pattern" src/x11/x11_events.c; then
+        echo "FAIL: x11_events.c must delegate rule dispatch instead of using $pattern"
+        fail=1
+    fi
+done
+
+bad_trigger_refs="$(rg -n 'RULE_TRIGGER_' src/x11/x11_events.c | grep -v 'rules_apply(app, RULE_TRIGGER_' || true)"
+if [[ -n "$bad_trigger_refs" ]]; then
+    echo "$bad_trigger_refs"
+    echo "FAIL: x11_events.c may only pass RuleTrigger values into rules_apply()"
+    fail=1
+fi
+
+if [[ "$fail" -eq 0 ]]; then
+    echo "PASS: x11_events.c delegates rule dispatch to rules/"
+fi
+
 exit "$fail"

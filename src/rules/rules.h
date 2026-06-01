@@ -81,7 +81,7 @@ bool rule_breaker_should_fire(RuleBreakerState *breaker, int rule_index,
                                Window window_id, int64_t now_ms, const char *pattern);
 
 // Remove state for any window not present in live_windows.
-// Call once per _NET_CLIENT_LIST change, after apply_rules_to_windows.
+// Call once per _NET_CLIENT_LIST change, after rules_apply().
 void rule_state_prune_absent(RuleState *state, const Window *live_windows, int live_count);
 
 #endif // RULES_H

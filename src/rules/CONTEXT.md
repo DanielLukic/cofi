@@ -48,6 +48,7 @@ from a hidden provider tab.
 - `replay_rule_against_open_windows()`,
   `replay_all_rules_against_open_windows()`, and
   `replay_selected_filtered_rule()`
+- `rules_apply()` and `rules_apply_for_title_change()`
 - `rules_provider_register()`, `rules_tab_mode()`,
   `handle_rules_tab_keys()`, `filter_rules()`, `rules_selected_rule()`,
   `rules_selected_config_index()`, and `rules_select_config_index()`
@@ -109,27 +110,36 @@ from a hidden provider tab.
     and rearms after more than two seconds of quiet.
 18. The circuit breaker fails open when no breaker state is supplied or when the
     breaker entry table is full.
-19. `rule_toggle_once()` flips the selected rule's `once` flag and always clears
+19. Automatic rule dispatch is rules-owned: whole-window passes and title-change
+    passes apply the trigger gate, evaluate transitions, enforce startup
+    `run_at_start` suppression, run the circuit breaker, guard against
+    re-entry while a rule command is executing, log `RULE:` executions, and
+    dispatch command strings through the command subsystem.
+20. Startup dispatch runs only `run_at_start` rules while the initial population
+    flag is false; client-list dispatch marks a window as new only when x11
+    supplies that window id in the newly-added set; title-change dispatch
+    evaluates only the requested live window id.
+21. `rule_toggle_once()` flips the selected rule's `once` flag and always clears
     `applied` so the new mode starts from an unapplied state;
     `rule_toggle_new_only()` flips only `new_only` and leaves `applied`
     unchanged.
-20. Manual replay evaluates the chosen rule against every currently open window,
+22. Manual replay evaluates the chosen rule against every currently open window,
     dispatches matching command strings through `execute_command_background()`,
     respects `once`/`applied`, and does not mutate `RuleState` transition flags.
-21. Replaying all rules walks `RulesConfig.rules` in stored order and includes
+23. Replaying all rules walks `RulesConfig.rules` in stored order and includes
     tagged rules even when the provider list would hide them.
-22. `rule_commands_contain_segment()` matches only complete comma-separated
+24. `rule_commands_contain_segment()` matches only complete comma-separated
     command segments after trimming whitespace; substrings such as `url`, `rlx`,
     or `foorl` do not satisfy an `rl` lookup.
-23. The Rules provider is hidden by default, registers the `rules` and `rs`
+25. The Rules provider is hidden by default, registers the `rules` and `rs`
     commands, surfaces the dynamic Rules tab, and keeps cofi open for hotkey
     auto mode.
-24. Entering the Rules tab sets the placeholder to `Type to filter rules...`
+26. Entering the Rules tab sets the placeholder to `Type to filter rules...`
     and filters all visible rules into rows with a leading flags cell; each
     query change refilters and resets provider selection.
-25. Provider filtering searches the resolved match-entry pattern plus command
+27. Provider filtering searches the resolved match-entry pattern plus command
     string and hides tagged rules unless `config.rules_show_all_tags` is true.
-26. Provider rows use three cells by default: flags, the resolved match-entry
+28. Provider rows use three cells by default: flags, the resolved match-entry
     original title or `<cached pattern> (orphan)`, and command string. In
     show-all-tags advanced mode, rows append a trailing tag cell that renders
     the rule tag or `-` when empty and shrink the command cell as needed so the
@@ -137,10 +147,10 @@ from a hidden provider tab.
     applied to a live window, `N` for `new_only`, concatenates set flags, and
     renders `-` when no flags are set; empty lists expose one non-actionable
     `No rules found` row.
-27. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
+29. Provider row identity is `rule:<match_id>:<commands>`, and selected rows map
     back to `RulesConfig.rules[]` through `filtered_rule_indices`, not copied row
     indexes alone.
-28. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
+30. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
     selected untagged row, `Ctrl+P` opens pattern edit for the selected
     untagged match id, `Ctrl+D` opens delete confirmation for selected
     untagged rows, `Ctrl+O` toggles once and persists it without moving
@@ -149,20 +159,20 @@ from a hidden provider tab.
     rule, and `Ctrl+Shift+X` replays all rules. For tagged rows,
     `Ctrl+D`/`Ctrl+E`/`Ctrl+P`/`Ctrl+O`/`Ctrl+N` return false so the key can
     fall through instead of becoming a consumed no-op.
-29. Add Rule requires a non-empty pattern and command string, validates every
+31. Add Rule requires a non-empty pattern and command string, validates every
     comma-separated command against the command registry, creates a fresh
     rule-owned pattern match entry, saves both matching and rules, then
     refreshes the Rules tab. Two same-pattern rules remain independent because
     each stores its own match id.
-30. Edit Commands changes only the command string for the selected config rule;
+32. Edit Commands changes only the command string for the selected config rule;
     it keeps the pattern and `match_id`, validates commands, saves rules, and
     refreshes the list.
-31. Delete confirmation displays escaped pattern and command text, removes the
+33. Delete confirmation displays escaped pattern and command text, removes the
     pending untagged config rule on confirmation, saves rules, deletes that
     rule's owned match entry, saves matching, refilters, clamps selection, and
     refreshes display. If a tagged rule somehow reaches delete confirmation,
     confirmation is a no-op.
-32. The Rules shortcut hint is dynamic: empty filtered lists report `No rules
+34. The Rules shortcut hint is dynamic: empty filtered lists report `No rules
     found`, untagged rows show the action shortcuts, and tagged rows report
     that the rule is managed by its owning tab such as `:geom`.
 
@@ -170,8 +180,12 @@ from a hidden provider tab.
 - `Rule.applied` is mutable evaluation state embedded in `RulesConfig` because
   once-mode suppression needs to survive across event callbacks, but only the
   `once` flag is persisted; `applied` is not.
+- `rules_dispatch` imports `window_id_in_list()` from `x11/window_list` to
+  test whether a window id belongs to the newly-added set passed in from x11;
+  rules dispatch does not otherwise depend on x11 internals.
 - The x11 event path owns when rule evaluation happens and when dead-window
-  pruning runs. Rules only provides the state transitions those callbacks invoke.
+  pruning runs. Rules owns the automatic dispatch loop once x11 supplies the
+  trigger context and live window data.
 - Geom-tagged rules are ordinary rule records for matching and evaluation, but
   their lifecycle is geom-owned: `sl`, `cl`, and `:geom` actions create,
   update, or remove them alongside layout ownership. Advanced Rules mutations

@@ -21,9 +21,8 @@
 #include "geom/window_geometry_matching.h"
 #include "ui/window_highlight.h"
 #include "daemon/hotkeys.h"
-#include "commands/command_api.h"
-#include "matching/window_matcher.h"
 #include "core/utils/utils.h"
+#include "rules/rules_dispatch.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
@@ -197,63 +196,8 @@ static void prune_subscribed_windows(AppData *app) {
     subscribed_count = write;
 }
 
-static bool window_id_in_list(Window id, const Window *ids, int count) {
-    for (int i = 0; i < count; i++) {
-        if (ids[i] == id) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Apply rules to all windows (checks state machine — only fires on transitions)
-static void apply_rules_to_windows(AppData *app, RuleTrigger trigger,
-                                   const Window *new_window_ids, int new_window_count) {
-    if (app->rules_config.count == 0) return;
-    if (app->in_rule_dispatch) {
-        log_debug("RULE: apply_rules_to_windows skipped — re-entry during rule dispatch");
-        return;
-    }
-
-    gint64 now_ms = g_get_monotonic_time() / 1000;
-    for (int i = 0; i < app->window_count; i++) {
-        WindowInfo *w = &app->windows[i];
-        bool is_new_window = window_id_in_list(w->id, new_window_ids, new_window_count);
-        for (int r = 0; r < app->rules_config.count; r++) {
-            if (!rule_trigger_allows(&app->rules_config.rules[r], trigger, is_new_window)) {
-                continue;
-            }
-            RuleMatch match = check_rule_match(
-                &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
-            if (match.should_fire) {
-                if (!app->initial_window_population_done &&
-                    !app->rules_config.rules[r].run_at_start) {
-                    continue;
-                }
-
-                if (!rule_breaker_should_fire(&app->rule_breaker, r, w->id,
-                                              now_ms, app->rules_config.rules[r].pattern)) {
-                    continue;
-                }
-                log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
-                         app->rules_config.rules[r].pattern, w->id, w->title, match.commands);
-                gboolean prev = app->in_rule_dispatch;
-                app->in_rule_dispatch = TRUE;
-                execute_command_background(match.commands, app, w);
-                app->in_rule_dispatch = prev;
-            }
-        }
-    }
-}
-
 // Handle title change on a specific window
 static void handle_window_title_change(AppData *app, Window id) {
-    if (app->rules_config.count == 0) return;
-    if (app->in_rule_dispatch) {
-        log_debug("RULE: handle_window_title_change skipped — re-entry during rule dispatch");
-        return;
-    }
-
     // Find the window in our list
     WindowInfo *w = NULL;
     for (int i = 0; i < app->window_count; i++) {
@@ -274,29 +218,7 @@ static void handle_window_title_change(AppData *app, Window id) {
     if (strcmp(w->title, new_title) != 0) {
         log_trace("Title changed for 0x%lx: '%s' -> '%s'", id, w->title, new_title);
         safe_string_copy(w->title, new_title, MAX_TITLE_LEN);
-
-        // Check rules against updated title
-        gint64 now_ms = g_get_monotonic_time() / 1000;
-        for (int r = 0; r < app->rules_config.count; r++) {
-            if (!rule_trigger_allows(&app->rules_config.rules[r],
-                                     RULE_TRIGGER_TITLE_CHANGE, false)) {
-                continue;
-            }
-            RuleMatch match = check_rule_match(
-                &app->rules_config.rules[r], &app->rule_state, r, &app->matching, w);
-            if (match.should_fire) {
-                if (!rule_breaker_should_fire(&app->rule_breaker, r, id,
-                                              now_ms, app->rules_config.rules[r].pattern)) {
-                    continue;
-                }
-                log_info("RULE: '%s' matched window 0x%lx '%s' — executing: %s",
-                         app->rules_config.rules[r].pattern, id, w->title, match.commands);
-                gboolean prev = app->in_rule_dispatch;
-                app->in_rule_dispatch = TRUE;
-                execute_command_background(match.commands, app, w);
-                app->in_rule_dispatch = prev;
-            }
-        }
+        rules_apply_for_title_change(app, id);
     }
     g_free(new_title);
 }
@@ -321,7 +243,7 @@ void setup_x11_event_monitoring(AppData *app) {
 
     // Subscribe to property changes on existing windows (for title change rules)
     subscribe_to_window_properties(app);
-    apply_rules_to_windows(app, RULE_TRIGGER_STARTUP, NULL, 0);
+    rules_apply(app, RULE_TRIGGER_STARTUP, NULL, 0);
     app->initial_window_population_done = TRUE;
 
     log_debug("X11 event monitoring setup complete");
@@ -441,7 +363,7 @@ void handle_x11_event(AppData *app, XEvent *event) {
                 // Subscribe to per-window property changes and apply rules
                 prune_subscribed_windows(app);
                 subscribe_to_window_properties(app);
-                apply_rules_to_windows(app, RULE_TRIGGER_CLIENT_LIST, added_ids, added_count);
+                rules_apply(app, RULE_TRIGGER_CLIENT_LIST, added_ids, added_count);
 
                 // Grace-count rule state pruning: tolerate one transient absence
                 // (e.g. WM unmap/remap during maximize toggle) before dropping state.

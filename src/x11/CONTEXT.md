@@ -14,7 +14,8 @@ into application refresh callbacks.
 - Window enumeration into `WindowInfo`, including title/class/type/pid/desktop
   fields and filtering out cofi's own window.
 - X11 event watch setup, root/per-window event dispatch, workspace-switch
-  bookkeeping, and event-triggered AppData refresh callbacks.
+  bookkeeping, and event-triggered AppData refresh callbacks, including
+  delegating automatic rule application to `rules/`.
 - Raw monitor/window geometry helpers, frame-aware move/resize calls, and
   process-to-window lookup through `_NET_WM_PID` plus `/proc` ancestry.
 
@@ -29,6 +30,7 @@ into application refresh callbacks.
 - `WindowInfo`, `WorkspaceInfo`, `WorkArea`, `FrameExtents`,
   `WindowSizeHints`, and workspace helper types
 - `get_window_list()`, X11 property/window/workspace/state helpers,
+  `window_id_in_list()`,
   intent-named state query helpers (`window_is_hidden()`,
   `window_is_shaded()`, `window_is_sticky()`, `window_is_fullscreen()`,
   `window_is_maximized_horizontal()`, `window_is_maximized_vertical()`),
@@ -85,13 +87,13 @@ into application refresh callbacks.
    connection through GLib, subscribes current windows to `PropertyNotify`, and
    cleans up the GLib watch/channel on shutdown.
 17. `_NET_CLIENT_LIST` events snapshot previous window ids, refresh AppData's
-   window list, compute newly-added window ids for rule trigger gating, reassign
-   live match entries, prune rule state for absent windows, refilter using
-   current query semantics, and update visible UI only when the cofi window is
-   present.
+   window list, compute newly-added window ids, delegate automatic rule
+   application to rules with that delta, reassign live match entries, prune rule
+   state for absent windows, refilter using current query semantics, and update
+   visible UI only when the cofi window is present.
 18. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
-19. Per-window title changes update cached `WindowInfo` titles and re-evaluate
-   matching rules without re-entering rule dispatch.
+19. Per-window title changes update cached `WindowInfo` titles and delegate
+   title-change rule application to rules without x11 evaluating rules itself.
 20. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
    window, relying on geometry planning idempotence for no-op cases.
 21. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
