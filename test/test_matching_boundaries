@@ -10,8 +10,13 @@ if rg -n '#include "names/' src/matching; then
     fail=1
 fi
 
+if rg -n '#include "(geom|harpoon|rules)/' src/matching; then
+    echo "FAIL: src/matching must not include owner store modules"
+    fail=1
+fi
+
 if [[ "$fail" -eq 0 ]]; then
-    echo "PASS: src/matching has no names/ includes"
+    echo "PASS: src/matching has no owner-store includes"
 fi
 
 gc_callers="$(rg -l -g '*.c' -g '*.h' 'matching_run_gc\(' src | grep -v '^src/core/app/' || true)"

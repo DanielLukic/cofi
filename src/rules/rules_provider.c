@@ -5,7 +5,7 @@
 #include "commands/command_registry.h"
 #include "matching/match.h"
 #include "ui/overlay_manager.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 #include "rules/rules_replay.h"
 #include "core/selection/selection.h"
 #include "ui/display.h"

@@ -3,7 +3,7 @@
 
 #include "core/app/app_data.h"
 #include "ui/overlay_manager.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 
 static int pass = 0;
 static int fail = 0;

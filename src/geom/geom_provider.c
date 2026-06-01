@@ -9,7 +9,7 @@
 #include "matching/match.h"
 #include "matching/match_entry_config.h"
 #include "ui/overlay_confirm.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 #include "core/selection/selection.h"
 #include "ui/tab_switching.h"
 

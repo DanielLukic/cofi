@@ -12,10 +12,7 @@ that higher layers use to find, restore, name, and target windows.
 - Persistent `MatchEntry` identities: stable match ids, live X11 rebinding,
   title patterns, class/instance/type anchors, and JSON persistence in
   `matching.json`.
-- The hidden Matching provider tab for read-only browsing of identity entries
-  plus pattern editing.
-- Pattern edit overlays for matching entries, including refresh and persistence
-  of affected matching, rules, geom, and Harpoon views.
+- The hidden Matching provider tab for read-only browsing of identity entries.
 - Pure match-entry garbage collection against a caller-provided list of live
   match ids.
 
@@ -49,7 +46,6 @@ that higher layers use to find, restore, name, and target windows.
   `get_title_base_length()`, and `wildcard_match()`
 - `matching_provider_register()`, `matching_tab_mode()`,
   `matching_selected_entry()`, and `matching_selected_manager_index()`
-- Pattern overlay creation/key handlers declared in `overlay_pattern.h`
 
 ## Acceptance Criteria
 1. Direct word-boundary matches rank in a higher tier than indirect fuzzy
@@ -114,23 +110,14 @@ that higher layers use to find, restore, name, and target windows.
 21. Name editing and deletion are owned by `src/names/`; name deletion may
     delete that name record's owned match entry, while name editing must not
     mutate `matching.json`.
-22. Pattern editing refuses missing or orphaned targets with an explanatory
-    confirmation overlay; successful edits save matching and refresh the active
-    Matching, Rules, Geom, or Harpoon view as appropriate.
-23. When a pattern edit affects rules or saved layouts, the dependent persisted
-    rules config and geom-tagged restore rules are resynchronized for the old
-    and new patterns.
-24. `wildcard_match()` treats `*` as any sequence, `.` as exactly one character,
+22. `wildcard_match()` treats `*` as any sequence, `.` as exactly one character,
     and all other characters as exact, case-sensitive matches.
-25. Fuzzy window identity requires class, instance, and type equality before
+23. Fuzzy window identity requires class, instance, and type equality before
     applying title fuzziness; title fuzziness accepts exact matches, shared
     dash-prefix bases, or one title containing the other.
 
 ## Notes
 - Matching ids are the stable cross-subsystem key. Do not replace them with
   array indexes in rules, Harpoon, geom, or provider rows.
-- Pattern editing intentionally reaches into rules and geom persistence because
-  those records store matching ids but user-visible restore behavior is pattern
-  based. Keep that bridge explicit and one-way from the edit action.
 - The legacy matcher and fzf-style matcher both remain public because different
   providers and tests rely on their exact scoring behavior.

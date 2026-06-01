@@ -16,6 +16,8 @@ short-lived visual affordances.
   header formatting.
 - Top-level key routing before feature-specific provider handlers run.
 - Overlay host state, focus trapping, type dispatch, and shared confirmation UI.
+- Cross-cutting pattern edit overlay UX that coordinates matching ids across
+  feature-owned stores.
 - Transient UI-only visuals: selected-window ripple highlight and numbered
   workspace slot overlays.
 - Transient X11 overlay drawing for ripple and slot overlays, including ARGB
@@ -43,6 +45,7 @@ short-lived visual affordances.
   `cofi_modal.h`: tab visibility, header formatting, prefixes, and modals.
 - `overlay_manager.h`, `overlay_dispatch.h`, `overlay_confirm.h`: overlay host,
   type dispatch, and confirmation entrypoints.
+- `overlay_pattern.h`: pattern edit overlay creation/key handling.
 - `gtk_utils.h`, `gtk_window.h`, `slot_overlay.h`, `window_highlight.h`,
   `window_lifecycle.h`: widget helpers, alignment, slot overlays, ripple
   highlight, and popup lifecycle.
@@ -117,6 +120,12 @@ short-lived visual affordances.
     can preserve selection when that window is still present.
 28. Display-title composition prefixes a custom name from the Names store as
     `<custom name> - <window title>` and otherwise returns the original title.
+29. Pattern editing refuses missing or orphaned targets with an explanatory
+    confirmation overlay; successful edits save matching and refresh the active
+    Matching, Rules, Geom, or Harpoon view as appropriate.
+30. When a pattern edit affects rules or saved layouts, the dependent persisted
+    rules config and geom-tagged restore rules are resynchronized for the old
+    and new patterns.
 
 ## Notes
 `activate_window()` performs raw X11 desktop switching, activation messaging,
@@ -137,3 +146,10 @@ until that integration is implemented.
 `harpoon/key_handler_harpoon.c`. New feature-specific key-handler patterns
 should follow that split: declare the UI dispatch seam here, implement feature
 behavior in the feature folder.
+
+`overlay_pattern.c` is intentional cross-cutting UX: a single pattern edit
+overlay coordinates writes across `matching.json`, `rules.json`, geom layouts,
+and Harpoon slots, and refreshes Matching, Rules, Geom, and Harpoon provider
+views. Its dependencies on `geom_provider`, `geom_rule_sync`,
+`harpoon_provider`, and `rules_provider` belong here rather than in lower-level
+matching primitives.

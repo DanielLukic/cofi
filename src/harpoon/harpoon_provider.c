@@ -8,7 +8,7 @@
 #include "matching/match.h"
 #include "matching/match_entry.h"
 #include "ui/overlay_manager.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 #include "core/selection/selection.h"
 #include "ui/tab_switching.h"
 #include "core/utils/types.h"

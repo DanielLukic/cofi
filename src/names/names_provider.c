@@ -11,7 +11,7 @@
 #include "daemon/daemon_socket.h"
 #include "matching/match.h"
 #include "matching/match_entry.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 #include "names/overlay_names.h"
 #include "providers/cofi_tab_provider.h"
 #include "ui/dynamic_display.h"

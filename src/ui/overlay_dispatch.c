@@ -9,7 +9,7 @@
 #include "daemon/overlay_hotkey_edit.h"
 #include "ui/overlay_manager.h"
 #include "names/overlay_names.h"
-#include "matching/overlay_pattern.h"
+#include "ui/overlay_pattern.h"
 #include "rules/overlay_rules.h"
 #include "projects/overlay_projects.h"
 #include "workspaces/overlay_workspace.h"
