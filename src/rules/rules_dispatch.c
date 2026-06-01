@@ -40,11 +40,7 @@ void rules_apply(AppData *app, RuleTrigger trigger,
             }
             RuleMatch match = check_rule_match(
                 rule, &app->rule_state, r, &app->matching, w);
-            if (match.should_fire) {
-                if (!app->initial_window_population_done && !rule->run_at_start) {
-                    continue;
-                }
-
+            if (match.should_fire && is_new_window) {
                 execute_rule_match(app, rule, r, w, now_ms, match.commands);
             }
         }

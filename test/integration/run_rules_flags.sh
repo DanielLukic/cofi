@@ -97,7 +97,6 @@ JSON
       "match_id": 101,
       "pattern": "*RuleFlagOne*",
       "commands": "sb on",
-      "run_at_start": false,
       "once": false,
       "new_only": false
     },
@@ -105,7 +104,6 @@ JSON
       "match_id": 102,
       "pattern": "*RuleFlagTwo*",
       "commands": "ew off",
-      "run_at_start": false,
       "once": false,
       "new_only": false
     }

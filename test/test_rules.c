@@ -88,7 +88,6 @@ static void test_add_rule(void) {
     ASSERT_INT("count after add", 1, config.count);
     ASSERT_STR("first pattern", "*htop*", config.rules[0].pattern);
     ASSERT_STR("first commands", "sb,ab,ew", config.rules[0].commands);
-    ASSERT_FALSE("run_at_start defaults false on add", config.rules[0].run_at_start);
 
     ASSERT_INT("add second", 1, add_rule(&config, "*Firefox*", "ew"));
     ASSERT_INT("count after second", 2, config.count);
@@ -126,7 +125,6 @@ static void test_save_load_roundtrip(void) {
     add_rule(&original, "*Firefox*", "ew");
     add_rule(&original, "Tsunami*Thunderbird*", "sb");
     add_rule(&original, "*quote\"slash\\<script>*", "rl,echo \"hi\"");
-    original.rules[1].run_at_start = 1;
     strncpy(original.rules[1].tag, "geom", sizeof(original.rules[1].tag) - 1);
     original.rules[1].tag[sizeof(original.rules[1].tag) - 1] = '\0';
     original.rules[1].once = false;
@@ -134,6 +132,17 @@ static void test_save_load_roundtrip(void) {
     original.rules[2].new_only = true;
 
     ASSERT_INT("save", 1, save_rules_config(&original));
+    char saved_path[600];
+    snprintf(saved_path, sizeof(saved_path), "%s/.config/cofi/rules.json", tmpdir);
+    FILE *saved = fopen(saved_path, "r");
+    char saved_buf[4096] = {0};
+    if (saved) {
+        size_t n = fread(saved_buf, 1, sizeof(saved_buf) - 1, saved);
+        saved_buf[n] = '\0';
+        fclose(saved);
+    }
+    ASSERT_FALSE("saved rules omit legacy run_at_start",
+                 strstr(saved_buf, "run_at_start") != NULL);
 
     init_rules_config(&loaded);
     ASSERT_INT("load", 1, load_rules_config(&loaded));
@@ -142,7 +151,6 @@ static void test_save_load_roundtrip(void) {
     ASSERT_STR("loaded commands 0", "sb,ab,ew", loaded.rules[0].commands);
     ASSERT_STR("loaded pattern 1", "*Firefox*", loaded.rules[1].pattern);
     ASSERT_STR("loaded commands 1", "ew", loaded.rules[1].commands);
-    ASSERT_TRUE("loaded run_at_start 1", loaded.rules[1].run_at_start);
     ASSERT_STR("loaded tag 1", "geom", loaded.rules[1].tag);
     ASSERT_FALSE("loaded once false survives", loaded.rules[1].once);
     ASSERT_INT("loaded applied resets", 0, (int)loaded.rules[1].applied);
@@ -151,8 +159,6 @@ static void test_save_load_roundtrip(void) {
     ASSERT_TRUE("loaded new_only 2", loaded.rules[2].new_only);
     ASSERT_STR("loaded pattern 3", "*quote\"slash\\<script>*", loaded.rules[3].pattern);
     ASSERT_STR("loaded commands 3", "rl,echo \"hi\"", loaded.rules[3].commands);
-    ASSERT_FALSE("loaded run_at_start defaults false when saved false", loaded.rules[0].run_at_start);
-    ASSERT_FALSE("loaded run_at_start remains false on third rule", loaded.rules[2].run_at_start);
     ASSERT_TRUE("loaded once defaults true when saved true", loaded.rules[0].once);
     ASSERT_FALSE("loaded new_only defaults false when saved false", loaded.rules[0].new_only);
     ASSERT_STR("loaded empty tag defaults to empty string", "", loaded.rules[0].tag);
@@ -182,7 +188,7 @@ static void test_load_missing_file(void) {
     system(cmd);
 }
 
-static void test_load_legacy_file_defaults_run_at_start_false(void) {
+static void test_load_legacy_file_defaults_optional_flags(void) {
     char tmpdir[] = "/tmp/cofi_rules_legacy_XXXXXX";
     if (!mkdtemp(tmpdir)) {
         printf("FAIL: mkdtemp\n");
@@ -219,7 +225,6 @@ static void test_load_legacy_file_defaults_run_at_start_false(void) {
     init_rules_config(&config);
     ASSERT_INT("load legacy file", 1, load_rules_config(&config));
     ASSERT_INT("legacy count", 1, config.count);
-    ASSERT_FALSE("legacy run_at_start defaults false", config.rules[0].run_at_start);
     ASSERT_TRUE("legacy once defaults true", config.rules[0].once);
     ASSERT_FALSE("legacy new_only defaults false", config.rules[0].new_only);
     ASSERT_STR("legacy tag defaults empty", "", config.rules[0].tag);
@@ -376,11 +381,9 @@ static void test_load_rules_json_with_special_chars(void) {
     ASSERT_INT("special char count", 2, config.count);
     ASSERT_STR("special pattern 0", "*term?$HOME<script>", config.rules[0].pattern);
     ASSERT_STR("special commands 0", "rl,ew+,ab+", config.rules[0].commands);
-    ASSERT_TRUE("special run_at_start 0", config.rules[0].run_at_start);
     ASSERT_STR("special tag 0", "geom", config.rules[0].tag);
     ASSERT_STR("special pattern 1", "browser*&docs?", config.rules[1].pattern);
     ASSERT_STR("special commands 1", "sb off, aot on", config.rules[1].commands);
-    ASSERT_FALSE("special run_at_start 1", config.rules[1].run_at_start);
     ASSERT_STR("special tag 1 defaults empty", "", config.rules[1].tag);
 
     char cmd[600];
@@ -426,7 +429,6 @@ static void test_load_skips_rules_missing_required_fields(void) {
     ASSERT_INT("missing required leaves only valid rule", 1, config.count);
     ASSERT_STR("valid rule pattern survives", "*valid*", config.rules[0].pattern);
     ASSERT_STR("valid rule commands survives", "sb", config.rules[0].commands);
-    ASSERT_TRUE("valid rule run_at_start survives", config.rules[0].run_at_start);
     ASSERT_TRUE("valid rule migrated to match_id", config.rules[0].match_id > 0);
 
     char cmd[600];
@@ -672,26 +674,6 @@ static void test_once_true_does_not_refire_after_leave_and_reenter(void) {
     ASSERT_FALSE("once=true re-entering match stays suppressed", second.should_fire);
 }
 
-static void test_startup_suppression_still_seeds_matched_state(void) {
-    RulesConfig config;
-    init_rules_config(&config);
-    add_rule(&config, "*htop*", "sb,ab,ew");
-
-    RuleState state;
-    init_rule_state(&state);
-
-    // Startup scan: the matcher sees a fire-once transition and seeds matched=true.
-    RuleMatch startup = check_rule_match(&config.rules[0], &state, 0, 0x1234,
-                                         "root@~ htop — Terminal");
-    ASSERT_TRUE("startup match would fire before suppression", startup.should_fire);
-
-    // Post-startup event on the same still-present window must now suppress.
-    RuleMatch post_startup = check_rule_match(&config.rules[0], &state, 0, 0x1234,
-                                              "root@~ htop — Terminal");
-    ASSERT_FALSE("post-startup recheck stays suppressed after startup seeding",
-                 post_startup.should_fire);
-}
-
 static void test_refire_after_title_changes_away_and_back(void) {
     RulesConfig config;
     init_rules_config(&config);
@@ -776,7 +758,7 @@ static void test_window_removed_resets_state(void) {
 static void test_prune_absent_removes_immediately(void) {
     RuleState state;
     init_rule_state(&state);
-    Rule rule = {.pattern = "*htop*", .commands = "sb", .run_at_start = 0};
+    Rule rule = {.pattern = "*htop*", .commands = "sb"};
 
     check_rule_match(&rule, &state, 0, 0x1234, "htop");
     ASSERT_INT("state has one entry", 1, state.count);
@@ -789,7 +771,7 @@ static void test_prune_absent_removes_immediately(void) {
 static void test_prune_absent_present_window_kept(void) {
     RuleState state;
     init_rule_state(&state);
-    Rule rule = {.pattern = "*htop*", .commands = "sb", .run_at_start = 0};
+    Rule rule = {.pattern = "*htop*", .commands = "sb"};
 
     check_rule_match(&rule, &state, 0, 0x1111, "htop A");
     check_rule_match(&rule, &state, 0, 0x2222, "htop B");
@@ -880,8 +862,8 @@ static void test_breaker_null_safe(void) {
 // execute the !matches&&matched→RESET branch, clearing R0's state and causing
 // R0 to re-fire on the next evaluation cycle (the root cause of the storm).
 static void test_two_rules_no_state_stomp(void) {
-    Rule r0 = {.pattern = "*htop*", .commands = "ew", .run_at_start = 0};        // matches window W
-    Rule r1 = {.pattern = "*Firefox*", .commands = "ew", .run_at_start = 0};     // does NOT match window W
+    Rule r0 = {.pattern = "*htop*", .commands = "ew"};        // matches window W
+    Rule r1 = {.pattern = "*Firefox*", .commands = "ew"};     // does NOT match window W
 
     RuleState state;
     init_rule_state(&state);
@@ -945,7 +927,7 @@ int main(void) {
     test_remove_rule();
     test_save_load_roundtrip();
     test_load_missing_file();
-    test_load_legacy_file_defaults_run_at_start_false();
+    test_load_legacy_file_defaults_optional_flags();
     test_load_legacy_duplicate_patterns_get_distinct_match_ids();
     test_orphan_fallback_persists_repaired_match_id();
     test_load_rules_json_with_special_chars();
@@ -964,7 +946,6 @@ int main(void) {
     test_once_true_fires_only_on_first_match_transition();
     test_once_false_refires_after_leave_and_reenter();
     test_once_true_does_not_refire_after_leave_and_reenter();
-    test_startup_suppression_still_seeds_matched_state();
     test_refire_after_title_changes_away_and_back();
     test_different_title_still_matching();
     test_multiple_windows_independent();

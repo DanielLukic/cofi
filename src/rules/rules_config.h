@@ -13,7 +13,6 @@ typedef struct {
     int match_id;                     // authoritative match entry reference (0 = unresolved legacy)
     char pattern[MAX_PATTERN_LEN];    // wildcard pattern for window title
     char commands[MAX_COMMANDS_LEN];  // comma-separated cofi commands
-    int run_at_start;                 // allow this rule to fire during startup scan
     char tag[MAX_RULE_TAG_LEN];       // optional subsystem tag for UI filtering
     bool once;                        // persisted; suppress repeat fires after first match
     bool new_only;                    // persisted; fire only on new-window appearance

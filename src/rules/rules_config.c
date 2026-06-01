@@ -34,7 +34,6 @@ int add_rule(RulesConfig *config, const char *pattern, const char *commands) {
     strncpy(r->commands, commands, MAX_COMMANDS_LEN - 1);
     r->commands[MAX_COMMANDS_LEN - 1] = '\0';
     r->match_id = 0;
-    r->run_at_start = 0;
     r->tag[0] = '\0';
     r->once = true;
     r->new_only = false;
@@ -76,8 +75,6 @@ int save_rules_config(const RulesConfig *config, const MatchEntryManager *manage
         json_builder_add_string_value(builder, pattern_cache ? pattern_cache : "");
         json_builder_set_member_name(builder, "commands");
         json_builder_add_string_value(builder, config->rules[i].commands);
-        json_builder_set_member_name(builder, "run_at_start");
-        json_builder_add_boolean_value(builder, config->rules[i].run_at_start);
         json_builder_set_member_name(builder, "once");
         json_builder_add_boolean_value(builder, config->rules[i].once);
         json_builder_set_member_name(builder, "new_only");
@@ -181,7 +178,6 @@ int load_rules_config(RulesConfig *config, MatchEntryManager *manager) {
         }
         Rule *loaded_rule = &config->rules[config->count - 1];
         loaded_rule->match_id = match_id;
-        loaded_rule->run_at_start = cofi_json_obj_bool_or(rule, "run_at_start", FALSE, NULL);
         loaded_rule->once = cofi_json_obj_bool_or(rule, "once", TRUE, NULL);
         loaded_rule->new_only = cofi_json_obj_bool_or(rule, "new_only", FALSE, NULL);
         const char *tag = cofi_json_obj_str_or(rule, "tag", "", NULL);

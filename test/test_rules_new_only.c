@@ -28,8 +28,6 @@ static Rule make_rule(bool new_only) {
 static void test_normal_rule_allows_all_triggers(void) {
     Rule rule = make_rule(false);
 
-    ASSERT_TRUE("normal allows startup",
-                rule_trigger_allows(&rule, RULE_TRIGGER_STARTUP, false) == true);
     ASSERT_TRUE("normal allows client-list new window",
                 rule_trigger_allows(&rule, RULE_TRIGGER_CLIENT_LIST, true) == true);
     ASSERT_TRUE("normal allows client-list existing window",
@@ -41,8 +39,6 @@ static void test_normal_rule_allows_all_triggers(void) {
 static void test_new_only_rule_allows_only_new_windows(void) {
     Rule rule = make_rule(true);
 
-    ASSERT_TRUE("new-only blocks startup",
-                rule_trigger_allows(&rule, RULE_TRIGGER_STARTUP, false) == false);
     ASSERT_TRUE("new-only allows client-list new window",
                 rule_trigger_allows(&rule, RULE_TRIGGER_CLIENT_LIST, true) == true);
     ASSERT_TRUE("new-only blocks client-list existing window",

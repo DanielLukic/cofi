@@ -243,8 +243,6 @@ void setup_x11_event_monitoring(AppData *app) {
 
     // Subscribe to property changes on existing windows (for title change rules)
     subscribe_to_window_properties(app);
-    rules_apply(app, RULE_TRIGGER_STARTUP, NULL, 0);
-    app->initial_window_population_done = TRUE;
 
     log_debug("X11 event monitoring setup complete");
 }

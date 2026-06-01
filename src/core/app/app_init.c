@@ -135,7 +135,6 @@ void init_app_data(AppData *app) {
     
     // Initialize window visibility state
     app->window_visible = FALSE;
-    app->initial_window_population_done = FALSE;
     app->hotkey_capture_active = FALSE;
 
     // Initialize fixed window sizing state

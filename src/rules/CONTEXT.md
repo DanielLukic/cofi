@@ -9,8 +9,8 @@ from a hidden provider tab.
 
 ### Owns
 - The persisted rules list in `~/.config/cofi/rules.json`, including pattern
-  cache, stable `match_id` references, command strings, startup flags, once
-  flags, new-window-only flags, and optional subsystem tags.
+  cache, stable `match_id` references, command strings, once flags,
+  new-window-only flags, and optional subsystem tags.
 - Rule evaluation policy: resolving a rule through `MatchEntry`, tracking
   per-rule/per-window transition state, enforcing the `once` flag, and returning
   command strings to dispatch.
@@ -58,13 +58,13 @@ from a hidden provider tab.
 
 ## Acceptance Criteria
 1. `init_rules_config()` produces an empty rules list, and `add_rule()` appends
-   at most `MAX_RULES` entries with copied pattern/commands, `run_at_start`
-   false, no tag, `once` true, and `applied` cleared.
+   at most `MAX_RULES` entries with copied pattern/commands, no tag, `once`
+   true, `new_only` false, and `applied` cleared.
 2. `remove_rule()` rejects invalid indexes, compacts later rules in order when
    removing a valid index, and decrements the count.
 3. Saving rules writes `rules.json` with each rule's `match_id`, current pattern
-   cache, command string, `run_at_start`, `once`, `new_only`, and non-empty tag;
-   only `applied` state is transient and never persisted.
+   cache, command string, `once`, `new_only`, and non-empty tag; only `applied`
+   state is transient and never persisted.
 4. When saving with a matching manager, a rule with a valid `match_id` writes the
    matched entry's current original title as the persisted pattern cache.
 5. Loading missing, corrupt, or malformed `rules.json` never crashes callers:
@@ -78,10 +78,11 @@ from a hidden provider tab.
    saved pattern by creating a fresh rule-owned pattern entry; otherwise the
    rule is skipped. Startup persists the repaired rule `match_id` with matching
    entries so repeated loads do not leak new orphan-fallback entries.
-8. Loaded rules restore command strings, `run_at_start`, `once`, `new_only`,
-   and tags, default missing `once` to true, missing `new_only` to false, and
-   missing tags to empty, clear `applied`, and normalize the visible pattern
-   from the referenced match entry when available.
+8. Loaded rules restore command strings, `once`, `new_only`, and tags, ignore
+   legacy `run_at_start` fields, default missing `once` to true, missing
+   `new_only` to false, and missing tags to empty, clear `applied`, and
+   normalize the visible pattern from the referenced match entry when
+   available.
 9. Rule matching resolves through `MatchEntry`: a rule with no positive
    `match_id`, no manager, no window, or a missing entry does not match.
 10. `check_rule_match()` tracks transition state by `(rule_index, window_id)` so
@@ -97,8 +98,8 @@ from a hidden provider tab.
     once-applied rule remains suppressed until the applied-window bookkeeping is
     cleared by the dead-window path.
 13. A `new_only` rule may fire only when rule evaluation is triggered by a
-    `_NET_CLIENT_LIST` addition for that newly-added window; startup scans,
-    existing-window client-list refreshes, and title changes do not fire it.
+    `_NET_CLIENT_LIST` addition for that newly-added window; existing-window
+    client-list refreshes and title changes do not fire it.
 14. Manual replay bypasses the automatic trigger gate, so `new_only` rules can
     still be replayed manually against matching open windows.
 15. `rules_clear_applied_for_dead_windows()` clears each rule's `applied` id
@@ -111,14 +112,14 @@ from a hidden provider tab.
 18. The circuit breaker fails open when no breaker state is supplied or when the
     breaker entry table is full.
 19. Automatic rule dispatch is rules-owned: whole-window passes and title-change
-    passes apply the trigger gate, evaluate transitions, enforce startup
-    `run_at_start` suppression, run the circuit breaker, guard against
-    re-entry while a rule command is executing, log `RULE:` executions, and
-    dispatch command strings through the command subsystem.
-20. Startup dispatch runs only `run_at_start` rules while the initial population
-    flag is false; client-list dispatch marks a window as new only when x11
-    supplies that window id in the newly-added set; title-change dispatch
-    evaluates only the requested live window id.
+    passes apply the trigger gate, evaluate transitions, run the circuit
+    breaker, guard against re-entry while a rule command is executing, log
+    `RULE:` executions, and dispatch command strings through the command
+    subsystem.
+20. Client-list dispatch marks a window as new only when x11 supplies that
+    window id in the newly-added set; matching existing windows seed transition
+    state without executing commands. Title-change dispatch evaluates only the
+    requested live window id.
 21. `rule_toggle_once()` flips the selected rule's `once` flag and always clears
     `applied` so the new mode starts from an unapplied state;
     `rule_toggle_new_only()` flips only `new_only` and leaves `applied`

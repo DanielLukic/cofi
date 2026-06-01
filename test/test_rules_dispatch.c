@@ -39,13 +39,12 @@ static void reset_exec_log(void) {
 }
 
 static int add_dispatch_rule(AppData *app, const char *pattern, const char *commands,
-                             bool run_at_start, bool new_only) {
+                             bool new_only) {
     int rule_index = app->rules_config.count++;
     Rule *rule = &app->rules_config.rules[rule_index];
     memset(rule, 0, sizeof(*rule));
     safe_string_copy(rule->pattern, pattern, sizeof(rule->pattern));
     safe_string_copy(rule->commands, commands, sizeof(rule->commands));
-    rule->run_at_start = run_at_start;
     rule->new_only = new_only;
     rule->once = false;
     rule->match_id = matching_create_pattern_entry(&app->matching, pattern);
@@ -69,46 +68,46 @@ static void add_window(AppData *app, Window id, const char *title) {
 static void test_rules_apply_client_list_uses_new_window_gate(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = TRUE;
     add_window(&app, 0x100, "Terminal");
     add_window(&app, 0x200, "Firefox");
-    add_dispatch_rule(&app, "*Terminal*", "terminal-cmd", false, false);
-    add_dispatch_rule(&app, "*Firefox*", "firefox-new", false, true);
+    add_window(&app, 0x300, "Editor");
+    add_dispatch_rule(&app, "*Terminal*", "terminal-cmd", false);
+    add_dispatch_rule(&app, "*Firefox*", "firefox-new", true);
+    add_dispatch_rule(&app, "*Editor*", "editor-cmd", false);
 
-    Window added[] = {0x200};
+    Window added[] = {0x200, 0x300};
     reset_exec_log();
-    rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, added, 1);
+    rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, added, 2);
 
-    ASSERT_TRUE("client-list dispatch executes matching normal rule",
-                strcmp(g_exec_log[0], "terminal-cmd@0x100") == 0);
+    ASSERT_TRUE("client-list dispatch seeds existing normal rule without firing",
+                app.rule_state.count > 0);
     ASSERT_TRUE("client-list dispatch executes new-only rule for added window",
-                strcmp(g_exec_log[1], "firefox-new@0x200") == 0);
+                strcmp(g_exec_log[0], "firefox-new@0x200") == 0);
+    ASSERT_TRUE("client-list dispatch executes normal rule for added window",
+                strcmp(g_exec_log[1], "editor-cmd@0x300") == 0);
     ASSERT_TRUE("client-list dispatch call count", g_exec_calls == 2);
 }
 
-static void test_rules_apply_startup_suppresses_non_startup_rules(void) {
+static void test_rules_apply_client_list_without_added_windows_does_not_fire(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = FALSE;
     add_window(&app, 0x100, "Terminal");
-    add_dispatch_rule(&app, "*Terminal*", "no-startup", false, false);
-    add_dispatch_rule(&app, "*Terminal*", "startup", true, false);
+    add_dispatch_rule(&app, "*Terminal*", "existing", false);
 
     reset_exec_log();
-    rules_apply(&app, RULE_TRIGGER_STARTUP, NULL, 0);
+    rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, NULL, 0);
 
-    ASSERT_TRUE("startup suppresses non-run_at_start rule", g_exec_calls == 1);
-    ASSERT_TRUE("startup dispatches run_at_start rule",
-                strcmp(g_exec_log[0], "startup@0x100") == 0);
+    ASSERT_TRUE("client-list existing window does not fire", g_exec_calls == 0);
+    ASSERT_TRUE("client-list existing window still seeds match state",
+                app.rule_state.count == 1);
 }
 
 static void test_rules_apply_reentry_guard_is_noop(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = TRUE;
     app.in_rule_dispatch = TRUE;
     add_window(&app, 0x100, "Terminal");
-    add_dispatch_rule(&app, "*Terminal*", "cmd", false, false);
+    add_dispatch_rule(&app, "*Terminal*", "cmd", false);
 
     reset_exec_log();
     rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, NULL, 0);
@@ -119,10 +118,9 @@ static void test_rules_apply_reentry_guard_is_noop(void) {
 static void test_rules_apply_for_title_change_dispatches_matching_window(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = TRUE;
     add_window(&app, 0x100, "Terminal - htop");
     add_window(&app, 0x200, "Firefox");
-    add_dispatch_rule(&app, "*htop*", "htop-cmd", false, false);
+    add_dispatch_rule(&app, "*htop*", "htop-cmd", false);
 
     reset_exec_log();
     rules_apply_for_title_change(&app, 0x100);
@@ -135,9 +133,8 @@ static void test_rules_apply_for_title_change_dispatches_matching_window(void) {
 static void test_rules_apply_for_title_change_ignores_nonmatching_window(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = TRUE;
     add_window(&app, 0x100, "Terminal");
-    add_dispatch_rule(&app, "*Firefox*", "firefox-cmd", false, false);
+    add_dispatch_rule(&app, "*Firefox*", "firefox-cmd", false);
 
     reset_exec_log();
     rules_apply_for_title_change(&app, 0x100);
@@ -148,10 +145,9 @@ static void test_rules_apply_for_title_change_ignores_nonmatching_window(void) {
 static void test_rules_apply_for_title_change_reentry_guard_is_noop(void) {
     AppData app;
     init_dispatch_app(&app);
-    app.initial_window_population_done = TRUE;
     app.in_rule_dispatch = TRUE;
     add_window(&app, 0x100, "Terminal - htop");
-    add_dispatch_rule(&app, "*htop*", "htop-cmd", false, false);
+    add_dispatch_rule(&app, "*htop*", "htop-cmd", false);
 
     reset_exec_log();
     rules_apply_for_title_change(&app, 0x100);
@@ -166,7 +162,7 @@ int main(void) {
     printf("====================\n\n");
 
     test_rules_apply_client_list_uses_new_window_gate();
-    test_rules_apply_startup_suppresses_non_startup_rules();
+    test_rules_apply_client_list_without_added_windows_does_not_fire();
     test_rules_apply_reentry_guard_is_noop();
     test_rules_apply_for_title_change_dispatches_matching_window();
     test_rules_apply_for_title_change_ignores_nonmatching_window();
