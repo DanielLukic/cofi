@@ -8,6 +8,7 @@
 #include "matching/overlay_pattern.h"
 #include "rules/rules_replay.h"
 #include "core/selection/selection.h"
+#include "ui/display.h"
 #include "ui/tab_switching.h"
 #include "ui/dynamic_display.h"
 #include "matching/match_entry.h"
@@ -216,6 +217,14 @@ int rules_selected_config_index(AppData *app) {
     return app->filtered_rule_indices[app->selection.provider_index];
 }
 
+static bool selected_rule_is_tagged(AppData *app) {
+    int rule_index = rules_selected_config_index(app);
+    if (rule_index < 0 || rule_index >= app->rules_config.count) {
+        return false;
+    }
+    return app->rules_config.rules[rule_index].tag[0] != '\0';
+}
+
 void rules_select_config_index(AppData *app, int config_index) {
     if (!app || config_index < 0) return;
 
@@ -230,6 +239,16 @@ void rules_select_config_index(AppData *app, int config_index) {
 
 static CofiTabProvider s_rules_provider;
 static int s_rules_provider_id = -1;
+
+static const char *rules_shortcut_hint(AppData *app) {
+    if (!app || app->filtered_rules_count <= 0) {
+        return "No rules found";
+    }
+    if (selected_rule_is_tagged(app)) {
+        return "Tagged rule — managed by owning tab (e.g. :geom)";
+    }
+    return "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+N=new  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+}
 
 TabMode rules_tab_mode(void) {
     const CofiTabProvider *provider = cofi_get_provider(s_rules_provider_id);
@@ -252,12 +271,18 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         if (!rules_selected_rule(app)) {
             return FALSE;
         }
+        if (selected_rule_is_tagged(app)) {
+            return FALSE;
+        }
         show_overlay(app, OVERLAY_RULE_EDIT, NULL);
         return TRUE;
     }
 
     if ((event->state & GDK_CONTROL_MASK) &&
         (event->keyval == GDK_KEY_p || event->keyval == GDK_KEY_P)) {
+        if (selected_rule_is_tagged(app)) {
+            return FALSE;
+        }
         Rule *selected = rules_selected_rule(app);
         int match_id = selected_match_id_for_pattern_edit(app);
         char context[96];
@@ -270,6 +295,9 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         (event->keyval == GDK_KEY_d || event->keyval == GDK_KEY_D)) {
         int rule_index = rules_selected_config_index(app);
         if (rule_index < 0) {
+            return FALSE;
+        }
+        if (selected_rule_is_tagged(app)) {
             return FALSE;
         }
         show_rule_delete_overlay(app, rule_index);
@@ -298,6 +326,9 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         if (rule_index < 0 || rule_index >= app->rules_config.count) {
             return FALSE;
         }
+        if (selected_rule_is_tagged(app)) {
+            return FALSE;
+        }
         rule_toggle_once(&app->rules_config.rules[rule_index]);
         save_rules_config(&app->rules_config, &app->matching);
         const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
@@ -312,6 +343,9 @@ gboolean handle_rules_tab_keys(GdkEventKey *event, AppData *app) {
         (event->keyval == GDK_KEY_n || event->keyval == GDK_KEY_N)) {
         int rule_index = rules_selected_config_index(app);
         if (rule_index < 0 || rule_index >= app->rules_config.count) {
+            return FALSE;
+        }
+        if (selected_rule_is_tagged(app)) {
             return FALSE;
         }
         rule_toggle_new_only(&app->rules_config.rules[rule_index]);
@@ -363,8 +397,7 @@ void rules_provider_register(void) {
     s_rules_provider.on_enter = rules_on_enter;
     s_rules_provider.on_query_changed = rules_on_query_changed;
     s_rules_provider.handle_key = handle_rules_tab_keys;
-    s_rules_provider.shortcut_hint =
-        "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+N=new  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+    s_rules_provider.get_shortcut_hint = rules_shortcut_hint;
     s_rules_provider_id = cofi_register_tab_provider(&s_rules_provider);
     if (s_rules_provider_id >= 0) {
         cofi_register_command(&s_rules_command);

@@ -16,6 +16,8 @@ static int fail = 0;
 } while (0)
 
 static int g_save_rules_calls;
+static int g_save_match_entries_calls;
+static int g_deleted_match_id;
 static int g_hide_overlay_calls;
 static int g_update_display_calls;
 
@@ -67,6 +69,21 @@ int matching_create_pattern_entry(MatchEntryManager *mgr, const char *pattern) {
 
 void save_match_entries(const MatchEntryManager *manager) {
     (void)manager;
+    g_save_match_entries_calls++;
+}
+
+void match_entry_delete_by_match_id(MatchEntryManager *manager, int match_id) {
+    g_deleted_match_id = match_id;
+    if (!manager) return;
+    for (int i = 0; i < manager->count; i++) {
+        if (manager->entries[i].match_id == match_id) {
+            for (int j = i; j < manager->count - 1; j++) {
+                manager->entries[j] = manager->entries[j + 1];
+            }
+            manager->count--;
+            return;
+        }
+    }
 }
 
 void filter_rules(AppData *app, const char *filter) {
@@ -207,12 +224,19 @@ static void test_delete_rule_clamps_selection(void) {
     AppData app;
     init_app(&app);
     g_save_rules_calls = 0;
+    g_save_match_entries_calls = 0;
+    g_deleted_match_id = 0;
 
+    app.matching.count = 2;
+    app.matching.entries[0].match_id = 101;
+    app.matching.entries[1].match_id = 202;
     app.rules_config.count = 2;
     strcpy(app.rules_config.rules[0].pattern, "*a*");
     strcpy(app.rules_config.rules[0].commands, "sb on");
+    app.rules_config.rules[0].match_id = 101;
     strcpy(app.rules_config.rules[1].pattern, "*b*");
     strcpy(app.rules_config.rules[1].commands, "ew on");
+    app.rules_config.rules[1].match_id = 202;
 
     app.filtered_rules_count = 2;
     app.filtered_rule_indices[0] = 0;
@@ -225,8 +249,39 @@ static void test_delete_rule_clamps_selection(void) {
 
     ASSERT_TRUE("rule delete handled", handled == TRUE);
     ASSERT_TRUE("rule delete reduced count", app.rules_config.count == 1);
+    ASSERT_TRUE("rule delete removes owned match entry",
+                app.matching.count == 1 && app.matching.entries[0].match_id == 101 &&
+                g_deleted_match_id == 202);
     ASSERT_TRUE("rule delete clamped selection", app.selection.provider_index == 0);
     ASSERT_TRUE("rule delete persisted", g_save_rules_calls == 1);
+    ASSERT_TRUE("rule delete saves matching store", g_save_match_entries_calls == 1);
+}
+
+static void test_tagged_rule_delete_confirmation_noops(void) {
+    AppData app;
+    init_app(&app);
+    g_save_rules_calls = 0;
+    g_save_match_entries_calls = 0;
+    g_deleted_match_id = 0;
+
+    app.matching.count = 1;
+    app.matching.entries[0].match_id = 303;
+    app.rules_config.count = 1;
+    strcpy(app.rules_config.rules[0].pattern, "*geom*");
+    strcpy(app.rules_config.rules[0].commands, "rl");
+    strcpy(app.rules_config.rules[0].tag, "geom");
+    app.rules_config.rules[0].match_id = 303;
+    app.filtered_rules_count = 1;
+    app.filtered_rule_indices[0] = 0;
+    show_rule_delete_confirm(&app, 0);
+
+    GdkEventKey ev = confirm_event();
+    gboolean handled = handle_confirm_overlay_key_press(&app, &ev);
+
+    ASSERT_TRUE("tagged rule delete confirm handled", handled == TRUE);
+    ASSERT_TRUE("tagged rule delete leaves rule", app.rules_config.count == 1);
+    ASSERT_TRUE("tagged rule delete leaves match entry", app.matching.count == 1);
+    ASSERT_TRUE("tagged rule delete does not save", g_save_rules_calls == 0 && g_save_match_entries_calls == 0);
 }
 
 int main(int argc, char **argv) {
@@ -247,6 +302,7 @@ int main(int argc, char **argv) {
     test_add_rule_rejects_invalid_command();
     test_edit_rule_updates_entry();
     test_delete_rule_clamps_selection();
+    test_tagged_rule_delete_confirmation_noops();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

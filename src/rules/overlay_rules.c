@@ -5,6 +5,7 @@
 #include "commands/command_parser.h"
 #include "ui/display.h"
 #include "core/log/log.h"
+#include "matching/match_entry.h"
 #include "matching/match_entry_config.h"
 #include "ui/overlay_confirm.h"
 #include "ui/overlay_manager.h"
@@ -134,6 +135,12 @@ static gboolean save_rule_commands_only(AppData *app, int rule_index, const char
         }
         return FALSE;
     }
+    if (app->rules_config.rules[rule_index].tag[0] != '\0') {
+        if (error_label) {
+            gtk_label_set_text(GTK_LABEL(error_label), "Tagged rules are managed by their owning tab");
+        }
+        return FALSE;
+    }
     g_strlcpy(app->rules_config.rules[rule_index].commands,
               commands, sizeof(app->rules_config.rules[rule_index].commands));
     if (!save_rules_config(&app->rules_config, &app->matching)) {
@@ -241,6 +248,11 @@ void create_rule_edit_overlay_content(GtkWidget *parent_container, AppData *app)
     }
 
     Rule *rule = &app->rules_config.rules[config_index];
+    if (rule->tag[0] != '\0') {
+        GtkWidget *error_label = gtk_label_new("Tagged rules are managed by their owning tab");
+        gtk_box_pack_start(GTK_BOX(parent_container), error_label, FALSE, FALSE, 10);
+        return;
+    }
 
     create_rule_edit_overlay_form(parent_container, rule->commands, config_index);
 }
@@ -299,8 +311,16 @@ gboolean handle_rule_edit_key_press(AppData *app, GdkEventKey *event) {
 
 static void perform_rule_delete(AppData *app) {
     if (s_pending_rule_delete_index >= 0 && s_pending_rule_delete_index < app->rules_config.count) {
+        Rule *rule = &app->rules_config.rules[s_pending_rule_delete_index];
+        if (rule->tag[0] != '\0') {
+            s_pending_rule_delete_index = -1;
+            return;
+        }
+        int match_id = rule->match_id;
         remove_rule(&app->rules_config, s_pending_rule_delete_index);
         save_rules_config(&app->rules_config, &app->matching);
+        match_entry_delete_by_match_id(&app->matching, match_id);
+        save_match_entries(&app->matching);
     }
     s_pending_rule_delete_index = -1;
     refresh_rules_tab(app);

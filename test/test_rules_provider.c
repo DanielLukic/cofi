@@ -27,7 +27,13 @@ static int g_save_rules_calls;
 static int g_preserve_selection_calls;
 static int g_restore_selection_calls;
 static int g_display_columns = 120;
+static int g_show_overlay_calls;
+static int g_show_rule_delete_calls;
+static int g_replay_all_rules_calls;
+static int g_replay_selected_rule_calls;
 static TabMode g_last_surface_tab = -1;
+static OverlayType g_last_overlay_type = OVERLAY_NONE;
+static int g_last_rule_delete_index = -1;
 static CofiTabProvider g_registered_provider;
 static int g_show_pattern_overlay_calls;
 static int g_selected_pattern_match_id;
@@ -129,6 +135,8 @@ void match_entry_manager_init(MatchEntryManager *manager) {
 
 void show_overlay(AppData *app, OverlayType type, void *data) {
     (void)app; (void)type; (void)data;
+    g_show_overlay_calls++;
+    g_last_overlay_type = type;
 }
 void update_display(AppData *app) { (void)app; }
 gint get_display_columns(AppData *app) {
@@ -152,14 +160,17 @@ int save_rules_config(const RulesConfig *config, const MatchEntryManager *manage
 }
 void show_rule_delete_overlay(AppData *app, int rule_index) {
     (void)app;
-    (void)rule_index;
+    g_show_rule_delete_calls++;
+    g_last_rule_delete_index = rule_index;
 }
 int replay_all_rules_against_open_windows(AppData *app) {
     (void)app;
+    g_replay_all_rules_calls++;
     return 0;
 }
 gboolean replay_selected_filtered_rule(AppData *app) {
     (void)app;
+    g_replay_selected_rule_calls++;
     return TRUE;
 }
 
@@ -175,7 +186,13 @@ static void reset_state(AppData *app) {
     g_preserve_selection_calls = 0;
     g_restore_selection_calls = 0;
     g_display_columns = 120;
+    g_show_overlay_calls = 0;
+    g_show_rule_delete_calls = 0;
+    g_replay_all_rules_calls = 0;
+    g_replay_selected_rule_calls = 0;
     g_last_surface_tab = -1;
+    g_last_overlay_type = OVERLAY_NONE;
+    g_last_rule_delete_index = -1;
     g_show_pattern_overlay_calls = 0;
     g_selected_pattern_match_id = 0;
     g_last_pattern_context[0] = '\0';
@@ -455,8 +472,9 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("provider command handler set", s_rules_command.handler != NULL);
     ASSERT_TRUE("rules provider tab is dynamic",
                 g_registered_provider.tab_mode >= TAB_COUNT);
-    ASSERT_TRUE("rules provider hint includes new-only toggle",
-                strstr(g_registered_provider.shortcut_hint, "Ctrl+N=new") != NULL);
+    ASSERT_TRUE("rules provider uses dynamic shortcut hints",
+                g_registered_provider.shortcut_hint == NULL &&
+                g_registered_provider.get_shortcut_hint != NULL);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -547,6 +565,81 @@ static void test_ctrl_n_toggles_new_only_without_clearing_applied(void) {
                 g_preserve_selection_calls == 1 && g_restore_selection_calls == 1);
 }
 
+static void test_tagged_rule_actions_fall_through_except_replay(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    rules_provider_register();
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 1;
+    filter_rules(&app, "");
+    app.current_tab = rules_tab_mode();
+    app.selection.provider_index = 1;
+    app.rules_config.rules[1].once = true;
+    app.rules_config.rules[1].new_only = false;
+    g_selected_pattern_match_id = 202;
+
+    GdkEventKey event = {0};
+    event.state = GDK_CONTROL_MASK;
+
+    event.keyval = GDK_KEY_d;
+    ASSERT_TRUE("Ctrl+D on tagged rule falls through", handle_rules_tab_keys(&event, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+D tagged does not open delete", g_show_rule_delete_calls == 0);
+
+    event.keyval = GDK_KEY_e;
+    ASSERT_TRUE("Ctrl+E on tagged rule falls through", handle_rules_tab_keys(&event, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+E tagged does not open edit", g_show_overlay_calls == 0);
+
+    event.keyval = GDK_KEY_p;
+    ASSERT_TRUE("Ctrl+P on tagged rule falls through", handle_rules_tab_keys(&event, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+P tagged does not open pattern edit", g_show_pattern_overlay_calls == 0);
+
+    event.keyval = GDK_KEY_o;
+    ASSERT_TRUE("Ctrl+O on tagged rule falls through", handle_rules_tab_keys(&event, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+O tagged leaves once unchanged", app.rules_config.rules[1].once == true);
+
+    event.keyval = GDK_KEY_n;
+    ASSERT_TRUE("Ctrl+N on tagged rule falls through", handle_rules_tab_keys(&event, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+N tagged leaves new-only unchanged", app.rules_config.rules[1].new_only == false);
+    ASSERT_TRUE("tagged fall-through actions do not save", g_save_rules_calls == 0);
+
+    event.keyval = GDK_KEY_X;
+    event.state = GDK_CONTROL_MASK | GDK_SHIFT_MASK;
+    ASSERT_TRUE("Ctrl+Shift+X still replays tagged rules", handle_rules_tab_keys(&event, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+Shift+X tagged path calls replay all", g_replay_all_rules_calls == 1);
+}
+
+static void test_dynamic_shortcut_hint_tracks_selection(void) {
+    AppData app;
+    reset_state(&app);
+    seed_rules(&app);
+    rules_provider_register();
+    g_strlcpy(app.rules_config.rules[1].tag, "geom", sizeof(app.rules_config.rules[1].tag));
+    app.config.rules_show_all_tags = 1;
+
+    const char *hint = g_registered_provider.get_shortcut_hint
+        ? g_registered_provider.get_shortcut_hint(&app)
+        : NULL;
+    ASSERT_TRUE("empty rules hint remains empty-state focused",
+                hint && strcmp(hint, "No rules found") == 0);
+
+    filter_rules(&app, "");
+    app.selection.provider_index = 0;
+    hint = g_registered_provider.get_shortcut_hint
+        ? g_registered_provider.get_shortcut_hint(&app)
+        : NULL;
+    ASSERT_TRUE("untagged rule hint exposes actions",
+                hint && strstr(hint, "Ctrl+D=Delete") != NULL &&
+                strstr(hint, "Ctrl+N=new") != NULL);
+
+    app.selection.provider_index = 1;
+    hint = g_registered_provider.get_shortcut_hint
+        ? g_registered_provider.get_shortcut_hint(&app)
+        : NULL;
+    ASSERT_TRUE("tagged rule hint points to owning tab",
+                hint && strcmp(hint, "Tagged rule — managed by owning tab (e.g. :geom)") == 0);
+}
+
 int main(void) {
     printf("Rules provider tests\n");
     printf("====================\n\n");
@@ -570,6 +663,8 @@ int main(void) {
     test_ctrl_p_uses_shared_pattern_overlay();
     test_ctrl_o_toggles_once_and_clears_applied();
     test_ctrl_n_toggles_new_only_without_clearing_applied();
+    test_tagged_rule_actions_fall_through_except_replay();
+    test_dynamic_shortcut_hint_tracks_selection();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

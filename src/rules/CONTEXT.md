@@ -141,11 +141,14 @@ from a hidden provider tab.
     back to `RulesConfig.rules[]` through `filtered_rule_indices`, not copied row
     indexes alone.
 28. In the Rules tab, `Ctrl+A` opens Add, `Ctrl+E` opens command edit for the
-    selected row, `Ctrl+P` opens pattern edit for the selected match id,
-    `Ctrl+D` opens delete confirmation, `Ctrl+O` toggles once and persists it
-    without moving selection, `Ctrl+N` toggles `new_only` and persists it
-    without moving selection, `Ctrl+X` replays the selected rule, and
-    `Ctrl+Shift+X` replays all rules.
+    selected untagged row, `Ctrl+P` opens pattern edit for the selected
+    untagged match id, `Ctrl+D` opens delete confirmation for selected
+    untagged rows, `Ctrl+O` toggles once and persists it without moving
+    selection for untagged rows, `Ctrl+N` toggles `new_only` and persists it
+    without moving selection for untagged rows, `Ctrl+X` replays the selected
+    rule, and `Ctrl+Shift+X` replays all rules. For tagged rows,
+    `Ctrl+D`/`Ctrl+E`/`Ctrl+P`/`Ctrl+O`/`Ctrl+N` return false so the key can
+    fall through instead of becoming a consumed no-op.
 29. Add Rule requires a non-empty pattern and command string, validates every
     comma-separated command against the command registry, creates a fresh
     rule-owned pattern match entry, saves both matching and rules, then
@@ -155,8 +158,13 @@ from a hidden provider tab.
     it keeps the pattern and `match_id`, validates commands, saves rules, and
     refreshes the list.
 31. Delete confirmation displays escaped pattern and command text, removes the
-    pending config rule on confirmation, saves rules, refilters, clamps
-    selection, and refreshes display.
+    pending untagged config rule on confirmation, saves rules, deletes that
+    rule's owned match entry, saves matching, refilters, clamps selection, and
+    refreshes display. If a tagged rule somehow reaches delete confirmation,
+    confirmation is a no-op.
+32. The Rules shortcut hint is dynamic: empty filtered lists report `No rules
+    found`, untagged rows show the action shortcuts, and tagged rows report
+    that the rule is managed by its owning tab such as `:geom`.
 
 ## Notes
 - `Rule.applied` is mutable evaluation state embedded in `RulesConfig` because
@@ -167,5 +175,5 @@ from a hidden provider tab.
 - Geom-tagged rules are ordinary rule records for matching and evaluation, but
   their lifecycle is geom-owned: `sl`, `cl`, and `:geom` actions create,
   update, or remove them alongside layout ownership. Advanced Rules mutations
-  are non-owner edits; if they remove a tagged geom rule, geom startup sync may
-  recreate it from the layout.
+  do not mutate tagged geom rules; the Rules tab action keys fall through for
+  tagged rows except manual replay, which deliberately still includes them.
