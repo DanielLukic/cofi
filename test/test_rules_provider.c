@@ -629,8 +629,8 @@ static void test_dynamic_shortcut_hint_tracks_selection(void) {
         ? g_registered_provider.get_shortcut_hint(&app)
         : NULL;
     ASSERT_TRUE("untagged rule hint exposes actions",
-                hint && strstr(hint, "Ctrl+D=Delete") != NULL &&
-                strstr(hint, "Ctrl+N=new") != NULL);
+                hint && strstr(hint, "C+D=Delete") != NULL &&
+                strstr(hint, "C+N=new") != NULL);
 
     app.selection.provider_index = 1;
     hint = g_registered_provider.get_shortcut_hint

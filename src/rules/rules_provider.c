@@ -247,7 +247,7 @@ static const char *rules_shortcut_hint(AppData *app) {
     if (selected_rule_is_tagged(app)) {
         return "Tagged rule — managed by owning tab (e.g. :geom)";
     }
-    return "Shortcuts: Ctrl+A=Add  Ctrl+E=Edit commands  Ctrl+P=Edit pattern  Ctrl+D=Delete  Ctrl+O=once  Ctrl+N=new  Ctrl+X=Replay rule  Ctrl+Shift+X=Replay all";
+    return "Shortcuts: C+A=Add  C+E=commands  C+P=pattern  C+D=Delete  C+O=once  C+N=new  C+X=Replay rule  C+S+X=Replay all";
 }
 
 TabMode rules_tab_mode(void) {
