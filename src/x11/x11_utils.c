@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "core/utils/constants.h"
 #include "core/utils/utils.h"
 #include "core/log/log.h"
@@ -790,4 +791,30 @@ void xmove_resize_frame_aware(Display *display, Window window,
              frame_x, frame_y, client_x, client_y);
     XMoveResizeWindow(display, window, client_x, client_y,
                       (unsigned int)width, (unsigned int)height);
+    XFlush(display);
+
+    if (fe_ok && frame_extents_valid(&fe)) {
+        usleep(50000);
+        XSync(display, False);
+
+        Window root = DefaultRootWindow(display);
+        Window child;
+        int actual_client_x = 0, actual_client_y = 0;
+        if (XTranslateCoordinates(display, window, root, 0, 0,
+                                  &actual_client_x, &actual_client_y, &child)) {
+            int visible_x = actual_client_x - fe.left;
+            int visible_y = actual_client_y - fe.top;
+            int delta_x = frame_x - visible_x;
+            int delta_y = frame_y - visible_y;
+
+            log_info("GEOMDBG: visible-correct 0x%lx visible=(%d,%d) delta=(%d,%d)",
+                     window, visible_x, visible_y, delta_x, delta_y);
+            if (delta_x || delta_y) {
+                XMoveResizeWindow(display, window,
+                                  client_x + delta_x, client_y + delta_y,
+                                  (unsigned int)width, (unsigned int)height);
+                XFlush(display);
+            }
+        }
+    }
 }

@@ -20,7 +20,11 @@ typedef struct {
 static void unmaximize_window(Display *display, Window window_id);
 static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
 static void calculate_tile_geometry(TileOption option, const WorkArea *work_area, int tile_columns, TileGeometry *geometry);
-static void apply_window_position(Display *display, Window window_id, const TileGeometry *geometry, const WorkArea *work_area, const WindowSizeHints *size_hints);
+static void apply_window_position(Display *display, Window window_id,
+                                  const TileGeometry *geometry,
+                                  const WorkArea *work_area,
+                                  const WindowSizeHints *size_hints,
+                                  TileOption option);
 
 // Unmaximize window before tiling
 static void unmaximize_window(Display *display, Window window_id) {
@@ -98,8 +102,39 @@ static void get_target_work_area(Display *display, Window window_id, WorkArea *w
 }
 
 // Apply window position with size hints
-static void apply_window_position(Display *display, Window window_id, 
-                                const TileGeometry *geometry, const WorkArea *work_area, const WindowSizeHints *size_hints) {
+static gboolean tile_anchors_right(TileOption option) {
+    switch (option) {
+        case TILE_RIGHT_HALF:
+        case TILE_RIGHT_QUARTER:
+        case TILE_RIGHT_TWO_THIRDS:
+        case TILE_RIGHT_THREE_QUARTERS:
+        case TILE_GRID_3:
+        case TILE_GRID_6:
+        case TILE_GRID_9:
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
+static gboolean tile_anchors_bottom(TileOption option) {
+    switch (option) {
+        case TILE_BOTTOM_HALF:
+        case TILE_BOTTOM_QUARTER:
+        case TILE_BOTTOM_TWO_THIRDS:
+        case TILE_BOTTOM_THREE_QUARTERS:
+        case TILE_GRID_7:
+        case TILE_GRID_8:
+        case TILE_GRID_9:
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
+static void apply_window_position(Display *display, Window window_id,
+                                const TileGeometry *geometry, const WorkArea *work_area,
+                                const WindowSizeHints *size_hints, TileOption option) {
     int x = geometry->x;
     int y = geometry->y;
     int width = geometry->width;
@@ -109,9 +144,8 @@ static void apply_window_position(Display *display, Window window_id,
                            frame_extents_valid(&extents);
     int frame_width = width;
     int frame_height = height;
-    gboolean anchor_right = (geometry->x + geometry->width >= work_area->x + work_area->width);
-    gboolean anchor_bottom = (geometry->y > work_area->y &&
-                              geometry->y + geometry->height >= work_area->y + work_area->height);
+    gboolean anchor_right = tile_anchors_right(option);
+    gboolean anchor_bottom = tile_anchors_bottom(option);
     
     log_debug("Applying window position: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
     
@@ -159,12 +193,14 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
         return;
     }
     
-    // Unmaximize the window first
-    unmaximize_window(display, window_id);
-    
-    // Get the work area for tiling
+    // Choose the monitor while the window is still where the user sees it.
+    // Some WMs restore a maximized window to its previous normal monitor when
+    // unmaximizing, which must not change the target of the tile command.
     WorkArea work_area;
     get_target_work_area(display, window_id, &work_area);
+
+    // Unmaximize before placement so the WM does not fight the resize request.
+    unmaximize_window(display, window_id);
     
     // Get window size hints
     WindowSizeHints size_hints;
@@ -175,7 +211,7 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     calculate_tile_geometry(option, &work_area, tile_columns, &geometry);
     
     // Apply the position and size
-    apply_window_position(display, window_id, &geometry, &work_area, &size_hints);
+    apply_window_position(display, window_id, &geometry, &work_area, &size_hints, option);
 
     log_info("Applied tiling option %d to window", option);
 }

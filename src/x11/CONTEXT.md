@@ -76,8 +76,10 @@ into application refresh callbacks.
    horizontal maximize atoms in `data.l[1]` and `data.l[2]`; toggle removes
    both only when both states are already present and otherwise sets both.
 11. Frame-extents helpers read `_NET_FRAME_EXTENTS` and expose validity
-   checks. `xmove_resize_frame_aware()` converts frame-space positions to
-   client-space before `XMoveResizeWindow`; callers that target visible frame
+   checks. `xmove_resize_frame_aware()` sends the client move/resize, measures
+   where the visible frame (`client - _NET_FRAME_EXTENTS`) actually landed, and
+   sends one corrective client move if the WM's first placement missed the
+   requested frame-space coordinates. Callers that target visible frame
    dimensions must subtract frame extents from width and height before calling
    it.
 12. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
