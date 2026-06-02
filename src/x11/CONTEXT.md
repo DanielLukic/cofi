@@ -78,9 +78,9 @@ into application refresh callbacks.
 11. Frame-extents helpers read `_NET_FRAME_EXTENTS`; GTK/CSD extent helpers
    read `_GTK_FRAME_EXTENTS`; both expose values through `FrameExtents` and the
    shared validity check. `xmove_resize_frame_aware()` sends the client
-   move/resize, measures where the WM frame parent actually landed, and sends
-   one corrective client move if the WM's first placement missed the requested
-   frame-space coordinates.
+   move/resize, derives the visible frame position from the client's root
+   position minus `_NET_FRAME_EXTENTS`, and sends one corrective client move if
+   the WM's first placement missed the requested frame-space coordinates.
    Callers that target visible frame dimensions must subtract WM frame extents
    from width and height before calling it. CSD extents are not WM frame
    extents and must be handled by higher-level geometry policy.
@@ -88,9 +88,10 @@ into application refresh callbacks.
    constraints to requested rectangles before geometry callers use them.
 13. Monitor move uses XRandR monitor geometry, wraps to the next monitor, moves
    explicit zero-based monitor indices when requested, computes frame-space
-   target positions, applies them through `xmove_resize_frame_aware()`, and
-   preserves horizontal/vertical maximized state across the move when it was
-   present before the move.
+   target positions using frame dimensions for monitor selection and edge
+   clamping, applies them through `xmove_resize_frame_aware()`, and preserves
+   horizontal/vertical maximized state across the move when it was present
+   before the move.
 14. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
    the same geometry/state behavior as next-monitor moves, and return false for
    negative or out-of-range indices without moving the window.

@@ -208,6 +208,14 @@ static gboolean move_window_to_monitor_with_screen(Display *display, Window wind
         log_error("Failed to get geometry for window 0x%lx", window);
         return FALSE;
     }
+    int frame_width = win_width;
+    int frame_height = win_height;
+    FrameExtents extents = {0};
+    if (get_frame_extents(display, window, &extents) &&
+        frame_extents_valid(&extents)) {
+        frame_width += extents.left + extents.right;
+        frame_height += extents.top + extents.bottom;
+    }
 
     // Get monitor information via XRandR
     monitor_count = get_monitors_xrandr(display, &monitors);
@@ -224,7 +232,7 @@ static gboolean move_window_to_monitor_with_screen(Display *display, Window wind
     }
 
     // Find which monitor the window is currently on
-    int current_monitor = get_window_monitor_xrandr(display, win_x, win_y, win_width, win_height);
+    int current_monitor = get_window_monitor_xrandr(display, win_x, win_y, frame_width, frame_height);
 
     // Fallback: if not found, assume first monitor
     if (current_monitor == -1) {
@@ -263,7 +271,7 @@ static gboolean move_window_to_monitor_with_screen(Display *display, Window wind
         if (relative_x < 0.01) {
             new_x = next_geometry.x;
         } else if (relative_x > 0.99) {
-            new_x = next_geometry.x + next_geometry.width - win_width;
+            new_x = next_geometry.x + next_geometry.width - frame_width;
         }
 
         log_debug("Tiled window: placing at relative position %.2f, %.2f", relative_x, relative_y);
@@ -283,11 +291,11 @@ static gboolean move_window_to_monitor_with_screen(Display *display, Window wind
         new_y = next_geometry.y + (int)(rel_y * next_geometry.height);
 
         // Ensure window stays within monitor bounds.
-        if (new_x + win_width > next_geometry.x + next_geometry.width) {
-            new_x = next_geometry.x + next_geometry.width - win_width;
+        if (new_x + frame_width > next_geometry.x + next_geometry.width) {
+            new_x = next_geometry.x + next_geometry.width - frame_width;
         }
-        if (new_y + win_height > next_geometry.y + next_geometry.height) {
-            new_y = next_geometry.y + next_geometry.height - win_height;
+        if (new_y + frame_height > next_geometry.y + next_geometry.height) {
+            new_y = next_geometry.y + next_geometry.height - frame_height;
         }
 
         // Ensure window is not off screen.

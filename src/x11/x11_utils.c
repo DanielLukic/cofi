@@ -779,22 +779,14 @@ void request_frame_extents(Display *display, Window window) {
     XFlush(display);
 }
 
-static int get_frame_parent_position(Display *display, Window window, int *x, int *y) {
-    Window root, parent;
-    Window *children = NULL;
-    unsigned int nchildren = 0;
+static int get_client_root_position(Display *display, Window window, int *x, int *y) {
+    Window root;
+    Window child;
     if (!display || !window || !x || !y)
         return 0;
 
-    if (!XQueryTree(display, window, &root, &parent, &children, &nchildren)) {
-        return 0;
-    }
-    if (children)
-        XFree(children);
-
-    Window frame = (parent != root) ? parent : window;
-    Window child;
-    return XTranslateCoordinates(display, frame, root, 0, 0, x, y, &child) != 0;
+    root = DefaultRootWindow(display);
+    return XTranslateCoordinates(display, window, root, 0, 0, x, y, &child) != 0;
 }
 
 void xmove_resize_frame_aware(Display *display, Window window,
@@ -815,13 +807,16 @@ void xmove_resize_frame_aware(Display *display, Window window,
         usleep(50000);
         XSync(display, False);
 
-        int actual_frame_x = 0, actual_frame_y = 0;
-        if (get_frame_parent_position(display, window, &actual_frame_x, &actual_frame_y)) {
+        int actual_client_x = 0, actual_client_y = 0;
+        if (get_client_root_position(display, window, &actual_client_x, &actual_client_y)) {
+            int actual_frame_x = actual_client_x - fe.left;
+            int actual_frame_y = actual_client_y - fe.top;
             int delta_x = frame_x - actual_frame_x;
             int delta_y = frame_y - actual_frame_y;
 
-            log_info("GEOMDBG: frame-correct 0x%lx actual=(%d,%d) delta=(%d,%d)",
-                     window, actual_frame_x, actual_frame_y, delta_x, delta_y);
+            log_info("GEOMDBG: frame-correct 0x%lx client_actual=(%d,%d) frame_actual=(%d,%d) delta=(%d,%d)",
+                     window, actual_client_x, actual_client_y,
+                     actual_frame_x, actual_frame_y, delta_x, delta_y);
             if (delta_x || delta_y) {
                 XMoveResizeWindow(display, window,
                                   client_x + delta_x, client_y + delta_y,
