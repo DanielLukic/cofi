@@ -148,6 +148,7 @@ window_list_obj = src/x11/window_list.o
 window_lifecycle_obj = src/ui/window_lifecycle.o
 window_matcher_obj = src/matching/window_matcher.o
 x11_utils_obj = src/x11/x11_utils.o
+xrandr_helpers_obj = src/x11/xrandr_helpers.o
 
 core_app_objs = $(app_init_obj) $(matching_gc_obj)
 core_json_objs = $(cofi_json_io_obj)
@@ -158,7 +159,7 @@ matching_objs = $(fzf_algo_obj) $(match_obj) $(match_entry_obj) $(match_entry_co
 names_objs = $(names_store_obj) $(names_provider_obj) $(overlay_names_obj)
 rules_objs = $(rules_obj) $(rules_config_obj) $(rules_dispatch_obj) $(rules_provider_obj) $(rules_replay_obj) $(rules_toggle_obj) $(overlay_rules_obj)
 harpoon_objs = $(harpoon_obj) $(harpoon_config_obj) $(harpoon_provider_obj) $(key_handler_harpoon_obj) $(prefix_tabs_obj)
-geom_objs = $(geom_provider_obj) $(geometry_planner_obj) $(geom_rule_sync_obj) $(layout_store_obj) $(tiling_obj) $(tiling_overlay_obj) $(window_geometry_matching_obj)
+geom_objs = $(geom_provider_obj) $(geometry_planner_obj) $(geom_rule_sync_obj) $(layout_store_obj) $(tiling_obj) $(tiling_overlay_obj) $(window_geometry_matching_obj) $(xrandr_helpers_obj)
 daemon_objs = $(daemon_socket_obj) $(daemon_socket_runtime_obj) $(detach_launch_obj) $(hotkey_config_obj) $(hotkey_dispatch_obj) $(hotkey_grab_state_obj) $(hotkeys_obj) $(hotkeys_provider_obj) $(overlay_hotkey_add_obj) $(overlay_hotkey_add_policy_obj) $(overlay_hotkey_edit_obj)
 ui_objs = $(cofi_modal_obj) $(display_obj) $(display_pipeline_obj) $(dynamic_display_obj) $(gtk_utils_obj) $(gtk_window_obj) $(key_handler_obj) $(overlay_confirm_obj) $(overlay_dispatch_obj) $(overlay_manager_obj) $(overlay_pattern_obj) $(prefix_tabs_obj) $(slot_overlay_obj) $(tab_header_obj) $(tab_metadata_obj) $(tab_switching_obj) $(window_display_title_obj) $(window_filter_obj) $(window_highlight_obj) $(window_lifecycle_obj)
 commands_objs = $(command_availability_obj) $(command_handlers_obj) $(command_handlers_tiling_obj) $(command_handlers_ui_obj) $(command_handlers_window_obj) $(command_handlers_workspace_obj) $(command_parser_obj) $(command_registry_obj) $(core_commands_obj)

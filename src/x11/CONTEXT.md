@@ -37,11 +37,12 @@ into application refresh callbacks.
   intent-named state mutation helpers (`set_window_maximized()`,
   `set_window_maximized_horizontal()`, `set_window_maximized_vertical()`,
   `set_window_fullscreen()`, `set_window_above()`, `set_window_below()`,
-  `set_window_skip_taskbar()`, `set_window_sticky()`), and frame-aware
-  move/resize helpers
+  `set_window_skip_taskbar()`, `set_window_sticky()`),
+  `xmove_resize_frame_aware()`
 - `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
-  move helpers, workarea, size-hint, frame-extent, process-window, and workspace
-  utility functions
+  move helpers, XRandR monitor helpers (`get_monitors_xrandr()`,
+  `get_window_monitor_xrandr()`), workarea, size-hint, frame-extent,
+  process-window, and workspace utility functions
 - `setup_x11_event_monitoring()`, `cleanup_x11_event_monitoring()`,
   `process_x11_events()`, `handle_x11_event()`, `update_current_workspace()`,
   and `set_workspace_switch_state()`
@@ -74,10 +75,18 @@ into application refresh callbacks.
 10. Full maximize uses one `_NET_WM_STATE` client message with the vertical and
    horizontal maximize atoms in `data.l[1]` and `data.l[2]`; toggle removes
    both only when both states are already present and otherwise sets both.
-11. Frame-extents helpers read `_NET_FRAME_EXTENTS`, expose validity checks, and convert saved frame-space positions to client-space before `XMoveResizeWindow`.
+11. Frame-extents helpers read `_NET_FRAME_EXTENTS` and expose validity
+   checks. `xmove_resize_frame_aware()` converts frame-space positions to
+   client-space before `XMoveResizeWindow`; callers that target visible frame
+   dimensions must subtract frame extents from width and height before calling
+   it.
 12. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
    constraints to requested rectangles before geometry callers use them.
-13. Monitor move uses XRandR geometry, preserves maximized/tiled state, wraps to the next monitor, and keeps normal windows within target bounds.
+13. Monitor move uses XRandR monitor geometry, wraps to the next monitor, moves
+   explicit zero-based monitor indices when requested, computes frame-space
+   target positions, applies them through `xmove_resize_frame_aware()`, and
+   preserves horizontal/vertical maximized state across the move when it was
+   present before the move.
 14. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
    the same geometry/state behavior as next-monitor moves, and return false for
    negative or out-of-range indices without moving the window.

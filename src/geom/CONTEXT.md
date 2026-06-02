@@ -123,8 +123,13 @@ in sync with saved records.
     editing with the selected layout geometry as context.
 22. Tiling fullscreen toggles fullscreen through x11's state-intent helper; all
     other tiling modes unmaximize first, choose the monitor/workarea containing
-    the window, compute target geometry, apply frame and size-hint adjustments,
-    move/resize frame-aware, then optionally set maximization hints through x11.
+    the window, compute target frame geometry, convert the requested frame size
+    to client size with `_NET_FRAME_EXTENTS` when available, apply size-hint
+    adjustments, and move/resize through x11's frame-aware helper. Right-edge
+    tiles stay flush with the workarea right edge after size-hint adjustment;
+    bottom-row tiles stay flush with the workarea bottom edge. Full-height
+    left/right tiles keep their top edge aligned to the workarea top. Tiling
+    does not set maximize atoms after placement.
 23. Tiling geometry supports half, quarter, two-thirds, three-quarters, center,
     fullscreen, and configurable two-row grid placements, including narrow,
     wide, and wider grid variants.

@@ -5,15 +5,10 @@
 #include "x11/size_hints.h"
 #include "x11/monitor_move.h"
 #include "x11/frame_extents.h"
+#include "x11/xrandr_helpers.h"
 #include <stdlib.h>
 #include <string.h>
-#include <X11/extensions/Xrandr.h>
-
-// Monitor info structure (reusing from monitor_move.c)
-typedef struct {
-    int x, y;
-    int width, height;
-} MonitorInfo;
+#include <unistd.h>
 
 // Tiling calculation structure
 typedef struct {
@@ -21,16 +16,11 @@ typedef struct {
     int width, height;
 } TileGeometry;
 
-// XRandR helper functions (reused from monitor_move.c)
-static int get_monitors_xrandr(Display *display, MonitorInfo **monitors);
-static int get_window_monitor_xrandr(Display *display, int win_x, int win_y, int win_width, int win_height);
-
 // New helper functions
 static void unmaximize_window(Display *display, Window window_id);
 static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
 static void calculate_tile_geometry(TileOption option, const WorkArea *work_area, int tile_columns, TileGeometry *geometry);
-static void apply_window_position(Display *display, Window window_id, const TileGeometry *geometry, const WindowSizeHints *size_hints);
-static void apply_maximization_hints(Display *display, Window window_id, TileOption option);
+static void apply_window_position(Display *display, Window window_id, const TileGeometry *geometry, const WorkArea *work_area, const WindowSizeHints *size_hints);
 
 // Unmaximize window before tiling
 static void unmaximize_window(Display *display, Window window_id) {
@@ -41,6 +31,7 @@ static void unmaximize_window(Display *display, Window window_id) {
 
     log_debug("Unmaximizing window before tiling");
     set_window_maximized(display, window_id, WINDOW_STATE_UNSET);
+    usleep(50000);
 }
 
 // Get the work area for the monitor containing the window
@@ -108,60 +99,50 @@ static void get_target_work_area(Display *display, Window window_id, WorkArea *w
 
 // Apply window position with size hints
 static void apply_window_position(Display *display, Window window_id, 
-                                const TileGeometry *geometry, const WindowSizeHints *size_hints) {
+                                const TileGeometry *geometry, const WorkArea *work_area, const WindowSizeHints *size_hints) {
     int x = geometry->x;
     int y = geometry->y;
     int width = geometry->width;
     int height = geometry->height;
+    FrameExtents extents = {0};
+    gboolean has_extents = get_frame_extents(display, window_id, &extents) &&
+                           frame_extents_valid(&extents);
+    int frame_width = width;
+    int frame_height = height;
+    gboolean anchor_right = (geometry->x + geometry->width >= work_area->x + work_area->width);
+    gboolean anchor_bottom = (geometry->y > work_area->y &&
+                              geometry->y + geometry->height >= work_area->y + work_area->height);
     
     log_debug("Applying window position: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
     
-    // Account for window frame extents (borders and decorations)
-    adjust_for_frame_extents(display, window_id, &width, &height);
+    if (has_extents) {
+        width -= extents.left + extents.right;
+        height -= extents.top + extents.bottom;
+        if (width < 1) width = 1;
+        if (height < 1) height = 1;
+    }
     log_debug("After frame adjustment: width=%d, height=%d", width, height);
-    
+
     // Enforce size hints
     ensure_size_hints_satisfied(&x, &y, &width, &height, (WindowSizeHints *)size_hints);
     log_debug("After size hints: x=%d, y=%d, width=%d, height=%d", x, y, width, height);
-    
-    // Move and resize the window; x,y are frame-space (from work area calculation)
+
+    if (has_extents) {
+        frame_width = width + extents.left + extents.right;
+        frame_height = height + extents.top + extents.bottom;
+    } else {
+        frame_width = width;
+        frame_height = height;
+    }
+
+    if (anchor_right)
+        x = work_area->x + work_area->width - frame_width;
+    if (anchor_bottom)
+        y = work_area->y + work_area->height - frame_height;
+
+    // Move and resize the window; x,y are frame-space (from work area calculation).
     xmove_resize_frame_aware(display, window_id, x, y, width, height);
     XFlush(display);
-}
-
-// Apply maximization hints for certain tile modes
-static void apply_maximization_hints(Display *display, Window window_id, TileOption option) {
-    switch (option) {
-        case TILE_LEFT_HALF:
-        case TILE_RIGHT_HALF:
-        case TILE_LEFT_QUARTER:
-        case TILE_RIGHT_QUARTER:
-        case TILE_LEFT_TWO_THIRDS:
-        case TILE_RIGHT_TWO_THIRDS:
-        case TILE_LEFT_THREE_QUARTERS:
-        case TILE_RIGHT_THREE_QUARTERS:
-            // Maximize vertically for left/right tiles
-            set_window_maximized_vertical(display, window_id, WINDOW_STATE_SET);
-            log_debug("Applied vertical maximization for left/right tiling");
-            break;
-            
-        case TILE_TOP_HALF:
-        case TILE_BOTTOM_HALF:
-        case TILE_TOP_QUARTER:
-        case TILE_BOTTOM_QUARTER:
-        case TILE_TOP_TWO_THIRDS:
-        case TILE_BOTTOM_TWO_THIRDS:
-        case TILE_TOP_THREE_QUARTERS:
-        case TILE_BOTTOM_THREE_QUARTERS:
-            // Maximize horizontally for top/bottom tiles
-            set_window_maximized_horizontal(display, window_id, WINDOW_STATE_SET);
-            log_debug("Applied horizontal maximization for top/bottom tiling");
-            break;
-            
-        default:
-            // No maximization for other tile modes
-            break;
-    }
 }
 
 // Apply tiling to window
@@ -194,11 +175,8 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     calculate_tile_geometry(option, &work_area, tile_columns, &geometry);
     
     // Apply the position and size
-    apply_window_position(display, window_id, &geometry, &size_hints);
-    
-    // Apply maximization hints for certain tile modes
-    apply_maximization_hints(display, window_id, option);
-    
+    apply_window_position(display, window_id, &geometry, &work_area, &size_hints);
+
     log_info("Applied tiling option %d to window", option);
 }
 
@@ -424,97 +402,4 @@ static void calculate_tile_geometry(TileOption option, const WorkArea *work_area
     
     log_debug("Calculated tile geometry: x=%d, y=%d, width=%d, height=%d", 
               geometry->x, geometry->y, geometry->width, geometry->height);
-}
-
-// Get monitor information using XRandR
-static int get_monitors_xrandr(Display *display, MonitorInfo **monitors) {
-    int monitor_count = 0;
-    *monitors = NULL;
-
-    // Check if XRandR extension is available
-    int xrandr_event_base, xrandr_error_base;
-    if (!XRRQueryExtension(display, &xrandr_event_base, &xrandr_error_base)) {
-        log_debug("XRandR extension not available");
-        return 0;
-    }
-
-    // Get screen resources
-    Window root = DefaultRootWindow(display);
-    XRRScreenResources *screen_resources = XRRGetScreenResources(display, root);
-    if (!screen_resources) {
-        log_debug("Failed to get XRandR screen resources");
-        return 0;
-    }
-
-    // Count active outputs
-    for (int i = 0; i < screen_resources->noutput; i++) {
-        XRROutputInfo *output_info = XRRGetOutputInfo(display, screen_resources, screen_resources->outputs[i]);
-        if (output_info && output_info->connection == RR_Connected && output_info->crtc != None) {
-            monitor_count++;
-        }
-        if (output_info) XRRFreeOutputInfo(output_info);
-    }
-
-    if (monitor_count == 0) {
-        XRRFreeScreenResources(screen_resources);
-        return 0;
-    }
-
-    // Allocate monitor array
-    *monitors = malloc(monitor_count * sizeof(MonitorInfo));
-    if (!*monitors) {
-        XRRFreeScreenResources(screen_resources);
-        return 0;
-    }
-
-    // Fill monitor information
-    int monitor_index = 0;
-    for (int i = 0; i < screen_resources->noutput && monitor_index < monitor_count; i++) {
-        XRROutputInfo *output_info = XRRGetOutputInfo(display, screen_resources, screen_resources->outputs[i]);
-        if (output_info && output_info->connection == RR_Connected && output_info->crtc != None) {
-            XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen_resources, output_info->crtc);
-            if (crtc_info) {
-                (*monitors)[monitor_index].x = crtc_info->x;
-                (*monitors)[monitor_index].y = crtc_info->y;
-                (*monitors)[monitor_index].width = crtc_info->width;
-                (*monitors)[monitor_index].height = crtc_info->height;
-                monitor_index++;
-                XRRFreeCrtcInfo(crtc_info);
-            }
-        }
-        if (output_info) XRRFreeOutputInfo(output_info);
-    }
-
-    XRRFreeScreenResources(screen_resources);
-    return monitor_index;
-}
-
-// Find which monitor a window is on using XRandR
-static int get_window_monitor_xrandr(Display *display, int win_x, int win_y, int win_width, int win_height) {
-    MonitorInfo *monitors;
-    int monitor_count = get_monitors_xrandr(display, &monitors);
-
-    if (monitor_count == 0) {
-        return -1; // No monitors found
-    }
-
-    int current_monitor = 0; // Default to first monitor
-
-    // Check if window center is on any monitor
-    int win_center_x = win_x + win_width / 2;
-    int win_center_y = win_y + win_height / 2;
-
-    log_debug("Window center: (%d, %d)", win_center_x, win_center_y);
-
-    for (int i = 0; i < monitor_count; i++) {
-        if (win_center_x >= monitors[i].x && win_center_x < monitors[i].x + monitors[i].width &&
-            win_center_y >= monitors[i].y && win_center_y < monitors[i].y + monitors[i].height) {
-            current_monitor = i;
-            log_debug("Window is on monitor %d", i);
-            break;
-        }
-    }
-
-    free(monitors);
-    return current_monitor;
 }
