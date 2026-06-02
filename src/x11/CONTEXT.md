@@ -42,7 +42,7 @@ into application refresh callbacks.
 - `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
   move helpers, XRandR monitor helpers (`get_monitors_xrandr()`,
   `get_window_monitor_xrandr()`), workarea, size-hint, frame-extent,
-  process-window, and workspace utility functions
+  GTK/CSD frame-extent, process-window, and workspace utility functions
 - `setup_x11_event_monitoring()`, `cleanup_x11_event_monitoring()`,
   `process_x11_events()`, `handle_x11_event()`, `update_current_workspace()`,
   and `set_workspace_switch_state()`
@@ -75,13 +75,15 @@ into application refresh callbacks.
 10. Full maximize uses one `_NET_WM_STATE` client message with the vertical and
    horizontal maximize atoms in `data.l[1]` and `data.l[2]`; toggle removes
    both only when both states are already present and otherwise sets both.
-11. Frame-extents helpers read `_NET_FRAME_EXTENTS` and expose validity
-   checks. `xmove_resize_frame_aware()` sends the client move/resize, measures
-   where the visible frame (`client - _NET_FRAME_EXTENTS`) actually landed, and
-   sends one corrective client move if the WM's first placement missed the
-   requested frame-space coordinates. Callers that target visible frame
-   dimensions must subtract frame extents from width and height before calling
-   it.
+11. Frame-extents helpers read `_NET_FRAME_EXTENTS`; GTK/CSD extent helpers
+   read `_GTK_FRAME_EXTENTS`; both expose values through `FrameExtents` and the
+   shared validity check. `xmove_resize_frame_aware()` sends the client
+   move/resize, measures where the visible frame (`client -
+   _NET_FRAME_EXTENTS`) actually landed, and sends one corrective client move
+   if the WM's first placement missed the requested frame-space coordinates.
+   Callers that target visible frame dimensions must subtract WM frame extents
+   from width and height before calling it. CSD extents are not WM frame
+   extents and must be handled by higher-level geometry policy.
 12. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
    constraints to requested rectangles before geometry callers use them.
 13. Monitor move uses XRandR monitor geometry, wraps to the next monitor, moves

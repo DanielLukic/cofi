@@ -4,23 +4,21 @@
 #include "x11/frame_extents.h"
 #include "core/log/log.h"
 
-// Get window frame extents (decorations/borders added by window manager)
-// Returns TRUE if successful, FALSE otherwise
-int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
+static int read_cardinal_extents(Display *display, Window window, const char *atom_name,
+                                 FrameExtents *extents) {
     if (!display || !window || !extents) {
         return 0;
     }
-    
-    // Initialize to zero
+
     memset(extents, 0, sizeof(FrameExtents));
-    
-    Atom net_frame_extents = XInternAtom(display, "_NET_FRAME_EXTENTS", False);
+
+    Atom extents_atom = XInternAtom(display, atom_name, False);
     Atom actual_type;
     int actual_format;
     unsigned long n_items, bytes_after;
     unsigned char *data = NULL;
-    
-    if (XGetWindowProperty(display, window, net_frame_extents,
+
+    if (XGetWindowProperty(display, window, extents_atom,
                           0, 4, False, XA_CARDINAL,
                           &actual_type, &actual_format, &n_items, &bytes_after,
                           &data) == Success && data != NULL) {
@@ -30,17 +28,39 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
             extents->right = values[1];
             extents->top = values[2];
             extents->bottom = values[3];
-            
-            log_debug("Frame extents for window 0x%lx: left=%d, right=%d, top=%d, bottom=%d",
-                     window, extents->left, extents->right, extents->top, extents->bottom);
-            
+
+            log_debug("%s for window 0x%lx: left=%d, right=%d, top=%d, bottom=%d",
+                     atom_name, window, extents->left, extents->right,
+                     extents->top, extents->bottom);
+
             XFree(data);
             return 1;
         }
         if (data) XFree(data);
     }
-    
+
+    return 0;
+}
+
+// Get window frame extents (decorations/borders added by window manager)
+// Returns TRUE if successful, FALSE otherwise
+int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
+    if (read_cardinal_extents(display, window, "_NET_FRAME_EXTENTS", extents)) {
+        return 1;
+    }
+
     log_debug("No frame extents found for window 0x%lx", window);
+    return 0;
+}
+
+// Get client-side decoration extents reported by GTK/CSD clients.
+// Returns TRUE if successful, FALSE otherwise.
+int get_gtk_frame_extents(Display *display, Window window, FrameExtents *extents) {
+    if (read_cardinal_extents(display, window, "_GTK_FRAME_EXTENTS", extents)) {
+        return 1;
+    }
+
+    log_debug("No GTK frame extents found for window 0x%lx", window);
     return 0;
 }
 

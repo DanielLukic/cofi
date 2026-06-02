@@ -126,6 +126,9 @@ in sync with saved records.
     unmaximizing, compute target frame geometry, convert the requested frame
     size to client size with `_NET_FRAME_EXTENTS` when available, apply
     size-hint adjustments, and move/resize through x11's frame-aware helper.
+    When `_NET_FRAME_EXTENTS` is absent but `_GTK_FRAME_EXTENTS` is present,
+    tiling treats the target as the visible CSD content rect and expands/moves
+    the X window so its GTK-reported visible area lands on that rect.
     Right-edge tiles stay flush with the workarea right edge after size-hint
     adjustment; bottom-row tiles stay flush with the workarea bottom edge.
     Full-height left/right tiles keep their top edge aligned to the workarea

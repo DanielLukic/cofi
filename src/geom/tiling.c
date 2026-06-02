@@ -142,6 +142,10 @@ static void apply_window_position(Display *display, Window window_id,
     FrameExtents extents = {0};
     gboolean has_extents = get_frame_extents(display, window_id, &extents) &&
                            frame_extents_valid(&extents);
+    FrameExtents gtk_extents = {0};
+    gboolean has_gtk_extents = !has_extents &&
+                               get_gtk_frame_extents(display, window_id, &gtk_extents) &&
+                               frame_extents_valid(&gtk_extents);
     int frame_width = width;
     int frame_height = height;
     gboolean anchor_right = tile_anchors_right(option);
@@ -154,6 +158,14 @@ static void apply_window_position(Display *display, Window window_id,
         height -= extents.top + extents.bottom;
         if (width < 1) width = 1;
         if (height < 1) height = 1;
+    } else if (has_gtk_extents) {
+        x -= gtk_extents.left;
+        y -= gtk_extents.top;
+        width += gtk_extents.left + gtk_extents.right;
+        height += gtk_extents.top + gtk_extents.bottom;
+        log_debug("Adjusted for GTK CSD extents: left=%d, right=%d, top=%d, bottom=%d",
+                  gtk_extents.left, gtk_extents.right,
+                  gtk_extents.top, gtk_extents.bottom);
     }
     log_debug("After frame adjustment: width=%d, height=%d", width, height);
 
@@ -164,15 +176,24 @@ static void apply_window_position(Display *display, Window window_id,
     if (has_extents) {
         frame_width = width + extents.left + extents.right;
         frame_height = height + extents.top + extents.bottom;
+    } else if (has_gtk_extents) {
+        frame_width = width;
+        frame_height = height;
     } else {
         frame_width = width;
         frame_height = height;
     }
 
-    if (anchor_right)
+    if (anchor_right) {
         x = work_area->x + work_area->width - frame_width;
-    if (anchor_bottom)
+        if (has_gtk_extents)
+            x += gtk_extents.right;
+    }
+    if (anchor_bottom) {
         y = work_area->y + work_area->height - frame_height;
+        if (has_gtk_extents)
+            y += gtk_extents.bottom;
+    }
 
     // Move and resize the window; x,y are frame-space (from work area calculation).
     xmove_resize_frame_aware(display, window_id, x, y, width, height);
