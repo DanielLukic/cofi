@@ -7,6 +7,10 @@ cleanup_unit_test_home() {
 }
 trap cleanup_unit_test_home EXIT
 export HOME="$UNIT_TEST_HOME"
+export TMPDIR="$UNIT_TEST_HOME/tmp"
+export XDG_RUNTIME_DIR="$UNIT_TEST_HOME/run"
+mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
 
 if [ -z "${TEST_BINARIES:-}" ]; then
     echo "ERROR: TEST_BINARIES is not set"
@@ -14,6 +18,25 @@ if [ -z "${TEST_BINARIES:-}" ]; then
 fi
 
 overall_exit=0
+
+test_needs_host_privileges() {
+    case "$1" in
+        test_daemon_socket|process-group\ survival\ test)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+print_host_privilege_hint() {
+    local name="$1"
+    if test_needs_host_privileges "$name"; then
+        echo "HINT: $name exercises host-level sockets/processes."
+        echo "HINT: If this is running under a sandboxed agent, rerun this test unsandboxed before treating it as a code failure."
+    fi
+}
 
 require_file() {
     local path="$1"
@@ -57,8 +80,12 @@ run_test() {
         "$path"
     fi
 
-    if [ $? -ne 0 ]; then
+    local test_status=$?
+    if [ $test_status -eq 77 ]; then
+        echo "SKIP: $name reported an environment limitation"
+    elif [ $test_status -ne 0 ]; then
         echo "ERROR: $name exited non-zero"
+        print_host_privilege_hint "$name"
         overall_exit=1
     fi
 }

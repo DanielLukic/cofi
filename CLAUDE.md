@@ -64,6 +64,10 @@ systemctl --user restart cofi # restart without rebuild
 journalctl --user -u cofi -f  # tail logs
 ```
 
+Some tests exercise host-level Unix sockets, process groups, or X11 behavior.
+If a test prints a sandbox/host-privilege hint, rerun that targeted test outside
+the sandbox before treating it as a code failure.
+
 ## Tracking
 
 - Linear entry point: `./.claude/skills/linear/bin/linear`.
