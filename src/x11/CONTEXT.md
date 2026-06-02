@@ -78,9 +78,9 @@ into application refresh callbacks.
 11. Frame-extents helpers read `_NET_FRAME_EXTENTS`; GTK/CSD extent helpers
    read `_GTK_FRAME_EXTENTS`; both expose values through `FrameExtents` and the
    shared validity check. `xmove_resize_frame_aware()` sends the client
-   move/resize, measures where the visible frame (`client -
-   _NET_FRAME_EXTENTS`) actually landed, and sends one corrective client move
-   if the WM's first placement missed the requested frame-space coordinates.
+   move/resize, measures where the WM frame parent actually landed, and sends
+   one corrective client move if the WM's first placement missed the requested
+   frame-space coordinates.
    Callers that target visible frame dimensions must subtract WM frame extents
    from width and height before calling it. CSD extents are not WM frame
    extents and must be handled by higher-level geometry policy.
