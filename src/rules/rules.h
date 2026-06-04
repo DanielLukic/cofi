@@ -63,7 +63,8 @@ void init_rule_state(RuleState *state);
 // rule_index must be the index into RulesConfig.rules[] so each rule has
 // independent fire-once state per window (prevents cross-rule state stomping).
 RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
-                           const MatchEntryManager *manager, const WindowInfo *window);
+                           const MatchEntryManager *manager, const WindowInfo *window,
+                           bool allow_fire);
 bool rule_matches_window(const Rule *rule, const MatchEntryManager *manager,
                          const WindowInfo *window, const char **resolved_pattern);
 bool rule_trigger_allows(const Rule *rule, RuleTrigger trigger, bool is_new_window);

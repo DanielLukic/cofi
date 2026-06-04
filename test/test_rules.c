@@ -24,7 +24,7 @@ static RuleMatch check_rule_match_for_title(const Rule *rule, RuleState *state, 
         ((Rule *)rule)->match_id = match_id;
     }
 
-    return check_rule_match(rule, state, rule_index, &g_matching, &window);
+    return check_rule_match(rule, state, rule_index, &g_matching, &window, true);
 }
 
 #define check_rule_match(rule, state, rule_index, id, title) \

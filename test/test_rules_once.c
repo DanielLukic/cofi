@@ -58,8 +58,8 @@ static void test_fires_once_then_suppresses(void) {
     seed_window(&w, 0x1234, "Terminal");
     seed_rule(&app, 0, "*Terminal*", "sb on");
 
-    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
-    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
+    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
+    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
 
     ASSERT_TRUE("first fire allowed", first.should_fire == true);
     ASSERT_TRUE("second fire suppressed", second.should_fire == false);
@@ -76,13 +76,13 @@ static void test_clear_on_window_close_rearms(void) {
     seed_window(&w, 0x4321, "Terminal");
     seed_rule(&app, 0, "*Terminal*", "sb on");
 
-    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
+    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
     ASSERT_TRUE("first fire before close", first.should_fire == true);
 
     live_ids[0] = 0x7777;
     rules_clear_applied_for_dead_windows(&app.rules_config, live_ids, 1);
     rule_state_remove_window(&state, w.id);
-    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
+    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
     ASSERT_TRUE("fire again after applied and transition state cleared", second.should_fire == true);
 }
 
@@ -99,10 +99,10 @@ static void test_once_false_refires_only_after_leave_and_reenter(void) {
     seed_rule(&app, 0, "*Terminal*", "sb on");
     app.rules_config.rules[0].once = false;
 
-    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
-    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
-    RuleMatch away = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &nonmatch);
-    RuleMatch third = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w);
+    RuleMatch first = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
+    RuleMatch second = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
+    RuleMatch away = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &nonmatch, true);
+    RuleMatch third = check_rule_match(&app.rules_config.rules[0], &state, 0, &app.matching, &w, true);
     ASSERT_TRUE("once=false first fire", first.should_fire == true);
     ASSERT_TRUE("once=false continuous match suppressed", second.should_fire == false);
     ASSERT_TRUE("once=false non-match clears state without firing", away.should_fire == false);

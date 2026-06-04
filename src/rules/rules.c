@@ -53,15 +53,21 @@ bool rule_trigger_allows(const Rule *rule, RuleTrigger trigger, bool is_new_wind
 }
 
 RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
-                           const MatchEntryManager *manager, const WindowInfo *window) {
+                           const MatchEntryManager *manager, const WindowInfo *window,
+                           bool allow_fire) {
     RuleMatch result = {false, NULL};
     if (!rule || !state || !window) return result;
 
     bool matches = rule_matches_window(rule, manager, window, NULL);
-    RuleWindowState *ws = find_or_add_entry(state, rule_index, window->id);
-    if (!ws) return result;
 
     if (matches) {
+        if (!allow_fire) {
+            return result;
+        }
+
+        RuleWindowState *ws = find_or_add_entry(state, rule_index, window->id);
+        if (!ws) return result;
+
         if (ws->matched) {
             return result;
         }
@@ -74,7 +80,16 @@ RuleMatch check_rule_match(const Rule *rule, RuleState *state, int rule_index,
         ws->matched = true;
         result.should_fire = true;
         result.commands = rule->commands;
-    } else if (ws->matched) {
+        return result;
+    }
+
+    if (!allow_fire) {
+        return result;
+    }
+
+    RuleWindowState *ws = find_or_add_entry(state, rule_index, window->id);
+    if (!ws) return result;
+    if (ws->matched) {
         ws->matched = false;
     }
 

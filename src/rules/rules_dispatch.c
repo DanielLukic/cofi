@@ -39,8 +39,8 @@ void rules_apply(AppData *app, RuleTrigger trigger,
                 continue;
             }
             RuleMatch match = check_rule_match(
-                rule, &app->rule_state, r, &app->matching, w);
-            if (match.should_fire && is_new_window) {
+                rule, &app->rule_state, r, &app->matching, w, is_new_window);
+            if (match.should_fire) {
                 execute_rule_match(app, rule, r, w, now_ms, match.commands);
             }
         }
@@ -70,7 +70,7 @@ void rules_apply_for_title_change(AppData *app, Window window_id) {
             continue;
         }
         RuleMatch match = check_rule_match(
-            rule, &app->rule_state, r, &app->matching, w);
+            rule, &app->rule_state, r, &app->matching, w, true);
         if (match.should_fire) {
             execute_rule_match(app, rule, r, w, now_ms, match.commands);
         }

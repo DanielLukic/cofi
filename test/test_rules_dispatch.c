@@ -79,7 +79,7 @@ static void test_rules_apply_client_list_uses_new_window_gate(void) {
     reset_exec_log();
     rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, added, 2);
 
-    ASSERT_TRUE("client-list dispatch seeds existing normal rule without firing",
+    ASSERT_TRUE("client-list dispatch seeds matched new windows without firing",
                 app.rule_state.count > 0);
     ASSERT_TRUE("client-list dispatch executes new-only rule for added window",
                 strcmp(g_exec_log[0], "firefox-new@0x200") == 0);
@@ -98,8 +98,36 @@ static void test_rules_apply_client_list_without_added_windows_does_not_fire(voi
     rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, NULL, 0);
 
     ASSERT_TRUE("client-list existing window does not fire", g_exec_calls == 0);
-    ASSERT_TRUE("client-list existing window still seeds match state",
-                app.rule_state.count == 1);
+    ASSERT_TRUE("client-list existing window does not seed match state",
+                app.rule_state.count == 0);
+}
+
+static void test_rules_apply_client_list_existing_match_then_title_change_fires(void) {
+    AppData app;
+    int rule_idx;
+    int pre_title_change_calls;
+
+    init_dispatch_app(&app);
+    add_window(&app, 0x100, "Terminal Window");
+    rule_idx = add_dispatch_rule(&app, "*Terminal*", "existing", false);
+    app.rules_config.rules[rule_idx].once = true;
+
+    reset_exec_log();
+    rules_apply(&app, RULE_TRIGGER_CLIENT_LIST, NULL, 0);
+    pre_title_change_calls = g_exec_calls;
+    ASSERT_TRUE("existing client-list match does not write once-applied state",
+                app.rules_config.rules[rule_idx].applied == 0);
+    ASSERT_TRUE("existing client-list match does not execute",
+                pre_title_change_calls == 0);
+
+    rules_apply_for_title_change(&app, 0x100);
+
+    ASSERT_TRUE("existing client-list match does not fire",
+                g_exec_calls == 1);
+    ASSERT_TRUE("existing-title-change match fires once",
+                strcmp(g_exec_log[0], "existing@0x100") == 0);
+    ASSERT_TRUE("title-change path applies once rule",
+                app.rules_config.rules[rule_idx].applied == 0x100);
 }
 
 static void test_rules_apply_reentry_guard_is_noop(void) {
@@ -163,6 +191,7 @@ int main(void) {
 
     test_rules_apply_client_list_uses_new_window_gate();
     test_rules_apply_client_list_without_added_windows_does_not_fire();
+    test_rules_apply_client_list_existing_match_then_title_change_fires();
     test_rules_apply_reentry_guard_is_noop();
     test_rules_apply_for_title_change_dispatches_matching_window();
     test_rules_apply_for_title_change_ignores_nonmatching_window();

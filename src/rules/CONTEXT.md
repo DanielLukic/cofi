@@ -94,6 +94,8 @@ from a hidden provider tab.
     non-match clears the matched state and the same window re-enters the
     pattern. With `once == true`, the first transition stores the applied window
     id and later transitions remain suppressed until `applied` is cleared.
+    Read-only checks (for a caller that does not intend to execute commands)
+    do not mutate the matched/applied state.
 12. A title change away from a rule clears the per-window matched flag, but a
     once-applied rule remains suppressed until the applied-window bookkeeping is
     cleared by the dead-window path.
@@ -117,9 +119,10 @@ from a hidden provider tab.
     `RULE:` executions, and dispatch command strings through the command
     subsystem.
 20. Client-list dispatch marks a window as new only when x11 supplies that
-    window id in the newly-added set; matching existing windows seed transition
-    state without executing commands. Title-change dispatch evaluates only the
-    requested live window id.
+    window id in the newly-added set. For existing windows, client-list matching
+    is read-only (no transition-state seeding and no `applied` writes), while
+    matching newly-added windows seeds transition state when fire is permitted.
+    Title-change dispatch evaluates only the requested live window id.
 21. `rule_toggle_once()` flips the selected rule's `once` flag and always clears
     `applied` so the new mode starts from an unapplied state;
     `rule_toggle_new_only()` flips only `new_only` and leaves `applied`
