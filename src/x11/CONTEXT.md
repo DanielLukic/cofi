@@ -59,8 +59,10 @@ into application refresh callbacks.
    is absent or contains only `_NET_WM_WINDOW_TYPE_NORMAL`; other type mixes are
    classified as `Special`.
 5. Window list refresh reads `_NET_CLIENT_LIST`, validates windows, skips null
-   IDs and cofi-owned windows, caps at `MAX_WINDOWS`, and fills title, instance,
-   class, type, pid, and desktop fields.
+   IDs and cofi-owned windows, caps at `MAX_WINDOWS`, fills title, instance,
+   class, type, pid, and desktop fields for newly discovered windows, refreshes
+   non-title metadata for existing windows, and preserves existing cached titles
+   so title transitions remain owned by per-window `PropertyNotify` handling.
 6. Missing or empty window titles become `Untitled window` rather than excluding
    the window from downstream filtering.
 7. Workspace helpers read current desktop, desktop count, desktop names, and
@@ -106,8 +108,9 @@ into application refresh callbacks.
    state for absent windows, refilter using current query semantics, and update
    visible UI only when the cofi window is present.
 18. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
-19. Per-window title changes update cached `WindowInfo` titles and delegate
-   title-change rule application to rules without x11 evaluating rules itself.
+19. Per-window title changes are the only path that updates cached
+   `WindowInfo` titles for existing windows and delegate title-change rule
+   application to rules without x11 evaluating rules itself.
 20. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
    window, relying on geometry planning idempotence for no-op cases.
 21. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own

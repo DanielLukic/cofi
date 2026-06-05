@@ -19,8 +19,26 @@ bool window_id_in_list(Window id, const Window *ids, int count) {
     return false;
 }
 
+static const WindowInfo *find_cached_window(const WindowInfo *cache,
+                                            int cache_count,
+                                            Window window_id) {
+    for (int i = 0; i < cache_count; i++) {
+        if (cache[i].id == window_id) {
+            return &cache[i];
+        }
+    }
+
+    return NULL;
+}
+
 // Get list of all windows using _NET_CLIENT_LIST
 void get_window_list(AppData *app) {
+    WindowInfo cached_windows[MAX_WINDOWS];
+    int cached_window_count = app->window_count;
+    for (int i = 0; i < cached_window_count; i++) {
+        cached_windows[i] = app->windows[i];
+    }
+
     app->window_count = 0;
     
     log_debug("Getting window list...");
@@ -70,14 +88,24 @@ void get_window_list(AppData *app) {
             continue; // Window doesn't exist
         }
         
-        // Get window title - prefer _NET_WM_NAME, fallback to WM_NAME
-        char *title = get_window_property(app->display, window, app->atoms.net_wm_name);
-        if (!title) {
-            title = get_window_property(app->display, window, XA_WM_NAME);
+        const WindowInfo *cached_window =
+            find_cached_window(cached_windows, cached_window_count, window);
+
+        // Get window title only for newly discovered windows; existing titles are
+        // refreshed from title events to keep title transitions owned by
+        // handle_window_title_change().
+        char *title = NULL;
+        if (!cached_window) {
+            // Get window title - prefer _NET_WM_NAME, fallback to WM_NAME
+            title = get_window_property(app->display, window, app->atoms.net_wm_name);
+            if (!title) {
+                title = get_window_property(app->display, window, XA_WM_NAME);
+            }
+            // Don't skip windows without titles (Go code has this commented out)
         }
-        // Don't skip windows without titles (Go code has this commented out)
-        
-        log_trace("Window %lu - Title: '%s'", window, title ? title : "(no title)");
+
+        log_trace("Window %lu - Title: '%s'", window,
+                  cached_window ? cached_window->title : (title ? title : "(no title)"));
         
         // Get window class (instance and class)
         char instance[MAX_CLASS_LEN];
@@ -116,8 +144,9 @@ void get_window_list(AppData *app) {
             WindowInfo *win = &app->windows[app->window_count];
             win->id = window;
             
-            // Store title - use "Untitled window" if empty
-            if (title && strlen(title) > 0) {
+            if (cached_window) {
+                safe_string_copy(win->title, cached_window->title, MAX_TITLE_LEN);
+            } else if (title && strlen(title) > 0) {
                 safe_string_copy(win->title, title, MAX_TITLE_LEN);
             } else {
                 safe_string_copy(win->title, "Untitled window", MAX_TITLE_LEN);

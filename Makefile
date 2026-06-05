@@ -383,6 +383,9 @@ test_rules_new_only: test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) 
 test_rules_dispatch: test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_rules_dispatch test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj) $(LDFLAGS)
 
+test_window_list: test/test_window_list.c $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_window_list test/test_window_list.c $(utils_obj) $(LDFLAGS)
+
 # Build scrollbar overlay test (extracts scrollbar functions only)
 test_scrollbar: test/test_scrollbar.c $(utf8_columns_obj)
 	$(CC) $(CFLAGS) -DSCROLLBAR_TEST_STANDALONE -o test/test_scrollbar test/test_scrollbar.c $(utf8_columns_obj) $(LDFLAGS)
