@@ -75,6 +75,7 @@ void set_window_above(Display *display, Window window, WindowStateAction action)
 void set_window_below(Display *display, Window window, WindowStateAction action);
 void set_window_skip_taskbar(Display *display, Window window, WindowStateAction action);
 void set_window_sticky(Display *display, Window window, WindowStateAction action);
+void unmaximize_and_settle(Display *display, Window window_id);
 
 // Force the window title (sets both _NET_WM_NAME/UTF8 and legacy WM_NAME)
 void set_window_name(Display *display, Window window, const char *name);

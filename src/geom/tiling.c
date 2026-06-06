@@ -8,7 +8,6 @@
 #include "x11/xrandr_helpers.h"
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 // Tiling calculation structure
 typedef struct {
@@ -17,7 +16,6 @@ typedef struct {
 } TileGeometry;
 
 // New helper functions
-static void unmaximize_window(Display *display, Window window_id);
 static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area);
 static void calculate_tile_geometry(TileOption option, const WorkArea *work_area, int tile_columns, TileGeometry *geometry);
 static void apply_window_position(Display *display, Window window_id,
@@ -25,18 +23,6 @@ static void apply_window_position(Display *display, Window window_id,
                                   const WorkArea *work_area,
                                   const WindowSizeHints *size_hints,
                                   TileOption option);
-
-// Unmaximize window before tiling
-static void unmaximize_window(Display *display, Window window_id) {
-    gboolean is_max_horz = window_is_maximized_horizontal(display, window_id);
-    gboolean is_max_vert = window_is_maximized_vertical(display, window_id);
-    if (!is_max_horz && !is_max_vert)
-        return;
-
-    log_debug("Unmaximizing window before tiling");
-    set_window_maximized(display, window_id, WINDOW_STATE_UNSET);
-    usleep(50000);
-}
 
 // Get the work area for the monitor containing the window
 static void get_target_work_area(Display *display, Window window_id, WorkArea *work_area) {
@@ -221,7 +207,7 @@ void apply_tiling(Display *display, Window window_id, TileOption option, int til
     get_target_work_area(display, window_id, &work_area);
 
     // Unmaximize before placement so the WM does not fight the resize request.
-    unmaximize_window(display, window_id);
+    unmaximize_and_settle(display, window_id);
     
     // Get window size hints
     WindowSizeHints size_hints;

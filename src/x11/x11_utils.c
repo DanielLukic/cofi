@@ -522,6 +522,17 @@ gboolean window_is_maximized_vertical(Display *display, Window window) {
     return get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT");
 }
 
+void unmaximize_and_settle(Display *display, Window window_id) {
+    gboolean is_max_horz = window_is_maximized_horizontal(display, window_id);
+    gboolean is_max_vert = window_is_maximized_vertical(display, window_id);
+    if (!is_max_horz && !is_max_vert) {
+        return;
+    }
+
+    set_window_maximized(display, window_id, WINDOW_STATE_UNSET);
+    usleep(50000);
+}
+
 static void send_window_state_pair(Display *display, Window window,
                                    const char *state_atom_name_1,
                                    const char *state_atom_name_2,

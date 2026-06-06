@@ -128,34 +128,11 @@ gboolean get_window_state_and_position(Display *display, Window window,
 // Move window to specific position
 void move_window_to_position(Display *display, Window window, int x, int y,
                            gboolean restore_maximized_vert, gboolean restore_maximized_horz) {
-    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
     Atom net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
     Atom net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
     XEvent event;
 
-    // Remove maximized state only if currently set
-    if (get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_VERT") ||
-        get_window_state(display, window, "_NET_WM_STATE_MAXIMIZED_HORZ")) {
-        memset(&event, 0, sizeof(event));
-        event.type = ClientMessage;
-        event.xclient.type = ClientMessage;
-        event.xclient.send_event = True;
-        event.xclient.display = display;
-        event.xclient.window = window;
-        event.xclient.message_type = net_wm_state;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
-        event.xclient.data.l[1] = net_wm_state_maximized_vert;
-        event.xclient.data.l[2] = net_wm_state_maximized_horz;
-        event.xclient.data.l[3] = 1; // Source indication
-
-        XSendEvent(display, DefaultRootWindow(display), False,
-                   SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        XFlush(display);
-
-        // Small delay to let the window manager process the unmaximize
-        usleep(50000);
-    }
+    unmaximize_and_settle(display, window);
 
     // Move the window; x,y are frame-space (from monitor geometry)
     int cur_width = 0, cur_height = 0;
@@ -176,7 +153,7 @@ void move_window_to_position(Display *display, Window window, int x, int y,
         event.xclient.send_event = True;
         event.xclient.display = display;
         event.xclient.window = window;
-        event.xclient.message_type = net_wm_state;
+        event.xclient.message_type = XInternAtom(display, "_NET_WM_STATE", False);
         event.xclient.format = 32;
         event.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
         event.xclient.data.l[1] = restore_maximized_vert ? net_wm_state_maximized_vert : 0;

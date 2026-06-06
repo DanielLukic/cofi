@@ -77,7 +77,9 @@ in sync with saved records.
     record is disabled; invalid display, window id, width, or height fail.
 11. Applying an enabled restore target reads current X11 geometry/state, asks
     `geometry_restore_plan()` for the delta, emits only the planned X11 calls,
-    and flushes only when at least one operation is planned.
+    waits 50ms after planned maximize unsets so the WM settles before any
+    planned geometry move/resize, and flushes only when at least one operation
+    is planned.
 12. Saving geometry captures current x/y/width/height, desktop, maximized
     states, and fullscreen state from x11, reuses only a saved layout whose
     match entry matches the current title and anchors or an existing matching

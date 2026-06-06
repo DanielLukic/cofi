@@ -37,6 +37,9 @@ static int g_move_calls;
 static int g_move_desktop_calls;
 static int g_switch_desktop_calls;
 static int g_flush_calls;
+static int g_unmaximize_and_settle_calls;
+static gboolean g_window_is_maximized_horz;
+static gboolean g_window_is_maximized_vert;
 static int g_show_pattern_overlay_calls;
 static char g_last_pattern_context[128];
 static char g_test_home[512];
@@ -123,14 +126,15 @@ int cofi_register_command(const CommandSpec *spec) { return spec ? 0 : -1; }
 int match_entry_find_index_by_match_id(const MatchEntryManager *manager, int match_id) { if (!manager) return -1; for (int i = 0; i < manager->count; i++) if (manager->entries[i].match_id == match_id) return i; return -1; }
 gboolean get_window_state(Display *display, Window window, const char *state_atom_name) { (void)display;(void)window;(void)state_atom_name; return FALSE; }
 gboolean window_is_fullscreen(Display *display, Window window) { (void)display;(void)window; return FALSE; }
-gboolean window_is_maximized_horizontal(Display *display, Window window) { (void)display;(void)window; return FALSE; }
-gboolean window_is_maximized_vertical(Display *display, Window window) { (void)display;(void)window; return FALSE; }
+gboolean window_is_maximized_horizontal(Display *display, Window window) { (void)display;(void)window; return g_window_is_maximized_horz; }
+gboolean window_is_maximized_vertical(Display *display, Window window) { (void)display;(void)window; return g_window_is_maximized_vert; }
 int get_window_desktop(Display *display, Window window) { (void)display;(void)window; return 2; }
 int get_current_desktop(Display *display) { (void)display; return 2; }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) { (void)display;(void)window; if (x) *x = 0; if (y) *y = 0; if (w) *w = 100; if (h) *h = 100; return TRUE; }
 void set_window_fullscreen(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
 void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
 void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
+void unmaximize_and_settle(Display *display, Window window_id) { (void)display;(void)window_id; g_unmaximize_and_settle_calls++; }
 void xmove_resize_frame_aware(Display *display, Window window, int x, int y, int w, int h) { (void)display;(void)window;(void)x;(void)y;(void)w;(void)h; g_move_calls++; }
 void move_window_to_desktop(Display *display, Window window, int desktop) { (void)display;(void)window;(void)desktop; g_move_desktop_calls++; }
 void switch_to_desktop(Display *display, int desktop) { (void)display;(void)desktop; g_switch_desktop_calls++; }
@@ -175,6 +179,9 @@ static void reset_app(AppData *app) {
     g_last_removed_rule_match_id = 0;
     g_show_pattern_overlay_calls = 0;
     g_last_pattern_context[0] = '\0';
+    g_unmaximize_and_settle_calls = 0;
+    g_window_is_maximized_horz = FALSE;
+    g_window_is_maximized_vert = FALSE;
 }
 
 static void seed_layouts(AppData *app) {
@@ -288,6 +295,21 @@ static void test_apply_respects_flags(void) {
     ASSERT_TRUE("disabled no-op", g_set_state_calls == 0 && g_move_calls == 0 && g_flush_calls == 0);
 }
 
+static void test_apply_waits_after_unmaximize_before_move(void) {
+    WindowGeometryRestoreTarget target = {.window = 0xBEEF, .x = 40, .y = 50, .width = 300, .height = 200, .desktop = 2};
+    g_set_state_calls = g_move_calls = g_flush_calls = 0;
+    g_unmaximize_and_settle_calls = 0;
+    g_window_is_maximized_horz = TRUE;
+    g_window_is_maximized_vert = TRUE;
+
+    ASSERT_TRUE("apply succeeds from maximized state",
+                apply_window_geometry_restore((Display *)0x1, &target) == TRUE);
+    ASSERT_TRUE("planned maximize unsets still emit individual state clears",
+                g_set_state_calls == 2);
+    ASSERT_TRUE("restore waits for WM settle before move path",
+                g_unmaximize_and_settle_calls == 1 && g_move_calls == 1 && g_flush_calls == 1);
+}
+
 int main(void) {
     printf("Geom provider tests\n");
     printf("===================\n\n");
@@ -299,6 +321,7 @@ int main(void) {
     test_toggles_persist();
     test_skip_missing_entry_and_empty_store();
     test_apply_respects_flags();
+    test_apply_waits_after_unmaximize_before_move();
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     cleanup_test_home();
     return tests_passed == tests_run ? 0 : 1;

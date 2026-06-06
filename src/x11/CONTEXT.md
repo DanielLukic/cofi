@@ -37,7 +37,8 @@ into application refresh callbacks.
   intent-named state mutation helpers (`set_window_maximized()`,
   `set_window_maximized_horizontal()`, `set_window_maximized_vertical()`,
   `set_window_fullscreen()`, `set_window_above()`, `set_window_below()`,
-  `set_window_skip_taskbar()`, `set_window_sticky()`),
+  `set_window_skip_taskbar()`, `set_window_sticky()`,
+  `unmaximize_and_settle()`),
   `xmove_resize_frame_aware()`
 - `move_window_to_next_monitor()`, `move_window_to_monitor_index()`, monitor
   move helpers, XRandR monitor helpers (`get_monitors_xrandr()`,
@@ -88,32 +89,36 @@ into application refresh callbacks.
    extents and must be handled by higher-level geometry policy.
 12. Size-hint helpers apply minimum, maximum, base-size, and resize-increment
    constraints to requested rectangles before geometry callers use them.
-13. Monitor move uses XRandR monitor geometry, wraps to the next monitor, moves
+13. `unmaximize_and_settle()` reads the horizontal and vertical maximize state
+   atoms, returns immediately when neither is set, and otherwise sends one
+   paired `_NET_WM_STATE` unset request through `set_window_maximized()` then
+   blocks for 50ms so the WM can settle before geometry callers continue.
+14. Monitor move uses XRandR monitor geometry, wraps to the next monitor, moves
    explicit zero-based monitor indices when requested, computes frame-space
    target positions using frame dimensions for monitor selection and edge
    clamping, applies them through `xmove_resize_frame_aware()`, and preserves
    horizontal/vertical maximized state across the move when it was present
    before the move.
-14. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
+15. Explicit monitor-index moves use zero-based XRandR monitor indices, preserve
    the same geometry/state behavior as next-monitor moves, and return false for
    negative or out-of-range indices without moving the window.
-15. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
+16. Process-window lookup first matches windows by `_NET_WM_PID`, then walks
    `/proc/<pid>/status` parent PIDs up to the requested depth.
-16. Event monitoring selects root property/substructure events, watches the X11
+17. Event monitoring selects root property/substructure events, watches the X11
    connection through GLib, subscribes current windows to `PropertyNotify`, and
    cleans up the GLib watch/channel on shutdown.
-17. `_NET_CLIENT_LIST` events snapshot previous window ids, refresh AppData's
+18. `_NET_CLIENT_LIST` events snapshot previous window ids, refresh AppData's
    window list, compute newly-added window ids, delegate automatic rule
    application to rules with that delta, reassign live match entries, prune rule
    state for absent windows, refilter using current query semantics, and update
    visible UI only when the cofi window is present.
-18. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
-19. Per-window title changes are the only path that updates cached
+19. `_NET_ACTIVE_WINDOW` and `_NET_CURRENT_DESKTOP` events update active-window and workspace state, including highlight suppression or fallback timer behavior.
+20. Per-window title changes are the only path that updates cached
    `WindowInfo` titles for existing windows and delegate title-change rule
    application to rules without x11 evaluating rules itself.
-20. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
+21. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
    window, relying on geometry planning idempotence for no-op cases.
-21. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
+22. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
    the hotkey binding table or action semantics.
 
 ## Notes

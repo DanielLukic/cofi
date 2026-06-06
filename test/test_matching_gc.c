@@ -93,6 +93,10 @@ void set_window_maximized_vertical(Display *display, Window window, WindowStateA
     (void)window;
     (void)action;
 }
+void unmaximize_and_settle(Display *display, Window window_id) {
+    (void)display;
+    (void)window_id;
+}
 
 int get_current_desktop(Display *display) { (void)display; return 0; }
 void switch_to_desktop(Display *display, int desktop) { (void)display; (void)desktop; }
