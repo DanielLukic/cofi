@@ -304,8 +304,8 @@ static void test_apply_waits_after_unmaximize_before_move(void) {
 
     ASSERT_TRUE("apply succeeds from maximized state",
                 apply_window_geometry_restore((Display *)0x1, &target) == TRUE);
-    ASSERT_TRUE("planned maximize unsets still emit individual state clears",
-                g_set_state_calls == 2);
+    ASSERT_TRUE("restore does not emit redundant per-axis unsets",
+                g_set_state_calls == 0);
     ASSERT_TRUE("restore waits for WM settle before move path",
                 g_unmaximize_and_settle_calls == 1 && g_move_calls == 1 && g_flush_calls == 1);
 }

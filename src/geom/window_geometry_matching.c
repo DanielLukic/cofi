@@ -77,10 +77,6 @@ gboolean apply_window_geometry_restore(Display *display,
 
     if (plan.unset_fullscreen)
         set_window_fullscreen(display, target->window, WINDOW_STATE_UNSET);
-    if (plan.unset_max_vert)
-        set_window_maximized_vertical(display, target->window, WINDOW_STATE_UNSET);
-    if (plan.unset_max_horz)
-        set_window_maximized_horizontal(display, target->window, WINDOW_STATE_UNSET);
     if (plan.unset_max_vert || plan.unset_max_horz)
         unmaximize_and_settle(display, target->window);
     if (plan.do_move)
