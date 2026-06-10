@@ -110,7 +110,6 @@ gboolean cmd_jump_slot(AppData *app, WindowInfo *window __attribute__((unused)),
     set_workspace_switch_state(1);
     activate_window(app->display, target);
     highlight_window(app, target);
-    hide_window(app);
     log_info("Jumped to workspace slot %d -> window 0x%lx", slot, target);
     return TRUE;
 }

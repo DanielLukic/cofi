@@ -35,6 +35,7 @@ exposing help/candidate metadata for users.
 
 ## Public Surface
 - `CommandSpec`, `CommandHandler`, `COMMAND_OWNER_CORE`, and `HelpFormat`
+- `CommandSpec.closes_cofi_after_execute` as the typed-command dismiss policy flag
 - `cofi_register_command()`, `cofi_command_registry_reset()`,
   `cofi_command_count()`, `cofi_command_at()`,
   `cofi_command_by_primary()`, and `cofi_command_for_token()`
@@ -43,7 +44,8 @@ exposing help/candidate metadata for users.
   `parse_command_for_execution()`, `resolve_command_primary()`,
   `next_command_segment()`, and `visit_command_segments()`
 - `execute_command()`, `execute_command_with_window()`,
-  `execute_command_background()`, and `should_keep_open_on_hotkey_auto()`
+  `execute_command_background()`, `should_keep_open_on_hotkey_auto()`, and
+  `should_close_after_execute()`
 - `command_primary_is_available()`
 - `CommandMode`, `init_command_mode()`, `enter_command_mode()`,
   `exit_command_mode()`, `handle_command_key()`,
@@ -96,50 +98,55 @@ exposing help/candidate metadata for users.
 17. `should_keep_open_on_hotkey_auto()` returns true when any segment is an
     available command marked `keeps_open_on_hotkey_auto`, or an available command
     marked `keeps_open_without_arg` with no argument.
-18. Command-mode candidates include available primary names and aliases matching
+18. `should_close_after_execute()` returns true when any segment is an available
+    command marked `closes_cofi_after_execute`.
+19. Command-mode candidates include available primary names and aliases matching
     the typed prefix, strip compact suffix noise from candidate matching, and
     omit disabled provider commands.
-19. Command-mode history keeps the most recent command first, suppresses
+20. Command-mode history keeps the most recent command first, suppresses
     consecutive duplicates, caps stored history at ten entries, and restores it
     into newly initialized command-mode state.
-20. Entering command mode clears the command buffer, cursor, candidates, help
+21. Entering command mode clears the command buffer, cursor, candidates, help
     scroll, and target selection state while preserving a pre-focused hotkey
     target when it still exists in the filtered window list.
-21. Exiting command mode resets command-mode state, clears command targeting,
+22. Exiting command mode resets command-mode state, clears command targeting,
     restores normal mode, and hides cofi only when `close_on_exit` was set.
-22. Command-mode Enter executes the highlighted candidate when present,
-    otherwise executes the typed command buffer; failed execution keeps command
-    mode open with the line cleared.
-23. Escape in command mode exits command mode immediately and unconditionally;
+23. Command-mode Enter executes the highlighted candidate when present,
+    otherwise executes the typed command buffer; on successful execution it
+    exits command mode, dismisses cofi only when any executed segment is marked
+    `closes_cofi_after_execute`, and on failed execution keeps command mode open
+    with the line cleared.
+24. Escape in command mode exits command mode immediately and unconditionally;
     there is no clear-then-exit two-stage behavior.
-24. Up and Down in command mode navigate command-input history regardless of
+25. Up and Down in command mode navigate command-input history regardless of
     whether command candidates are visible.
-25. Left and Right wrap the candidate highlight when candidates are visible;
+26. Left and Right wrap the candidate highlight when candidates are visible;
     otherwise they behave as normal cursor motion in the input field.
-26. Built-in window-state commands (`ew`, `sb`, `aot`, `ab`, `mw`, `hmw`,
+27. Built-in window-state commands (`ew`, `sb`, `aot`, `ab`, `mw`, `hmw`,
     `vmw`) accept empty/`toggle`, `on`/`+`, and `off`/`-` arguments and reject
     any other state argument without changing the target window state.
-27. Built-in window commands fail cleanly when no selected target window is
+28. Built-in window commands fail cleanly when no selected target window is
     available, except commands that intentionally surface an overlay or operate
     without a window.
-28. `tm` with no argument moves the target window to the next monitor; with a
+29. `tm` with no argument moves the target window to the next monitor; with a
     numeric argument it moves to that zero-based monitor index, and invalid or
     out-of-range monitor arguments log a warning and return false.
-29. Workspace commands resolve numeric and configured grid-direction arguments
+30. Workspace commands resolve numeric and configured grid-direction arguments
     through x11 workspace helpers; missing arguments surface the appropriate
     workspace overlay instead of guessing.
-30. Tiling commands apply a parsed tile option when an argument is present and
+31. Tiling commands apply a parsed tile option when an argument is present and
     surface the tiling overlay when no option is supplied.
-31. Config `set` validates `key=value` or `key value`, accepts quoted empty
+32. Config `set` validates `key=value` or `key value`, accepts quoted empty
     values, saves config on success, applies disabled-provider changes
     immediately, and surfaces the Config tab.
-32. Help generation includes static navigation/tab/prefix guidance plus
+33. Help generation includes static navigation/tab/prefix guidance plus
     available grouped commands, wraps long descriptions to the requested width,
     and emits unwrapped text when width is zero or invalid.
-33. `cmd_assign_name` requires a selected window and the Windows tab; a
+34. `cmd_assign_name` requires a selected window and the Windows tab; a
     non-empty (whitespace-trimmed) inline label delegates to
-    `names_assign_window()` and hides cofi, while empty input opens the
-    name-assignment overlay instead.
+    `names_assign_window()`, while empty input opens the name-assignment
+    overlay; typed-command dismissal for the inline path is owned by the
+    command dispatcher via `closes_cofi_after_execute`, not by the handler.
 
 ## Notes
 - `command_mode.*` currently lives here because it is named `command_*` and

@@ -167,7 +167,12 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     teardown_app(&app);
 }
 
-static void test_command_handler_matches_sink_and_hides(void) {
+static void test_sinks_command_metadata(void) {
+    ASSERT_TRUE("sinks command dismisses after typed execution",
+                s_sinks_command.closes_cofi_after_execute == 1);
+}
+
+static void test_command_handler_matches_sink_without_direct_hide(void) {
     AppData app;
     registered_sinks_provider();
     setup_app(&app);
@@ -176,16 +181,16 @@ static void test_command_handler_matches_sink_and_hides(void) {
 
     gboolean result = s_sinks_command.handler(&app, NULL, "Headphones");
 
-    ASSERT_TRUE("sinks command with match returns false", result == FALSE);
+    ASSERT_TRUE("sinks command with match returns true", result == TRUE);
     ASSERT_TRUE("sinks command with match exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("sinks command with match switches once", g_switch_name_calls == 1);
     ASSERT_TRUE("sinks command with match switches sink name",
                 strcmp(g_last_switch_name, "alsa_output.usb-DAC.analog-stereo") == 0);
-    ASSERT_TRUE("sinks command with match hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("sinks command with match does not hide directly", g_hide_window_calls == 0);
     teardown_app(&app);
 }
 
-static void test_command_handler_recalls_slot_and_hides(void) {
+static void test_command_handler_recalls_slot_without_direct_hide(void) {
     AppData app;
     registered_sinks_provider();
     setup_app(&app);
@@ -194,11 +199,11 @@ static void test_command_handler_recalls_slot_and_hides(void) {
 
     gboolean result = s_sinks_command.handler(&app, NULL, "@a");
 
-    ASSERT_TRUE("sinks command slot returns false", result == FALSE);
+    ASSERT_TRUE("sinks command slot returns true", result == TRUE);
     ASSERT_TRUE("sinks command slot switches once", g_switch_name_calls == 1);
     ASSERT_TRUE("sinks command slot switches payload",
                 strcmp(g_last_switch_name, "alsa_output.slot") == 0);
-    ASSERT_TRUE("sinks command slot hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("sinks command slot does not hide directly", g_hide_window_calls == 0);
     teardown_app(&app);
 }
 
@@ -230,9 +235,10 @@ int main(int argc, char **argv) {
     printf("===============================\n\n");
 
     test_registered_command_metadata();
+    test_sinks_command_metadata();
     test_command_handler_without_args_surfaces_tab();
-    test_command_handler_matches_sink_and_hides();
-    test_command_handler_recalls_slot_and_hides();
+    test_command_handler_matches_sink_without_direct_hide();
+    test_command_handler_recalls_slot_without_direct_hide();
     test_command_handler_invalid_arg_shows_error();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);

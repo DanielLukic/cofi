@@ -400,8 +400,9 @@ static gboolean projects_command_handler(AppData *app,
     if (args && args[0] != '\0') {
         CofiActionStatus status = projects_provider_on_command_args(app, args);
         if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            return TRUE;
+        }
+        if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
             projects_show_command_error(app, "No matching tmux/zellij session.");
         }
         return FALSE;
@@ -421,6 +422,7 @@ static const CommandSpec s_projects_command = {
     .handler = projects_command_handler,
     .description = "Switch to projects tab",
     .help_format = "projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]",
+    .closes_cofi_after_execute = 1,
     .keeps_open_on_hotkey_auto = 1
 };
 

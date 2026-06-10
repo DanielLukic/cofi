@@ -150,8 +150,9 @@ static gboolean sinks_command_handler(AppData *app,
     if (args && args[0] != '\0') {
         CofiActionStatus status = sinks_on_command_args(app, args);
         if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            return TRUE;
+        }
+        if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
             sinks_show_command_error(app, "No matching sink or sink slot.");
         }
         return FALSE;
@@ -171,6 +172,7 @@ static const CommandSpec s_sinks_command = {
     .handler = sinks_command_handler,
     .description = "Switch to audio sinks tab",
     .help_format = "sinks, sink [@SLOT|SINK]",
+    .closes_cofi_after_execute = 1,
     .keeps_open_on_hotkey_auto = 1
 };
 

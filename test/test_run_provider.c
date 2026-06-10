@@ -195,6 +195,8 @@ static void test_registered_command_metadata(void) {
     ASSERT_TRUE("run command description",
                 strcmp(s_run_command.description, "Switch to run mode") == 0);
     ASSERT_TRUE("run command handler registered", s_run_command.handler != NULL);
+    ASSERT_TRUE("run command dismisses after typed execution",
+                s_run_command.closes_cofi_after_execute == 1);
     ASSERT_TRUE("run command keeps open", s_run_command.keeps_open_on_hotkey_auto == 1);
 }
 
@@ -208,7 +210,7 @@ static void test_command_handler_launches_args_and_hides(void) {
 
     gboolean result = s_run_command.handler(&app, NULL, "xterm");
 
-    ASSERT_TRUE("run command with args returns false", result == FALSE);
+    ASSERT_TRUE("run command with args returns true", result == TRUE);
     ASSERT_TRUE("run command with args exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("run command with args launches once", g_detach_calls == 1);
     ASSERT_TRUE("run command with args captures command",
@@ -216,7 +218,7 @@ static void test_command_handler_launches_args_and_hides(void) {
     ASSERT_TRUE("run command with args adds history",
                 app.run_mode.history_count == 1 &&
                 strcmp(app.run_mode.history[0], "xterm") == 0);
-    ASSERT_TRUE("run command with args hides after launch", g_hide_window_calls == 1);
+    ASSERT_TRUE("run command with args does not hide directly", g_hide_window_calls == 0);
 }
 
 static void test_command_handler_without_args_enters_modal(void) {

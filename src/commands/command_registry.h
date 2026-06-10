@@ -17,6 +17,7 @@ typedef struct {
     const char *description;
     const char *help_format;
     int activates;
+    int closes_cofi_after_execute;
     int keeps_open_on_hotkey_auto;
     int keeps_open_without_arg;
 } CommandSpec;

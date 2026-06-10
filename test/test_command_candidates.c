@@ -22,6 +22,7 @@ void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
 char *generate_command_help_text(HelpFormat fmt, int width) { (void)fmt; (void)width; return NULL; }
 gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }
+gboolean should_close_after_execute(const char *cmd) { (void)cmd; return FALSE; }
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
     (void)file;

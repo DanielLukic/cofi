@@ -23,6 +23,7 @@ static const CommandSpec s_core_commands[] = {
         .handler = cmd_assign_name,
         .description = "Assign custom name to selected window",
         .help_format = "an, assign-name, n",
+        .closes_cofi_after_execute = 1,
         .keeps_open_on_hotkey_auto = 1
     },
     {
@@ -41,7 +42,8 @@ static const CommandSpec s_core_commands[] = {
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_close_window,
         .description = "Close selected window",
-        .help_format = "cl, close-window, c"
+        .help_format = "cl, close-window, c",
+        .closes_cofi_after_execute = 1
     },
     {
         .primary = "cw",
@@ -70,7 +72,8 @@ static const CommandSpec s_core_commands[] = {
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_harpoon_set,
         .description = "Assign selected window to harpoon slot (0-9, a-z)",
-        .help_format = "hs <key>, harpoon-set <key>"
+        .help_format = "hs <key>, harpoon-set <key>",
+        .closes_cofi_after_execute = 1
     },
     {
         .primary = "hmw",
@@ -99,7 +102,8 @@ static const CommandSpec s_core_commands[] = {
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_jump_slot,
         .description = "Jump to the Nth window on the current workspace by screen position (1-9)",
-        .help_format = "js, jump-slot N"
+        .help_format = "js, jump-slot N",
+        .closes_cofi_after_execute = 1
     },
     {
         .primary = "save-layout",
@@ -144,7 +148,8 @@ static const CommandSpec s_core_commands[] = {
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_minimize_window,
         .description = "Toggle minimize selected window (restore if already minimized)",
-        .help_format = "miw, min, minimize-window"
+        .help_format = "miw, min, minimize-window",
+        .closes_cofi_after_execute = 1
     },
     {
         .primary = "mouse",
@@ -153,7 +158,8 @@ static const CommandSpec s_core_commands[] = {
         .owner_provider_id = COMMAND_OWNER_CORE,
         .handler = cmd_mouse,
         .description = "Mouse control: away/show/hide",
-        .help_format = "mouse, ma/ms/mh [away|show|hide]"
+        .help_format = "mouse, ma/ms/mh [away|show|hide]",
+        .closes_cofi_after_execute = 1
     },
     {
         .primary = "mw",

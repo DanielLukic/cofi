@@ -13,7 +13,6 @@ gboolean cmd_run(AppData *app, WindowInfo *window, const char *args);
 
 static int tests_passed = 0;
 static int tests_failed = 0;
-
 static void register_provider_with_command(const CommandSpec *spec) {
     CofiTabProvider provider;
     cofi_init_provider_defaults(&provider);
@@ -26,12 +25,12 @@ static void register_provider_with_command(const CommandSpec *spec) {
 
 static const CommandSpec s_provider_commands[] = {
     {.primary = "sessions", .aliases = {"session", NULL}, .owner_provider_id = "sessions", .handler = cmd_run, .description = "Search Claude and Codex sessions", .help_format = "sessions, session [TERMS | REFINE]", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = cmd_run, .description = "Switch to browser profiles tab", .help_format = "profiles, chrome [@SLOT|PROFILE]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "profiles", .aliases = {"chrome", "browser", "browsers", NULL}, .owner_provider_id = "profiles", .handler = cmd_run, .description = "Switch to browser profiles tab", .help_format = "profiles, chrome [@SLOT|PROFILE]", .closes_cofi_after_execute = 1, .keeps_open_on_hotkey_auto = 1},
     {.primary = "calc", .aliases = {"ca", NULL}, .owner_provider_id = "calc", .handler = cmd_run, .description = "Switch to calculator", .help_format = "calc, ca", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = cmd_run, .description = "Switch to audio sinks tab", .help_format = "sinks, sink [@SLOT|SINK]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "run", .aliases = {"r", NULL}, .owner_provider_id = "run", .handler = cmd_run, .description = "Switch to run mode", .help_format = "run, r", .closes_cofi_after_execute = 1, .keeps_open_on_hotkey_auto = 1},
+    {.primary = "sinks", .aliases = {"sink", NULL}, .owner_provider_id = "sinks", .handler = cmd_run, .description = "Switch to audio sinks tab", .help_format = "sinks, sink [@SLOT|SINK]", .closes_cofi_after_execute = 1, .keeps_open_on_hotkey_auto = 1},
     {.primary = "proc", .aliases = {"ps", NULL}, .owner_provider_id = "proc", .handler = cmd_run, .description = "Switch to process manager tab", .help_format = "proc, ps", .keeps_open_on_hotkey_auto = 1},
-    {.primary = "projects", .aliases = {"project", "tmux", "tx", "zj", "zellij"}, .owner_provider_id = "projects", .handler = cmd_run, .description = "Switch to projects tab", .help_format = "projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "projects", .aliases = {"project", "tmux", "tx", "zj", "zellij"}, .owner_provider_id = "projects", .handler = cmd_run, .description = "Switch to projects tab", .help_format = "projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]", .closes_cofi_after_execute = 1, .keeps_open_on_hotkey_auto = 1},
     {.primary = "workspaces", .aliases = {"ws", NULL}, .owner_provider_id = "workspaces", .handler = cmd_run, .description = "Switch to Workspaces tab", .help_format = "workspaces, ws", .keeps_open_on_hotkey_auto = 1},
     {.primary = "harpoon", .aliases = {"hp", NULL}, .owner_provider_id = "harpoon", .handler = cmd_run, .description = "Switch to Harpoon tab", .help_format = "harpoon, hp", .keeps_open_on_hotkey_auto = 1},
     {.primary = "names", .aliases = {"nm", NULL}, .owner_provider_id = "names", .handler = cmd_run, .description = "Switch to Names tab", .help_format = "names, nm", .keeps_open_on_hotkey_auto = 1},
@@ -79,6 +78,21 @@ typedef struct {
         tests_failed++; \
     } else { \
         printf("PASS: %s .keeps_open_on_hotkey_auto = %d\n", (cmd_name), (expected)); \
+        tests_passed++; \
+    } \
+} while (0)
+
+#define ASSERT_CLOSES_AFTER_EXECUTE(cmd_name, expected) do { \
+    const CommandSpec *spec = cofi_command_by_primary((cmd_name)); \
+    if (!spec) { \
+        printf("FAIL: %s not found in command registry\n", (cmd_name)); \
+        tests_failed++; \
+    } else if (spec->closes_cofi_after_execute != (expected)) { \
+        printf("FAIL: %s .closes_cofi_after_execute — expected %d, got %d\n", \
+               (cmd_name), (expected), spec->closes_cofi_after_execute); \
+        tests_failed++; \
+    } else { \
+        printf("PASS: %s .closes_cofi_after_execute = %d\n", (cmd_name), (expected)); \
         tests_passed++; \
     } \
 } while (0)
@@ -137,6 +151,24 @@ static void test_keep_open_on_hotkey_auto_field(void) {
     ASSERT_KEEP_OPEN("delete-layout", 0);
     ASSERT_KEEP_OPEN("tw", 0);
     ASSERT_KEEP_OPEN("mw", 0);
+}
+
+static void test_closes_after_execute_field(void) {
+    printf("\n--- Typed dismiss metadata ---\n");
+    ASSERT_CLOSES_AFTER_EXECUTE("cl", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("miw", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("an", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("hs", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("jump-slot", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("mouse", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("run", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("profiles", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("projects", 1);
+    ASSERT_CLOSES_AFTER_EXECUTE("sinks", 1);
+
+    ASSERT_CLOSES_AFTER_EXECUTE("mw", 0);
+    ASSERT_CLOSES_AFTER_EXECUTE("cw", 0);
+    ASSERT_CLOSES_AFTER_EXECUTE("show", 0);
 }
 
 static gboolean record_segment_visitor(const char *segment, void *user_data) {
@@ -301,6 +333,28 @@ static void test_should_keep_open_runtime_policy(void) {
     if (!should_keep_open_on_hotkey_auto("session")) { printf("PASS: disabled sessions alias does not keep open\n"); tests_passed++; }
     else { printf("FAIL: disabled sessions alias should not keep open\n"); tests_failed++; }
     cofi_set_provider_enabled(sessions_id, 1);
+}
+
+static void test_should_close_after_execute_runtime_policy(void) {
+    printf("\n--- should_close_after_execute runtime policy ---\n");
+
+    if (should_close_after_execute("close")) { printf("PASS: close dismisses after typed execution\n"); tests_passed++; }
+    else { printf("FAIL: close should dismiss after typed execution\n"); tests_failed++; }
+
+    if (should_close_after_execute("minimize-window")) { printf("PASS: minimize-window dismisses after typed execution\n"); tests_passed++; }
+    else { printf("FAIL: minimize-window should dismiss after typed execution\n"); tests_failed++; }
+
+    if (should_close_after_execute("jump-slot 1")) { printf("PASS: jump-slot dismisses after typed execution\n"); tests_passed++; }
+    else { printf("FAIL: jump-slot should dismiss after typed execution\n"); tests_failed++; }
+
+    if (should_close_after_execute("mw,close")) { printf("PASS: chain dismisses when any segment closes\n"); tests_passed++; }
+    else { printf("FAIL: chain with close should dismiss\n"); tests_failed++; }
+
+    if (!should_close_after_execute("maximize-window")) { printf("PASS: maximize-window does not dismiss after typed execution\n"); tests_passed++; }
+    else { printf("FAIL: maximize-window should not dismiss after typed execution\n"); tests_failed++; }
+
+    if (!should_close_after_execute("show run")) { printf("PASS: show run does not dismiss after typed execution\n"); tests_passed++; }
+    else { printf("FAIL: show run should not dismiss after typed execution\n"); tests_failed++; }
 }
 
 static void test_command_chain_semantics(void) {
@@ -618,7 +672,9 @@ int main(void) {
 
     test_activates_field();
     test_keep_open_on_hotkey_auto_field();
+    test_closes_after_execute_field();
     test_should_keep_open_runtime_policy();
+    test_should_close_after_execute_runtime_policy();
     test_command_chain_semantics();
     test_window_state_alias_arg_resolution();
     test_alias_drift_guard();

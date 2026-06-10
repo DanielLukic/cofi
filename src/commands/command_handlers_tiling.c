@@ -147,6 +147,5 @@ gboolean cmd_mouse(AppData *app, WindowInfo *window __attribute__((unused)), con
         return FALSE;
     }
 
-    hide_window(app);
     return TRUE;
 }

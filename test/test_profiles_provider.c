@@ -265,6 +265,8 @@ static void test_provider_registers_command_metadata(void) {
                        "profiles, chrome [@SLOT|PROFILE]") == 0);
     ASSERT_TRUE("profiles command handler registered",
                 s_profiles_command.handler != NULL);
+    ASSERT_TRUE("profiles command dismisses after typed execution",
+                s_profiles_command.closes_cofi_after_execute == 1);
     ASSERT_TRUE("profiles command keeps cofi open for auto hotkeys",
                 s_profiles_command.keeps_open_on_hotkey_auto == 1);
 }
@@ -289,10 +291,10 @@ static void test_command_handler_surfaces_and_recalls_slots(void) {
     g_launch_calls = 0;
 
     result = s_profiles_command.handler(&app, NULL, "@a");
-    ASSERT_TRUE("command with slot returns false", result == FALSE);
+    ASSERT_TRUE("command with slot returns true", result == TRUE);
     ASSERT_TRUE("command with slot exits command mode", g_exit_command_mode_calls == 1);
     ASSERT_TRUE("command with slot launches profile", g_launch_calls == 1);
-    ASSERT_TRUE("command with slot hides after launch", g_hide_window_calls == 1);
+    ASSERT_TRUE("command with slot does not hide directly", g_hide_window_calls == 0);
     ASSERT_TRUE("command with slot uses profile directory",
                 strcmp(g_last_launch_arg1, "--profile-directory=Default") == 0);
     slot_store_free(&app.harpoon.store);

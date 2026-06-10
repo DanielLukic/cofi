@@ -170,7 +170,6 @@ gboolean cmd_minimize_window(AppData *app, WindowInfo *window, const char *args 
         log_info("CMD: Minimized window '%s'", window->title);
     }
 
-    hide_window(app);
     return TRUE;
 }
 
@@ -252,7 +251,6 @@ gboolean cmd_assign_name(AppData *app, WindowInfo *window, const char *args) {
         memcpy(inline_label, label_start, copy_len);
         inline_label[copy_len] = '\0';
         names_assign_window(app, window, inline_label);
-        hide_window(app);
         log_info("CMD: Assigned inline name '%s' to window 0x%lx", inline_label, window->id);
         return TRUE;
     }
@@ -314,7 +312,6 @@ gboolean cmd_harpoon_set(AppData *app, WindowInfo *window, const char *args) {
         log_warn("Failed to assign selected window to slot %d", slot);
         return TRUE;
     }
-    hide_window(app);
     log_info("CMD: Assigned window 0x%lx to harpoon slot key '%c'", window->id, slot_key);
     return TRUE;
 }

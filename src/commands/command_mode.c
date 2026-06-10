@@ -471,8 +471,12 @@ gboolean handle_command_key(GdkEventKey *event, AppData *app) {
             }
 
             gboolean should_exit = execute_command(command, app);
+            gboolean should_dismiss = should_close_after_execute(command);
             if (should_exit) {
                 exit_command_mode(app);
+                if (should_dismiss) {
+                    hide_window(app);
+                }
             } else {
                 clear_command_line(app);
             }

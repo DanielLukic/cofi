@@ -17,6 +17,7 @@ gboolean execute_command(const char *command, AppData *app);
 gboolean execute_command_with_window(const char *command, AppData *app, WindowInfo *window);
 gboolean execute_command_background(const char *command, AppData *app, WindowInfo *window);
 gboolean should_keep_open_on_hotkey_auto(const char *command);
+gboolean should_close_after_execute(const char *command);
 
 char *generate_command_help_text(HelpFormat format, int width);
 

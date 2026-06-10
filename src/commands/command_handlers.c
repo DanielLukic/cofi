@@ -129,6 +129,19 @@ static gboolean command_keeps_open(const char *primary, const char *arg) {
     return cmd && cmd->keeps_open_without_arg && (!arg || arg[0] == '\0');
 }
 
+static gboolean command_closes_after_execute(const char *primary) {
+    if (!primary || primary[0] == '\0') {
+        return FALSE;
+    }
+
+    const CommandSpec *cmd = cofi_command_by_primary(primary);
+    if (!cmd || !command_primary_is_available(primary)) {
+        return FALSE;
+    }
+
+    return cmd->closes_cofi_after_execute;
+}
+
 gboolean should_keep_open_on_hotkey_auto(const char *command) {
     if (!command) {
         return FALSE;
@@ -151,6 +164,35 @@ gboolean should_keep_open_on_hotkey_auto(const char *command) {
             return FALSE;
         }
         if (command_keeps_open(primary, arg)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+gboolean should_close_after_execute(const char *command) {
+    if (!command) {
+        return FALSE;
+    }
+
+    char local[512] = {0};
+    strncpy(local, command, sizeof(local) - 1);
+    trim_whitespace_in_place(local);
+    if (local[0] == '\0') {
+        return FALSE;
+    }
+
+    char *cursor = local;
+    char segment[256] = {0};
+    char primary[128] = {0};
+    char arg[256] = {0};
+
+    while (next_command_segment(&cursor, segment, sizeof(segment))) {
+        if (!parse_command_for_execution(segment, primary, arg, sizeof(primary), sizeof(arg))) {
+            return FALSE;
+        }
+        if (command_closes_after_execute(primary)) {
             return TRUE;
         }
     }

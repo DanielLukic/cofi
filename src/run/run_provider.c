@@ -113,11 +113,7 @@ static gboolean run_command_handler(AppData *app,
     exit_command_mode(app);
 
     if (args && args[0] != '\0') {
-        CofiActionStatus status = run_on_command_args(app, args);
-        if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        }
-        return FALSE;
+        return run_on_command_args(app, args) == COFI_HANDLED_HIDE;
     }
 
     if (app) {
@@ -135,6 +131,7 @@ static const CommandSpec s_run_command = {
     .handler = run_command_handler,
     .description = "Switch to run mode",
     .help_format = "run, r",
+    .closes_cofi_after_execute = 1,
     .keeps_open_on_hotkey_auto = 1
 };
 

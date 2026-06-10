@@ -422,7 +422,7 @@ static void test_window_handler_behavior(void) {
 
     ASSERT_TRUE("an inline returns TRUE", inline_result == TRUE);
     ASSERT_TRUE("an inline persists entries", g_save_match_entries_calls == 1);
-    ASSERT_TRUE("an inline hides window", hide_window_calls == 1);
+    ASSERT_TRUE("an inline does not hide directly", hide_window_calls == 0);
     ASSERT_TRUE("an inline does not open overlay", show_name_assign_overlay_calls == 0);
     ASSERT_TRUE("an inline creates/updates match entry", inline_idx >= 0);
     ASSERT_TRUE("an inline creates one name record", app.names.count == 1);
@@ -442,7 +442,7 @@ static void test_window_handler_behavior(void) {
     ASSERT_TRUE("an relabel reuses matching identity", app.matching.count == count_before_relabel);
     ASSERT_TRUE("an relabel updates existing name record", app.names.count == names_before_relabel);
     ASSERT_TRUE("an relabel persists entries", g_save_match_entries_calls == 1);
-    ASSERT_TRUE("an relabel hides window", hide_window_calls == 1);
+    ASSERT_TRUE("an relabel does not hide directly", hide_window_calls == 0);
     ASSERT_TRUE("an relabel stores new name",
                 inline_idx >= 0 &&
                 strcmp(names_store_get_by_match_id(&app.names,
@@ -493,7 +493,7 @@ static void test_harpoon_set_handler_behavior(void) {
     ASSERT_TRUE("hs h-key assigned to slot", g_harpoon_slots[17] == window.id);
     ASSERT_TRUE("hs h-key persists match entries", g_save_match_entries_calls == 1);
     ASSERT_TRUE("hs h-key persists", g_save_harpoon_slots_calls == 1);
-    ASSERT_TRUE("hs h-key hides window", hide_window_calls == 1);
+    ASSERT_TRUE("hs h-key does not hide directly", hide_window_calls == 0);
 
     hide_window_calls = 0;
     ASSERT_TRUE("hs assigns digit key", cmd->handler(&app, &window, "1") == TRUE);
@@ -501,7 +501,7 @@ static void test_harpoon_set_handler_behavior(void) {
     ASSERT_TRUE("hs digit assigned", g_harpoon_slots[1] == window.id);
     ASSERT_TRUE("hs digit persists match entries second time", g_save_match_entries_calls == 2);
     ASSERT_TRUE("hs digit persists second time", g_save_harpoon_slots_calls == 2);
-    ASSERT_TRUE("hs digit hides window", hide_window_calls == 1);
+    ASSERT_TRUE("hs digit does not hide directly", hide_window_calls == 0);
 
     hide_window_calls = 0;
     ASSERT_TRUE("hs assigns letter key", cmd->handler(&app, &window, "a") == TRUE);
@@ -509,14 +509,14 @@ static void test_harpoon_set_handler_behavior(void) {
     ASSERT_TRUE("hs letter clears previous digit slot", g_harpoon_slots[1] == 0);
     ASSERT_TRUE("hs letter persists match entries third time", g_save_match_entries_calls == 3);
     ASSERT_TRUE("hs letter persists third time", g_save_harpoon_slots_calls == 3);
-    ASSERT_TRUE("hs letter hides window", hide_window_calls == 1);
+    ASSERT_TRUE("hs letter does not hide directly", hide_window_calls == 0);
 
     hide_window_calls = 0;
     ASSERT_TRUE("hs assigns uppercase key", cmd->handler(&app, &window, "A") == TRUE);
     ASSERT_TRUE("hs uppercase toggles slot off", g_harpoon_slots[10] == 0);
     ASSERT_TRUE("hs uppercase persists match entries fourth time", g_save_match_entries_calls == 4);
     ASSERT_TRUE("hs uppercase persists fourth time", g_save_harpoon_slots_calls == 4);
-    ASSERT_TRUE("hs uppercase hides window", hide_window_calls == 1);
+    ASSERT_TRUE("hs uppercase does not hide directly", hide_window_calls == 0);
 
     hide_window_calls = 0;
     g_save_match_entries_calls = 0;
@@ -594,6 +594,27 @@ static void test_window_state_handlers_behavior(void) {
     test_window_state_handler("mw", "maximized");
     test_window_state_handler("hmw", "maximized_horizontal");
     test_window_state_handler("vmw", "maximized_vertical");
+}
+
+static void test_minimize_handler_does_not_hide_directly(void) {
+    AppData app;
+    WindowInfo window;
+    memset(&app, 0, sizeof(app));
+    memset(&window, 0, sizeof(window));
+    window.id = 0xBEEF;
+    g_strlcpy(window.title, "Terminal", sizeof(window.title));
+
+    const CommandSpec *cmd = cofi_command_by_primary("miw");
+    ASSERT_TRUE("minimize command exists", cmd != NULL);
+    if (!cmd) return;
+
+    hide_window_calls = 0;
+    ASSERT_TRUE("minimize rejects missing window", cmd->handler(&app, NULL, "") == FALSE);
+    ASSERT_TRUE("minimize missing window does not hide directly", hide_window_calls == 0);
+
+    hide_window_calls = 0;
+    ASSERT_TRUE("minimize succeeds with selected window", cmd->handler(&app, &window, "") == TRUE);
+    ASSERT_TRUE("minimize does not hide directly", hide_window_calls == 0);
 }
 
 static void test_toggle_monitor_handler_behavior(void) {
@@ -734,7 +755,7 @@ static void test_jump_slot_handler_behavior(void) {
     ASSERT_TRUE("jump-slot activates target window",
                 g_activate_calls == 1 && g_last_activate_window == (Window)0xBEEF);
     ASSERT_TRUE("jump-slot highlights target window", g_highlight_calls == 1 && g_last_highlight_window == (Window)0xBEEF);
-    ASSERT_TRUE("jump-slot hides launcher window", hide_window_calls == 1);
+    ASSERT_TRUE("jump-slot does not hide directly", hide_window_calls == 0);
 
     g_workspace_slot_target = 0;
     ASSERT_TRUE("jump-slot missing slot target fails", cmd->handler(&app, NULL, "2") == FALSE);
@@ -785,6 +806,7 @@ int main(void) {
     test_window_handler_behavior();
     test_harpoon_set_handler_behavior();
     test_window_state_handlers_behavior();
+    test_minimize_handler_does_not_hide_directly();
     test_toggle_monitor_handler_behavior();
     test_layout_command_behavior();
     test_workspace_handler_behavior();

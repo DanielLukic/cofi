@@ -16,8 +16,13 @@ static int fail = 0;
 
 static int g_update_display_calls = 0;
 static const char *g_help_text_stub = NULL;
+static int g_hide_window_calls = 0;
+static gboolean g_execute_command_result = TRUE;
+static gboolean g_should_close_after_execute_result = FALSE;
+static char g_last_execute_command[256] = {0};
+static char g_last_should_close_command[256] = {0};
 
-void hide_window(AppData *app) { (void)app; }
+void hide_window(AppData *app) { (void)app; g_hide_window_calls++; }
 void update_display(AppData *app) {
     (void)app;
     g_update_display_calls++;
@@ -31,7 +36,15 @@ int cofi_provider_is_enabled(int provider_id) { (void)provider_id; return 0; }
 int command_primary_is_available(const char *primary) { (void)primary; return 1; }
 void move_selection_up(AppData *app) { (void)app; }
 void move_selection_down(AppData *app) { (void)app; }
-gboolean execute_command(const char *cmd, AppData *app) { (void)cmd; (void)app; return TRUE; }
+gboolean execute_command(const char *cmd, AppData *app) {
+    (void)app;
+    g_strlcpy(g_last_execute_command, cmd ? cmd : "", sizeof(g_last_execute_command));
+    return g_execute_command_result;
+}
+gboolean should_close_after_execute(const char *cmd) {
+    g_strlcpy(g_last_should_close_command, cmd ? cmd : "", sizeof(g_last_should_close_command));
+    return g_should_close_after_execute_result;
+}
 char *generate_command_help_text(HelpFormat fmt, int width) {
     (void)fmt;
     (void)width;
@@ -173,6 +186,66 @@ static void test_help_paging_clamps_to_real_last_line(void) {
     g_help_text_stub = NULL;
 }
 
+static void test_return_dismisses_after_close_command(void) {
+    AppData app = make_app_with_windows(1);
+    GdkEventKey event = {0};
+
+    enter_command_mode(&app);
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "close");
+    g_execute_command_result = TRUE;
+    g_should_close_after_execute_result = TRUE;
+    g_hide_window_calls = 0;
+    g_last_execute_command[0] = '\0';
+    g_last_should_close_command[0] = '\0';
+
+    event.keyval = GDK_KEY_Return;
+    handle_command_key(&event, &app);
+
+    ASSERT_TRUE("typed close executes command", strcmp(g_last_execute_command, "close") == 0);
+    ASSERT_TRUE("typed close checks dismiss policy", strcmp(g_last_should_close_command, "close") == 0);
+    ASSERT_TRUE("typed close dismisses cofi", g_hide_window_calls == 1);
+}
+
+static void test_return_dismisses_after_minimize_command(void) {
+    AppData app = make_app_with_windows(1);
+    GdkEventKey event = {0};
+
+    enter_command_mode(&app);
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "minimize-window");
+    g_execute_command_result = TRUE;
+    g_should_close_after_execute_result = TRUE;
+    g_hide_window_calls = 0;
+    g_last_execute_command[0] = '\0';
+    g_last_should_close_command[0] = '\0';
+
+    event.keyval = GDK_KEY_Return;
+    handle_command_key(&event, &app);
+
+    ASSERT_TRUE("typed minimize executes command", strcmp(g_last_execute_command, "minimize-window") == 0);
+    ASSERT_TRUE("typed minimize checks dismiss policy", strcmp(g_last_should_close_command, "minimize-window") == 0);
+    ASSERT_TRUE("typed minimize dismisses cofi", g_hide_window_calls == 1);
+}
+
+static void test_return_keeps_cofi_visible_when_command_does_not_close(void) {
+    AppData app = make_app_with_windows(1);
+    GdkEventKey event = {0};
+
+    enter_command_mode(&app);
+    gtk_entry_set_text(GTK_ENTRY(app.entry), "maximize-window");
+    g_execute_command_result = TRUE;
+    g_should_close_after_execute_result = FALSE;
+    g_hide_window_calls = 0;
+    g_last_execute_command[0] = '\0';
+    g_last_should_close_command[0] = '\0';
+
+    event.keyval = GDK_KEY_Return;
+    handle_command_key(&event, &app);
+
+    ASSERT_TRUE("typed maximize executes command", strcmp(g_last_execute_command, "maximize-window") == 0);
+    ASSERT_TRUE("typed maximize checks dismiss policy", strcmp(g_last_should_close_command, "maximize-window") == 0);
+    ASSERT_TRUE("typed maximize keeps cofi visible", g_hide_window_calls == 0);
+}
+
 int main(int argc, char **argv) {
     if (!gtk_init_check(&argc, &argv)) {
         printf("Command mode targeting tests\n");
@@ -189,6 +262,9 @@ int main(int argc, char **argv) {
     test_exit_command_mode_resets_command_target_id();
     test_exit_command_mode_is_noop_when_already_normal();
     test_help_paging_clamps_to_real_last_line();
+    test_return_dismisses_after_close_command();
+    test_return_dismisses_after_minimize_command();
+    test_return_keeps_cofi_visible_when_command_does_not_close();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

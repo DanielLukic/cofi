@@ -543,7 +543,12 @@ static void test_command_handler_without_args_surfaces_tab(void) {
     teardown_app(&app);
 }
 
-static void test_command_handler_named_session_hides(void) {
+static void test_projects_command_metadata(void) {
+    ASSERT_TRUE("projects command dismisses after typed execution",
+                s_projects_command.closes_cofi_after_execute == 1);
+}
+
+static void test_command_handler_named_session_does_not_hide_directly(void) {
     AppData app;
     registered_projects_provider();
     setup_app(&app);
@@ -552,15 +557,15 @@ static void test_command_handler_named_session_hides(void) {
 
     gboolean result = s_projects_command.handler(&app, NULL, "work");
 
-    ASSERT_TRUE("projects named command returns false", result == FALSE);
+    ASSERT_TRUE("projects named command returns true", result == TRUE);
     ASSERT_TRUE("projects named command refreshes", g_refresh_calls == 1);
     ASSERT_TRUE("projects named command attaches", g_attach_named_calls == 1);
     ASSERT_TRUE("projects named command passes name", strcmp(g_last_attach_name, "work") == 0);
-    ASSERT_TRUE("projects named command hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("projects named command does not hide directly", g_hide_window_calls == 0);
     teardown_app(&app);
 }
 
-static void test_command_handler_recalls_slot_and_hides(void) {
+static void test_command_handler_recalls_slot_without_direct_hide(void) {
     AppData app;
     registered_projects_provider();
     setup_app(&app);
@@ -569,11 +574,11 @@ static void test_command_handler_recalls_slot_and_hides(void) {
 
     gboolean result = s_projects_command.handler(&app, NULL, "@a");
 
-    ASSERT_TRUE("projects slot command returns false", result == FALSE);
+    ASSERT_TRUE("projects slot command returns true", result == TRUE);
     ASSERT_TRUE("projects slot command recalls", g_slot_recall_calls == 1);
     ASSERT_TRUE("projects slot command passes payload",
                 strcmp(g_last_slot_payload, "session:tmux:work") == 0);
-    ASSERT_TRUE("projects slot command hides", g_hide_window_calls == 1);
+    ASSERT_TRUE("projects slot command does not hide directly", g_hide_window_calls == 0);
     teardown_app(&app);
 }
 
@@ -853,8 +858,9 @@ int main(int argc, char **argv) {
     test_path_config_display_resolves_path_state();
     test_path_config_validation();
     test_command_handler_without_args_surfaces_tab();
-    test_command_handler_named_session_hides();
-    test_command_handler_recalls_slot_and_hides();
+    test_projects_command_metadata();
+    test_command_handler_named_session_does_not_hide_directly();
+    test_command_handler_recalls_slot_without_direct_hide();
     test_command_handler_invalid_arg_shows_error();
     test_ctrl_n_opens_new_session_but_ctrl_shift_n_falls_through();
     test_ctrl_r_opens_rename_but_ctrl_shift_r_falls_through();

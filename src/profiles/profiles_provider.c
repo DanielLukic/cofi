@@ -173,8 +173,9 @@ static gboolean profiles_command_handler(AppData *app,
     if (args && args[0] != '\0') {
         CofiActionStatus status = profiles_on_command_args(app, args);
         if (status == COFI_HANDLED_HIDE) {
-            hide_window(app);
-        } else if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
+            return TRUE;
+        }
+        if (status == COFI_ACTION_ERROR || status == COFI_NO_OP) {
             if (app && app->textbuffer) {
                 gtk_text_buffer_set_text(app->textbuffer,
                                          "No matching browser profile.",
@@ -199,6 +200,7 @@ static const CommandSpec s_profiles_command = {
     .handler = profiles_command_handler,
     .description = "Switch to browser profiles tab",
     .help_format = "profiles, chrome [@SLOT|PROFILE]",
+    .closes_cofi_after_execute = 1,
     .keeps_open_on_hotkey_auto = 1
 };
 
