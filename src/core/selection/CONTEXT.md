@@ -63,7 +63,7 @@ Core selection owns the active row index, selected identity, and scroll offset f
    for the active tab family without changing offsets for inactive tab families.
 
 ## Notes
-Provider-row selection depends on stable `row_identity()` values. Providers that cannot expose stable identities should expect selection to fall back to their initial row after filtering.
+Provider-row selection depends on stable `row_identity()` values. Providers that cannot expose stable identities should expect selection to fall back to their initial row after filtering. Providers also must call `preserve_selection()` before replacing the backing data that `row_identity()` reads, or restore will fall back even when the same logical row still exists.
 
 Selection invariant (binding on all tabs): a refresh that does NOT change the
 query/filter membership — data updates, flag toggles, periodic ticks, row

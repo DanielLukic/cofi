@@ -101,6 +101,29 @@ See also:
   Large `AppData` layout changes shift offsets used by the running daemon.
   After changing `AppData`, provider state structs, or tab visibility arrays, rebuild and restart before judging behavior; otherwise the old daemon can read garbage and produce unrelated-looking failures.
 
+- Preserve selection before model-state mutation.
+  Providers must call `preserve_selection()` BEFORE wiping or replacing the
+  data structures that back `row_identity()`; otherwise restore falls back even
+  when the same logical row still exists. `src/bluetooth/bluetooth_model.c`
+  `apply_snapshot()` is the working example. Selection drift or jumps to row 0
+  are the symptom of getting this wrong.
+
+- Stable model sort must happen before refilter.
+  Providers that refresh external data and preserve selection by identity need
+  a deterministic model order before any filtered-index rebuild. Bluetooth uses
+  alias-ascending with path tiebreak; without that sort, refresh ticks can
+  reshuffle rows under a stable identity-preserved selection.
+
+- No sync D-Bus calls in `src/bluetooth/`.
+  All Bluetooth D-Bus work must go through `g_dbus_connection_call()` async
+  with explicit `timeout_msec`. `_sync` variants are forbidden in this
+  subsystem because cofi must never block on Bluetooth operations.
+
+- `src/system_actions/system_actions.c` is the anti-pattern for new D-Bus work.
+  It uses `g_dbus_proxy_call_sync` and related blocking helpers throughout.
+  Do not copy from it. Scaffold async D-Bus work from `src/bluetooth/` or the
+  async result patterns in `src/projects/` instead.
+
 ## Command Targeting Ordering (TFD-511)
 
 - `command_target_id` must be captured before `show_window()` when entering command mode from hidden/delegated flows.

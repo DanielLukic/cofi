@@ -16,7 +16,7 @@ Core app owns process startup, top-level application wiring, and shared runtime 
 - The tiny C entrypoint that delegates `main()` to `run_cofi()`.
 
 ### Does Not Own
-- The behavior of feature subsystems stored inside `AppData`, such as matching, rules, harpoon, projects, calc, or sinks.
+- The behavior of feature subsystems stored inside `AppData`, such as matching, rules, harpoon, projects, calc, sinks, or bluetooth.
 - Window filtering, ranking, activation semantics, or provider row behavior
   beyond invoking their initialization hooks in order.
 - The daemon socket wire format, hotkey binding model, config schema, or X11 event processing internals.
@@ -89,7 +89,9 @@ Core app owns process startup, top-level application wiring, and shared runtime 
     `gtk_main()`.
 16. Normal shutdown after `gtk_main()` cleans up hotkeys, daemon monitoring,
     daemon socket cleanup registration, signal handlers, window highlight,
-    X11 event monitoring, the X display connection, and any opened log file.
+    X11 event monitoring, bluetooth async state via `cleanup_bluetooth_mode()`
+    including cancelling in-flight D-Bus work and releasing the cached bus
+    connection, the X display connection, and any opened log file.
 17. `matching_run_gc()` is a startup-only crash/legacy-data seatbelt: it
     collects live match ids from Harpoon slots, Names records, layout records,
     and rule match ids, delegates removal to the matching primitive, and saves

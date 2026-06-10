@@ -18,6 +18,7 @@
 #include "providers/cofi_tab_provider.h"
 #include "run/run_mode.h"
 #include "calc/calc.h"
+#include "bluetooth/bluetooth_model.h"
 #include "core/selection/selection.h"
 #include "rules/rules_config.h"
 #include "rules/rules.h"
@@ -129,6 +130,7 @@ void init_app_data(AppData *app) {
     // Initialize calc mode
     memset(&app->calc_mode, 0, sizeof(app->calc_mode));
     calc_history_load(&app->calc_mode);
+    init_bluetooth_mode(&app->bluetooth_mode);
     init_sinks_mode(&app->sinks_mode);
     init_proc_mode(&app->proc_mode);
     init_projects_mode(&app->projects_mode);

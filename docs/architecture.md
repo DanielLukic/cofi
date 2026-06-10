@@ -29,7 +29,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **Single-instance guard.** Unix-socket listener at `$XDG_RUNTIME_DIR/cofi.sock` (fallback `/tmp/cofi.sock`). A second invocation that finds the socket bound becomes a delegator: it sends a one-byte **opcode** + argv tail, then exits. The daemon dispatches the opcode to the appropriate UI surface.
 - **Daemon bootstrap.** First invocation registers global X11 hotkeys, opens a GIOChannel on the X11 connection for PropertyNotify events, hides the GTK toplevel, and waits.
-- **No polling.** Window list updates come from `_NET_CLIENT_LIST` and `_NET_ACTIVE_WINDOW` PropertyNotify events, not from periodic re-enumeration. MRU history is maintained from focus changes.
+- **No polling.** Window list updates come from `_NET_CLIENT_LIST` and `_NET_ACTIVE_WINDOW` PropertyNotify events, not from periodic re-enumeration. MRU history is maintained from focus changes. This rule is specific to the X11 window-list path; provider `on_tick` polling is the sanctioned pattern for external data sources such as Bluetooth.
 - **systemd integration.** `mise run install` installs a user service (`scripts/cofi.service`) that auto-restarts on crash.
 
 ## Subsystem map
@@ -104,7 +104,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Providers and plugin architecture
 
-- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles.
+- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Bluetooth, Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles.
 - **Dynamic tab handles** — provider tabs request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. `TabMode` is now core-only (`TAB_WINDOWS` plus the `TAB_COUNT` sentinel); provider tabs are enumerated through the registry.
 - **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
 - **Commands** — commands register `CommandSpec` entries with `command_registry`. Provider command specs live in their provider modules; core commands live in the built-in core registration list. Provider-owned commands are hidden when that provider is disabled.
@@ -134,8 +134,9 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **`src/run_mode.c`** — `!` prefix; session-only history; detached shell launch.
 - **`src/apps.c`** — desktop-app loader, Apps-local matching/ranking, detached launch.
+- **`src/bluetooth/`** — provider / BlueZ glue / model split for the Bluetooth tab. Uses async-only GDBus against `org.bluez`, acquires the system bus lazily via a `BUS_UNINITIALIZED` → `BUS_ACQUIRING` → `BUS_READY` / `BUS_FAILED` state machine, and refreshes paired-device state on a 3-second provider `on_tick` cadence.
 - **`src/path_binaries.c`** — async `$PATH` scan with `GFileMonitor` watchers.
-- **`src/system_actions.c`** — logind D-Bus calls (Lock, Suspend, Hibernate, Logout, Reboot, Shutdown) with shell fallback.
+- **`src/system_actions.c`** — logind D-Bus calls (Lock, Suspend, Hibernate, Logout, Reboot, Shutdown) with shell fallback (blocking/sync D-Bus; not the pattern for new D-Bus work — see `src/bluetooth/` for the async pattern).
 - **`src/detach_launch.c`** — shared detached-launch helpers (`systemd-run` primary, `fork+setsid` fallback).
 - **`src/tiling.c`** — half/quarter/third/grid geometry calculation.
 

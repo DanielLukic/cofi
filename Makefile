@@ -642,6 +642,13 @@ test_projects_remote_store: test/test_projects_remote_store.c src/projects/proje
 test_projects_remote_scope: test/test_projects_remote_scope.c src/projects/projects_remote_scope.c $(projects_parse_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_remote_scope test/test_projects_remote_scope.c src/projects/projects_remote_scope.c $(projects_parse_obj) $(LDFLAGS)
 
+# Build bluetooth tests
+test_bluetooth_model: test/test_bluetooth_model.c $(fzf_algo_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_bluetooth_model test/test_bluetooth_model.c $(fzf_algo_obj) $(LDFLAGS)
+
+test_bluetooth_bluez: test/test_bluetooth_bluez.c
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_bluetooth_bluez test/test_bluetooth_bluez.c $(LDFLAGS)
+
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)
 # Note: path_binaries.c compiled inline with -DCOFI_TESTING to expose test hooks

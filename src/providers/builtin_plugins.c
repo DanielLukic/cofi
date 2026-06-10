@@ -1,6 +1,7 @@
 #include "providers/builtin_plugins.h"
 
 #include "apps/apps_provider.h"
+#include "bluetooth/bluetooth_provider.h"
 #include "sessions/sessions_provider.h"
 #include "calc/calc_provider.h"
 #include "config/config_provider.h"
@@ -23,6 +24,7 @@ void cofi_register_builtin_plugins(void) {
     cofi_register_core_commands();
     sessions_provider_register();
     apps_provider_register();
+    bluetooth_provider_register();
     calc_provider_register();
     config_provider_register();
     harpoon_provider_register();

@@ -27,6 +27,7 @@
 #include "calc/calc.h"
 #include "sessions/sessions.h"
 #include "emoji/emoji_data.h"
+#include "bluetooth/bluetooth_model.h"
 
 #define MAX_PROVIDER_ENABLEMENT_ROWS 32
 
@@ -202,6 +203,7 @@ typedef struct AppData {
     SinksMode sinks_mode;
     ProcMode proc_mode;
     ProjectsMode projects_mode;
+    BluetoothMode bluetooth_mode;
     AppsMode apps_mode;
 
     struct {

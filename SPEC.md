@@ -392,7 +392,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `matching` (with `names` alias), `config`, `rules`, `apps`/`applications`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `matching` (with `names` alias), `config`, `rules`, `apps`/`applications`, `bluetooth`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
 - `:rules` (`:rl`) — switch to the interactive Rules tab
 
 ### Hotkey Management Commands
@@ -538,31 +538,52 @@ Browser profile launcher triggered via `:profiles`, `:chrome`, or `:browser`.
 
 ## Tabs
 
-Sixteen tabs exist; visibility is controlled per-tab (TFD-545):
+Seventeen tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Bluetooth, Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
 1. **Windows** — main window list with search and MRU ordering *(PINNED)*
 2. **Apps** — installed desktop application launcher + system actions + `$PATH` binaries *(PINNED)*
-3. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
-4. **Workspaces** — workspace list and management *(HIDDEN by default)*
-5. **Harpoon** — harpoon slot assignments (Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
-6. **Matching** — custom window name assignments (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
-7. **Layouts** — saved window layouts (Ctrl+D/Delete delete, Ctrl+L workspace restore, Ctrl+T enable/disable, Ctrl+P edit pattern) *(HIDDEN by default)*
-8. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
-9. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-10. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit commands, Ctrl+P edit pattern, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
-11. **Calc** — calculator modal *(HIDDEN by default)*
-12. **Sinks** — audio sink selection *(HIDDEN by default)*
-13. **Run** — command runner modal *(HIDDEN by default)*
-14. **Proc** — process manager *(HIDDEN by default)*
-15. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
-16. **Profiles** — browser profile launcher *(HIDDEN by default)*
+3. **Bluetooth** — paired BlueZ device list; Enter toggles connect/disconnect *(HIDDEN by default)*
+4. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
+5. **Workspaces** — workspace list and management *(HIDDEN by default)*
+6. **Harpoon** — harpoon slot assignments (Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+7. **Matching** — custom window name assignments (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+8. **Layouts** — saved window layouts (Ctrl+D/Delete delete, Ctrl+L workspace restore, Ctrl+T enable/disable, Ctrl+P edit pattern) *(HIDDEN by default)*
+9. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
+10. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+11. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit commands, Ctrl+P edit pattern, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
+12. **Calc** — calculator modal *(HIDDEN by default)*
+13. **Sinks** — audio sink selection *(HIDDEN by default)*
+14. **Run** — command runner modal *(HIDDEN by default)*
+15. **Proc** — process manager *(HIDDEN by default)*
+16. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+17. **Profiles** — browser profile launcher *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
+
+## Bluetooth Tab
+
+Bluetooth is a hidden-by-default provider tab surfaced by `:bt`,
+`:bluetooth`, or `:show bluetooth`.
+
+- Scope is paired BlueZ devices only. v1 does not scan, pair, unpair, or
+  manage adapter power state.
+- The first column is a persistent connected-state glyph: `🟢` means the
+  device is currently connected, `⚪` means it is not.
+- The trailing state column is transient feedback only: `[…connecting…]`,
+  `[connected]`, `[failed]`, and `[disconnected]` flash briefly, then clear.
+- Devices are listed in deterministic alphabetical order by alias, with object
+  path as the tiebreaker for identical aliases.
+- The adapter column is hidden when exactly one powered adapter exists, and is
+  shown when multiple powered adapters are present.
+- Enter toggles connect/disconnect. `c` forces connect, `d` forces disconnect,
+  and `r` refreshes immediately.
+- Refresh is async and poll-driven in v1; the active tab re-queries BlueZ on a
+  3-second cadence without blocking cofi.
 
 ## Configuration
 

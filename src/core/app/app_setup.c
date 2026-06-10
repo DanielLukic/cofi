@@ -24,6 +24,7 @@
 #include "ui/dynamic_display.h"
 #include "ui/gtk_window.h"
 #include "geom/geom_rule_sync.h"
+#include "bluetooth/bluetooth_model.h"
 #include "harpoon/harpoon_config.h"
 #include "core/app/matching_gc.h"
 #include "core/history/history.h"
@@ -416,6 +417,7 @@ int run_cofi(int argc, char *argv[]) {
             daemon_socket_stop_monitor(&app);
             disarm_daemon_socket_exit_cleanup();
             unregister_daemon_signal_handlers();
+            cleanup_bluetooth_mode(&app.bluetooth_mode);
             cleanup_window_highlight(&app);
             cleanup_x11_event_monitoring();
             XCloseDisplay(app.display);
@@ -447,6 +449,7 @@ int run_cofi(int argc, char *argv[]) {
     daemon_socket_stop_monitor(&app);
     disarm_daemon_socket_exit_cleanup();
     unregister_daemon_signal_handlers();
+    cleanup_bluetooth_mode(&app.bluetooth_mode);
     cleanup_window_highlight(&app);
     cleanup_x11_event_monitoring();
     XCloseDisplay(app.display);
