@@ -1,5 +1,7 @@
 # `:geom` / `:layouts` tab — spec
 
+Status: implemented (2026-06-10).
+
 ## Goal
 
 Surface `layout_store` records as a tab so the user can see, manage, and delete saved layouts. Three actions: **delete**, **workspace-lock toggle**, **enable/disable toggle**.

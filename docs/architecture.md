@@ -90,6 +90,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 - **`src/window_list.c`** — `_NET_CLIENT_LIST` enumeration + filtering (skip-taskbar, types).
 - **`src/hotkeys.c`** — `XGrabKey` registration and dispatch from KeyPress events.
 - **`src/monitor_move.c`** — XRandR geometry + work-area calculation for tiling and multi-monitor.
+- **`src/x11/xrandr_helpers.c`** — shared XRandR helper layer for `get_monitors_xrandr()` and `get_window_monitor_xrandr()`, reused by tiling and monitor-move flows.
 
 ### UI
 
@@ -123,6 +124,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 - **`src/match_entry.c`** + `src/window_matcher.c` — pure matching identities and match-entry pattern/anchor evaluation.
 - **`src/names_store.c`** + `src/names_provider.c` — user-assigned custom names keyed one-to-one by match id.
 - **`src/rules.c`** + `src/rules_config.c` — rule-based window classification.
+- **`src/rules/rules_dispatch.c`** — automatic rule-dispatch loop owner. X11 event code supplies the trigger, but rules owns the policy: window iteration, trigger gating, fire-once handling, circuit-breaker behavior, and re-entry guards.
 - **`src/sessions.c`** — live cancellable `rg` search over Claude/Codex JSONL session files; groups raw matches into session rows and applies `terms | refine` filtering without a persistent index.
 
 ### Config

@@ -1,5 +1,7 @@
 # Matching Subsystem Refactor (foundation for TFD-774)
 
+Status: partially implemented (PR2 match_id, names extraction, overlay_pattern move shipped; PR5 geom pending per memory).
+
 > Adjusted 2026-05-26 — Foundation A reeval: class/instance/type fields restored as optional with "match if set" semantics. Auto-created entries (`:sl`, harpoon, names) capture full identity. User-authored rules (TFD-808, TFD-809) can leave them empty for title-only matching.
 
 > Revised after design review by sam + claudio. Changes from v1 are marked **[rev]**.

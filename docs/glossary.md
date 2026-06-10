@@ -31,7 +31,7 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 
 ## Modes & tabs
 
-- **Tab** — a view in the cofi window. Windows is core-special; Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles are provider tabs.
+- **Tab** — a view in the cofi window. Windows is core-special; Bluetooth, Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, and Profiles are provider tabs.
 - **Provider** — a compiled-in list/action surface registered through `CofiTabProvider`. Providers own row formatting, filtering hooks, Enter behavior, tab-specific keys, command aliases, optional prefixes, slots, and tick callbacks.
 - **Plugin** — broader architecture term for a compiled-in capability module. A plugin may expose a provider tab, commands, prefixes, slots, config rows, or later rule predicates/actions. Today most plugin work is represented by providers.
 - **Dynamic tab handle** — a runtime tab id assigned when a provider registers with `COFI_PROVIDER_DYNAMIC_TAB`. Provider tabs no longer have static `TAB_*` enum values; code should resolve them through provider helpers or registry lookups.
@@ -42,6 +42,12 @@ Domain terms used throughout cofi's code and docs. Defined once here so new cont
 - **Sessions tab** — live search over Claude/Codex session JSONL files. It intentionally does not build a persistent index; every new left-side query starts a fresh cancellable `rg` process. Query shape is `terms | refine`: left side searches the corpus, right side fuzzily refines grouped session rows.
 - **Auto-execute marker** — an entered query starting with `!` that triggers immediate launch on Enter without confirmation.
 - **raw_idx / filtered_idx** — provider callbacks receive raw provider row indices for row data, while core selection state stores filtered/visible indices. `cofi_filtered_to_raw()` bridges the two.
+
+## Matching
+
+- **match entry** — stable identity record keyed by `match_id`. It is the persistent cross-subsystem handle shared by harpoon slots, rules, geom layouts, and custom names.
+- **match_id** — stable persistent integer key referring to a match entry. It survives window restarts, and subsystems that bind to a logical window refer to it instead of a transient X11 id.
+- **tagged rule** — a rule with a non-empty `tag` field naming the owning subsystem. Tagged rules are managed through that owning tab; `:rules` can surface them in advanced mode but does not allow mutation there.
 
 ## Daemon
 

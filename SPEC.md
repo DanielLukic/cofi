@@ -318,11 +318,19 @@ Title-pattern automation rules triggered via `:rules` or `:rl`.
 - `Ctrl+A` — add a new rule
 - `Ctrl+E` — edit the selected rule commands
 - `Ctrl+P` — edit the selected rule pattern
+- `Ctrl+O` — toggle the selected rule's once flag
+- `Ctrl+N` — toggle the selected rule's new-only flag
 - `Ctrl+D` — delete the selected rule
 - `Ctrl+X` — replay the selected rule against all currently open matching windows (explicit, stateless)
 - `Ctrl+Shift+X` — replay all stored rules in stored order against all currently open windows
 
 Saving or editing a rule does not immediately replay it; changes apply only to subsequent window transitions. Use `Ctrl+X` / `Ctrl+Shift+X` for one-shot replay.
+
+The flag column shows rule firing mode at a glance: `O` = once-armed (will fire once then disarm), `Ø` = once-fired (already consumed), `N` = new-only (fires only on new windows / title-change transitions, not on existing-window dispatch).
+
+Advanced mode is enabled by `rules_show_all_tags`. When enabled, `:rules` shows a trailing tag column naming the owning subsystem (for example `geom`). Geom-tagged rules are hidden from `:rules` by default.
+
+- Tagged rules are read-only in `:rules`; edit/delete/toggle actions fall through so mutations happen in the owning tab instead. The shortcut hint reflects this dynamically when a tagged row is selected.
 
 Layout-rule migration note (TFD-784 PR2): tag only the restore rules you want geom to manage with `"tag": "geom"` in `~/.config/cofi/rules.json`. Hand-authored/composite user rules with custom commands should remain untagged unless you specifically want them hidden from `:rules` and synced with layout enable/disable state.
 
@@ -348,7 +356,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 - `:delete-layout` (`:dl`) — forget the saved layout for the selected window
 - `:sw` (`:swap-windows`) — swap two windows (positions and sizes)
 - `:maw [N|dir]` (`:move-all-to-workspace`) — move all windows from current workspace to target
-- `:mw` (`:max`, `:maximize-window`) — toggle maximize selected window
+- `:mw [toggle|on|off]` (`:max`, `:maximize-window [toggle|on|off]`) — set maximize on the selected window (default `toggle`)
 - `:miw` (`:min`, `:minimize-window`) — toggle minimize (restore if already minimized, closes cofi)
 
 ### Tiling Commands
@@ -375,9 +383,9 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 ### Monitor Commands
 
-- `:tm` (`:toggle-monitor`) — move window to next monitor
-- `:hm` (`:horizontal-maximize-window`) — toggle horizontal maximize
-- `:vm` (`:vertical-maximize-window`) — toggle vertical maximize
+- `:tm [N]` (`:toggle-monitor [N]`) — move window to the next monitor, or to explicit monitor `N` when provided (for example `:tm0`, `:tm1`)
+- `:hm [toggle|on|off]` (`:horizontal-maximize-window [toggle|on|off]`) — set horizontal maximize on the selected window (default `toggle`)
+- `:vm [toggle|on|off]` (`:vertical-maximize-window [toggle|on|off]`) — set vertical maximize on the selected window (default `toggle`)
 
 ### Mouse Commands
 
@@ -652,7 +660,7 @@ When a window is activated (via Alt-Tab, harpoon, workspace switch), a visual ri
 ## Compact Command Syntax
 
 Commands support no-space compact form: `:cw2` = `:cw 2`, `:mawk` = `:maw k`.
-For window-state commands (`sb`, `ab`, `aot`/`at`, `ew`), compact `+`/`-` are supported: `:sb+` = `:sb on`, `:ew-` = `:ew off`.
+For window-state commands (`sb`, `ab`, `aot`/`at`, `ew`, `mw`, `hm`, `vm`), compact `+`/`-` are supported: `:sb+` = `:sb on`, `:ew-` = `:ew off`, `:mw+` = `:mw on`, `:hm-` = `:hm off`.
 
 Rules tab save/edit/delete are persistence-only (`rules.json`): saving a rule does not immediately replay it. Automatic runtime rule behavior remains transition-based. Manual replay actions are explicit and stateless: Ctrl+X replays selected rule against all currently open matching windows; Ctrl+Shift+X replays all stored rules in stored order against current open windows.
 

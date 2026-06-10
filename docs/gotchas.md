@@ -114,6 +114,10 @@ See also:
   alias-ascending with path tiebreak; without that sort, refresh ticks can
   reshuffle rows under a stable identity-preserved selection.
 
+- Refilter after row delete before selection validation.
+  If a provider deletes a raw row, it must rebuild its filtered list before `validate_selection()`. Otherwise the old filtered index can point at a now-missing raw slot and the UI shows `(missing)` until another refresh.
+  Reference: `fe816a7`.
+
 - No sync D-Bus calls in `src/bluetooth/`.
   All Bluetooth D-Bus work must go through `g_dbus_connection_call()` async
   with explicit `timeout_msec`. `_sync` variants are forbidden in this
@@ -143,6 +147,16 @@ See also:
 - Treat `COFI_PRD.md` as partially stale unless refreshed.
   It still mentions old architecture such as D-Bus-based single-instance behavior.
   Verify against code and recent commits before relying on it.
+
+## Window List And Identity
+
+- Title preservation across window-list refresh matters.
+  `get_window_list()` must not overwrite cached titles for existing windows. For known windows, `handle_window_title_change()` is the sole authority for title updates; client-list scans should read titles only for newly discovered window IDs.
+  Reference: `4ec2ce9`.
+
+- Geom restore matches by current title, not bound X11 id.
+  Restore that treats `bound_x11_id` as the primary lookup breaks when a restarted window comes back with a new X11 id. The stable path matches by current title plus class/instance/type anchors, with the bound X11 id used only as a disambiguation hint among otherwise identical candidates.
+  Reference: `b162a22`.
 
 ## Fixed Window Sizing (TFD-100)
 
@@ -180,6 +194,16 @@ See also:
 
 - `slot_occlusion_threshold` is an integer percent.
   `5` means 5 percent. Keep legacy float config compatibility in the loader, but write/save the modern integer-percent form.
+
+## Geometry And Frames
+
+- `unmaximize_and_settle()` is mandatory before geometry changes on maximized windows.
+  Clearing maximize atoms is asynchronous at the WM boundary. If code sends `_NET_WM_STATE_REMOVE` and immediately calls `xmove_resize_frame_aware()` or `XMoveResizeWindow()`, the WM can still treat the window as maximized and override or ignore the new geometry. Always use `unmaximize_and_settle()`, not bare `set_window_maximized(..., UNSET)`.
+  Reference: `45e009f`.
+
+- CSD `_GTK_FRAME_EXTENTS` handling is required for tiling and geometry work.
+  CSD windows often have no `_NET_FRAME_EXTENTS`, while raw `XGetGeometry` still includes invisible shadow margins. Tiling and geometry code must check `_GTK_FRAME_EXTENTS` when `_NET_FRAME_EXTENTS` is absent or all-zero; otherwise the visible content frame is placed incorrectly in the work area.
+  References: `26c4875` for tiling, `da4283e` for slot assignment.
 
 ## Repeat Last Action
 
@@ -228,6 +252,10 @@ See also:
 
 - Prefer current code plus recent commits over older prose.
   When docs disagree, trust the implementation, `SPEC.md`, and the newest relevant commits first.
+
+- `check_rule_match()` must get `allow_fire=false` for non-firing scans.
+  `allow_fire=true` mutates per-window transition state. Callers that are only seeding state, such as startup client-list dispatch over already-existing windows, must pass `allow_fire=false` or `once=true` rules can be consumed before they ever legitimately fire.
+  Reference: `e2f9856`.
 
 ## PATH Binary Launcher
 
