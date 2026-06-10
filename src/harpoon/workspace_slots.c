@@ -14,12 +14,14 @@
 // frame_extents.c; weak-link this symbol and fall back when unavailable.
 extern int get_frame_extents(Display *display, Window window, FrameExtents *extents)
     __attribute__((weak));
+extern int get_gtk_frame_extents(Display *display, Window window, FrameExtents *extents)
+    __attribute__((weak));
 #include <stdlib.h>
 #include <string.h>
 
 // Row grouping threshold: windows within this many pixels of the same Y
 // are considered to be in the same row
-#define ROW_THRESHOLD 50
+#define ROW_THRESHOLD 100
 
 // If a window has less than this fraction of its area visible, exclude it
 // (configurable via slot_occlusion_threshold, default 5%)
@@ -175,6 +177,7 @@ static double compute_visible_fraction_and_overlay_center_for_clips(
     Window *stack, unsigned long stack_count,
     const Rect *clip_rects, int clip_count,
     int *overlay_x, int *overlay_y,
+    int *largest_x, int *largest_y,
     int *largest_w, int *largest_h,
     double *largest_fraction) {
     // Content rect: outer rect inset by frame extents.
@@ -208,6 +211,8 @@ static double compute_visible_fraction_and_overlay_center_for_clips(
 
     if (overlay_x) *overlay_x = 0;
     if (overlay_y) *overlay_y = 0;
+    if (largest_x) *largest_x = 0;
+    if (largest_y) *largest_y = 0;
     if (largest_w) *largest_w = 0;
     if (largest_h) *largest_h = 0;
     if (largest_fraction) *largest_fraction = 0.0;
@@ -297,6 +302,8 @@ static double compute_visible_fraction_and_overlay_center_for_clips(
     if (largest_area > 0) {
         if (overlay_x) *overlay_x = (largest.x1 + largest.x2) / 2;
         if (overlay_y) *overlay_y = (largest.y1 + largest.y2) / 2;
+        if (largest_x) *largest_x = largest.x1;
+        if (largest_y) *largest_y = largest.y1;
         if (largest_w) *largest_w = largest.x2 - largest.x1;
         if (largest_h) *largest_h = largest.y2 - largest.y1;
         if (largest_fraction) *largest_fraction = (double)largest_area / total_area;
@@ -332,24 +339,16 @@ static int get_stack_position(Window id, Window *stack, unsigned long stack_coun
     return -1;
 }
 
-static int compare_by_position(const void *a, const void *b) {
-    const WindowPosition *wa = (const WindowPosition *)a;
-    const WindowPosition *wb = (const WindowPosition *)b;
-
-    // Group into rows: if Y difference is within threshold, same row
-    int row_a = wa->y / ROW_THRESHOLD;
-    int row_b = wb->y / ROW_THRESHOLD;
-
-    if (row_a != row_b) {
-        return row_a - row_b;  // Top rows first
-    }
-    return wa->x - wb->x;  // Left to right within row
-}
-
 static int compare_by_x(const void *a, const void *b) {
     const WindowPosition *wa = (const WindowPosition *)a;
     const WindowPosition *wb = (const WindowPosition *)b;
     return wa->x - wb->x;
+}
+
+static int compare_by_y(const void *a, const void *b) {
+    const WindowPosition *wa = (const WindowPosition *)a;
+    const WindowPosition *wb = (const WindowPosition *)b;
+    return wa->y - wb->y;
 }
 
 // Assign column indices by grouping windows whose left-edge X is within ROW_THRESHOLD
@@ -369,6 +368,20 @@ static void assign_column_indices(WindowPosition *windows, int *col_indices, int
     }
 }
 
+static void assign_row_indices(WindowPosition *windows, int *row_indices, int count) {
+    if (count == 0) return;
+    int row = 0;
+    int row_start_y = windows[0].y;
+    row_indices[0] = 0;
+    for (int i = 1; i < count; i++) {
+        if (windows[i].y - row_start_y > ROW_THRESHOLD) {
+            row++;
+            row_start_y = windows[i].y;
+        }
+        row_indices[i] = row;
+    }
+}
+
 typedef struct {
     WindowPosition pos;
     int col;
@@ -379,6 +392,36 @@ static int compare_by_col_then_y(const void *a, const void *b) {
     const WindowWithCol *wb = (const WindowWithCol *)b;
     if (wa->col != wb->col) return wa->col - wb->col;
     return wa->pos.y - wb->pos.y;
+}
+
+typedef struct {
+    WindowPosition pos;
+    int row;
+} WindowWithRow;
+
+static int compare_by_row_then_x(const void *a, const void *b) {
+    const WindowWithRow *wa = (const WindowWithRow *)a;
+    const WindowWithRow *wb = (const WindowWithRow *)b;
+    if (wa->row != wb->row) return wa->row - wb->row;
+    return wa->pos.x - wb->pos.x;
+}
+
+static int shrink_candidate_to_visible_csd_rect(Display *display, WindowPosition *candidate) {
+    FrameExtents gtk = {0};
+    if (!candidate || !get_gtk_frame_extents ||
+        !get_gtk_frame_extents(display, candidate->id, &gtk)) {
+        return 1;
+    }
+
+    if (gtk.left == 0 && gtk.right == 0 && gtk.top == 0 && gtk.bottom == 0) {
+        return 1;
+    }
+
+    candidate->x += gtk.left;
+    candidate->y += gtk.top;
+    candidate->w -= gtk.left + gtk.right;
+    candidate->h -= gtk.top + gtk.bottom;
+    return candidate->w >= 1 && candidate->h >= 1;
 }
 
 static void sort_by_column(WindowPosition *windows, int count) {
@@ -407,6 +450,21 @@ static void sort_by_column(WindowPosition *windows, int count) {
         tmp[i].col = col_indices[i];
     }
     qsort(tmp, count, sizeof(WindowWithCol), compare_by_col_then_y);
+    for (int i = 0; i < count; i++) windows[i] = tmp[i].pos;
+}
+
+static void sort_by_row(WindowPosition *windows, int count) {
+    qsort(windows, count, sizeof(WindowPosition), compare_by_y);
+
+    int row_indices[MAX_WINDOWS];
+    assign_row_indices(windows, row_indices, count);
+
+    WindowWithRow tmp[MAX_WINDOWS];
+    for (int i = 0; i < count; i++) {
+        tmp[i].pos = windows[i];
+        tmp[i].row = row_indices[i];
+    }
+    qsort(tmp, count, sizeof(WindowWithRow), compare_by_row_then_x);
     for (int i = 0; i < count; i++) windows[i] = tmp[i].pos;
 }
 
@@ -452,6 +510,7 @@ void assign_workspace_slots(AppData *app) {
         candidates[cand_count].y = y;
         candidates[cand_count].w = w;
         candidates[cand_count].h = h;
+        if (!shrink_candidate_to_visible_csd_rect(app->display, &candidates[cand_count])) continue;
         candidates[cand_count].overlay_x = x + w / 2;
         candidates[cand_count].overlay_y = y + h / 2;
         // Store frame extents for post-subtraction decoration filtering
@@ -476,13 +535,16 @@ void assign_workspace_slots(AppData *app) {
         int stack_pos = stack ? get_stack_position(candidates[i].id, stack, stack_count) : -1;
         int overlay_x = 0;
         int overlay_y = 0;
+        int largest_x = 0;
+        int largest_y = 0;
         int largest_w = 0;
         int largest_h = 0;
         double largest_fraction = 0.0;
         double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
             &candidates[i], stack_pos, candidates, cand_count, stack, stack_count,
             clip_rects, clip_count,
-            &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+            &overlay_x, &overlay_y, &largest_x, &largest_y,
+            &largest_w, &largest_h, &largest_fraction);
 
         if (visible_fraction < occlusion_threshold) {
             log_debug("Window 0x%lx excluded: %.1f%% visible (threshold %d%%)",
@@ -501,6 +563,8 @@ void assign_workspace_slots(AppData *app) {
         }
 
         // Use centroid of largest visible fragment for overlay placement.
+        candidates[i].x = largest_x;
+        candidates[i].y = largest_y;
         candidates[i].overlay_x = overlay_x;
         candidates[i].overlay_y = overlay_y;
         visible[vis_count++] = candidates[i];
@@ -514,7 +578,7 @@ void assign_workspace_slots(AppData *app) {
     if (app->config.slot_sort_order == SLOT_SORT_COLUMN_FIRST) {
         sort_by_column(visible, vis_count);
     } else {
-        qsort(visible, vis_count, sizeof(WindowPosition), compare_by_position);
+        sort_by_row(visible, vis_count);
     }
 
     // Assign slots densely (capped to available workspace slots)

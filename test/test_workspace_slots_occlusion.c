@@ -60,6 +60,8 @@ typedef struct {
 
 static TestFrameExtents test_fe_table[MAX_WINDOWS];
 static int test_fe_count = 0;
+static TestFrameExtents test_gtk_fe_table[MAX_WINDOWS];
+static int test_gtk_fe_count = 0;
 static TestMonitor test_monitors[MAX_WINDOWS];
 static int test_monitor_count = 0;
 static WorkArea test_work_area = {0};
@@ -77,6 +79,8 @@ static void reset_test_state(void) {
     test_below_count = 0;
     memset(test_fe_table, 0, sizeof(test_fe_table));
     test_fe_count = 0;
+    memset(test_gtk_fe_table, 0, sizeof(test_gtk_fe_table));
+    test_gtk_fe_count = 0;
     memset(test_monitors, 0, sizeof(test_monitors));
     test_monitor_count = 0;
     test_work_area = (WorkArea){0};
@@ -112,6 +116,15 @@ static void add_frame_extents(Window id, int left, int top, int right, int botto
     test_fe_table[test_fe_count].top    = top;
     test_fe_table[test_fe_count].bottom = bottom;
     test_fe_count++;
+}
+
+static void add_gtk_frame_extents(Window id, int left, int top, int right, int bottom) {
+    test_gtk_fe_table[test_gtk_fe_count].id     = id;
+    test_gtk_fe_table[test_gtk_fe_count].left   = left;
+    test_gtk_fe_table[test_gtk_fe_count].right  = right;
+    test_gtk_fe_table[test_gtk_fe_count].top    = top;
+    test_gtk_fe_table[test_gtk_fe_count].bottom = bottom;
+    test_gtk_fe_count++;
 }
 
 static void add_monitor(int x, int y, int w, int h,
@@ -302,6 +315,20 @@ int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
             extents->right  = test_fe_table[i].right;
             extents->top    = test_fe_table[i].top;
             extents->bottom = test_fe_table[i].bottom;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int get_gtk_frame_extents(Display *display, Window window, FrameExtents *extents) {
+    (void)display;
+    for (int i = 0; i < test_gtk_fe_count; i++) {
+        if (test_gtk_fe_table[i].id == window) {
+            extents->left   = test_gtk_fe_table[i].left;
+            extents->right  = test_gtk_fe_table[i].right;
+            extents->top    = test_gtk_fe_table[i].top;
+            extents->bottom = test_gtk_fe_table[i].bottom;
             return 1;
         }
     }
@@ -1243,7 +1270,8 @@ static void test_no_monitor_clips_keeps_full_visibility(void) {
     double largest_fraction = 0.0;
     double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
         &win, -1, &win, 1, NULL, 0, NULL, 0,
-        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+        &overlay_x, &overlay_y, NULL, NULL,
+        &largest_w, &largest_h, &largest_fraction);
 
     ASSERT_TRUE("no clip fallback: full visible", visible_fraction == 1.0);
     ASSERT_TRUE("no clip fallback: full fragment", largest_fraction == 1.0);
@@ -1418,7 +1446,8 @@ static void test_overlay_center_comes_from_clipped_fragment(void) {
     double largest_fraction = 0.0;
     double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
         &win, -1, &win, 1, NULL, 0, clip_rects, 1,
-        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+        &overlay_x, &overlay_y, NULL, NULL,
+        &largest_w, &largest_h, &largest_fraction);
 
     ASSERT_TRUE("clip overlay: fraction clipped", visible_fraction == 0.25);
     ASSERT_TRUE("clip overlay: center in fragment", overlay_x == 50 && overlay_y == 50);
@@ -1439,12 +1468,184 @@ static void test_physical_dual_monitor_candidate_stays_visible(void) {
     double largest_fraction = 0.0;
     double visible_fraction = compute_visible_fraction_and_overlay_center_for_clips(
         &win, -1, &win, 1, NULL, 0, clip_rects, 2,
-        &overlay_x, &overlay_y, &largest_w, &largest_h, &largest_fraction);
+        &overlay_x, &overlay_y, NULL, NULL,
+        &largest_w, &largest_h, &largest_fraction);
 
     ASSERT_TRUE("physical dual-monitor clip: >=95% visible", visible_fraction >= 0.95);
     ASSERT_TRUE("physical dual-monitor clip: full fragment", largest_fraction >= 0.95);
     ASSERT_TRUE("physical dual-monitor clip: overlay centered", overlay_x == 5760 && overlay_y == 1058);
     ASSERT_TRUE("physical dual-monitor clip: fragment dims", largest_w == 3840 && largest_h == 2104);
+}
+
+static void test_gtk_csd_shadow_does_not_sort_window_into_negative_row(void) {
+    AppData app = {0};
+    app.display = (Display *)0x1;
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 4;
+
+    reset_test_state();
+    add_monitor(0, 0, 4000, 2000, 0, 0, 4000, 2000);
+
+    app.windows[0].id = 0xC1;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xC1, 0, 0, 600, 600);
+
+    app.windows[1].id = 0xC2;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xC2, 800, 0, 600, 600);
+
+    app.windows[2].id = 0xC3;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xC3, 1600, 0, 600, 600);
+
+    app.windows[3].id = 0xC4;
+    app.windows[3].desktop = 0;
+    strcpy(app.windows[3].type, "Normal");
+    add_geometry(0xC4, 2400, -206, 1012, 1012);
+    add_gtk_frame_extents(0xC4, 206, 206, 206, 206);
+
+    Window stack[] = { 0xC1, 0xC2, 0xC3, 0xC4 };
+    set_stack(stack, 4);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("gtk csd row sort: 4 slots", app.workspace_slots.count == 4);
+    ASSERT_TRUE("gtk csd row sort: leftmost stays slot 1", app.workspace_slots.slots[0].id == 0xC1);
+    ASSERT_TRUE("gtk csd row sort: second stays slot 2", app.workspace_slots.slots[1].id == 0xC2);
+    ASSERT_TRUE("gtk csd row sort: third stays slot 3", app.workspace_slots.slots[2].id == 0xC3);
+    ASSERT_TRUE("gtk csd row sort: csd window stays at far-right slot 4", app.workspace_slots.slots[3].id == 0xC4);
+}
+
+static void test_row_sort_keeps_workspace4_titlebar_offsets_in_same_row(void) {
+    AppData app = {0};
+    app.display = (Display *)0x1;
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 4;
+
+    reset_test_state();
+    add_monitor(0, 0, 8000, 3000, 0, 0, 8000, 3000);
+
+    app.windows[0].id = 0xD1;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xD1, 4800, 0, 900, 900);
+
+    app.windows[1].id = 0xD2;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xD2, 0, 58, 900, 900);
+
+    app.windows[2].id = 0xD3;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xD3, 1920, 58, 900, 900);
+
+    app.windows[3].id = 0xD4;
+    app.windows[3].desktop = 0;
+    strcpy(app.windows[3].type, "Normal");
+    add_geometry(0xD4, 3840, 58, 900, 900);
+
+    Window stack[] = { 0xD1, 0xD2, 0xD3, 0xD4 };
+    set_stack(stack, 4);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("workspace4 row clustering: 4 slots", app.workspace_slots.count == 4);
+    ASSERT_TRUE("workspace4 row clustering: x=0 window is slot 1", app.workspace_slots.slots[0].id == 0xD2);
+    ASSERT_TRUE("workspace4 row clustering: x=1920 window is slot 2", app.workspace_slots.slots[1].id == 0xD3);
+    ASSERT_TRUE("workspace4 row clustering: x=3840 window is slot 3", app.workspace_slots.slots[2].id == 0xD4);
+    ASSERT_TRUE("workspace4 row clustering: x=4800 window is slot 4", app.workspace_slots.slots[3].id == 0xD1);
+}
+
+static void test_row_sort_keeps_separated_rows_distinct(void) {
+    AppData app = {0};
+    app.display = (Display *)0x1;
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 4;
+
+    reset_test_state();
+    add_monitor(0, 0, 4000, 2500, 0, 0, 4000, 2500);
+
+    app.windows[0].id = 0xE1;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xE1, 1000, 0, 600, 600);
+
+    app.windows[1].id = 0xE2;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xE2, 0, 20, 600, 600);
+
+    app.windows[2].id = 0xE3;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xE3, 1000, 1080, 600, 600);
+
+    app.windows[3].id = 0xE4;
+    app.windows[3].desktop = 0;
+    strcpy(app.windows[3].type, "Normal");
+    add_geometry(0xE4, 0, 1100, 600, 600);
+
+    Window stack[] = { 0xE1, 0xE2, 0xE3, 0xE4 };
+    set_stack(stack, 4);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("separated rows: 4 slots", app.workspace_slots.count == 4);
+    ASSERT_TRUE("separated rows: top-left row window is slot 1", app.workspace_slots.slots[0].id == 0xE2);
+    ASSERT_TRUE("separated rows: top-right row window is slot 2", app.workspace_slots.slots[1].id == 0xE1);
+    ASSERT_TRUE("separated rows: bottom-left row window is slot 3", app.workspace_slots.slots[2].id == 0xE4);
+    ASSERT_TRUE("separated rows: bottom-right row window is slot 4", app.workspace_slots.slots[3].id == 0xE3);
+}
+
+static void test_row_sort_uses_row_start_threshold_boundary(void) {
+    AppData app = {0};
+    app.display = (Display *)0x1;
+    init_workspace_slots(&app.workspace_slots);
+    app.config.slot_sort_order = SLOT_SORT_ROW_FIRST;
+    app.config.digit_slot_mode = DIGIT_MODE_DEFAULT;
+    app.config.slot_occlusion_threshold_pct = 5;
+    app.window_count = 3;
+
+    reset_test_state();
+    add_monitor(0, 0, 4000, 2500, 0, 0, 4000, 2500);
+
+    app.windows[0].id = 0xF1;
+    app.windows[0].desktop = 0;
+    strcpy(app.windows[0].type, "Normal");
+    add_geometry(0xF1, 1000, 0, 600, 600);
+
+    app.windows[1].id = 0xF2;
+    app.windows[1].desktop = 0;
+    strcpy(app.windows[1].type, "Normal");
+    add_geometry(0xF2, 0, 99, 600, 600);
+
+    app.windows[2].id = 0xF3;
+    app.windows[2].desktop = 0;
+    strcpy(app.windows[2].type, "Normal");
+    add_geometry(0xF3, 500, 101, 600, 600);
+
+    Window stack[] = { 0xF1, 0xF2, 0xF3 };
+    set_stack(stack, 3);
+
+    assign_workspace_slots(&app);
+
+    ASSERT_TRUE("row-start boundary: 3 slots", app.workspace_slots.count == 3);
+    ASSERT_TRUE("row-start boundary: y=99 stays in first row ahead of x=1000", app.workspace_slots.slots[0].id == 0xF2);
+    ASSERT_TRUE("row-start boundary: y=0 shares first row", app.workspace_slots.slots[1].id == 0xF1);
+    ASSERT_TRUE("row-start boundary: y=101 starts second row", app.workspace_slots.slots[2].id == 0xF3);
 }
 
 int main(void) {
@@ -1482,6 +1683,10 @@ int main(void) {
     test_dead_monitor_seam_pixels_do_not_count();
     test_overlay_center_comes_from_clipped_fragment();
     test_physical_dual_monitor_candidate_stays_visible();
+    test_gtk_csd_shadow_does_not_sort_window_into_negative_row();
+    test_row_sort_keeps_workspace4_titlebar_offsets_in_same_row();
+    test_row_sort_keeps_separated_rows_distinct();
+    test_row_sort_uses_row_start_threshold_boundary();
 
     printf("\nResults: %d/%d tests passed\n", pass, pass + fail);
     return fail == 0 ? 0 : 1;

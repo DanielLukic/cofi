@@ -90,8 +90,12 @@ activating windows on the current workspace.
     missing geometry, mostly occluded windows, tiny visible fragments, and
     candidates outside monitor/workarea clips.
 16. Workspace slots are sorted row-first by default or column-first when
-    configured, assigned densely from `1` through `9`, capped at nine visible
-    windows, and never mutate or save digit-slot configuration.
+    configured, using each candidate's largest visible fragment top-left after
+    removing any `_GTK_FRAME_EXTENTS` padding from the raw geometry; row and
+    column grouping both use gap-based clustering with a 100px threshold before
+    ordering left-to-right or top-to-bottom within each group, assigned densely
+    from `1` through `9`, capped at nine visible windows, and never mutate or
+    save digit-slot configuration.
 17. Workspace slot overlay positions use the centroid of the largest visible
     window fragment when occlusion data is available, falling back to window
     center coordinates for geometry candidates.
