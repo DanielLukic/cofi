@@ -98,6 +98,10 @@ Read the affected folder's `CONTEXT.md` before editing or reviewing code in that
 - Impossible-input criteria (null after validation, freed-after-close) — test what callers can actually provoke.
 - Cross-folder reach-through with no Note — when a dep forms between subsystems, add a Note in the depending folder.
 
+**Folder size and nesting.** Keep each folder small and focused — that is the prime directive. When a sub-feature has a distinct shape from its siblings (a different async model, a different external dependency, a different lifecycle, a self-contained protocol integration or parser family), introduce a subfolder rather than growing the flat list. Nest for a *sub-feature with a distinct shape, not for more of the same*: "another of the same kind" belongs as a sibling file in the existing flat folder.
+
+Each nested subfolder is a subsystem in its own right. It owns its boundary, gets its own `CONTEXT.md` under the same rules as any top-level subsystem folder, and the parent folder's Boundary section acknowledges the delegation. A parent folder that evolves into a coordination layer for multiple focused subfolders is a natural extension of this pattern; introduce that only when it actually serves a sub-feature, not speculatively.
+
 ## Engineering Standards
 
 These apply to every change.
