@@ -114,6 +114,7 @@ projects_obj = src/projects/projects.o
 projects_commands_obj = src/projects/projects_commands.o
 projects_exec_obj = src/projects/projects_exec.o
 projects_folder_windows_obj = src/projects/projects_folder_windows.o
+projects_locate_obj = src/projects/locate/projects_locate.o
 projects_parse_obj = src/projects/projects_parse.o
 projects_provider_obj = src/projects/projects_provider.o
 projects_refresh_obj = src/projects/projects_refresh.o
@@ -636,11 +637,17 @@ test_projects: test/test_projects.c $(projects_parse_obj) $(projects_commands_ob
 test_projects_provider: test/test_projects_provider.c $(cofi_json_io_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_provider test/test_projects_provider.c $(config_obj) $(cofi_json_io_obj) $(LDFLAGS)
 
+test_projects_filter: test/test_projects_filter.c src/projects/projects.c $(projects_parse_obj) $(projects_commands_obj) $(projects_exec_obj) $(fzf_algo_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_filter test/test_projects_filter.c src/projects/projects.c $(projects_parse_obj) $(projects_commands_obj) $(projects_exec_obj) $(fzf_algo_obj) $(LDFLAGS)
+
 test_projects_remote_store: test/test_projects_remote_store.c src/projects/projects_remote_store.c
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_remote_store test/test_projects_remote_store.c src/projects/projects_remote_store.c $(LDFLAGS)
 
 test_projects_remote_scope: test/test_projects_remote_scope.c src/projects/projects_remote_scope.c $(projects_parse_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_remote_scope test/test_projects_remote_scope.c src/projects/projects_remote_scope.c $(projects_parse_obj) $(LDFLAGS)
+
+test_projects_locate: test/test_projects_locate.c src/projects/locate/projects_locate.c $(fzf_algo_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_locate test/test_projects_locate.c src/projects/locate/projects_locate.c $(fzf_algo_obj) $(LDFLAGS)
 
 # Build bluetooth tests
 test_bluetooth_model: test/test_bluetooth_model.c $(fzf_algo_obj)

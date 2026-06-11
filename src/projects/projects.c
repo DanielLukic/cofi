@@ -17,10 +17,13 @@
 #include "projects/projects_zellij_windows.h"
 #include "projects/projects_remote_store.h"
 #include "projects/projects_remote_scope.h"
+#include "projects/locate/projects_locate.h"
 #include "x11/window_list.h"
 
 #include <gtk/gtk.h>
 #include <X11/Xatom.h>
+
+#define SOURCE_PRIORITY_BONUS 50
 
 static gboolean default_launch_in_terminal(const char *command) {
     return detach_launch_in_terminal_cmd(command);
@@ -387,8 +390,14 @@ static int compare_session_filter_hits(const void *a, const void *b) {
     return ha->order - hb->order;
 }
 
-void projects_filter(AppData *app, const char *query) {
-    if (!app) return;
+static void clear_locate_rows(ProjectsMode *mode) {
+    if (!mode || mode->locate_folder_count <= 0) return;
+    projects_clear_folders(mode->folders + mode->primary_folder_count, mode->locate_folder_count);
+    mode->folder_count = mode->primary_folder_count;
+    mode->locate_folder_count = 0;
+}
+
+static void rebuild_filtered_rows(AppData *app, const char *query) {
     ProjectsMode *mode = &app->projects_mode;
     mode->filtered_count = 0;
 
@@ -409,11 +418,12 @@ void projects_filter(AppData *app, const char *query) {
         char match_text[384];
         projects_format_session_match_text(&mode->projects[i], match_text, sizeof(match_text));
         if (fzf_has_match(query, match_text)) {
+            score_t base_score = fzf_fuzzy_match(query, match_text);
             hits[hit_count++] = (SessionFilterHit){
                 .type = PROJECT_ROW_SESSION,
                 .index = i,
                 .order = order,
-                .score = fzf_fuzzy_match(query, match_text),
+                .score = base_score + SOURCE_PRIORITY_BONUS,
             };
         }
         order++;
@@ -422,11 +432,15 @@ void projects_filter(AppData *app, const char *query) {
         char match_text[512];
         projects_format_folder_match_text(&mode->folders[i], match_text, sizeof(match_text));
         if (fzf_has_match(query, match_text)) {
+            score_t base_score = fzf_fuzzy_match(query, match_text);
+            score_t priority_bonus = mode->folders[i].source == FOLDER_SOURCE_LOCATE
+                ? 0
+                : SOURCE_PRIORITY_BONUS;
             hits[hit_count++] = (SessionFilterHit){
                 .type = PROJECT_ROW_FOLDER,
                 .index = i,
                 .order = order,
-                .score = fzf_fuzzy_match(query, match_text),
+                .score = base_score + priority_bonus,
             };
         }
         order++;
@@ -438,6 +452,61 @@ void projects_filter(AppData *app, const char *query) {
     for (int i = 0; i < hit_count; i++) {
         add_filtered_row(mode, hits[i].type, hits[i].index);
     }
+}
+
+static gchar *folder_label_for_locate_path(const char *path) {
+    gchar *base = g_path_get_basename(path ? path : "");
+    if (!base || base[0] == '\0' || strcmp(base, ".") == 0 || strcmp(base, "/") == 0) {
+        g_clear_pointer(&base, g_free);
+        return g_strdup("locate");
+    }
+    return base;
+}
+
+static void apply_locate_results(AppData *app,
+                                 const char *query,
+                                 guint generation,
+                                 const ProjectsLocateResult *results,
+                                 int result_count) {
+    if (!app || generation != app->projects_mode.locate_generation) return;
+
+    ProjectsMode *mode = &app->projects_mode;
+    preserve_selection(app);
+    clear_locate_rows(mode);
+
+    int capacity = MAX_PROJECT_FOLDERS - mode->folder_count;
+    int appended = result_count < capacity ? result_count : capacity;
+    for (int i = 0; i < appended; i++) {
+        ProjectFolder *folder = &mode->folders[mode->folder_count + i];
+        folder->path = g_strdup(results[i].path);
+        folder->label = folder_label_for_locate_path(results[i].path);
+        folder->source = FOLDER_SOURCE_LOCATE;
+        folder->is_remote = FALSE;
+        folder->remote_host[0] = '\0';
+    }
+    mode->folder_count += appended;
+    mode->locate_folder_count = appended;
+
+    rebuild_filtered_rows(app, query);
+    restore_selection(app);
+    update_scroll_position(app);
+    update_display(app);
+}
+
+void projects_filter(AppData *app, const char *query) {
+    if (!app) return;
+    ProjectsMode *mode = &app->projects_mode;
+    clear_locate_rows(mode);
+    projects_locate_cancel_pending(app);
+    rebuild_filtered_rows(app, query);
+
+    if (!query || query[0] == '\0' ||
+        projects_remote_scope_is_active() || projects_remote_scope_is_loading()) {
+        return;
+    }
+    if (g_utf8_strlen(query, -1) < 3) return;
+
+    projects_locate_search_async(app, query, ++mode->locate_generation);
 }
 
 int projects_row_count(AppData *app) {
@@ -461,7 +530,7 @@ void projects_format_row(AppData *app, int visible_idx, CofiRowCells *out) {
 
     if (folder) {
         out->cell_count = 3;
-        out->cells[0].text = projects_folder_marker();
+        out->cells[0].text = projects_folder_marker(folder);
         out->cells[0].width_hint = 3;
         if (folder->is_remote) {
             g_snprintf(remote_folder_label_buf, sizeof(remote_folder_label_buf),
@@ -556,6 +625,7 @@ const char *projects_row_identity(AppData *app, int visible_idx) {
 
 void projects_on_enter(AppData *app) {
     if (!app) return;
+    projects_locate_set_results_callback(apply_locate_results);
     if (app->entry) {
         gtk_entry_set_placeholder_text(GTK_ENTRY(app->entry), "projects...");
     }
@@ -571,7 +641,10 @@ void projects_on_query_changed(AppData *app, const char *query) {
 }
 
 void projects_on_leave(AppData *app) {
-    (void)app;
+    if (app) {
+        projects_locate_cancel_pending(app);
+        clear_locate_rows(&app->projects_mode);
+    }
     projects_remote_scope_clear_status_message();
     projects_remote_scope_clear();
 }
@@ -579,6 +652,8 @@ void projects_on_leave(AppData *app) {
 void projects_on_tick(AppData *app, int generation) {
     (void)generation;
     if (!app) return;
+    const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
+    if (query && query[0] != '\0') return;
     ProjectRowType selected_type = PROJECT_ROW_SESSION;
     ProjectBackend selected_backend = PROJECT_BACKEND_TMUX;
     gchar *selected_identity = NULL;

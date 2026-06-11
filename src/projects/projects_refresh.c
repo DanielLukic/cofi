@@ -123,10 +123,13 @@ void projects_refresh(AppData *app) {
     projects_clear_folders(mode->folders, mode->folder_count);
     mode->session_count = 0;
     mode->folder_count = 0;
+    mode->primary_folder_count = 0;
+    mode->locate_folder_count = 0;
     mode->filtered_count = 0;
     mode->last_error[0] = '\0';
 
     if (projects_remote_scope_apply(mode)) {
+        mode->primary_folder_count = mode->folder_count;
         const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
         projects_filter(app, query);
         return;
@@ -139,6 +142,7 @@ void projects_refresh(AppData *app) {
                                                                 mode->session_count,
                                                                 MAX_PROJECTS);
     refresh_zoxide_backend(app, mode);
+    mode->primary_folder_count = mode->folder_count;
 
     const char *query = app->entry ? gtk_entry_get_text(GTK_ENTRY(app->entry)) : "";
     projects_filter(app, query);

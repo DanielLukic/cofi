@@ -171,6 +171,7 @@ static gboolean parse_remote_outputs(const char *host,
     }
 
     for (int i = 0; i < folder_count; i++) {
+        folders_out[i].source = FOLDER_SOURCE_ZOXIDE;
         folders_out[i].is_remote = TRUE;
         g_strlcpy(folders_out[i].remote_host, host, sizeof(folders_out[i].remote_host));
     }
@@ -281,6 +282,7 @@ static gboolean fetch_result_apply_idle(gpointer data) {
         for (int i = 0; i < result->folder_count; i++) {
             s_state.folders[i].path = g_strdup(result->folders[i].path);
             s_state.folders[i].label = g_strdup(result->folders[i].label);
+            s_state.folders[i].source = result->folders[i].source;
             s_state.folders[i].is_remote = TRUE;
             g_strlcpy(s_state.folders[i].remote_host, result->host, sizeof(s_state.folders[i].remote_host));
         }
@@ -361,6 +363,7 @@ gboolean projects_remote_scope_apply(ProjectsMode *mode) {
     for (int i = 0; i < s_state.folder_count; i++) {
         mode->folders[i].path = g_strdup(s_state.folders[i].path);
         mode->folders[i].label = g_strdup(s_state.folders[i].label);
+        mode->folders[i].source = s_state.folders[i].source;
         mode->folders[i].is_remote = s_state.folders[i].is_remote;
         g_strlcpy(mode->folders[i].remote_host, s_state.folders[i].remote_host,
                   sizeof(mode->folders[i].remote_host));

@@ -286,6 +286,14 @@ See also:
 
 - **Projects tool resolution must be shared across list and action paths.** `tmux`, `zellij`, `zoxide`, and the configured file explorer are resolved from Projects config first, then the cofi service `PATH`. Do not hardcode user/mise paths or update only `projects_refresh.c`; attach/new/kill/rename and existing-window activation must use the same resolved executable.
 
+- **plocate results are only as fresh as the last `updatedb` run.** The Projects locate fallback reads the system locate index, not the live filesystem. Folders created after the last index update will not appear until `updatedb` refreshes that index.
+
+- **plocate exit code 1 means "no matches," not failure.** The Projects locate fallback must treat exit status `1` as an empty result set and return quietly. Logging or surfacing it as an error regresses normal zero-hit queries.
+
+- **Projects locate queries are converted to basename globs before they reach plocate.** The locate subprocess runs with `-b`, so cofi must interleave `*` between query characters before invoking plocate or word-initial queries like `bh` will stop matching multi-word basenames such as `ba-host`. Do not revert this to a literal substring lookup.
+
+- **Primary project rows get a fixed ranking bonus over locate rows.** The merged Projects list intentionally favors tmux, zellij, and zoxide hits over locate discoveries. Without that bonus, fzf's clean-prefix preference can rank locate filesystem finds above the user's recent or frequent primary entries. Do not drop the bonus without redesigning the merge policy.
+
 - **GUI desktop entries must not go through a shell.** `Exec=` is argv-like, not shell syntax. The correct path is `g_shell_parse_argv` (handles quoting/escaping only) followed by `detach_launch_argv_array` (direct execvp). Shell metacharacters in `Exec=` must not execute.
 
 - **Do not use `GSubprocessLauncher` for app launches.** It inherits cofi's cgroup. Launched apps then die when cofi's cgroup is cleaned up (e.g. `systemctl --user stop cofi`). This is the root cause of TFD-557.

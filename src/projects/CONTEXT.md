@@ -7,14 +7,15 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 ## Boundary
 
 ### Owns
-- Discovery, parsing, filtering, and display for tmux sessions, zellij sessions, zoxide folders, saved remote sessions, and remote-scope rows.
-- Projects provider registration, command aliases, shortcuts, overlays, config entries, slot payloads, and session/folder launch commands.
+- Discovery, parsing, filtering, and display for tmux sessions, zellij sessions, zoxide folders, saved remote sessions, remote-scope rows, and locate-backed fallback folder rows.
+- Projects provider registration, command aliases, shortcuts, overlays, config entries, slot payloads, session/folder launch commands, and the trigger policy for locate fallback.
 - PATH executable scanning used by apps PATH mode.
 
 ### Does Not Own
 - Provider registry, command registry, slot-store persistence, generic modal stack, tab rendering, or selection algorithms.
 - tmux, zellij, zoxide, SSH, terminal emulator, file manager, shell behavior, or X11 activation primitives outside project-specific command/window matching.
 - General apps-provider behavior beyond the PATH binary cache helper housed here.
+- plocate / locate subprocess lifecycle, pattern escaping, timeout handling, or generation-guarded callback cleanup; those are delegated to `locate/`.
 
 ## Public Surface
 - `projects.h`: `init_projects_mode()`, `projects_refresh()`,
@@ -77,6 +78,9 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
   `create_project_remote_host_overlay_content()`,
   `handle_project_kill_key_press()`, `handle_project_rename_key_press()`,
   `handle_project_new_key_press()`, `handle_project_remote_host_key_press()`
+- `locate/projects_locate.h`: `ProjectsLocateResult`,
+  `ProjectsLocateResultsCallback`, `projects_locate_set_results_callback()`,
+  `projects_locate_search_async()`, `projects_locate_cancel_pending()`
 - `path_binaries.h` (apps PATH-mode cache helper):
   `path_binaries_ensure_loaded()`, `path_binaries_filter()`,
   `path_binaries_is_scanning()`, `path_binaries_shutdown()`
@@ -105,28 +109,31 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 
 ## Acceptance Criteria
 1. Registering projects creates an optional hidden dynamic `PROJECTS` tab with hide-on-esc modal policy, initial selection `0`, 1500 ms refresh tick, row/query/Enter/key hooks, and slot storage enabled.
-2. Registration also registers `projects.tmux_path`, `projects.zellij_path`, `projects.zoxide_path`, and `projects.file_explorer_path`; each accepts empty-for-PATH or an absolute executable path and rejects relative or non-executable paths.
+2. Registration also registers `projects.tmux_path`, `projects.zellij_path`, `projects.zoxide_path`, `projects.file_explorer_path`, `projects.locate_enabled`, `projects.locate_excludes`, and `projects.locate_timeout_ms`; tool-path keys accept empty-for-PATH or an absolute executable path and reject relative or non-executable paths.
 3. The command surface registers `projects` with aliases `project`, `tmux`, `tx`, `zj`, and `zellij`, help `projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]`, and hotkey auto-open behavior.
 4. Running the command without args exits command mode, records the origin tab, surfaces projects, and leaves the window open; session-name args refresh, attach, and hide on success.
 5. `@SLOT` command args resolve payloads from the `projects` slot namespace; invalid args show `No matching tmux/zellij session.` without hiding.
-6. Entering the tab sets placeholder `projects...` and refreshes local rows or active remote-scope rows.
+6. Entering the tab sets placeholder `projects...`, registers the locate callback sink, and refreshes local rows or active remote-scope rows.
 7. Local refresh clears old folders, loads tmux, zellij, saved remote intents, and zoxide rows, and preserves tmux errors in `last_error` when no tmux sessions are available.
 8. Active remote scope replaces local rows with scoped remote sessions/folders; loading scope exposes `Loading remote projects for <host>...`.
 9. Empty query lists sessions first and folders second in discovery order; non-empty query fuzzy-matches formatted row text and sorts by score, then original order.
 10. With no filtered rows, the provider returns one status row: `No matching projects`, current error as `COFI_ROW_ERROR`, or `No tmux/zellij sessions or zoxide folders`.
-11. tmux rows render `[t]`, name, window count, and client count; zellij rows render `[z]`, name, and blank count columns; folder rows render `[d]`, label, and path.
+11. tmux rows render `[t]`, name, window count, and client count; zellij rows render `[z]`, name, and blank count columns; zoxide folder rows render `[d]`, label, and path; locate rows render `[~]`, label, and path.
 12. Remote folder/session display prefixes labels with `[REMOTE:<host>]`; all real project rows are actionable and slottable.
 13. Match text includes row marker and searchable details; row identity is folder path for folders and session name for sessions.
-14. Query changes clear remote status, refilter, and reset selection; periodic ticks refresh while preserving selected row type, backend, and identity when it still exists.
-15. Pressing Enter on a folder activates a matching Caja window when possible, otherwise uses configured file explorer, then `caja`, `xdg-open`, then `gio open`; remote folders open as `sftp://<host><path>`.
-16. Pressing Enter on a session activates an existing tmux, zellij, or remote attach window when detectable before launching a terminal attach command.
-17. New, kill/delete, and rename overlays build the corresponding tmux/zellij/zoxide commands; rename is tmux-only, and successful mutating actions refresh projects.
-18. Ctrl+S fetches remote rows over SSH with X-forwarding, BatchMode, and short timeout; remote attach/new commands use `ssh -X -t`, save successful session intents to `projects.json`, and reload saved intents as remote rows.
-19. Slot payloads are typed as `session:tmux:<name>`, `session:zellij:<name>`, or `folder:<path>`; parsing preserves colons inside names/paths and rejects empty or unknown payloads.
-20. Shortcut hints are row-sensitive: folder rows include `Ctrl+T=Terminal`, tmux rows include `Ctrl+R=Rename`, and other rows omit unavailable actions.
-21. PATH binary scanning caches executable basenames from PATH, keeps the first duplicate-name winner, sorts empty-query results by name, scores substring matches, and returns at most `MAX_APPS` entries.
-22. PATH monitoring adds, removes, and renames cached executables live; cache cap overflow emits one warning and clamps the cache to `MAX_PATH_BINS`.
-23. WINDOWID environment parsing scans NUL-separated `/proc/<pid>/environ`
+14. Query changes clear remote status, cancel pending locate work, refilter, and reset selection; periodic ticks refresh while preserving selected row type, backend, and identity when the query is empty.
+15. When a non-empty local query has at least three characters and locate is enabled, Projects starts the locate fallback asynchronously in parallel with the primary tmux/zellij/zoxide filter results; if `projects.locate_search_roots` is configured, only locate candidates under those roots are eligible.
+16. Locate callback results append temporary `[~]` folder rows, preserve row selection by identity across the refilter, and disappear on the next query/filter rebuild unless re-supplied by the current locate generation.
+17. In merged query ranking, tmux sessions, zellij sessions, and zoxide folders get a fixed score bonus over locate rows so navigation-oriented primary results stay ahead unless locate has a substantially stronger match.
+18. Pressing Enter on a folder activates a matching Caja window when possible, otherwise uses configured file explorer, then `caja`, `xdg-open`, then `gio open`; remote folders open as `sftp://<host><path>`.
+19. Pressing Enter on a session activates an existing tmux, zellij, or remote attach window when detectable before launching a terminal attach command.
+20. New, kill/delete, and rename overlays build the corresponding tmux/zellij/zoxide commands; rename is tmux-only, and successful mutating actions refresh projects.
+21. Ctrl+S fetches remote rows over SSH with X-forwarding, BatchMode, and short timeout; remote attach/new commands use `ssh -X -t`, save successful session intents to `projects.json`, and reload saved intents as remote rows.
+22. Slot payloads are typed as `session:tmux:<name>`, `session:zellij:<name>`, or `folder:<path>`; parsing preserves colons inside names/paths and rejects empty or unknown payloads.
+23. Shortcut hints are row-sensitive: folder rows include `Ctrl+T=Terminal`, tmux rows include `Ctrl+R=Rename`, and delete remains available only for mutable rows even though the shortcut text stays shared.
+24. PATH binary scanning caches executable basenames from PATH, keeps the first duplicate-name winner, sorts empty-query results by name, scores substring matches, and returns at most `MAX_APPS` entries.
+25. PATH monitoring adds, removes, and renames cached executables live; cache cap overflow emits one warning and clamps the cache to `MAX_PATH_BINS`.
+26. WINDOWID environment parsing scans NUL-separated `/proc/<pid>/environ`
     data, accepts only a non-zero decimal `WINDOWID=<id>` with no trailing
     junk, writes `0` on failure, and never reads beyond the supplied byte
     length.

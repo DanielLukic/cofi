@@ -204,6 +204,12 @@ void init_config_defaults(CofiConfig *config) {
     config->projects_zellij_path[0] = '\0';
     config->projects_zoxide_path[0] = '\0';
     config->projects_file_explorer_path[0] = '\0';
+    config->projects_locate_enabled = 1;
+    g_strlcpy(config->projects_locate_excludes,
+              "~/.cache/*,~/.local/*,~/.config/*,~/.var/app/*,~/snap/*,~/.gradle/*,~/.npm/*,~/.nvm/*,*/node_modules/*,*/__pycache__/*,*/.git/*,*/caches/*,*/cache/*",
+              sizeof(config->projects_locate_excludes));
+    config->projects_locate_search_roots[0] = '\0';
+    config->projects_locate_timeout_ms = 1500;
 }
 
 void save_config(const CofiConfig *config) {

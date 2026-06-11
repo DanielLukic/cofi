@@ -94,6 +94,10 @@ struct CofiConfig {
     char projects_zellij_path[CONFIG_TOOL_PATH_LEN];
     char projects_zoxide_path[CONFIG_TOOL_PATH_LEN];
     char projects_file_explorer_path[CONFIG_TOOL_PATH_LEN];
+    int projects_locate_enabled;
+    char projects_locate_excludes[CONFIG_VALUE_LEN];
+    char projects_locate_search_roots[CONFIG_VALUE_LEN];
+    int projects_locate_timeout_ms;
 };
 
 // Alignment string conversion

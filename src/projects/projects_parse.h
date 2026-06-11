@@ -41,7 +41,7 @@ gchar *projects_build_folder_slot_payload(const char *path);
 gboolean projects_parse_slot_payload(const char *payload, ProjectSlotTarget *out);
 
 const char *projects_session_marker(ProjectBackend backend);
-const char *projects_folder_marker(void);
+const char *projects_folder_marker(const ProjectFolder *folder);
 void projects_format_session_match_text(const ProjectSessionEntry *session,
                                         char *out,
                                         size_t out_size);

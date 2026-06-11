@@ -174,9 +174,10 @@ Hidden Projects surface triggered via `:projects`, `:project`, `:tmux`, `:tx`, `
 - Zellij sessions are listed from `zellij list-sessions --short` when `zellij` is available
 - Zoxide folders are listed from `zoxide query -l` when `zoxide` is available
 - The logical list keeps tmux sessions first, then zellij sessions, then zoxide folders; because cofi renders provider rows bottom-up, folders appear above sessions
-- Tmux sessions are marked `[t]`; zellij sessions are marked `[z]`; folders are marked `[d]`
+- Tmux sessions are marked `[t]`; zellij sessions are marked `[z]`; zoxide folders are marked `[d]`; locate fallback folders are marked `[~]`
 - Filtering is fzf-style over the full rendered row, including the marker, so `tcofi` and `zcofi` can disambiguate matching tmux and zellij session names
 - Missing session tools or empty session lists show a non-actionable status row only when there are no zoxide folder rows
+- When a query of 3+ characters is active, cofi also runs `plocate` / `locate` asynchronously against a basename glob derived from the query, optionally narrows candidates to configured search roots, then ranks accepted directory candidates in-process with the same fzf scorer plus a small shorter-path tiebreak; tmux/zellij/zoxide results still get a fixed priority bonus over locate rows in the merged list, and filesystem folders are appended as `[~]` rows
 - Enter on a tmux session launches a detected terminal detached from cofi, then runs `tmux attach-session -t =<session>`
 - Enter on a zellij session launches a detected terminal detached from cofi, then runs `zellij attach --create <session>`
 - Enter on a folder opens the folder in Caja when available, otherwise the system file opener

@@ -11,6 +11,7 @@
 #include "providers/cofi_tab_provider.h"
 #include "commands/command_registry.h"
 #include "core/slot_store/slot_store.h"
+#include "projects/locate/projects_locate.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -71,6 +72,10 @@ static char g_last_remove_folder_host[128];
 static gboolean g_has_named_result;
 static CofiActionStatus g_attach_named_result = COFI_HANDLED_HIDE;
 static CofiActionStatus g_slot_recall_result = COFI_HANDLED_HIDE;
+static int g_locate_search_calls;
+static int g_locate_cancel_calls;
+static guint g_last_locate_generation;
+static char g_last_locate_query[256];
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
     (void)level;
@@ -218,6 +223,22 @@ CofiActionStatus projects_attach_visible(AppData *app, int visible_idx) {
     (void)app;
     (void)visible_idx;
     return COFI_HANDLED_HIDE;
+}
+
+void projects_locate_search_async(AppData *app, const char *query, guint generation) {
+    (void)app;
+    g_locate_search_calls++;
+    g_last_locate_generation = generation;
+    g_strlcpy(g_last_locate_query, query ? query : "", sizeof(g_last_locate_query));
+}
+
+void projects_locate_cancel_pending(AppData *app) {
+    (void)app;
+    g_locate_cancel_calls++;
+}
+
+void projects_locate_set_results_callback(ProjectsLocateResultsCallback callback) {
+    (void)callback;
 }
 
 gboolean projects_forget_selected_remote(AppData *app) {
@@ -368,16 +389,25 @@ static void reset_capture(void) {
     g_has_named_result = FALSE;
     g_attach_named_result = COFI_HANDLED_HIDE;
     g_slot_recall_result = COFI_HANDLED_HIDE;
+    g_locate_search_calls = 0;
+    g_locate_cancel_calls = 0;
+    g_last_locate_generation = 0;
+    g_last_locate_query[0] = '\0';
 }
 
 static void setup_app(AppData *app) {
     memset(app, 0, sizeof(*app));
     app->current_tab = TAB_WINDOWS;
     app->textbuffer = gtk_text_buffer_new(NULL);
+    app->entry = g_object_ref_sink(gtk_entry_new());
     slot_store_init(&app->harpoon.store);
 }
 
 static void teardown_app(AppData *app) {
+    if (app->entry) {
+        g_object_unref(app->entry);
+        app->entry = NULL;
+    }
     if (app->textbuffer) {
         g_object_unref(app->textbuffer);
         app->textbuffer = NULL;
@@ -425,20 +455,35 @@ static void test_registered_config_entries(void) {
                 cofi_config_entry_for_key("projects.zoxide_path") != NULL);
     ASSERT_TRUE("projects file explorer path config registered",
                 cofi_config_entry_for_key("projects.file_explorer_path") != NULL);
+    ASSERT_TRUE("projects locate enabled config registered",
+                cofi_config_entry_for_key("projects.locate_enabled") != NULL);
+    ASSERT_TRUE("projects locate excludes config registered",
+                cofi_config_entry_for_key("projects.locate_excludes") != NULL);
+    ASSERT_TRUE("projects locate search roots config registered",
+                cofi_config_entry_for_key("projects.locate_search_roots") != NULL);
+    ASSERT_TRUE("projects locate timeout config registered",
+                cofi_config_entry_for_key("projects.locate_timeout_ms") != NULL);
 
     CofiConfig config;
     init_config_defaults(&config);
+    ASSERT_TRUE("projects locate search roots default is empty",
+                config.projects_locate_search_roots[0] == '\0');
+
     ConfigEntry entries[MAX_CONFIG_ENTRIES];
     int count = 0;
     build_config_entries(&config, entries, &count);
     int found_zellij = 0;
+    int found_locate_roots = 0;
     for (int i = 0; i < count; i++) {
         if (strcmp(entries[i].key, "projects.zellij_path") == 0 &&
             entries[i].type == CONFIG_TYPE_STRING) {
             found_zellij = 1;
+        } else if (strcmp(entries[i].key, "projects.locate_search_roots") == 0) {
+            found_locate_roots = 1;
         }
     }
     ASSERT_TRUE("projects config entry appears in config list", found_zellij);
+    ASSERT_TRUE("projects locate search roots appears in config list", found_locate_roots);
 }
 
 static void test_path_config_display_resolves_path_state(void) {
@@ -750,6 +795,32 @@ static void test_ctrl_s_opens_remote_host_overlay(void) {
     teardown_app(&app);
 }
 
+static void test_ctrl_d_on_locate_row_is_no_op(void) {
+    AppData app;
+    const CofiTabProvider *p = registered_projects_provider();
+    setup_app(&app);
+    reset_capture();
+    app.current_tab = (TabMode)p->tab_mode;
+    g_has_selected_folder = TRUE;
+    g_selected_folder.path = "/home/dl/Projects/bm-harness";
+    g_selected_folder.source = FOLDER_SOURCE_LOCATE;
+    g_selected_folder.is_remote = FALSE;
+
+    GdkEventKey ctrl_d;
+    memset(&ctrl_d, 0, sizeof(ctrl_d));
+    ctrl_d.keyval = GDK_KEY_d;
+    ctrl_d.state = GDK_CONTROL_MASK;
+
+    ASSERT_TRUE("Ctrl+d on locate row is consumed",
+                handle_projects_tab_keys(&ctrl_d, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+d on locate row does not remove zoxide entry",
+                g_remove_folder_calls == 0 &&
+                g_show_overlay_calls == 0);
+    ASSERT_TRUE("Ctrl+d on locate row still clears remote status line",
+                g_remote_status_clear_calls == 1);
+    teardown_app(&app);
+}
+
 static void test_ctrl_t_opens_terminal_only_for_folder_rows(void) {
     AppData app;
     const CofiTabProvider *p = registered_projects_provider();
@@ -866,6 +937,7 @@ int main(int argc, char **argv) {
     test_ctrl_r_opens_rename_but_ctrl_shift_r_falls_through();
     test_delete_shortcuts_unified_forget_vs_kill();
     test_ctrl_s_opens_remote_host_overlay();
+    test_ctrl_d_on_locate_row_is_no_op();
     test_ctrl_t_opens_terminal_only_for_folder_rows();
     test_escape_in_remote_scope_returns_to_local();
     test_projects_on_leave_clears_remote_status_line();

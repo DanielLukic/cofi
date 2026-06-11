@@ -15,7 +15,7 @@
 #include "core/slot_store/slot_store.h"
 #include "ui/tab_switching.h"
 #include "ui/window_lifecycle.h"
-
+#include <stdlib.h>
 #include <string.h>
 
 static CofiTabProvider s_projects_provider;
@@ -43,6 +43,30 @@ static int set_optional_executable_path(char *field, size_t field_size,
         return 0;
     }
     g_strlcpy(field, value, field_size);
+    return 1;
+}
+
+static int parse_bool_setting(const char *value, int *out) {
+    if (!value || !out) return 0;
+    if (strcmp(value, "1") == 0 || g_ascii_strcasecmp(value, "true") == 0 ||
+        g_ascii_strcasecmp(value, "on") == 0 || g_ascii_strcasecmp(value, "yes") == 0) {
+        *out = 1;
+        return 1;
+    }
+    if (strcmp(value, "0") == 0 || g_ascii_strcasecmp(value, "false") == 0 ||
+        g_ascii_strcasecmp(value, "off") == 0 || g_ascii_strcasecmp(value, "no") == 0) {
+        *out = 0;
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_int_setting(const char *value, int min_value, int max_value, int *out) {
+    if (!value || !out) return 0;
+    char *end = NULL;
+    long parsed = strtol(value, &end, 10);
+    if (!end || *end != '\0' || parsed < min_value || parsed > max_value) return 0;
+    *out = (int)parsed;
     return 1;
 }
 
@@ -156,6 +180,69 @@ static int set_file_explorer_path(CofiConfig *config, const char *value,
                                         value, err_buf, err_size);
 }
 
+static int get_locate_enabled(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    g_strlcpy(out, config->projects_locate_enabled ? "true" : "false", out_size);
+    return 1;
+}
+
+static int set_locate_enabled(CofiConfig *config, const char *value,
+                              char *err_buf, size_t err_size) {
+    int parsed = 0;
+    if (!parse_bool_setting(value, &parsed)) {
+        g_snprintf(err_buf, err_size, "projects.locate_enabled must be true/false");
+        return 0;
+    }
+    config->projects_locate_enabled = parsed;
+    return 1;
+}
+
+static int get_locate_excludes(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    g_strlcpy(out, config->projects_locate_excludes, out_size);
+    return 1;
+}
+
+static int set_locate_excludes(CofiConfig *config, const char *value,
+                               char *err_buf __attribute__((unused)),
+                               size_t err_size __attribute__((unused))) {
+    if (!config || !value) return 0;
+    g_strlcpy(config->projects_locate_excludes, value, sizeof(config->projects_locate_excludes));
+    return 1;
+}
+
+static int get_locate_search_roots(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    g_strlcpy(out, config->projects_locate_search_roots, out_size);
+    return 1;
+}
+
+static int set_locate_search_roots(CofiConfig *config, const char *value,
+                                   char *err_buf __attribute__((unused)),
+                                   size_t err_size __attribute__((unused))) {
+    if (!config || !value) return 0;
+    g_strlcpy(config->projects_locate_search_roots, value,
+              sizeof(config->projects_locate_search_roots));
+    return 1;
+}
+
+static int get_locate_timeout_ms(const CofiConfig *config, char *out, size_t out_size) {
+    if (!config || !out || out_size == 0) return 0;
+    g_snprintf(out, out_size, "%d", config->projects_locate_timeout_ms);
+    return 1;
+}
+
+static int set_locate_timeout_ms(CofiConfig *config, const char *value,
+                                 char *err_buf, size_t err_size) {
+    int parsed = 0;
+    if (!parse_int_setting(value, 100, 60000, &parsed)) {
+        g_snprintf(err_buf, err_size, "projects.locate_timeout_ms must be 100-60000");
+        return 0;
+    }
+    config->projects_locate_timeout_ms = parsed;
+    return 1;
+}
+
 static void register_projects_config_entries(void) {
     static const CofiConfigSpec specs[] = {
         {
@@ -189,6 +276,38 @@ static void register_projects_config_entries(void) {
             .get_value = get_file_explorer_path,
             .set_value = set_file_explorer_path,
             .get_display_value = display_file_explorer_path,
+        },
+        {
+            .key = "projects.locate_enabled",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_BOOL,
+            .get_value = get_locate_enabled,
+            .set_value = set_locate_enabled,
+            .get_display_value = get_locate_enabled,
+        },
+        {
+            .key = "projects.locate_excludes",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_locate_excludes,
+            .set_value = set_locate_excludes,
+            .get_display_value = get_locate_excludes,
+        },
+        {
+            .key = "projects.locate_search_roots",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_STRING,
+            .get_value = get_locate_search_roots,
+            .set_value = set_locate_search_roots,
+            .get_display_value = get_locate_search_roots,
+        },
+        {
+            .key = "projects.locate_timeout_ms",
+            .owner_provider_id = PROJECTS_PROVIDER_ID,
+            .type = CONFIG_TYPE_INT,
+            .get_value = get_locate_timeout_ms,
+            .set_value = set_locate_timeout_ms,
+            .get_display_value = get_locate_timeout_ms,
         },
     };
     for (size_t i = 0; i < sizeof(specs) / sizeof(specs[0]); i++) {
@@ -229,6 +348,9 @@ static gboolean handle_delete_selected_entry(AppData *app) {
     }
 
     app->project_kill.pending_kill = TRUE;
+    if (folder->source == FOLDER_SOURCE_LOCATE) {
+        return TRUE;
+    }
     app->project_kill.action = PROJECT_DELETE_REMOVE_FOLDER;
     app->project_kill.backend = PROJECT_BACKEND_TMUX;
     g_strlcpy(app->project_kill.folder_path, folder->path ? folder->path : "",

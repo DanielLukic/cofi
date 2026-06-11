@@ -23,6 +23,11 @@ typedef enum {
     PROJECT_BACKEND_ZELLIJ,
 } ProjectBackend;
 
+typedef enum {
+    FOLDER_SOURCE_ZOXIDE,
+    FOLDER_SOURCE_LOCATE,
+} ProjectFolderSource;
+
 typedef struct {
     ProjectBackend backend;
     char name[MAX_PROJECT_SESSION_NAME_LEN];
@@ -36,6 +41,7 @@ typedef struct {
 typedef struct {
     char *path;
     char *label;
+    ProjectFolderSource source;
     gboolean is_remote;
     char remote_host[128];
 } ProjectFolder;
@@ -51,7 +57,10 @@ typedef struct {
     ProjectRowRef filtered_rows[MAX_PROJECTS + MAX_PROJECT_FOLDERS];
     int session_count;
     int folder_count;
+    int primary_folder_count;
+    int locate_folder_count;
     int filtered_count;
+    guint locate_generation;
     char last_error[256];
 } ProjectsMode;
 
