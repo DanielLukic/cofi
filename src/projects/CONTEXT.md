@@ -109,7 +109,7 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 
 ## Acceptance Criteria
 1. Registering projects creates an optional hidden dynamic `PROJECTS` tab with hide-on-esc modal policy, initial selection `0`, 1500 ms refresh tick, row/query/Enter/key hooks, and slot storage enabled.
-2. Registration also registers `projects.tmux_path`, `projects.zellij_path`, `projects.zoxide_path`, `projects.file_explorer_path`, `projects.locate_enabled`, `projects.locate_excludes`, and `projects.locate_timeout_ms`; tool-path keys accept empty-for-PATH or an absolute executable path and reject relative or non-executable paths.
+2. Registration also registers `projects.tmux_path`, `projects.zellij_path`, `projects.zoxide_path`, `projects.file_explorer_path`, `projects.locate_enabled`, `projects.locate_excludes`, `projects.locate_timeout_ms`, and `projects.locate_search_roots`; tool-path keys accept empty-for-PATH or an absolute executable path and reject relative or non-executable paths.
 3. The command surface registers `projects` with aliases `project`, `tmux`, `tx`, `zj`, and `zellij`, help `projects, project, tmux, tx, zj, zellij [@SLOT|SESSION]`, and hotkey auto-open behavior.
 4. Running the command without args exits command mode, records the origin tab, surfaces projects, and leaves the window open; session-name args refresh, attach, and hide on success.
 5. `@SLOT` command args resolve payloads from the `projects` slot namespace; invalid args show `No matching tmux/zellij session.` without hiding.
