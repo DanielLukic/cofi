@@ -128,7 +128,9 @@ in sync with saved records.
     other tiling modes choose the monitor/workarea containing the window before
     unmaximizing, compute target frame geometry, convert the requested frame
     size to client size with `_NET_FRAME_EXTENTS` when available, apply
-    size-hint adjustments, and move/resize through x11's frame-aware helper.
+    size-hint adjustments, clear the target window's `WM_NORMAL_HINTS`
+    resize-increment declaration so the WM honors the fill-region rect, and
+    move/resize through x11's frame-aware helper.
     When `_NET_FRAME_EXTENTS` is absent but `_GTK_FRAME_EXTENTS` is present,
     tiling treats the target as the visible CSD content rect and expands/moves
     the X window so its GTK-reported visible area lands on that rect.

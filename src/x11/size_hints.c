@@ -3,6 +3,17 @@
 #include <string.h>
 #include <limits.h>
 
+static int clear_resize_increment_hints_impl(XSizeHints *hints) {
+    if (!(hints->flags & PResizeInc)) {
+        return 0;
+    }
+
+    hints->width_inc = 0;
+    hints->height_inc = 0;
+    hints->flags &= ~PResizeInc;
+    return 1;
+}
+
 // Get size hints for a window
 int get_window_size_hints(Display *display, Window window, WindowSizeHints *hints) {
     XSizeHints *size_hints;
@@ -63,10 +74,9 @@ int get_window_size_hints(Display *display, Window window, WindowSizeHints *hint
 // Ensure a rectangle satisfies size hints
 void ensure_size_hints_satisfied(int *x, int *y, int *width, int *height, 
                                 WindowSizeHints *hints) {
-    (void)x; // x position doesn't affect size hints
-    (void)y; // y position doesn't affect size hints
-    
-    // Enforce minimum size
+    (void)x;
+    (void)y;
+
     if (*width < hints->min_width) {
         log_debug("Width %d below minimum %d, adjusting", *width, hints->min_width);
         *width = hints->min_width;
@@ -75,8 +85,7 @@ void ensure_size_hints_satisfied(int *x, int *y, int *width, int *height,
         log_debug("Height %d below minimum %d, adjusting", *height, hints->min_height);
         *height = hints->min_height;
     }
-    
-    // Enforce maximum size
+
     if (*width > hints->max_width) {
         log_debug("Width %d above maximum %d, adjusting", *width, hints->max_width);
         *width = hints->max_width;
@@ -85,21 +94,26 @@ void ensure_size_hints_satisfied(int *x, int *y, int *width, int *height,
         log_debug("Height %d above maximum %d, adjusting", *height, hints->max_height);
         *height = hints->max_height;
     }
-    
-    // Handle increment constraints (for terminal windows)
-    if (hints->width_inc > 1) {
-        int base = (hints->flags & PBaseSize) ? hints->base_width : hints->min_width;
-        int extra = *width - base;
-        int units = extra / hints->width_inc;
-        *width = base + units * hints->width_inc;
-    }
-    
-    if (hints->height_inc > 1) {
-        int base = (hints->flags & PBaseSize) ? hints->base_height : hints->min_height;
-        int extra = *height - base;
-        int units = extra / hints->height_inc;
-        *height = base + units * hints->height_inc;
-    }
-    
-    // TODO: Handle aspect ratio constraints if needed
 }
+
+void clear_resize_increment_hints(Display *display, Window window) {
+    long supplied_return;
+    XSizeHints *hints = XAllocSizeHints();
+
+    if (!hints) {
+        return;
+    }
+
+    if (XGetWMNormalHints(display, window, hints, &supplied_return) &&
+        clear_resize_increment_hints_impl(hints)) {
+        XSetWMNormalHints(display, window, hints);
+    }
+
+    XFree(hints);
+}
+
+#ifdef COFI_TESTING
+int clear_resize_increment_hints_from_xsizehints(XSizeHints *hints) {
+    return clear_resize_increment_hints_impl(hints);
+}
+#endif

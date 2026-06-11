@@ -205,6 +205,11 @@ See also:
   CSD windows often have no `_NET_FRAME_EXTENTS`, while raw `XGetGeometry` still includes invisible shadow margins. Tiling and geometry code must check `_GTK_FRAME_EXTENTS` when `_NET_FRAME_EXTENTS` is absent or all-zero; otherwise the visible content frame is placed incorrectly in the work area.
   References: `26c4875` for tiling, `da4283e` for slot assignment.
 
+- Tiling fills the assigned region; cofi clears `WM_NORMAL_HINTS.PResizeInc` on target windows before resize so the WM (notably marco) cannot re-apply increment snap.
+  Clients that re-publish `WM_NORMAL_HINTS` after tile (on font change, zoom, etc.) will get snap behavior back until next tile. Mouse-drag resize on tiled windows no longer cell-snaps as a side effect — accepted. Min/max constraints stay enforced on cofi's side.
+  Without this hint clear, the WM re-snaps and produces variable bottom gaps up to `increment - 1` pixels across windows with different increments, such as 40px vs 48px terminal rows on the same `:tr4`.
+  Reference: `TBD-commit-sha`.
+
 ## Repeat Last Action
 
 - Repeat-last-action is intentionally narrow in v1.

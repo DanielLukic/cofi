@@ -181,6 +181,8 @@ static void apply_window_position(Display *display, Window window_id,
             y += gtk_extents.bottom;
     }
 
+    clear_resize_increment_hints(display, window_id);
+
     // Move and resize the window; x,y are frame-space (from work area calculation).
     xmove_resize_frame_aware(display, window_id, x, y, width, height);
     XFlush(display);

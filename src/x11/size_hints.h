@@ -24,4 +24,11 @@ int get_window_size_hints(Display *display, Window window, WindowSizeHints *hint
 void ensure_size_hints_satisfied(int *x, int *y, int *width, int *height, 
                                 WindowSizeHints *hints);
 
+// Clear resize increment hints so the WM cannot re-snap a programmatic tile.
+void clear_resize_increment_hints(Display *display, Window window);
+
+#ifdef COFI_TESTING
+int clear_resize_increment_hints_from_xsizehints(XSizeHints *hints);
+#endif
+
 #endif // SIZE_HINTS_H

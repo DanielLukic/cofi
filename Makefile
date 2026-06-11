@@ -687,6 +687,9 @@ test_names_store: test/test_names_store.c $(names_store_obj) $(match_entry_obj) 
 test_geometry_planner: test/test_geometry_planner.c $(geometry_planner_obj)
 	$(CC) $(CFLAGS) -o test/test_geometry_planner test/test_geometry_planner.c $(geometry_planner_obj) $(LDFLAGS)
 
+test_size_hints: test/test_size_hints.c src/x11/size_hints.c $(log_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_size_hints test/test_size_hints.c src/x11/size_hints.c $(log_obj) $(LDFLAGS)
+
 test_window_matcher: test/test_window_matcher.c $(window_matcher_obj) $(log_obj)
 	$(CC) $(CFLAGS) -o test/test_window_matcher test/test_window_matcher.c $(window_matcher_obj) $(log_obj) $(LDFLAGS)
 
