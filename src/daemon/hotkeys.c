@@ -235,7 +235,8 @@ static gboolean hotkey_dispatch_idle(gpointer data) {
                                  : NULL;
         execute_command_with_window(command, app, target);
 
-        if (!keeps_open && app->window_visible) {
+        gboolean closes_after = should_close_after_execute(command);
+        if ((closes_after || !keeps_open) && app->window_visible) {
             hide_window(app);
         }
     } else {

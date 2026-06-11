@@ -63,6 +63,9 @@ child processes without blocking the UI.
 17. Commands ending in `!` auto-execute against the active non-cofi window; commands without `!` prefill command mode for user editing.
 18. Auto-executed hotkeys show cofi only when command metadata keeps the UI
     open; otherwise they hide any visible cofi window after dispatch.
+    Auto-executed hotkeys also hide cofi when any segment is marked
+    `closes_cofi_after_execute`, even if the command also sets
+    `keeps_open_on_hotkey_auto`.
 19. The Hotkeys tab filters by key and command, shows an empty-state row when no
     bindings match, and identifies rows as `hotkey:<key>`.
 20. Ctrl+A/Ctrl+B stop active grabs and open add/rebind capture; Ctrl+D deletes, saves, regrabs, refilters, clamps, and refreshes; Ctrl+E edits a selected command.
