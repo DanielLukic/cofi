@@ -123,6 +123,10 @@ These apply to every change.
 - Refactoring: first add or verify behavioral tests that pass on current code, then refactor with those tests still passing.
 - Structural/wiring tests are not enough for refactors; cover behavior that would break if the refactor were wrong.
 - If targeted coverage is not practical, call out the gap explicitly.
+- "Hard to test" is never a self-granted waiver — it is a design TODO. If structure blocks characterization, the refactor's first commit is the seam extraction that makes the behavior testable. If genuinely impractical, stop and ask the user for an explicit no-test exception before proceeding.
+- Daemon/X11-shaped behavior (hotkeys, grabs, show/hide, focus) is testable via the Xvfb integration harness (`test/integration/`, real WM + xdotool + wmctrl). Use it before claiming GUI behavior is untestable; prefer property/visibility assertions over screenshots for new cases.
+- When changing a shared spec/registry struct (e.g. `CommandSpec`, provider hooks, config keys): grep for ALL consumers of the changed field and verify each path honors it. List the consumers checked in the commit body.
+- Refactor review gate: a refactor whose test changes only cover the new behavior — no characterization of the behavior being moved — is an automatic fail, not an "acceptable gap".
 
 ## Reporting
 
