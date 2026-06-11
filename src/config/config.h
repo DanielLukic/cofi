@@ -98,6 +98,9 @@ struct CofiConfig {
     char projects_locate_excludes[CONFIG_VALUE_LEN];
     char projects_locate_search_roots[CONFIG_VALUE_LEN];
     int projects_locate_timeout_ms;
+    int files_enabled;
+    char files_fd_path[CONFIG_TOOL_PATH_LEN];
+    char files_excludes[CONFIG_VALUE_LEN];
 };
 
 // Alignment string conversion

@@ -279,6 +279,7 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_line(out, "windows      >", "Window list", width);
     append_wrapped_line(out, "apps         $ \\", "App launcher (default / all-apps)", width);
     append_wrapped_line(out, "bluetooth    :bt :bluetooth", "Bluetooth device manager", width);
+    append_wrapped_line(out, "files        :files", "File finder under $HOME", width);
     append_wrapped_line(out, "emoji        :emoji", "Emoji picker", width);
     append_wrapped_line(out, "calc         = :calc", "Calculator", width);
     append_wrapped_line(out, "run          ! :run", "Shell command launcher", width);

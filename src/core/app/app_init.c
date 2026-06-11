@@ -19,6 +19,7 @@
 #include "run/run_mode.h"
 #include "calc/calc.h"
 #include "bluetooth/bluetooth_model.h"
+#include "files/files_search.h"
 #include "core/selection/selection.h"
 #include "rules/rules_config.h"
 #include "rules/rules.h"
@@ -134,6 +135,7 @@ void init_app_data(AppData *app) {
     init_sinks_mode(&app->sinks_mode);
     init_proc_mode(&app->proc_mode);
     init_projects_mode(&app->projects_mode);
+    init_files_mode(&app->files_mode);
     
     // Initialize window visibility state
     app->window_visible = FALSE;

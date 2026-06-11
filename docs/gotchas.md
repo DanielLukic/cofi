@@ -294,6 +294,8 @@ See also:
 
 - **Primary project rows get a fixed ranking bonus over locate rows.** The merged Projects list intentionally favors tmux, zellij, and zoxide hits over locate discoveries. Without that bonus, fzf's clean-prefix preference can rank locate filesystem finds above the user's recent or frequent primary entries. Do not drop the bonus without redesigning the merge policy.
 
+- **`:files` honors `.gitignore` and `.fdignore` by default.** The Files tab intentionally lets `fd` apply ignore rules, so build outputs and dependency trees disappear without extra cofi logic. If an expected file is missing, check the repository's ignore files first.
+
 - **GUI desktop entries must not go through a shell.** `Exec=` is argv-like, not shell syntax. The correct path is `g_shell_parse_argv` (handles quoting/escaping only) followed by `detach_launch_argv_array` (direct execvp). Shell metacharacters in `Exec=` must not execute.
 
 - **Do not use `GSubprocessLauncher` for app launches.** It inherits cofi's cgroup. Launched apps then die when cofi's cgroup is cleaned up (e.g. `systemctl --user stop cofi`). This is the root cause of TFD-557.

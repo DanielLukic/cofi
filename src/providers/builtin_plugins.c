@@ -7,6 +7,7 @@
 #include "config/config_provider.h"
 #include "commands/core_commands.h"
 #include "emoji/emoji_provider.h"
+#include "files/files_provider.h"
 #include "harpoon/harpoon_provider.h"
 #include "geom/geom_provider.h"
 #include "daemon/hotkeys_provider.h"
@@ -27,6 +28,7 @@ void cofi_register_builtin_plugins(void) {
     bluetooth_provider_register();
     calc_provider_register();
     config_provider_register();
+    files_provider_register();
     harpoon_provider_register();
     geom_provider_register();
     hotkeys_provider_register();

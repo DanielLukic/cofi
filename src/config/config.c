@@ -210,6 +210,9 @@ void init_config_defaults(CofiConfig *config) {
               sizeof(config->projects_locate_excludes));
     config->projects_locate_search_roots[0] = '\0';
     config->projects_locate_timeout_ms = 1500;
+    config->files_enabled = 1;
+    config->files_fd_path[0] = '\0';
+    config->files_excludes[0] = '\0';
 }
 
 void save_config(const CofiConfig *config) {

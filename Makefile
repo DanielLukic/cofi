@@ -124,6 +124,8 @@ projects_remote_windows_obj = src/projects/projects_remote_windows.o
 projects_tmux_windows_obj = src/projects/projects_tmux_windows.o
 projects_window_env_obj = src/projects/projects_window_env.o
 projects_zellij_windows_obj = src/projects/projects_zellij_windows.o
+files_provider_obj = src/files/files_provider.o
+files_search_obj = src/files/files_search.o
 rules_obj = src/rules/rules.o
 rules_config_obj = src/rules/rules_config.o
 rules_dispatch_obj = src/rules/rules_dispatch.o
@@ -648,6 +650,12 @@ test_projects_remote_scope: test/test_projects_remote_scope.c src/projects/proje
 
 test_projects_locate: test/test_projects_locate.c src/projects/locate/projects_locate.c $(fzf_algo_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_projects_locate test/test_projects_locate.c src/projects/locate/projects_locate.c $(fzf_algo_obj) $(LDFLAGS)
+
+test_files_search: test/test_files_search.c src/files/files_search.c $(fzf_algo_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_files_search test/test_files_search.c src/files/files_search.c $(fzf_algo_obj) $(LDFLAGS)
+
+test_files_provider: test/test_files_provider.c $(config_obj) $(cofi_json_io_obj) $(cofi_tab_provider_obj) $(command_registry_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_files_provider test/test_files_provider.c $(config_obj) $(cofi_json_io_obj) $(cofi_tab_provider_obj) $(command_registry_obj) $(LDFLAGS)
 
 # Build bluetooth tests
 test_bluetooth_model: test/test_bluetooth_model.c $(fzf_algo_obj)

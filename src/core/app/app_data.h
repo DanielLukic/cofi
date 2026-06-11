@@ -23,6 +23,7 @@
 #include "sinks/sinks.h"
 #include "proc/proc.h"
 #include "projects/projects.h"
+#include "files/files_search.h"
 #include "daemon/daemon_socket.h"
 #include "calc/calc.h"
 #include "sessions/sessions.h"
@@ -203,6 +204,7 @@ typedef struct AppData {
     SinksMode sinks_mode;
     ProcMode proc_mode;
     ProjectsMode projects_mode;
+    FilesMode files_mode;
     BluetoothMode bluetooth_mode;
     AppsMode apps_mode;
 
