@@ -751,7 +751,7 @@ static void test_delete_shortcuts_unified_forget_vs_kill(void) {
 
     g_has_selected_session = FALSE;
     g_has_selected_folder = TRUE;
-    g_selected_folder.path = "/home/dl/work";
+    g_selected_folder.path = "/tmp/work";
     g_selected_folder.is_remote = FALSE;
     ASSERT_TRUE("Delete on local folder is consumed",
                 handle_projects_tab_keys(&del, &app) == TRUE);
@@ -759,7 +759,7 @@ static void test_delete_shortcuts_unified_forget_vs_kill(void) {
                 g_show_overlay_calls == 2 && g_last_overlay_type == OVERLAY_PROJECT_KILL);
     ASSERT_TRUE("Delete on local folder sets remove-folder action",
                 app.project_kill.action == PROJECT_DELETE_REMOVE_FOLDER &&
-                strcmp(app.project_kill.folder_path, "/home/dl/work") == 0 &&
+                strcmp(app.project_kill.folder_path, "/tmp/work") == 0 &&
                 app.project_kill.folder_is_remote == FALSE);
 
     g_selected_folder.is_remote = TRUE;
@@ -802,7 +802,7 @@ static void test_ctrl_d_on_locate_row_is_no_op(void) {
     reset_capture();
     app.current_tab = (TabMode)p->tab_mode;
     g_has_selected_folder = TRUE;
-    g_selected_folder.path = "/home/dl/Projects/bm-harness";
+    g_selected_folder.path = "/tmp/proj/sample";
     g_selected_folder.source = FOLDER_SOURCE_LOCATE;
     g_selected_folder.is_remote = FALSE;
 
@@ -842,14 +842,14 @@ static void test_ctrl_t_opens_terminal_only_for_folder_rows(void) {
 
     g_has_selected_session = FALSE;
     g_has_selected_folder = TRUE;
-    g_selected_folder.path = "/home/dl/work dir";
+    g_selected_folder.path = "/tmp/work dir";
     g_selected_folder.is_remote = FALSE;
     g_open_folder_terminal_result = COFI_HANDLED_HIDE;
     ASSERT_TRUE("Ctrl+t on local folder is handled",
                 handle_projects_tab_keys(&ctrl_t, &app) == TRUE);
     ASSERT_TRUE("Ctrl+t launches terminal for selected folder",
                 g_open_folder_terminal_calls == 1 &&
-                strcmp(g_last_terminal_folder_path, "/home/dl/work dir") == 0 &&
+                strcmp(g_last_terminal_folder_path, "/tmp/work dir") == 0 &&
                 g_last_terminal_folder_remote == FALSE);
     ASSERT_TRUE("Ctrl+t hide result hides window",
                 g_hide_window_calls == 1);

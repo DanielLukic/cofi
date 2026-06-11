@@ -34,7 +34,7 @@ static void test_projects_remote_store_roundtrip(void) {
                 projects_remote_store_add_for_test("tsunami",
                                                    PROJECT_BACKEND_TMUX,
                                                    "work_api",
-                                                   "/home/dl/Projects/cofi"));
+                                                   "/tmp/proj/cofi-repo"));
     ASSERT_TRUE("add zellij remote entry",
                 projects_remote_store_add_for_test("atlas",
                                                    PROJECT_BACKEND_ZELLIJ,
@@ -54,7 +54,7 @@ static void test_projects_remote_store_roundtrip(void) {
                 strcmp(first->host, "tsunami") == 0 &&
                 first->backend == PROJECT_BACKEND_TMUX &&
                 strcmp(first->name, "work_api") == 0 &&
-                strcmp(first->cwd, "/home/dl/Projects/cofi") == 0);
+                strcmp(first->cwd, "/tmp/proj/cofi-repo") == 0);
     ASSERT_TRUE("second entry preserved host/tool/name",
                 second &&
                 strcmp(second->host, "atlas") == 0 &&

@@ -90,8 +90,8 @@ void validate_selection(AppData *app) { (void)app; }
 /* ---- Fixture ---- */
 
 /* Window IDs */
-#define WIN_COINER_TERM1  0x01  /* d1 mate-terminal "coiner-dev | ✳ coiner master agent" */
-#define WIN_COINER_TERM2  0x02  /* d1 mate-terminal "claude-coiner:develop* signals-view — Terminal" */
+#define WIN_SAMPLE_TERM1  0x01  /* mate-terminal "sample-dev | ✳ sample master agent" */
+#define WIN_SAMPLE_TERM2  0x02  /* mate-terminal "sample-app:develop* view — Terminal" */
 #define WIN_KUPPEL        0x03  /* d0 google-chrome "kuppelfenster für flachdach..." */
 #define WIN_BIOKAT        0x04  /* d0 google-chrome "biokat - Google Search - Google Chrome" */
 #define WIN_SPECDD        0x05  /* d0 google-chrome "specdd/specdd: Specification-Driven..." */
@@ -128,13 +128,13 @@ static void add_win(AppData *app, Window id, int desktop,
 static void load_fixture(AppData *app) {
     reset_app(app);
     /* Ordering: MRU-first (most recently used first) — arbitrary for corpus tests */
-    add_win(app, WIN_COINER_TERM1, 1,
+    add_win(app, WIN_SAMPLE_TERM1, 1,
             "mate-terminal",
-            "coiner-dev | \xe2\x9c\xb3 coiner master agent",
+            "sample-dev | \xe2\x9c\xb3 sample master agent",
             "mate-terminal");
-    add_win(app, WIN_COINER_TERM2, 1,
+    add_win(app, WIN_SAMPLE_TERM2, 1,
             "mate-terminal",
-            "claude-coiner:develop* signals-view \xe2\x80\x94 Terminal",
+            "sample-app:develop* view \xe2\x80\x94 Terminal",
             "mate-terminal");
     add_win(app, WIN_KUPPEL, 0,
             "google-chrome",
@@ -370,15 +370,15 @@ static void test_kuppel(void) {
 }
 
 /*
- * "coiner" — both coiner terminals in top 2.
+ * "sample" — both sample terminals in top 2.
  */
-static void test_coiner_top2(void) {
+static void test_sample_top2(void) {
     AppData app;
     load_fixture(&app);
     mock_desktop = 0;
-    filter_windows(&app, "coiner");
-    ASSERT_IN_TOP2("coiner → both coiner terminals in top 2",
-                   &app, WIN_COINER_TERM1, WIN_COINER_TERM2);
+    filter_windows(&app, "sample");
+    ASSERT_IN_TOP2("sample → both sample terminals in top 2",
+                   &app, WIN_SAMPLE_TERM1, WIN_SAMPLE_TERM2);
 }
 
 /*
@@ -652,7 +652,7 @@ int main(void) {
     test_cofi_top2();
     test_anthropic();
     test_kuppel();
-    test_coiner_top2();
+    test_sample_top2();
     test_hyperliquid();
 
     /* RULE 5 — consecutive word-start density */
