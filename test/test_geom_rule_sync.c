@@ -565,6 +565,43 @@ static void test_clear_geometry_removes_tagged_geom_rule_and_entry(void) {
                count_geom_rules_by_match_id(&saved_rules, 301));
 }
 
+static void test_sync_update_preserves_user_set_flags(void) {
+    AppData app;
+    init_test_app(&app);
+    add_layout_with_pattern(&app, 401, "Editor", false);
+    ASSERT_INT("initial sync creates rule", 1,
+               geom_rule_sync_for_layout(&app, 401));
+
+    int idx = find_geom_rule_index_by_pattern(&app.rules_config, "Editor");
+    ASSERT_TRUE("rule found", idx >= 0);
+    app.rules_config.rules[idx].once = false;
+    app.rules_config.rules[idx].new_only = true;
+
+    g_strlcpy(app.matching.entries[0].original_title, "Editor v2",
+              sizeof(app.matching.entries[0].original_title));
+    ASSERT_INT("rename triggers update branch", 1,
+               geom_rule_sync_for_layout(&app, 401));
+
+    int updated_idx = find_geom_rule_index_by_pattern(&app.rules_config, "Editor v2");
+    ASSERT_TRUE("renamed rule found", updated_idx >= 0);
+    ASSERT_TRUE("user-set once preserved across update",
+                app.rules_config.rules[updated_idx].once == false);
+    ASSERT_TRUE("user-set new_only preserved across update",
+                app.rules_config.rules[updated_idx].new_only == true);
+}
+
+static void test_find_owning_rule(void) {
+    AppData app;
+    init_test_app(&app);
+    add_layout_with_pattern(&app, 501, "Browser", false);
+    geom_rule_sync_for_layout(&app, 501);
+
+    Rule *rule = geom_find_owning_rule(&app, 501);
+    ASSERT_TRUE("find_owning_rule returns rule for known match_id", rule != NULL);
+    ASSERT_TRUE("find_owning_rule returns NULL for unknown match_id",
+                geom_find_owning_rule(&app, 999) == NULL);
+}
+
 int main(void) {
     printf("Geom rule sync tests\n");
     printf("====================\n\n");
@@ -582,6 +619,8 @@ int main(void) {
     test_save_geometry_ignores_stale_bound_identity();
     test_restore_prefers_current_title_layout_over_stale_binding();
     test_clear_geometry_removes_tagged_geom_rule_and_entry();
+    test_sync_update_preserves_user_set_flags();
+    test_find_owning_rule();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_passed + tests_failed);
     return tests_failed == 0 ? 0 : 1;

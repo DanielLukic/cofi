@@ -53,6 +53,13 @@ static bool layout_is_enabled(const AppData *app, int match_id) {
     return record && !record->disabled;
 }
 
+Rule *geom_find_owning_rule(AppData *app, int match_id) {
+    if (!app) return NULL;
+    int idx = find_geom_restore_rule_index(&app->rules_config, match_id);
+    if (idx < 0) return NULL;
+    return &app->rules_config.rules[idx];
+}
+
 int geom_rule_sync_for_layout(AppData *app, int match_id) {
     if (!app || match_id <= 0) {
         return 0;

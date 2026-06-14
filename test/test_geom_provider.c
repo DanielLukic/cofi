@@ -104,6 +104,28 @@ int geom_rule_remove_for_match_id(AppData *app, int match_id) {
     g_last_removed_rule_match_id = match_id;
     return 1;
 }
+Rule *geom_find_owning_rule(AppData *app, int match_id) {
+    if (!app || match_id <= 0) return NULL;
+    for (int i = 0; i < app->rules_config.count; i++) {
+        if (app->rules_config.rules[i].match_id == match_id) {
+            return &app->rules_config.rules[i];
+        }
+    }
+    return NULL;
+}
+static int g_save_rules_calls;
+int save_rules_config(const RulesConfig *config, const MatchEntryManager *matching) {
+    (void)config; (void)matching; g_save_rules_calls++; return 1;
+}
+void rule_toggle_once(Rule *rule) {
+    if (!rule) return;
+    rule->once = !rule->once;
+    rule->applied = 0;
+}
+void rule_toggle_new_only(Rule *rule) {
+    if (!rule) return;
+    rule->new_only = !rule->new_only;
+}
 void show_confirm_overlay(AppData *app, const char *title, const char *info, void (*on_confirm)(AppData *)) { (void)app;(void)title;(void)info; g_show_confirm_calls++; g_confirm_cb = on_confirm; }
 int selected_match_id_for_pattern_edit(AppData *app) {
     if (!app || app->filtered_geom_count <= 0) return 0;
@@ -182,6 +204,16 @@ static void reset_app(AppData *app) {
     g_unmaximize_and_settle_calls = 0;
     g_window_is_maximized_horz = FALSE;
     g_window_is_maximized_vert = FALSE;
+    g_save_rules_calls = 0;
+}
+
+static void seed_owning_rule(AppData *app, int match_id, bool once, bool new_only) {
+    int i = app->rules_config.count++;
+    app->rules_config.rules[i].match_id = match_id;
+    app->rules_config.rules[i].once = once;
+    app->rules_config.rules[i].new_only = new_only;
+    g_strlcpy(app->rules_config.rules[i].tag, "geom",
+              sizeof(app->rules_config.rules[i].tag));
 }
 
 static void seed_layouts(AppData *app) {
@@ -275,6 +307,61 @@ static void test_toggles_persist(void) {
                 strcmp(g_last_pattern_context, "Layout: 800x600+10+20 (disabled)") == 0);
 }
 
+static void test_ctrl_o_toggles_owning_rule_once(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    seed_owning_rule(&app, 11, /*once*/ true, /*new_only*/ false);
+    geom_on_query_changed(&app, "");
+    app.current_tab = geom_tab_mode();
+    app.selection.provider_index = 0;
+    GdkEventKey ev = {.keyval = GDK_KEY_o, .state = GDK_CONTROL_MASK};
+    ASSERT_TRUE("Ctrl+O handled", handle_geom_tab_keys(&ev, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+O flips once on owning rule", app.rules_config.rules[0].once == false);
+    ASSERT_TRUE("Ctrl+O persists rules", g_save_rules_calls == 1);
+}
+
+static void test_ctrl_n_toggles_owning_rule_new_only(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    seed_owning_rule(&app, 11, /*once*/ true, /*new_only*/ false);
+    geom_on_query_changed(&app, "");
+    app.current_tab = geom_tab_mode();
+    app.selection.provider_index = 0;
+    GdkEventKey ev = {.keyval = GDK_KEY_n, .state = GDK_CONTROL_MASK};
+    ASSERT_TRUE("Ctrl+N handled", handle_geom_tab_keys(&ev, &app) == TRUE);
+    ASSERT_TRUE("Ctrl+N flips new_only on owning rule",
+                app.rules_config.rules[0].new_only == true);
+    ASSERT_TRUE("Ctrl+N persists rules", g_save_rules_calls == 1);
+}
+
+static void test_ctrl_o_no_owning_rule_is_noop(void) {
+    AppData app; reset_app(&app); seed_layouts(&app);
+    geom_on_query_changed(&app, "");
+    app.current_tab = geom_tab_mode();
+    app.selection.provider_index = 0;
+    GdkEventKey ev = {.keyval = GDK_KEY_o, .state = GDK_CONTROL_MASK};
+    ASSERT_TRUE("Ctrl+O with no rule returns FALSE",
+                handle_geom_tab_keys(&ev, &app) == FALSE);
+    ASSERT_TRUE("Ctrl+O with no rule does not persist", g_save_rules_calls == 0);
+}
+
+static void test_flag_column_renders_rule_markers(void) {
+    AppData app; CofiRowCells row; reset_app(&app); seed_layouts(&app);
+    seed_owning_rule(&app, 11, /*once*/ true, /*new_only*/ true);
+    geom_on_query_changed(&app, "");
+    geom_format_row(&app, 0, &row);
+    ASSERT_TRUE("flag cell shows ON markers when both set",
+                strstr(row.cells[3].text, "O") && strstr(row.cells[3].text, "N"));
+}
+
+static void test_flag_column_renders_dashes_without_rule(void) {
+    AppData app; CofiRowCells row; reset_app(&app); seed_layouts(&app);
+    geom_on_query_changed(&app, "");
+    geom_format_row(&app, 0, &row);
+    const char *flags = row.cells[3].text;
+    size_t len = strlen(flags);
+    ASSERT_TRUE("flag cell ends in dashes when no owning rule",
+                len >= 2 && flags[len-2] == '-' && flags[len-1] == '-');
+}
+
 static void test_skip_missing_entry_and_empty_store(void) {
     AppData app; reset_app(&app);
     app.layouts.count = 1;
@@ -319,6 +406,11 @@ int main(void) {
     test_delete_flow_and_selection_clamp();
     test_clear_window_geometry_deletes_owned_entry();
     test_toggles_persist();
+    test_ctrl_o_toggles_owning_rule_once();
+    test_ctrl_n_toggles_owning_rule_new_only();
+    test_ctrl_o_no_owning_rule_is_noop();
+    test_flag_column_renders_rule_markers();
+    test_flag_column_renders_dashes_without_rule();
     test_skip_missing_entry_and_empty_store();
     test_apply_respects_flags();
     test_apply_waits_after_unmaximize_before_move();

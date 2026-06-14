@@ -8,6 +8,8 @@
 #include "core/log/log.h"
 #include "matching/match.h"
 #include "matching/match_entry_config.h"
+#include "rules/rules.h"
+#include "rules/rules_config.h"
 #include "ui/overlay_confirm.h"
 #include "ui/overlay_pattern.h"
 #include "core/selection/selection.h"
@@ -44,15 +46,21 @@ static void format_geom(const LayoutRecord *record, char *out, size_t out_size) 
                record->width, record->height, record->x, record->y);
 }
 
-static void format_state_flags(const LayoutRecord *record, char *out, size_t out_size) {
+static void format_state_flags(AppData *app, const LayoutRecord *record,
+                               char *out, size_t out_size) {
     if (!record || !out || out_size == 0) return;
-    g_snprintf(out, out_size, "d=%d %c%c%c%c%c",
+    Rule *rule = geom_find_owning_rule(app, record->match_id);
+    char once_marker = rule && rule->once ? 'O' : '-';
+    char new_marker = rule && rule->new_only ? 'N' : '-';
+    g_snprintf(out, out_size, "d=%d %c%c%c%c%c %c%c",
                record->desktop,
                record->maximized_vert ? 'V' : '-',
                record->maximized_horz ? 'H' : '-',
                record->fullscreen ? 'F' : '-',
                record->restore_desktop ? 'L' : '-',
-               record->disabled ? 'D' : '-');
+               record->disabled ? 'D' : '-',
+               once_marker,
+               new_marker);
 }
 
 static const char *geom_class_for_entry(const AppData *app, const MatchEntry *entry) {
@@ -88,7 +96,7 @@ static void geom_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     static char geometry[64];
     static char desktop_flags[32];
     format_geom(record, geometry, sizeof(geometry));
-    format_state_flags(record, desktop_flags, sizeof(desktop_flags));
+    format_state_flags(app, record, desktop_flags, sizeof(desktop_flags));
 
     const char *label = entry->original_title;
     const char *class_name = geom_class_for_entry(app, entry);
@@ -100,7 +108,7 @@ static void geom_format_row(AppData *app, int raw_idx, CofiRowCells *out) {
     out->cells[2].text = geometry;
     out->cells[2].width_hint = 18;
     out->cells[3].text = desktop_flags;
-    out->cells[3].width_hint = 14;
+    out->cells[3].width_hint = 17;
     out->cells[4].text = entry->assigned ? "bound" : "unbound";
     out->cells[4].width_hint = 8;
     out->row_flags = COFI_ROW_ACTIONABLE;
@@ -210,6 +218,19 @@ static gboolean geom_toggle_restore_desktop(AppData *app) {
     return TRUE;
 }
 
+static gboolean geom_toggle_rule_flag(AppData *app, LayoutRecord *record,
+                                      void (*toggle)(Rule *)) {
+    Rule *rule = geom_find_owning_rule(app, record->match_id);
+    if (!rule) {
+        log_warn("geom: no owning rule for match_id=%d; toggle ignored", record->match_id);
+        return FALSE;
+    }
+    toggle(rule);
+    save_rules_config(&app->rules_config, &app->matching);
+    update_display(app);
+    return TRUE;
+}
+
 static gboolean geom_toggle_disabled(AppData *app) {
     LayoutRecord *record = geom_selected_record(app);
     if (!record) return FALSE;
@@ -240,6 +261,12 @@ gboolean handle_geom_tab_keys(GdkEventKey *event, AppData *app) {
     }
     if (event->keyval == GDK_KEY_t && (event->state & GDK_CONTROL_MASK)) {
         return geom_toggle_disabled(app);
+    }
+    if (event->keyval == GDK_KEY_o && (event->state & GDK_CONTROL_MASK)) {
+        return geom_toggle_rule_flag(app, record, rule_toggle_once);
+    }
+    if (event->keyval == GDK_KEY_n && (event->state & GDK_CONTROL_MASK)) {
+        return geom_toggle_rule_flag(app, record, rule_toggle_new_only);
     }
     if (event->keyval == GDK_KEY_p && (event->state & GDK_CONTROL_MASK)) {
         int match_id = selected_match_id_for_pattern_edit(app);
@@ -295,7 +322,7 @@ void geom_provider_register(void) {
     s_geom_provider.on_query_changed = geom_on_query_changed;
     s_geom_provider.handle_key = handle_geom_tab_keys;
     s_geom_provider.shortcut_hint =
-        "Ctrl+D=Delete  Ctrl+L=Lock workspace  Ctrl+T=Toggle enable  Ctrl+P=Edit pattern";
+        "Ctrl+D=Delete  Ctrl+L=Lock workspace  Ctrl+T=Toggle enable  Ctrl+P=Edit pattern  Ctrl+O=Once  Ctrl+N=New-only";
     s_geom_provider_id = cofi_register_tab_provider(&s_geom_provider);
     if (s_geom_provider_id >= 0) {
         cofi_register_command(&s_geom_command);

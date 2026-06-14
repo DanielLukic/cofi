@@ -40,8 +40,8 @@ in sync with saved records.
   `restore_window_geometry_for_window()`, and
   `clear_window_geometry_for_window()`
 - `geom_rule_sync_for_layout()`, `geom_rule_sync_for_pattern()`,
-  `geom_rule_sync_all_layout_patterns()`, and
-  `geom_rule_remove_for_match_id()`
+  `geom_rule_sync_all_layout_patterns()`,
+  `geom_rule_remove_for_match_id()`, and `geom_find_owning_rule()`
 - `geom_provider_register()`, `geom_tab_mode()`, `geom_on_query_changed()`, and
   `handle_geom_tab_keys()`
 - `TileOption`, `apply_tiling()`, `create_tiling_overlay_content()`, and
@@ -115,7 +115,9 @@ in sync with saved records.
     resets selection whenever the query changes.
 19. Geom provider rows show pattern, class, geometry, desktop/state flags, and
     binding status; row identity is `geom:<match_id>`. Geom rows do not look up
-    Names records.
+    Names records. The state-flags cell appends `O`/`-` and `N`/`-` markers
+    reflecting the owning tagged restore rule's `once` and `new_only` flags;
+    when no owning rule exists both markers are `-`.
 20. In the geom tab, Delete or `Ctrl+D` asks for delete confirmation; confirmed
     delete has the same owner lifecycle as command clear: clears the layout,
     saves, removes the tagged geom restore rule directly by match id, deletes
@@ -123,7 +125,11 @@ in sync with saved records.
     selection, and refreshes display.
 21. `Ctrl+L` toggles whether restore follows the saved desktop, `Ctrl+T`
     toggles layout enablement and syncs geom rules, and `Ctrl+P` opens pattern
-    editing with the selected layout geometry as context.
+    editing with the selected layout geometry as context. `Ctrl+O` toggles
+    `once` and `Ctrl+N` toggles `new_only` on the selected layout's owning
+    tagged restore rule, then persists rules. With no owning rule the toggles
+    return FALSE without persisting. Tagged restore-rule flags are owned by
+    the geom tab; `:rules` continues to block the same toggles on tagged rows.
 22. Tiling fullscreen toggles fullscreen through x11's state-intent helper; all
     other tiling modes choose the monitor/workarea containing the window before
     unmaximizing, compute target frame geometry, convert the requested frame
@@ -148,7 +154,10 @@ in sync with saved records.
 ## Notes
 - The geom-to-rules bridge is intentionally one-way from saved layout state to
   tagged restore rules. Rules should not reach back into geom ownership except
-  by executing the public restore command.
+  by executing the public restore command. The `once` and `new_only` flags on
+  the owning tagged rule are part of the layout's user-facing surface, so
+  `:geom` exposes their toggles; `geom_rule_sync_for_layout()`'s update branch
+  rewrites only `pattern`, leaving these flags intact across resync.
 - Disabled layout records stay in `layouts.json` and the provider list, but do
   not apply X11 changes and do not keep tagged geom restore rules alive.
 - Layout restore relies on x11 frame-aware movement and state helpers. Keep
