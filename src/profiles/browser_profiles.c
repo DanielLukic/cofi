@@ -2,16 +2,12 @@
 
 #include "daemon/detach_launch.h"
 #include "matching/fzf_algo.h"
+#include "profiles/chrome_launch.h"
 #include "core/log/log.h"
 
 #include <json-glib/json-glib.h>
 #include <stdio.h>
 
-static gchar *default_program_resolver(const char *program) {
-    return g_find_program_in_path(program);
-}
-
-static BrowserProfilesProgramResolver s_program_resolver = default_program_resolver;
 static BrowserProfilesLaunchImpl s_launch_impl = detach_launch_argv_array;
 
 static void safe_copy(char *dest, size_t size, const char *src) {
@@ -262,35 +258,16 @@ void browser_profiles_filter(BrowserProfilesMode *mode, const char *filter) {
     }
 }
 
-static char **build_chrome_argv(const char *chrome_path, const char *profile_dir) {
-    char **argv = g_new0(char *, 3);
-    argv[0] = g_strdup(chrome_path);
-    argv[1] = g_strdup_printf("--profile-directory=%s", profile_dir);
-    argv[2] = NULL;
-    return argv;
-}
-
-static gchar *resolve_browser_executable(const BrowserProfileEntry *profile) {
-    if (!profile || profile->backend != BROWSER_PROFILE_CHROME) {
-        return NULL;
-    }
-    gchar *path = s_program_resolver(profile->executable);
-    if (!path && strcmp(profile->executable, "google-chrome") == 0) {
-        path = s_program_resolver("google-chrome-stable");
-    }
-    return path;
-}
-
 gboolean browser_profiles_launch(const BrowserProfileEntry *profile) {
     if (!profile) return FALSE;
-    gchar *browser_path = resolve_browser_executable(profile);
+    gchar *browser_path = chrome_launch_resolve_executable(profile);
     if (!browser_path) {
         log_error("No browser executable found for %s profile '%s'",
                   profile->browser_name, profile->name);
         return FALSE;
     }
 
-    char **argv = build_chrome_argv(browser_path, profile->profile_dir);
+    char **argv = chrome_launch_build_argv(browser_path, profile->profile_dir, NULL);
     gboolean ok = s_launch_impl((const char *const *)argv);
     if (ok) {
         log_info("Launched %s profile '%s' (%s) via %s",
@@ -303,7 +280,7 @@ gboolean browser_profiles_launch(const BrowserProfileEntry *profile) {
 
 #ifdef COFI_TESTING
 void browser_profiles_set_program_resolver_test_hook(BrowserProfilesProgramResolver resolver) {
-    s_program_resolver = resolver ? resolver : default_program_resolver;
+    chrome_launch_set_program_resolver_test_hook((ChromeLaunchProgramResolver)resolver);
 }
 
 void browser_profiles_set_launch_impl_test_hook(BrowserProfilesLaunchImpl launch_impl) {
@@ -312,6 +289,6 @@ void browser_profiles_set_launch_impl_test_hook(BrowserProfilesLaunchImpl launch
 
 char **browser_profiles_build_chrome_argv_for_test(const char *chrome_path,
                                                    const char *profile_dir) {
-    return build_chrome_argv(chrome_path, profile_dir);
+    return chrome_launch_build_argv(chrome_path, profile_dir, NULL);
 }
 #endif

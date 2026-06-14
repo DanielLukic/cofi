@@ -127,6 +127,7 @@ projects_window_env_obj = src/projects/projects_window_env.o
 projects_zellij_windows_obj = src/projects/projects_zellij_windows.o
 files_provider_obj = src/files/files_provider.o
 files_search_obj = src/files/files_search.o
+chrome_launch_obj = src/profiles/chrome_launch.o
 rules_obj = src/rules/rules.o
 rules_config_obj = src/rules/rules_config.o
 rules_dispatch_obj = src/rules/rules_dispatch.o
@@ -602,8 +603,11 @@ test_harpoon_provider: test/test_harpoon_provider.c
 test_workspaces_provider: test/test_workspaces_provider.c
 	$(CC) $(CFLAGS) -o test/test_workspaces_provider test/test_workspaces_provider.c $(LDFLAGS)
 
-test_browser_profiles: test/test_browser_profiles.c src/profiles/browser_profiles.c $(fzf_algo_obj) $(log_obj)
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_browser_profiles test/test_browser_profiles.c src/profiles/browser_profiles.c $(fzf_algo_obj) $(log_obj) $(LDFLAGS)
+test_browser_profiles: test/test_browser_profiles.c src/profiles/browser_profiles.c src/profiles/chrome_launch.c $(fzf_algo_obj) $(log_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_browser_profiles test/test_browser_profiles.c src/profiles/browser_profiles.c src/profiles/chrome_launch.c $(fzf_algo_obj) $(log_obj) $(LDFLAGS)
+
+test_chrome_launch: test/test_chrome_launch.c src/profiles/chrome_launch.c
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_chrome_launch test/test_chrome_launch.c src/profiles/chrome_launch.c $(LDFLAGS)
 
 test_sessions: test/test_sessions.c src/sessions/sessions.c $(fzf_algo_obj) $(log_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sessions test/test_sessions.c src/sessions/sessions.c $(fzf_algo_obj) $(log_obj) $(LDFLAGS)
@@ -611,8 +615,8 @@ test_sessions: test/test_sessions.c src/sessions/sessions.c $(fzf_algo_obj) $(lo
 test_sessions_provider: test/test_sessions_provider.c $(fzf_algo_obj)
 	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_sessions_provider test/test_sessions_provider.c $(fzf_algo_obj) $(LDFLAGS)
 
-test_profiles_provider: test/test_profiles_provider.c $(fzf_algo_obj) $(slot_store_obj) $(cofi_json_io_obj)
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c $(fzf_algo_obj) $(slot_store_obj) $(cofi_json_io_obj) $(LDFLAGS)
+test_profiles_provider: test/test_profiles_provider.c src/profiles/chrome_launch.c $(fzf_algo_obj) $(slot_store_obj) $(cofi_json_io_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_profiles_provider test/test_profiles_provider.c src/profiles/chrome_launch.c $(fzf_algo_obj) $(slot_store_obj) $(cofi_json_io_obj) $(LDFLAGS)
 
 test_hotkeys_provider: test/test_hotkeys_provider.c
 	$(CC) $(CFLAGS) -o test/test_hotkeys_provider test/test_hotkeys_provider.c $(LDFLAGS)
