@@ -307,3 +307,12 @@ See also:
 - **`x-terminal-emulator` is NOT always the right answer.** It is the Debian alternatives-system pointer and may point to an unexpected terminal. On MATE/GNOME/Cinnamon sessions the correct approach is `gsettings get org.gnome.desktop.default-applications.terminal exec`. On XFCE use `xfconf-query`. On KDE fall back to `konsole` directly.
 
 - **The desktop-env step is injectable for tests.** The `DesktopTerminalGetter` typedef allows test stubs to simulate specific desktop sessions without needing a live `gsettings` or `xfconf-query`. Tests use `detect_terminal_with_desktop_for_test(resolver, getter)`. Keep the getter parameter in any refactor of `detect_terminal_with_resolver`.
+
+## Bookmarks
+
+- **No caching, no `inotify` across enters.** The Bookmarks tab re-reads
+  `~/.config/google-chrome/<profile>/Bookmarks` for every profile on every
+  tab entry by design (TFD-857). Resist adding a cache or file-watcher; the
+  file is small, parsing is fast, and skipping live refresh keeps the
+  subsystem stateless. If a future contributor proposes caching here, weigh
+  the cost of staleness against the cost of the re-read first.

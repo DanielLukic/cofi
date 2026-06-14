@@ -2,6 +2,7 @@
 
 #include "apps/apps_provider.h"
 #include "bluetooth/bluetooth_provider.h"
+#include "bookmarks/bookmarks_provider.h"
 #include "sessions/sessions_provider.h"
 #include "calc/calc_provider.h"
 #include "config/config_provider.h"
@@ -41,5 +42,6 @@ void cofi_register_builtin_plugins(void) {
     proc_provider_register();
     projects_provider_register();
     profiles_provider_register();
+    bookmarks_provider_register();
     emoji_provider_register();
 }

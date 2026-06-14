@@ -78,7 +78,7 @@ Applied after the fzf score:
 - **Tab / Shift+Tab** — cycle through visible tabs. Since TFD-545, tabs have three visibility states:
   - **PINNED** — always visible: Windows, Apps
   - **SURFACED** — shown once Tab-cycled into (e.g. via `:show <tab>` command), then dismissed on hide
-  - **HIDDEN** — secondary tabs (Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles) not reached by Tab unless surfaced
+  - **HIDDEN** — secondary tabs (Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles, Bookmarks) not reached by Tab unless surfaced
   Tabs are surfaced programmatically by `:show <verb>` commands or explicit prefix flows; Tab/Shift+Tab only cycles PINNED + currently-SURFACED tabs.
 - Typing any character starts filtering immediately (no mode switch needed)
 
@@ -401,7 +401,7 @@ Vim-style command entry triggered by typing `:` in the search field.
 
 - `:set <key> <value>` — set a config option at runtime (also accepts `key=value`)
 - `:config` (`:conf`, `:cfg`) — switch to the interactive Config tab
-- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `matching` (with `names` alias), `config`, `rules`, `apps`/`applications`, `bluetooth`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`
+- `:show` (`:s`) — switch cofi mode: `windows`, `command`, `run`, `workspaces`, `harpoon`, `matching` (with `names` alias), `config`, `rules`, `apps`/`applications`, `bluetooth`, `emoji`, `projects`, `calc`, `proc`, `sinks`, `sessions`, `profiles`, `bookmarks`
 - `:rules` (`:rl`) — switch to the interactive Rules tab
 
 ### Hotkey Management Commands
@@ -545,12 +545,27 @@ Browser profile launcher triggered via `:profiles`, `:chrome`, or `:browser`.
 - `:profiles @SLOT` or `:profiles PROFILE` — launch a profile directly from command mode
 - Browser executable resolved from `$PATH`; falls back to `google-chrome-stable`
 
+## Bookmarks Tab
+
+Chrome bookmarks across every discovered profile, triggered via `:bookmarks` or `:bm`.
+
+- Walks `~/.config/google-chrome/<profile>/Bookmarks` for every Chrome profile reported by browser-profiles discovery, skipping `Guest Profile`.
+- Default profile bookmarks appear first, then remaining profiles in profile-tab order (active_time desc, case-insensitive name tie-break); within each profile, rows follow the `roots.{bookmark_bar, other, synced}` walk order.
+- Each row shows five cells: `[bm]`, profile label, bookmark name, folder breadcrumb (display-truncated to 10 chars with leading `…` so the deepest folder stays visible), and URL.
+- Match-string corpus is `[bm] <profile_label> <name> <folder_breadcrumb> <url>`. Field-weighted scoring: name 3000, folder 1500, URL 1000, profile 800, marker `bm` 100. Empty query preserves load order.
+- URL scheme allow-list: `http`, `https`, `ftp`, `file`. Skips `javascript:`, `chrome://`, `chrome-extension://`, `data:`, and empty URLs.
+- Row cap: 20000 across all profiles. Overflow logs a single WARN and stops appending; remaining profiles are partially included.
+- Enter opens the URL in the row's profile via `chrome --profile-directory=<dir> <url>`, mirroring `:profiles` launch with one extra argv slot.
+- `Ctrl+[key]` assigns the selected bookmark to a per-Bookmarks slot; `Alt+[key]` recalls and launches a saved bookmark slot without opening the tab.
+- `:bookmarks @SLOT` or `:bookmarks QUERY` launches a bookmark directly from command mode. Slot payload format: `bookmark:chrome:<profile_dir>:<url>` (colons inside the URL are preserved). Row identity: `bookmark:<profile_dir>:<url>`.
+- No caching, no `inotify`: every tab entry re-reads the Bookmarks files.
+
 ## Tabs
 
-Eighteen tabs exist; visibility is controlled per-tab (TFD-545):
+Nineteen tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Bluetooth, Files, Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Bluetooth, Files, Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles, Bookmarks
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
@@ -572,6 +587,7 @@ Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tab
 16. **Proc** — process manager *(HIDDEN by default)*
 17. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
 18. **Profiles** — browser profile launcher *(HIDDEN by default)*
+19. **Bookmarks** — Chrome bookmarks across every profile *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 

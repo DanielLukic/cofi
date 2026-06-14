@@ -895,7 +895,7 @@ static void test_command_help_width_zero_is_unwrapped(void) {
     ASSERT_TRUE("help contains grouped commands section", strstr(help, "COMMANDS\n") != NULL);
     ASSERT_TRUE("show line includes all advertised modes",
                 strstr(help, "show [MODE]") != NULL &&
-                strstr(help, "emoji/projects/files/calc/proc/sinks/sessions/profiles/bluetooth") != NULL);
+                strstr(help, "emoji/projects/files/calc/proc/sinks/sessions/profiles/bookmarks/bluetooth") != NULL);
     ASSERT_TRUE("window group includes concrete command entries",
                 strstr(help, "Window\n") != NULL &&
                 strstr(help, "  cl, close-window, c") != NULL &&
