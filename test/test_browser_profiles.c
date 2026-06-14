@@ -113,6 +113,24 @@ int main(void) {
     browser_profiles_filter(&mode, "gc");
     ASSERT_TRUE("browser marker can still show chrome profiles", mode.filtered_count == 3);
 
+    /* Characterize the promoted browser_profiles_load_entries seam: when
+     * HOME points at an empty dir, it returns 0 entries and a non-empty
+     * error string. This pins the public Chrome-discovery entry point
+     * behavior used by both profiles and bookmarks. */
+    gchar *tmpdir = g_dir_make_tmp("cofi_bp_test_XXXXXX", NULL);
+    g_setenv("HOME", tmpdir, TRUE);
+    BrowserProfileEntry load_entries[MAX_BROWSER_PROFILES];
+    char load_err[256] = {0};
+    int load_count = browser_profiles_load_entries(load_entries,
+                                                   MAX_BROWSER_PROFILES,
+                                                   load_err,
+                                                   sizeof(load_err));
+    ASSERT_TRUE("load_entries returns 0 when Local State missing", load_count == 0);
+    ASSERT_TRUE("load_entries populates error when Local State missing",
+                load_err[0] != '\0');
+    g_rmdir(tmpdir);
+    g_free(tmpdir);
+
     printf("\nResults: %d/%d tests passed\n", tests_run - tests_failed, tests_run);
     return tests_failed == 0 ? 0 : 1;
 }

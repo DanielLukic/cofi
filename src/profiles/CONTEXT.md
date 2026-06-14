@@ -23,6 +23,7 @@ selected profile, and assign or recall profiles through provider slots.
 - `profiles_provider_register()`
 - `init_browser_profiles_mode()`
 - `browser_profiles_parse_chrome_local_state()`
+- `browser_profiles_load_entries()` (Chrome profile discovery for any caller)
 - `browser_profiles_load()`
 - `browser_profiles_filter()`
 - `browser_profiles_format_match_text()`

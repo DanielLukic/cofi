@@ -50,6 +50,17 @@ int browser_profiles_parse_chrome_local_state(const char *contents,
                                               int max_out,
                                               char *error_out,
                                               size_t error_size);
+
+/* Populate `out` with every Chrome profile discovered from the Local State
+ * file. Same semantics as the load path used by the profiles tab: sorted by
+ * active_time desc, tie-broken by case-insensitive name. Returns the entry
+ * count (0 on read/parse failure or empty info_cache); error_out, when
+ * non-NULL, carries a caller-visible message. */
+int browser_profiles_load_entries(BrowserProfileEntry *out,
+                                  int max_out,
+                                  char *error_out,
+                                  size_t error_size);
+
 void browser_profiles_load(BrowserProfilesMode *mode);
 void browser_profiles_filter(BrowserProfilesMode *mode, const char *filter);
 gboolean browser_profiles_launch(const BrowserProfileEntry *profile);

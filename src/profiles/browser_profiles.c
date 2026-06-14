@@ -109,10 +109,10 @@ int browser_profiles_parse_chrome_local_state(const char *contents,
     return count;
 }
 
-static int load_chrome_profiles(BrowserProfileEntry *out,
-                                int max_out,
-                                char *error_out,
-                                size_t error_size) {
+int browser_profiles_load_entries(BrowserProfileEntry *out,
+                                  int max_out,
+                                  char *error_out,
+                                  size_t error_size) {
     gchar *path = g_build_filename(g_get_home_dir(), ".config", "google-chrome",
                                    "Local State", NULL);
     gchar *contents = NULL;
@@ -138,8 +138,10 @@ static int load_chrome_profiles(BrowserProfileEntry *out,
 
 void browser_profiles_load(BrowserProfilesMode *mode) {
     if (!mode) return;
-    mode->profile_count = load_chrome_profiles(mode->profiles, MAX_BROWSER_PROFILES,
-                                               mode->last_error, sizeof(mode->last_error));
+    mode->profile_count = browser_profiles_load_entries(mode->profiles,
+                                                        MAX_BROWSER_PROFILES,
+                                                        mode->last_error,
+                                                        sizeof(mode->last_error));
     if (mode->profile_count > 0) {
         mode->last_error[0] = '\0';
     }
