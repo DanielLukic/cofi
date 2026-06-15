@@ -69,6 +69,7 @@ dynamic_display_obj = src/ui/dynamic_display.o
 emoji_data_obj = src/emoji/emoji_data.o
 fzf_algo_obj = src/matching/fzf_algo.o
 frame_extents_obj = src/x11/frame_extents.o
+frame_extents_restore_obj = src/x11/frame_extents_restore.o
 geom_provider_obj = src/geom/geom_provider.o
 geom_rule_sync_obj = src/geom/geom_rule_sync.o
 geometry_planner_obj = src/geom/geometry_planner.o
@@ -385,6 +386,9 @@ test_rules_new_only: test/test_rules_new_only.c $(rules_obj) $(match_entry_obj) 
 
 test_rules_dispatch: test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_rules_dispatch test/test_rules_dispatch.c $(rules_dispatch_obj) $(rules_obj) $(match_entry_obj) $(window_matcher_obj) $(window_list_obj) $(x11_utils_obj) $(frame_extents_obj) $(utils_obj) $(LDFLAGS)
+
+test_x11_frame_extents_events: test/test_x11_frame_extents_events.c src/x11/frame_extents_restore.c $(log_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_x11_frame_extents_events test/test_x11_frame_extents_events.c src/x11/frame_extents_restore.c $(log_obj) $(LDFLAGS)
 
 test_window_list: test/test_window_list.c $(utils_obj)
 	$(CC) $(CFLAGS) -o test/test_window_list test/test_window_list.c $(utils_obj) $(LDFLAGS)

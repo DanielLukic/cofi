@@ -23,6 +23,7 @@
 #include "daemon/hotkeys.h"
 #include "core/utils/utils.h"
 #include "rules/rules_dispatch.h"
+#include "x11/frame_extents_restore.h"
 
 static GIOChannel *x11_channel = NULL;
 static guint x11_watch_id = 0;
@@ -257,6 +258,7 @@ void cleanup_x11_event_monitoring(void) {
         g_io_channel_unref(x11_channel);
         x11_channel = NULL;
     }
+    cleanup_frame_extents_restore_timeouts();
     
     log_debug("X11 event monitoring cleaned up");
 }
@@ -297,25 +299,16 @@ void handle_x11_event(AppData *app, XEvent *event) {
                     prop_event->atom == XA_WM_NAME) {
                     handle_window_title_change(app, prop_event->window);
                 }
-                // When _NET_FRAME_EXTENTS is (re)populated by the WM, re-run restore
-                // for that window if it has a saved layout. The geometry planner is
-                // idempotent: if the frame is already at target do_move=false → no-op;
-                // if extents changed (e.g. reparent completed), XMoveResizeWindow
-                // places the frame correctly with the now-real extents.
+                // When _NET_FRAME_EXTENTS is (re)populated by the WM, defer restore
+                // briefly so the WM's initial-map placement settles before cofi
+                // sends the final frame-aware move/resize.
                 {
                     static Atom net_frame_extents = None;
                     if (net_frame_extents == None)
                         net_frame_extents = XInternAtom(app->display,
                                                         "_NET_FRAME_EXTENTS", False);
                     if (prop_event->atom == net_frame_extents) {
-                        for (int i = 0; i < app->window_count; i++) {
-                            if (app->windows[i].id == prop_event->window) {
-                                log_info("GEOMDBG: extents-changed re-apply 0x%lx",
-                                         prop_event->window);
-                                restore_window_geometry_for_window(app, &app->windows[i]);
-                                break;
-                            }
-                        }
+                        handle_net_frame_extents_property(app, prop_event->window);
                     }
                 }
                 break;

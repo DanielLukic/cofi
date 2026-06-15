@@ -123,8 +123,11 @@ into application refresh callbacks.
 21. Per-window title changes are the only path that updates cached
    `WindowInfo` titles for existing windows and delegate title-change rule
    application to rules without x11 evaluating rules itself.
-22. `_NET_FRAME_EXTENTS` changes re-run saved geometry restore for the affected
-   window, relying on geometry planning idempotence for no-op cases.
+22. `_NET_FRAME_EXTENTS` changes dispatch saved geometry restore for the
+   affected window via a deferred GLib timeout of about 150ms, replacing any
+   pending restore for the same window and re-checking that the window remains
+   live before restoring, so restore does not race the WM's initial-map
+   placement.
 23. `KeyPress` events are delegated to the hotkey dispatcher; x11 does not own
    the hotkey binding table or action semantics.
 
