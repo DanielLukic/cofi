@@ -5,6 +5,7 @@
 #include "geom/layout_store.h"
 #include "core/log/log.h"
 #include "matching/match_entry_config.h"
+#include "x11/frame_extents.h"
 #include "x11/monitor_move.h"
 #include "x11/x11_utils.h"
 
@@ -170,6 +171,27 @@ static gboolean resolve_existing_match_id_for_window(AppData *app,
     return *match_id_out > 0;
 }
 
+static void capture_saved_position(Display *display, Window window, int *x, int *y) {
+    FrameExtents fe = {0};
+    if (!display || !window || !x || !y) {
+        return;
+    }
+
+    if (!get_frame_extents(display, window, &fe) || !frame_extents_valid(&fe)) {
+        return;
+    }
+
+    Window child = 0;
+    int client_x = 0;
+    int client_y = 0;
+    Window root = XDefaultRootWindow(display);
+    if (XTranslateCoordinates(display, window, root, 0, 0,
+                              &client_x, &client_y, &child)) {
+        *x = client_x - fe.left;
+        *y = client_y - fe.top;
+    }
+}
+
 gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window) {
     if (!app || !window) return FALSE;
     int x = 0, y = 0, width = 0, height = 0;
@@ -177,6 +199,7 @@ gboolean save_window_geometry_for_window(AppData *app, const WindowInfo *window)
         log_warn("Failed to capture geometry for window 0x%lx", window->id);
         return FALSE;
     }
+    capture_saved_position(app->display, window->id, &x, &y);
 
     int desktop = get_window_desktop(app->display, window->id);
     gboolean maximized_vert = window_is_maximized_vertical(app->display, window->id);

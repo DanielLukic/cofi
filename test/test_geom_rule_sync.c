@@ -20,6 +20,10 @@ static int g_geom_y = 22;
 static int g_geom_w = 333;
 static int g_geom_h = 444;
 static int g_geom_desktop = 5;
+static int g_client_root_x = 0;
+static int g_client_root_y = 0;
+static int g_frame_extents_ok = 0;
+static FrameExtents g_frame_extents = {0};
 static int g_move_calls = 0;
 static Window g_last_moved_window = 0;
 static int g_last_move_x = 0;
@@ -61,10 +65,24 @@ void move_window_to_desktop(Display *display, Window window, int desktop_index) 
 }
 int get_frame_extents(Display *display, Window window, FrameExtents *extents) {
     (void)display; (void)window;
-    if (extents) memset(extents, 0, sizeof(*extents));
-    return 0;
+    if (extents) *extents = g_frame_extents;
+    return g_frame_extents_ok;
 }
 void request_frame_extents(Display *display, Window window) { (void)display; (void)window; }
+Window XDefaultRootWindow(Display *display) { (void)display; return 0x100; }
+int XTranslateCoordinates(Display *display, Window src_w, Window dest_w,
+                          int src_x, int src_y, int *dest_x_return,
+                          int *dest_y_return, Window *child_return) {
+    (void)display;
+    (void)src_w;
+    (void)dest_w;
+    (void)src_x;
+    (void)src_y;
+    if (dest_x_return) *dest_x_return = g_client_root_x;
+    if (dest_y_return) *dest_y_return = g_client_root_y;
+    if (child_return) *child_return = 0;
+    return 1;
+}
 void xmove_resize_frame_aware(Display *display, Window window,
                               int frame_x, int frame_y, int width, int height) {
     (void)display;
@@ -119,6 +137,8 @@ static void init_test_app(AppData *app) {
     match_entry_manager_init(&app->matching);
     layout_store_init(&app->layouts);
     init_rules_config(&app->rules_config);
+    g_frame_extents_ok = 0;
+    memset(&g_frame_extents, 0, sizeof(g_frame_extents));
 }
 
 static void add_layout_with_pattern(AppData *app, int match_id, const char *pattern, bool disabled) {
@@ -469,6 +489,62 @@ static void test_save_geometry_ignores_stale_bound_identity(void) {
     }
 }
 
+static void test_save_geometry_keeps_parent_origin_when_frame_extents_absent(void) {
+    AppData app;
+    init_test_app(&app);
+    app.display = (Display *)0x1;
+    app.windows[0] = make_window(0x811, "CSD Window", "ClassCsd", "instCsd", "Normal");
+    app.window_count = 1;
+
+    g_geom_x = 11;
+    g_geom_y = 22;
+    g_geom_w = 333;
+    g_geom_h = 444;
+    g_frame_extents_ok = 1;
+    g_frame_extents = (FrameExtents){0};
+    g_client_root_x = 111;
+    g_client_root_y = 222;
+
+    ASSERT_INT("csd save succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("csd save creates one layout", 1, app.layouts.count);
+    ASSERT_INT("csd save keeps geometry x", g_geom_x, app.layouts.records[0].x);
+    ASSERT_INT("csd save keeps geometry y", g_geom_y, app.layouts.records[0].y);
+    ASSERT_INT("csd save keeps client width", g_geom_w, app.layouts.records[0].width);
+    ASSERT_INT("csd save keeps client height", g_geom_h, app.layouts.records[0].height);
+}
+
+static void test_save_geometry_records_visible_frame_with_valid_extents(void) {
+    AppData app;
+    init_test_app(&app);
+    app.display = (Display *)0x1;
+    app.windows[0] = make_window(0x812, "Marco Window", "Mate-terminal",
+                                 "mate-terminal", "Normal");
+    app.window_count = 1;
+
+    g_geom_x = 940;
+    g_geom_y = -20;
+    g_geom_w = 2840;
+    g_geom_h = 2018;
+    g_client_root_x = 980;
+    g_client_root_y = 58;
+    g_frame_extents_ok = 1;
+    g_frame_extents = (FrameExtents){
+        .left = 20,
+        .right = 20,
+        .top = 58,
+        .bottom = 20
+    };
+
+    ASSERT_INT("marco save succeeds", TRUE,
+               save_window_geometry_for_window(&app, &app.windows[0]));
+    ASSERT_INT("marco save creates one layout", 1, app.layouts.count);
+    ASSERT_INT("marco save records visible frame x", 960, app.layouts.records[0].x);
+    ASSERT_INT("marco save records visible frame y", 0, app.layouts.records[0].y);
+    ASSERT_INT("marco save keeps client width", 2840, app.layouts.records[0].width);
+    ASSERT_INT("marco save keeps client height", 2018, app.layouts.records[0].height);
+}
+
 static void test_restore_prefers_current_title_layout_over_stale_binding(void) {
     AppData app;
     init_test_app(&app);
@@ -617,6 +693,8 @@ int main(void) {
     test_wildcard_pattern_verbatim();
     test_save_geometry_reuses_layout_match_id_for_geom_rule();
     test_save_geometry_ignores_stale_bound_identity();
+    test_save_geometry_keeps_parent_origin_when_frame_extents_absent();
+    test_save_geometry_records_visible_frame_with_valid_extents();
     test_restore_prefers_current_title_layout_over_stale_binding();
     test_clear_geometry_removes_tagged_geom_rule_and_entry();
     test_sync_update_preserves_user_set_flags();

@@ -8,6 +8,7 @@
 #include "providers/cofi_tab_provider.h"
 #include "commands/command_registry.h"
 #include "geom/window_geometry_matching.h"
+#include "x11/frame_extents.h"
 #include "x11/x11_utils.h"
 
 static int tests_run = 0;
@@ -153,6 +154,7 @@ gboolean window_is_maximized_vertical(Display *display, Window window) { (void)d
 int get_window_desktop(Display *display, Window window) { (void)display;(void)window; return 2; }
 int get_current_desktop(Display *display) { (void)display; return 2; }
 gboolean get_window_geometry(Display *display, Window window, int *x, int *y, int *w, int *h) { (void)display;(void)window; if (x) *x = 0; if (y) *y = 0; if (w) *w = 100; if (h) *h = 100; return TRUE; }
+int get_frame_extents(Display *display, Window window, FrameExtents *extents) { (void)display;(void)window; if (extents) memset(extents, 0, sizeof(*extents)); return 0; }
 void set_window_fullscreen(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
 void set_window_maximized_horizontal(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }
 void set_window_maximized_vertical(Display *display, Window window, WindowStateAction action) { (void)display;(void)window;(void)action; g_set_state_calls++; }

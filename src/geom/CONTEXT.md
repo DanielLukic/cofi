@@ -81,12 +81,15 @@ in sync with saved records.
     maximize unsets are needed, waits 50ms for the WM to settle before any
     planned geometry move/resize, and flushes only when at least one operation
     is planned.
-12. Saving geometry captures current x/y/width/height, desktop, maximized
-    states, and fullscreen state from x11, reuses only a saved layout whose
-    match entry matches the current title and anchors or an existing matching
-    current-title entry, otherwise creates a current-title match entry, persists
-    matching entries and layouts, and creates or updates the owning tagged geom
-    restore rule for the layout's match id only after the layout save succeeds.
+12. Saving geometry captures visible-frame x/y from client root position minus
+    valid `_NET_FRAME_EXTENTS`, falling back to current x11 geometry x/y when
+    extents are absent or invalid; width/height remain client-space. It also
+    captures desktop, maximized states, and fullscreen state from x11, reuses
+    only a saved layout whose match entry matches the current title and anchors
+    or an existing matching current-title entry, otherwise creates a
+    current-title match entry, persists matching entries and layouts, and
+    creates or updates the owning tagged geom restore rule for the layout's
+    match id only after the layout save succeeds.
 13. Restoring geometry first scans enabled layout records in store order and
     applies the first whose match entry matches the current window title and
     anchors, rebinding that entry to the current window id. If no saved layout
