@@ -59,6 +59,7 @@ int cofi_register_command(const CommandSpec *spec) {
 #include "emoji/emoji_provider.c"
 
 static int s_long_provider_id = -1;
+static int s_reset_provider_id = -1;
 
 static int long_provider_row_count(AppData *app) {
     (void)app;
@@ -84,6 +85,23 @@ static const char *long_provider_row_identity(AppData *app, int raw_idx) {
         return id0;
     }
     return "short-row-id";
+}
+
+static int reset_provider_row_count(AppData *app) {
+    (void)app;
+    return 5;
+}
+
+static const char *reset_provider_row_identity(AppData *app, int raw_idx) {
+    (void)app;
+    switch (raw_idx) {
+        case 0: return "row:zero";
+        case 1: return "row:one";
+        case 2: return "row:two";
+        case 3: return "row:three";
+        case 4: return "row:four";
+        default: return NULL;
+    }
 }
 
 static int find_filtered_index_by_glyph(AppData *app, const char *glyph) {
@@ -162,12 +180,49 @@ static void test_long_identity_is_not_truncated(void) {
     ASSERT_TRUE("restore follows long identity row", app.selection.provider_index == 0);
 }
 
+static void test_reset_selection_leaves_stale_provider_identity(void) {
+    AppData app;
+    CofiTabProvider provider;
+    memset(&app, 0, sizeof(app));
+    memset(&provider, 0, sizeof(provider));
+
+    cofi_registry_reset();
+
+    provider.id = "reset-provider";
+    provider.display_name = "ResetProvider";
+    provider.tab_mode = COFI_PROVIDER_DYNAMIC_TAB;
+    provider.row_count = reset_provider_row_count;
+    provider.row_identity = reset_provider_row_identity;
+    provider.initial_selection_index = 2;
+    s_reset_provider_id = cofi_register_tab_provider(&provider);
+    ASSERT_TRUE("reset provider registered", s_reset_provider_id >= 0);
+
+    const CofiTabProvider *registered = cofi_get_provider(s_reset_provider_id);
+    ASSERT_TRUE("registered reset provider available", registered != NULL);
+
+    app.current_tab = (TabMode)registered->tab_mode;
+    app.selection.provider_index = 3;
+    app.selection.provider_scroll_offset = 7;
+    snprintf(app.selection.selected_provider_id,
+             sizeof(app.selection.selected_provider_id), "%s", "row:stale");
+
+    reset_selection(&app);
+
+    ASSERT_TRUE("reset uses provider initial selection",
+                app.selection.provider_index == registered->initial_selection_index);
+    ASSERT_TRUE("reset clears provider scroll offset",
+                app.selection.provider_scroll_offset == 0);
+    ASSERT_TRUE("reset leaves stale provider identity",
+                strcmp(app.selection.selected_provider_id, "row:stale") == 0);
+}
+
 int main(void) {
     printf("Provider selection tests\n");
     printf("========================\n\n");
 
     test_selection_follows_identity_and_resets_when_missing();
     test_long_identity_is_not_truncated();
+    test_reset_selection_leaves_stale_provider_identity();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_run == tests_passed ? 0 : 1;
