@@ -12,7 +12,7 @@ bookmarks read directly from every discovered profile's `Bookmarks` JSON file.
 - URL scheme allow-list (http/https/ftp/file) and disallow-list
   (javascript/chrome/chrome-extension/data/empty).
 - Bookmark row display, match-string corpus, folder display truncation, and
-  field-weighted ranking.
+  tiered ranking over the match-string corpus.
 - The optional `BOOKMARKS` tab provider, command surface (`bookmarks`, alias
   `bm`), and bookmark slot payloads.
 - Launching the resolved Chrome executable with the owning profile and URL.
@@ -72,9 +72,9 @@ bookmarks read directly from every discovered profile's `Bookmarks` JSON file.
     match corpus.
 11. The match-string corpus is `[bm] <profile_label> <name>
     <folder_breadcrumb> <url>`; the `bm` marker token surfaces every row.
-12. Filter ranking uses field-weighted scoring: name 3000, folder 1500, URL
-    1000, profile 800, marker 100; ordering is descending score then original
-    load order.
+12. Filter ranking uses `tier_score_string()` over the match-string corpus,
+    sharing the Windows tab's direct word-boundary tier over indirect fuzzy
+    matches; ordering is descending score then original load order.
 13. An empty query preserves the load order from criteria 6.
 14. With no filtered rows the provider exposes one status row: `last_error`
     rendered as `COFI_ROW_ERROR` when set, otherwise

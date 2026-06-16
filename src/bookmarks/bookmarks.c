@@ -1,7 +1,7 @@
 #include "bookmarks/bookmarks.h"
 
 #include "core/log/log.h"
-#include "matching/fzf_algo.h"
+#include "matching/tier_score.h"
 #include "profiles/browser_profiles.h"
 
 #include <json-glib/json-glib.h>
@@ -297,31 +297,6 @@ typedef struct {
     score_t score;
 } BookmarkHit;
 
-static score_t field_score(const char *query, const char *field, score_t boost) {
-    if (!field || field[0] == '\0' || !fzf_has_match(query, field)) {
-        return SCORE_MIN;
-    }
-    return fzf_fuzzy_match(query, field) + boost;
-}
-
-static score_t bookmark_match_score(const BookmarkEntry *entry, const char *query) {
-    if (!entry || !query || query[0] == '\0') return SCORE_MIN;
-    score_t best = SCORE_MIN;
-    score_t s;
-
-    s = field_score(query, entry->name, 3000);
-    if (s > best) best = s;
-    s = field_score(query, entry->folder_breadcrumb, 1500);
-    if (s > best) best = s;
-    s = field_score(query, entry->url, 1000);
-    if (s > best) best = s;
-    s = field_score(query, entry->profile_label, 800);
-    if (s > best) best = s;
-    s = field_score(query, "bm", 100);
-    if (s > best) best = s;
-    return best;
-}
-
 static int hit_cmp(const void *lhs, const void *rhs) {
     const BookmarkHit *l = lhs;
     const BookmarkHit *r = rhs;
@@ -346,9 +321,11 @@ void bookmarks_filter(BookmarksMode *mode, const char *query) {
     GArray *hits = g_array_sized_new(FALSE, FALSE, sizeof(BookmarkHit),
                                      (guint)entry_count);
     BookmarkHit hit;
+    char match_text[3072];
     for (int i = 0; i < entry_count; i++) {
         const BookmarkEntry *entry = &g_array_index(mode->entries, BookmarkEntry, i);
-        score_t score = bookmark_match_score(entry, q);
+        bookmarks_format_match_text(entry, match_text, sizeof(match_text));
+        score_t score = tier_score_string(q, match_text);
         if (score == SCORE_MIN) continue;
         hit.raw_index = i;
         hit.score = score;

@@ -57,7 +57,8 @@ int bookmarks_parse_chrome(BookmarksMode *mode,
  */
 void bookmarks_load(BookmarksMode *mode);
 
-/* Apply field-weighted filter. Empty query preserves load order. */
+/* Apply tiered fuzzy filter over bookmarks_format_match_text().
+ * Empty query preserves load order. */
 void bookmarks_filter(BookmarksMode *mode, const char *query);
 
 /* Render the visible folder breadcrumb: if longer than max_visible characters,

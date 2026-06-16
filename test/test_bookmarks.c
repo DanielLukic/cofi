@@ -256,6 +256,43 @@ static void test_filter_name_outranks_url(void) {
     bookmarks_mode_free(&mode);
 }
 
+static void test_filter_profile_word_boundary_outranks_scattered_titles(void) {
+    BookmarksMode mode;
+    bookmarks_mode_init(&mode);
+    BookmarkEntry sandy, dario_a, dario_b, dario_c;
+    memset(&sandy, 0, sizeof(sandy));
+    memset(&dario_a, 0, sizeof(dario_a));
+    memset(&dario_b, 0, sizeof(dario_b));
+    memset(&dario_c, 0, sizeof(dario_c));
+
+    g_strlcpy(sandy.profile_label, "Sandy", sizeof(sandy.profile_label));
+    g_strlcpy(sandy.name, "Boring Reference", sizeof(sandy.name));
+    g_strlcpy(sandy.url, "https://sandy-profile.example/", sizeof(sandy.url));
+
+    g_strlcpy(dario_a.profile_label, "Dario", sizeof(dario_a.profile_label));
+    g_strlcpy(dario_a.name, "Sable Nodes Draft Yard", sizeof(dario_a.name));
+    g_strlcpy(dario_a.url, "https://dario-a.example/", sizeof(dario_a.url));
+
+    g_strlcpy(dario_b.profile_label, "Dario", sizeof(dario_b.profile_label));
+    g_strlcpy(dario_b.name, "Saved Atlas Notes Daily Yesterday", sizeof(dario_b.name));
+    g_strlcpy(dario_b.url, "https://dario-b.example/", sizeof(dario_b.url));
+
+    g_strlcpy(dario_c.profile_label, "Dario", sizeof(dario_c.profile_label));
+    g_strlcpy(dario_c.name, "Samples And Nodes Drafted Yearly", sizeof(dario_c.name));
+    g_strlcpy(dario_c.url, "https://dario-c.example/", sizeof(dario_c.url));
+
+    g_array_append_val(mode.entries, sandy);
+    g_array_append_val(mode.entries, dario_a);
+    g_array_append_val(mode.entries, dario_b);
+    g_array_append_val(mode.entries, dario_c);
+
+    bookmarks_filter(&mode, "sandy");
+    ASSERT_TRUE("all sandy fuzzy rows match", mode.filtered_indices->len == 4);
+    ASSERT_TRUE("profile word-boundary direct match ranked first",
+                g_array_index(mode.filtered_indices, int, 0) == 0);
+    bookmarks_mode_free(&mode);
+}
+
 static void test_cap_enforcement(void) {
     BookmarksMode mode;
     bookmarks_mode_init(&mode);
@@ -294,6 +331,7 @@ int main(void) {
     test_filter_empty_preserves_order();
     test_filter_bm_marker_surfaces_all();
     test_filter_name_outranks_url();
+    test_filter_profile_word_boundary_outranks_scattered_titles();
     test_cap_enforcement();
 
     printf("\nResults: %d/%d tests passed\n", tests_run - tests_failed, tests_run);
