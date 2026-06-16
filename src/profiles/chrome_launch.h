@@ -14,14 +14,17 @@
  * Behavior contract (must remain stable for callers):
  * - chrome_launch_build_argv: returns a NULL-terminated argv array containing
  *   the resolved chrome path, --profile-directory=<profile_dir>, and the URL
- *   when non-NULL and non-empty. Caller owns the returned strv (g_strfreev).
+ *   when non-NULL and non-empty. When new_window is TRUE and URL is present,
+ *   --new-window is inserted before the URL. Caller owns the returned strv
+ *   (g_strfreev).
  * - chrome_launch_resolve_executable: looks up the entry's executable on PATH,
  *   falling back to google-chrome-stable for Chrome backends when the primary
  *   name is missing. Returns NULL when no candidate is on PATH.
  */
 char **chrome_launch_build_argv(const char *chrome_path,
                                 const char *profile_dir,
-                                const char *url);
+                                const char *url,
+                                gboolean new_window);
 
 gchar *chrome_launch_resolve_executable(const BrowserProfileEntry *entry);
 

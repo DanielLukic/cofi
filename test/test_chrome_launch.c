@@ -41,7 +41,7 @@ static BrowserProfileEntry make_chrome_entry(void) {
 }
 
 static void test_argv_without_url(void) {
-    char **argv = chrome_launch_build_argv("/usr/bin/google-chrome", "Profile 14", NULL);
+    char **argv = chrome_launch_build_argv("/usr/bin/google-chrome", "Profile 14", NULL, FALSE);
     ASSERT_TRUE("no-url argv path", strcmp(argv[0], "/usr/bin/google-chrome") == 0);
     ASSERT_TRUE("no-url argv profile flag",
                 strcmp(argv[1], "--profile-directory=Profile 14") == 0);
@@ -50,7 +50,7 @@ static void test_argv_without_url(void) {
 }
 
 static void test_argv_with_empty_url(void) {
-    char **argv = chrome_launch_build_argv("/usr/bin/google-chrome", "Default", "");
+    char **argv = chrome_launch_build_argv("/usr/bin/google-chrome", "Default", "", FALSE);
     ASSERT_TRUE("empty-url argv path", strcmp(argv[0], "/usr/bin/google-chrome") == 0);
     ASSERT_TRUE("empty-url argv profile flag",
                 strcmp(argv[1], "--profile-directory=Default") == 0);
@@ -61,13 +61,30 @@ static void test_argv_with_empty_url(void) {
 static void test_argv_with_url(void) {
     char **argv = chrome_launch_build_argv("/usr/bin/google-chrome",
                                            "Profile 14",
-                                           "https://example.com/path?q=1");
+                                           "https://example.com/path?q=1",
+                                           FALSE);
     ASSERT_TRUE("url argv path", strcmp(argv[0], "/usr/bin/google-chrome") == 0);
     ASSERT_TRUE("url argv profile flag",
                 strcmp(argv[1], "--profile-directory=Profile 14") == 0);
     ASSERT_TRUE("url argv url slot",
                 strcmp(argv[2], "https://example.com/path?q=1") == 0);
     ASSERT_TRUE("url argv null terminated at slot 3", argv[3] == NULL);
+    g_strfreev(argv);
+}
+
+static void test_argv_new_window_with_url(void) {
+    char **argv = chrome_launch_build_argv("/usr/bin/google-chrome",
+                                           "Profile 14",
+                                           "https://example.com/path?q=1",
+                                           TRUE);
+    ASSERT_TRUE("new-window argv path", strcmp(argv[0], "/usr/bin/google-chrome") == 0);
+    ASSERT_TRUE("new-window argv profile flag",
+                strcmp(argv[1], "--profile-directory=Profile 14") == 0);
+    ASSERT_TRUE("new-window argv flag at slot 2",
+                strcmp(argv[2], "--new-window") == 0);
+    ASSERT_TRUE("new-window argv url slot",
+                strcmp(argv[3], "https://example.com/path?q=1") == 0);
+    ASSERT_TRUE("new-window argv null terminated at slot 4", argv[4] == NULL);
     g_strfreev(argv);
 }
 
@@ -105,6 +122,7 @@ int main(void) {
     test_argv_without_url();
     test_argv_with_empty_url();
     test_argv_with_url();
+    test_argv_new_window_with_url();
     test_resolve_primary_hit();
     test_resolve_fallback_to_stable();
     test_resolve_rejects_null_entry();

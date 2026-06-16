@@ -142,7 +142,7 @@ static gboolean launch_bookmark(const char *profile_dir, const char *url) {
         return FALSE;
     }
 
-    char **argv = chrome_launch_build_argv(chrome_path, profile_dir, url);
+    char **argv = chrome_launch_build_argv(chrome_path, profile_dir, url, TRUE);
     gboolean ok = dispatch_launch((const char *const *)argv);
     if (ok) {
         log_info("bookmarks: opened %s in profile '%s' via %s",

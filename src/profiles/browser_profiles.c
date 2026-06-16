@@ -269,7 +269,7 @@ gboolean browser_profiles_launch(const BrowserProfileEntry *profile) {
         return FALSE;
     }
 
-    char **argv = chrome_launch_build_argv(browser_path, profile->profile_dir, NULL);
+    char **argv = chrome_launch_build_argv(browser_path, profile->profile_dir, NULL, FALSE);
     gboolean ok = s_launch_impl((const char *const *)argv);
     if (ok) {
         log_info("Launched %s profile '%s' (%s) via %s",
@@ -291,6 +291,6 @@ void browser_profiles_set_launch_impl_test_hook(BrowserProfilesLaunchImpl launch
 
 char **browser_profiles_build_chrome_argv_for_test(const char *chrome_path,
                                                    const char *profile_dir) {
-    return chrome_launch_build_argv(chrome_path, profile_dir, NULL);
+    return chrome_launch_build_argv(chrome_path, profile_dir, NULL, FALSE);
 }
 #endif

@@ -10,17 +10,21 @@ static ChromeLaunchProgramResolver s_program_resolver = default_program_resolver
 
 char **chrome_launch_build_argv(const char *chrome_path,
                                 const char *profile_dir,
-                                const char *url) {
+                                const char *url,
+                                gboolean new_window) {
     int has_url = (url && url[0] != '\0') ? 1 : 0;
-    char **argv = g_new0(char *, (gsize)(3 + has_url));
-    argv[0] = g_strdup(chrome_path ? chrome_path : "");
-    argv[1] = g_strdup_printf("--profile-directory=%s", profile_dir ? profile_dir : "");
-    if (has_url) {
-        argv[2] = g_strdup(url);
-        argv[3] = NULL;
-    } else {
-        argv[2] = NULL;
+    int has_new_window = has_url && new_window ? 1 : 0;
+    char **argv = g_new0(char *, (gsize)(3 + has_url + has_new_window));
+    int i = 0;
+    argv[i++] = g_strdup(chrome_path ? chrome_path : "");
+    argv[i++] = g_strdup_printf("--profile-directory=%s", profile_dir ? profile_dir : "");
+    if (has_new_window) {
+        argv[i++] = g_strdup("--new-window");
     }
+    if (has_url) {
+        argv[i++] = g_strdup(url);
+    }
+    argv[i] = NULL;
     return argv;
 }
 
