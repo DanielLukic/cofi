@@ -43,7 +43,7 @@ bookmarks read directly from every discovered profile's `Bookmarks` JSON file.
    `bookmarks`, display label `BOOKMARKS`, hide-on-esc modal behavior,
    initial selection index `0`, and slot storage enabled.
 2. The provider shortcut hint is exactly
-   `Shortcuts: Enter=Open  Ctrl+key=Assign slot  Alt+key=Recall slot`.
+   `Shortcuts: Enter=Open new window  Shift+Enter=Reuse Chrome  Ctrl+key=Assign slot  Alt+key=Recall slot`.
 3. The command surface registers primary command `bookmarks` with alias `bm`,
    description `Switch to bookmarks tab`, help format
    `bookmarks, bm [@SLOT|QUERY]`, and `keeps_open_on_hotkey_auto`.
@@ -81,8 +81,11 @@ bookmarks read directly from every discovered profile's `Bookmarks` JSON file.
     `No matching bookmarks found` as non-actionable.
 15. Pressing Enter on a row resolves the Chrome executable via
     `chrome_launch_resolve_executable`, builds argv via
-    `chrome_launch_build_argv(chrome_path, profile_dir, url)`, and delegates
-    to `detach_launch_argv_array`.
+    `chrome_launch_build_argv(chrome_path, profile_dir, url, TRUE)`, and
+    delegates to `detach_launch_argv_array`, opening the bookmark in a new
+    Chrome window. Pressing Shift+Enter builds argv with `new_window == FALSE`
+    so Chrome uses its default existing-window/process behavior. The provider
+    shortcut hint advertises both actions.
 16. Slot payloads use the format `bookmark:chrome:<profile_dir>:<url>`; row
     identity is `bookmark:<profile_dir>:<url>` (no chrome infix); payloads
     that overflow `SLOT_STORE_PAYLOAD_LEN` are rejected with a WARN and not

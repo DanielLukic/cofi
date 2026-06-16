@@ -28,6 +28,7 @@ static int g_registered_provider_id = -1;
 static char g_last_launch_arg0[512];
 static char g_last_launch_arg1[512];
 static char g_last_launch_arg2[512];
+static char g_last_launch_arg3[512];
 static CofiTabProvider g_registered_provider;
 
 void log_log(int level, const char *file, int line, const char *fmt, ...) {
@@ -75,6 +76,7 @@ static gboolean fake_launch_impl(const char *const *argv) {
     g_strlcpy(g_last_launch_arg0, argv && argv[0] ? argv[0] : "", sizeof(g_last_launch_arg0));
     g_strlcpy(g_last_launch_arg1, argv && argv[1] ? argv[1] : "", sizeof(g_last_launch_arg1));
     g_strlcpy(g_last_launch_arg2, argv && argv[2] ? argv[2] : "", sizeof(g_last_launch_arg2));
+    g_strlcpy(g_last_launch_arg3, argv && argv[3] ? argv[3] : "", sizeof(g_last_launch_arg3));
     return TRUE;
 }
 
@@ -90,7 +92,8 @@ static void reset_state(AppData *app) {
     g_exit_command_mode_calls = 0;
     g_hide_window_calls = 0;
     g_registered_provider_id = -1;
-    g_last_launch_arg0[0] = g_last_launch_arg1[0] = g_last_launch_arg2[0] = '\0';
+    g_last_launch_arg0[0] = g_last_launch_arg1[0] = '\0';
+    g_last_launch_arg2[0] = g_last_launch_arg3[0] = '\0';
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     chrome_launch_set_program_resolver_test_hook(fake_resolver);
     bookmarks_provider_set_launch_impl_for_test(fake_launch_impl);
@@ -195,7 +198,7 @@ static void test_row_identity_and_match_string(void) {
                 g_str_has_prefix(bookmarks_match_string(&app, 0), "[bm]"));
 }
 
-static void test_enter_launches_url(void) {
+static void test_enter_launches_url_in_new_window(void) {
     AppData app;
     reset_state(&app);
     seed_two_bookmarks();
@@ -206,8 +209,28 @@ static void test_enter_launches_url(void) {
                 strcmp(g_last_launch_arg0, "/usr/bin/google-chrome") == 0);
     ASSERT_TRUE("launch profile flag",
                 strcmp(g_last_launch_arg1, "--profile-directory=Default") == 0);
-    ASSERT_TRUE("launch url",
+    ASSERT_TRUE("enter launch new-window flag",
+                strcmp(g_last_launch_arg2, "--new-window") == 0);
+    ASSERT_TRUE("enter launch url",
+                strcmp(g_last_launch_arg3, "https://first.example/p") == 0);
+}
+
+static void test_shift_enter_launches_url_without_new_window(void) {
+    AppData app;
+    reset_state(&app);
+    seed_two_bookmarks();
+    CofiActionStatus status = bookmarks_on_enter_pressed(&app, 0, 0, "",
+                                                         GDK_SHIFT_MASK);
+    ASSERT_TRUE("shift enter returns hide", status == COFI_HANDLED_HIDE);
+    ASSERT_TRUE("shift launch called once", g_launch_calls == 1);
+    ASSERT_TRUE("shift launch path is resolved chrome",
+                strcmp(g_last_launch_arg0, "/usr/bin/google-chrome") == 0);
+    ASSERT_TRUE("shift launch profile flag",
+                strcmp(g_last_launch_arg1, "--profile-directory=Default") == 0);
+    ASSERT_TRUE("shift launch url at slot 2",
                 strcmp(g_last_launch_arg2, "https://first.example/p") == 0);
+    ASSERT_TRUE("shift launch has no slot 3",
+                g_last_launch_arg3[0] == '\0');
 }
 
 static void test_slot_payload_roundtrip(void) {
@@ -224,8 +247,10 @@ static void test_slot_payload_roundtrip(void) {
     ASSERT_TRUE("recall launched once", g_launch_calls == 1);
     ASSERT_TRUE("recall uses profile from payload",
                 strcmp(g_last_launch_arg1, "--profile-directory=Profile 7") == 0);
+    ASSERT_TRUE("recall uses new-window flag",
+                strcmp(g_last_launch_arg2, "--new-window") == 0);
     ASSERT_TRUE("recall preserves url with embedded ?x=1",
-                strcmp(g_last_launch_arg2, "https://second.example/path?x=1") == 0);
+                strcmp(g_last_launch_arg3, "https://second.example/path?x=1") == 0);
 }
 
 static void test_slot_payload_oversize_rejected(void) {
@@ -257,7 +282,7 @@ static void test_slot_payload_preserves_colons_in_url(void) {
     CofiActionStatus status = bookmarks_slot_recall(&app, payload);
     ASSERT_TRUE("colon-url recall returns hide", status == COFI_HANDLED_HIDE);
     ASSERT_TRUE("colon-url URL preserved end-to-end",
-                strcmp(g_last_launch_arg2,
+                strcmp(g_last_launch_arg3,
                        "https://example.test/a:b:c:d?q=1:2") == 0);
 }
 
@@ -283,8 +308,10 @@ static void test_command_at_slot_recalls(void) {
     CofiActionStatus status = bookmarks_on_command_args(&app, "@a");
     ASSERT_TRUE("command @slot returns hide", status == COFI_HANDLED_HIDE);
     ASSERT_TRUE("command @slot launched once", g_launch_calls == 1);
+    ASSERT_TRUE("command @slot uses new-window flag",
+                strcmp(g_last_launch_arg2, "--new-window") == 0);
     ASSERT_TRUE("command @slot url",
-                strcmp(g_last_launch_arg2, "https://slot.example/") == 0);
+                strcmp(g_last_launch_arg3, "https://slot.example/") == 0);
     slot_store_free(&app.harpoon.store);
 }
 
@@ -331,7 +358,7 @@ static void test_provider_registration_flags(void) {
                 g_registered_provider.slot_store_enabled == 1);
     ASSERT_TRUE("shortcut hint verbatim",
                 strcmp(g_registered_provider.shortcut_hint,
-                       "Shortcuts: Enter=Open  Ctrl+key=Assign slot  Alt+key=Recall slot") == 0);
+                       "Shortcuts: Enter=Open new window  Shift+Enter=Reuse Chrome  Ctrl+key=Assign slot  Alt+key=Recall slot") == 0);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -356,7 +383,8 @@ int main(void) {
     test_format_bookmark_row();
     test_folder_truncated_in_display();
     test_row_identity_and_match_string();
-    test_enter_launches_url();
+    test_enter_launches_url_in_new_window();
+    test_shift_enter_launches_url_without_new_window();
     test_slot_payload_roundtrip();
     test_slot_payload_oversize_rejected();
     test_slot_payload_preserves_colons_in_url();

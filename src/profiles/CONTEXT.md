@@ -28,7 +28,8 @@ selected profile, and assign or recall profiles through provider slots.
 - `browser_profiles_filter()`
 - `browser_profiles_format_match_text()`
 - `browser_profiles_launch()`
-- `chrome_launch_build_argv()` (argv assembly for Chrome with optional URL)
+- `chrome_launch_build_argv()` (argv assembly for Chrome with optional URL;
+  `new_window == TRUE` inserts `--new-window` before a non-empty URL)
 - `chrome_launch_resolve_executable()` (Chrome executable lookup with stable fallback)
 
 ## Acceptance Criteria
@@ -94,4 +95,5 @@ selected profile, and assign or recall profiles through provider slots.
 - Browser launches are argv-based and do not pass through a shell.
 - `chrome_launch.{h,c}` factor out argv construction and executable resolution
   so the bookmarks subsystem can reuse them without depending on the full
-  `BrowserProfilesMode` filtering surface. argv supports an optional URL slot.
+  `BrowserProfilesMode` filtering surface. argv supports an optional URL slot
+  and optional `--new-window` insertion before that URL.

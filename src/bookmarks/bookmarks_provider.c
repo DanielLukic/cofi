@@ -124,7 +124,8 @@ static void bookmarks_on_query_changed(AppData *app, const char *query) {
     reset_selection(app);
 }
 
-static gboolean launch_bookmark(const char *profile_dir, const char *url) {
+static gboolean launch_bookmark(const char *profile_dir, const char *url,
+                                gboolean new_window) {
     if (!profile_dir || !url || url[0] == '\0') return FALSE;
 
     /* Locate the chrome path: build a transient entry shaped like a Chrome
@@ -142,7 +143,7 @@ static gboolean launch_bookmark(const char *profile_dir, const char *url) {
         return FALSE;
     }
 
-    char **argv = chrome_launch_build_argv(chrome_path, profile_dir, url, TRUE);
+    char **argv = chrome_launch_build_argv(chrome_path, profile_dir, url, new_window);
     gboolean ok = dispatch_launch((const char *const *)argv);
     if (ok) {
         log_info("bookmarks: opened %s in profile '%s' via %s",
@@ -157,10 +158,11 @@ static CofiActionStatus bookmarks_on_enter_pressed(AppData *app, int filtered_id
                                                    int raw_idx,
                                                    const char *entry_text,
                                                    int modifier_state) {
-    (void)app; (void)filtered_idx; (void)entry_text; (void)modifier_state;
+    (void)app; (void)filtered_idx; (void)entry_text;
     const BookmarkEntry *entry = entry_at_row(raw_idx);
     if (!entry) return COFI_NO_OP;
-    return launch_bookmark(entry->profile_dir, entry->url)
+    gboolean new_window = (modifier_state & GDK_SHIFT_MASK) == 0;
+    return launch_bookmark(entry->profile_dir, entry->url, new_window)
         ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
@@ -210,7 +212,7 @@ static CofiActionStatus bookmarks_slot_recall(AppData *app, const char *payload)
         log_warn("bookmarks: slot has invalid payload: %s", payload ? payload : "(null)");
         return COFI_ACTION_ERROR;
     }
-    return launch_bookmark(profile_dir, url)
+    return launch_bookmark(profile_dir, url, TRUE)
         ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
@@ -232,7 +234,7 @@ static CofiActionStatus bookmarks_on_command_args(AppData *app, const char *args
     }
     const BookmarkEntry *entry = entry_at_row(0);
     if (!entry) return COFI_ACTION_ERROR;
-    return launch_bookmark(entry->profile_dir, entry->url)
+    return launch_bookmark(entry->profile_dir, entry->url, TRUE)
         ? COFI_HANDLED_HIDE : COFI_ACTION_ERROR;
 }
 
@@ -277,7 +279,7 @@ void bookmarks_provider_register(void) {
     s_bookmarks_provider.id = "bookmarks";
     s_bookmarks_provider.display_name = "BOOKMARKS";
     s_bookmarks_provider.shortcut_hint =
-        "Shortcuts: Enter=Open  Ctrl+key=Assign slot  Alt+key=Recall slot";
+        "Shortcuts: Enter=Open new window  Shift+Enter=Reuse Chrome  Ctrl+key=Assign slot  Alt+key=Recall slot";
     s_bookmarks_provider.required = 0;
     s_bookmarks_provider.hidden_by_default = 1;
     s_bookmarks_provider.modal_policy = COFI_MODAL_HIDE_ON_ESC;
