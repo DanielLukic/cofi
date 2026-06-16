@@ -564,10 +564,14 @@ static void test_aba_best_alignment(void) {
 
     char display[1024];
     compose_display_string(&app.history[0], display, sizeof(display));
-    int pairs = consecutive_word_start_pairs("aba", display);
-    printf("  aba on '%s': pairs=%d (want 2)\n", display, pairs);
+    score_t raw = fzf_fuzzy_match("aba", display);
+    score_t score = tier_score_string("aba", display);
+    score_t expected = raw + 2 * CONSECUTIVE_WORD_START_PAIR_BONUS;
+    printf("  aba on '%s': raw=%.0f score=%.0f expected=%.0f\n",
+           display, raw, score, expected);
 
-    ASSERT_TRUE("aba best-alignment: 2 adjacent word-start pairs", pairs == 2);
+    ASSERT_TRUE("aba best-alignment: 2 adjacent word-start pairs",
+                score == expected);
 }
 
 /* ------------------------------------------------------------------ */

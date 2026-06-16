@@ -145,6 +145,7 @@ tab_header_obj = src/ui/tab_header.o
 tab_metadata_obj = src/ui/tab_metadata.o
 tab_switching_obj = src/ui/tab_switching.o
 tinyexpr_obj = src/core/utils/tinyexpr.o
+tier_score_obj = src/matching/tier_score.o
 utf8_columns_obj = src/core/utils/utf8_columns.o
 utils_obj = src/core/utils/utils.o
 window_display_title_obj = src/ui/window_display_title.o
@@ -575,17 +576,17 @@ test_command_candidates: test/test_command_candidates.c test/command_handler_stu
 
 # Build filter ranking behavioral tests
 # (includes filter.c directly with stubs; reproduces workspace-bonus ranking bug)
-test_filter_ranking: test/test_filter_ranking.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj)
-	$(CC) $(CFLAGS) -o test/test_filter_ranking test/test_filter_ranking.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
+test_filter_ranking: test/test_filter_ranking.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj)
+	$(CC) $(CFLAGS) -o test/test_filter_ranking test/test_filter_ranking.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
 
-test_initials_ranking: test/test_initials_ranking.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj)
-	$(CC) $(CFLAGS) -o test/test_initials_ranking test/test_initials_ranking.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
+test_initials_ranking: test/test_initials_ranking.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj)
+	$(CC) $(CFLAGS) -o test/test_initials_ranking test/test_initials_ranking.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
 
-test_ranking_corpus: test/test_ranking_corpus.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj)
-	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c $(fzf_algo_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
+test_ranking_corpus: test/test_ranking_corpus.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj)
+	$(CC) $(CFLAGS) -o test/test_ranking_corpus test/test_ranking_corpus.c $(fzf_algo_obj) $(tier_score_obj) $(log_obj) $(window_display_title_obj) $(LDFLAGS)
 
-test_filter_title_compose: test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
-	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
+test_filter_title_compose: test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(tier_score_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj)
+	$(CC) $(CFLAGS) -o test/test_filter_title_compose test/test_filter_title_compose.c $(window_display_title_obj) $(match_entry_obj) $(names_store_obj) $(window_matcher_obj) $(fzf_algo_obj) $(tier_score_obj) $(cofi_json_io_obj) $(log_obj) $(utils_obj) $(LDFLAGS)
 
 # Build apps tab behavioral tests
 # (includes apps.c directly; tests filter/sort logic with synthetic data, not GIO launch)

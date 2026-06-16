@@ -34,6 +34,8 @@ that higher layers use to find, restore, name, and target windows.
 ## Public Surface
 - `has_match()`, `match()`, `match_positions()`, `fzf_has_match()`, and
   `fzf_fuzzy_match()`
+- `tier_score_string()` for cross-provider tiered ranking over a caller-owned
+  display string
 - `MatchEntry`, `MatchEntryManager`, `match_entry_manager_init()`,
   `match_entry_is_bound_window()`, `match_entry_reassign_live_windows()`,
   `match_entry_gc()`,
@@ -121,3 +123,5 @@ that higher layers use to find, restore, name, and target windows.
   array indexes in rules, Harpoon, geom, or provider rows.
 - The legacy matcher and fzf-style matcher both remain public because different
   providers and tests rely on their exact scoring behavior.
+- `tier_score_string()` is the shared string scorer extracted from the Windows
+  tab ranking path; window-only bonuses stay in `src/ui/window_filter.c`.
