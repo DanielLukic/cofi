@@ -219,7 +219,6 @@ static void populate_entry(AppEntry *e, GAppInfo *info) {
 
     e->source_kind = APP_SOURCE_DESKTOP;
     e->action_id = SYSTEM_ACTION_NONE;
-    e->exec_path[0] = '\0';
     e->info = info;
 }
 
@@ -283,13 +282,6 @@ void apps_launch(const AppEntry *entry) {
 
     if (entry->source_kind == APP_SOURCE_SYSTEM) {
         system_actions_invoke(entry);
-        return;
-    }
-
-    if (entry->source_kind == APP_SOURCE_PATH) {
-        if (!detach_launch_in_terminal_cmd(entry->exec_path)) {
-            log_error("Failed to launch PATH binary '%s'", entry->exec_path);
-        }
         return;
     }
 

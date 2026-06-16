@@ -295,9 +295,12 @@ See also:
 
 - **Filter output cap is MAX_APPS (512), applied at copy-out — NOT during scoring.** Score ALL substring-matching entries first (into `scored[MAX_PATH_BINS]`), sort by score descending, then truncate to MAX_APPS. Applying the cap during the scoring loop drops high-score entries that appear late in the alphabetically-sorted cache when more than 512 entries match. (Was the audit-batch-b bug; regression-tested by `test_large_match_set_prefers_high_score`.)
 
-- **GFileMonitor cap is MAX_PATH_MONITORS (64) PATH directories.** Defined in `src/path_binaries.h`. If this needs to become configurable, change the constant there.
+- **GFileMonitor cap is MAX_PATH_MONITORS (64) PATH directories.** Defined in `src/path/path_binaries.h`. If this needs to become configurable, change the constant there.
 
-- **`$` routing lives in `src/tab_switching.c:filter_apps`.** The check `if (query[0] == '$')` redirects to `path_binaries_filter`. Do not add a second copy of this check elsewhere; PATH binaries would silently receive both the raw query and the stripped query.
+- **`$` is a Path-tab prefix, not an Apps submode.** Prefix routing claims `$`
+  through the Path provider registration. Do not reintroduce `$` stripping or
+  path-filter dispatch inside Apps; that recreates the split-brain routing bug
+  this subsystem split removed.
 
 ## Process Detachment
 

@@ -442,6 +442,7 @@ Launch installed desktop applications from a dedicated Apps tab.
 - Enter launches the selected app detached and closes cofi
 - `--applications` starts directly on the Apps tab
 - `:show apps` switches to the Apps tab
+- `\` surfaces the Apps tab from the entry field
 
 ### System Actions
 
@@ -449,18 +450,6 @@ Six system actions are available as fixed entries in the Apps tab:
 
 - **Lock** — screen lock via shell fallback chain: `xdg-screensaver` → `mate-screensaver-command` → `xscreensaver-command` → `loginctl` → logind D-Bus `Session.Lock`
 - **Suspend / Hibernate / Logout / Reboot / Shutdown** — via logind D-Bus (`org.freedesktop.login1`)
-
-### $PATH Mode
-
-Typing `$` as the first character in the Apps search entry switches to `$PATH` binary mode:
-
-- Query after `$` filters the cached PATH binary list by substring (case-insensitive pre-filter), then ranks surviving matches by fzf score descending.
-- Cache cap: 4096 entries (MAX_PATH_BINS). On overflow a single warning is logged; later PATH entries are dropped.
-- Filter output cap: 512 entries (MAX_APPS). Scoring runs across ALL substring-matched entries first; the cap is applied at copy-out after sorting, not during scoring.
-- All PATH directories are watched via GFileMonitor (cap: 64 directories). File creates/deletes in PATH dirs update the cache incrementally.
-- **Basename dedupe:** when the same binary name appears in multiple PATH dirs, the first occurrence (highest-priority PATH dir) wins.
-- PATH binaries are launched in a terminal by default (TFD-564).
-- `$` routing lives in `src/tab_switching.c:filter_apps`. Do not add a second `$` check elsewhere.
 
 ### Apps Matching And Ranking
 
@@ -470,9 +459,27 @@ Apps tab matching is local to the Apps launcher and does not reuse Windows-tab M
 - `generic_name` and `keywords` are token-matched to avoid cross-token false positives
 - Alphabetical order is only used as a tie-breaker within the same ranking tier
 
+## Path Tab
+
+Launch executables discovered on the user `PATH` from a dedicated hidden tab.
+
+- `:show path` switches to the Path tab
+- `:path`, `:binaries`, `:bin`, and `:exe` surface the same tab
+- `$` surfaces the Path tab from the entry field
+- Enter launches the selected executable in a terminal by default (TFD-564)
+- Hidden by default; it is not Tab-cycled until surfaced
+
+### Path Discovery And Ranking
+
+- Query filters the cached PATH binary list by substring (case-insensitive pre-filter), then ranks surviving matches by fzf score descending.
+- Cache cap: 4096 entries (MAX_PATH_BINS). On overflow a single warning is logged; later PATH entries are dropped.
+- Filter output cap: 512 entries (MAX_APPS). Scoring runs across ALL substring-matched entries first; the cap is applied at copy-out after sorting, not during scoring.
+- All PATH directories are watched via GFileMonitor (cap: 64 directories). File creates/deletes in PATH dirs update the cache incrementally.
+- **Basename dedupe:** when the same binary name appears in multiple PATH dirs, the first occurrence (highest-priority PATH dir) wins.
+
 ### Terminal Detection
 
-When launching a terminal app or PATH binary, the terminal is detected via this priority chain:
+When launching a terminal app or Path-tab executable, the terminal is detected via this priority chain:
 
 1. `$TERMINAL` env var (if the named binary resolves in PATH)
 2. Desktop-environment configured terminal:
@@ -484,7 +491,8 @@ When launching a terminal app or PATH binary, the terminal is detected via this 
 
 ### Process Detachment
 
-All Apps-tab launches (desktop entries and PATH binaries) use `detach_launch_properly`:
+Desktop-app launches use `detach_launch_properly`; Path-tab executable
+launches use the terminal detach helper:
 
 - Primary: `systemd-run --user --scope -- <argv>` — places the launched process in its own transient systemd scope, completely outside cofi's cgroup.
 - Fallback: fork + setsid + double-fork + execvp. An errno-pipe (`pipe()` + `FD_CLOEXEC` on write end) propagates exec failure back to the parent — a non-empty pipe read means execvp failed.
@@ -566,29 +574,30 @@ Chrome bookmarks across every discovered profile, triggered via `:bookmarks` or 
 Nineteen tabs exist; visibility is controlled per-tab (TFD-545):
 
 - **PINNED** (always shown, always Tab-reachable): Windows, Apps
-- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Bluetooth, Files, Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles, Bookmarks
+- **HIDDEN by default** (only surfaced by `:show <verb>` or explicit flows): Path, Bluetooth, Files, Sessions, Workspaces, Harpoon, Matching, Layouts, Config, Hotkeys, Rules, Calc, Sinks, Run, Proc, Projects, Profiles, Bookmarks
 
 Tab/Shift+Tab cycles PINNED tabs plus any currently-SURFACED tabs. Secondary tabs do not appear in Tab cycling until surfaced.
 
 1. **Windows** — main window list with search and MRU ordering *(PINNED)*
-2. **Apps** — installed desktop application launcher + system actions + `$PATH` binaries *(PINNED)*
-3. **Bluetooth** — paired BlueZ device list; Enter toggles connect/disconnect *(HIDDEN by default)*
-4. **Files** — fuzzy file finder under `$HOME` via `fd` *(HIDDEN by default)*
-5. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
-6. **Workspaces** — workspace list and management *(HIDDEN by default)*
-7. **Harpoon** — harpoon slot assignments (Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
-8. **Matching** — custom window name assignments (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
-9. **Layouts** — saved window layouts (Ctrl+D/Delete delete, Ctrl+L workspace restore, Ctrl+T enable/disable, Ctrl+P edit pattern) *(HIDDEN by default)*
-10. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
-11. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
-12. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit commands, Ctrl+P edit pattern, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
-13. **Calc** — calculator modal *(HIDDEN by default)*
-14. **Sinks** — audio sink selection *(HIDDEN by default)*
-15. **Run** — command runner modal *(HIDDEN by default)*
-16. **Proc** — process manager *(HIDDEN by default)*
-17. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
-18. **Profiles** — browser profile launcher *(HIDDEN by default)*
-19. **Bookmarks** — Chrome bookmarks across every profile *(HIDDEN by default)*
+2. **Apps** — installed desktop application launcher + system actions *(PINNED)*
+3. **Path** — PATH executable launcher *(HIDDEN by default)*
+4. **Bluetooth** — paired BlueZ device list; Enter toggles connect/disconnect *(HIDDEN by default)*
+5. **Files** — fuzzy file finder under `$HOME` via `fd` *(HIDDEN by default)*
+6. **Sessions** — Claude/Codex session search and resume *(HIDDEN by default)*
+7. **Workspaces** — workspace list and management *(HIDDEN by default)*
+8. **Harpoon** — harpoon slot assignments (Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+9. **Matching** — custom window name assignments (Ctrl+E edit name, Ctrl+P edit pattern, Ctrl+D delete) *(HIDDEN by default)*
+10. **Layouts** — saved window layouts (Ctrl+D/Delete delete, Ctrl+L workspace restore, Ctrl+T enable/disable, Ctrl+P edit pattern) *(HIDDEN by default)*
+11. **Config** — all config options (Ctrl+T toggle/cycle, Ctrl+E edit) *(HIDDEN by default)*
+12. **Hotkeys** — hotkey bindings (Ctrl+E edit, Ctrl+D delete) *(HIDDEN by default)*
+13. **Rules** — title-pattern automation rules (Ctrl+A add, Ctrl+E edit commands, Ctrl+P edit pattern, Ctrl+D delete, Ctrl+X replay selected, Ctrl+Shift+X replay all) *(HIDDEN by default)*
+14. **Calc** — calculator modal *(HIDDEN by default)*
+15. **Sinks** — audio sink selection *(HIDDEN by default)*
+16. **Run** — command runner modal *(HIDDEN by default)*
+17. **Proc** — process manager *(HIDDEN by default)*
+18. **Projects** — tmux/zellij sessions and zoxide folders *(HIDDEN by default)*
+19. **Profiles** — browser profile launcher *(HIDDEN by default)*
+20. **Bookmarks** — Chrome bookmarks across every profile *(HIDDEN by default)*
 
 - Selection state is preserved per tab when switching
 

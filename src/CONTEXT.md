@@ -39,9 +39,10 @@ See `CLAUDE.md` for the contributor contract and the full recursive
 - `harpoon/` - persistent window slots, provider slot key handling, and per-workspace visible-window digit slots.
 - `matching/` - fuzzy ranking, pure match-entry identities, and pattern editing.
 - `names/` - custom names keyed one-to-one by match id, Names provider, and name overlays.
+- `path/` - PATH executable discovery, ranking, monitoring, and provider tab.
 - `proc/` - process-list provider and process actions.
 - `profiles/` - browser profile discovery and provider tab.
-- `projects/` - tmux/zellij sessions, project folders, remote project scope, and PATH binary cache.
+- `projects/` - tmux/zellij sessions, project folders, and remote project scope.
 - `providers/` - shared provider interface, registry, filtered maps, and built-in registration order.
 - `run/` - run modal, command launching, and run provider.
 - `rules/` - saved window rules, evaluation state, replay, and rules provider overlays.

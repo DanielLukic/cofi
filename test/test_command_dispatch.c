@@ -38,6 +38,7 @@ static const CommandSpec s_provider_commands[] = {
     {.primary = "config", .aliases = {"conf", "cfg", NULL}, .owner_provider_id = "config", .handler = cmd_run, .description = "Show current configuration", .help_format = "config, conf", .keeps_open_on_hotkey_auto = 1},
     {.primary = "hotkeys", .aliases = {"hotkey", "hk", NULL}, .owner_provider_id = "hotkeys", .handler = cmd_run, .description = "Manage system hotkey bindings", .help_format = "hotkeys [<key> [command] | <key>]", .keeps_open_on_hotkey_auto = 1},
     {.primary = "apps", .aliases = {"applications", "app", NULL}, .owner_provider_id = "apps", .handler = cmd_run, .description = "Switch to applications tab", .help_format = "apps, app, applications", .keeps_open_on_hotkey_auto = 1},
+    {.primary = "path", .aliases = {"binaries", "bin", "exe", NULL}, .owner_provider_id = "path", .handler = cmd_run, .description = "Switch to PATH executables tab", .help_format = "path, binaries, bin, exe", .keeps_open_on_hotkey_auto = 1},
 };
 
 static void register_provider_commands(void) {
@@ -652,11 +653,11 @@ static void test_all_commands_covered(void) {
     printf("\n--- Coverage check ---\n");
     int table_count = cofi_command_count();
     // 27 core commands + 14 provider-owned commands.
-    if (table_count == 42) {
+    if (table_count == 43) {
         printf("PASS: command registry has %d commands (all covered)\n", table_count);
         tests_passed++;
     } else {
-        printf("FAIL: command registry has %d commands, test expects 42 - update test!\n", table_count);
+        printf("FAIL: command registry has %d commands, test expects 43 - update test!\n", table_count);
         tests_failed++;
     }
 }

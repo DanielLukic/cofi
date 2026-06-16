@@ -1,5 +1,5 @@
 #include "core/app/app_setup.h"
-#include "projects/path_binaries.h"
+#include "path/path_binaries.h"
 #include "run/run_mode.h"
 
 #include <gdk/gdkx.h>

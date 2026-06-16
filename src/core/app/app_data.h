@@ -22,6 +22,7 @@
 #include "apps/apps.h"
 #include "sinks/sinks.h"
 #include "proc/proc.h"
+#include "path/path_binaries.h"
 #include "projects/projects.h"
 #include "files/files_search.h"
 #include "daemon/daemon_socket.h"
@@ -109,8 +110,6 @@ typedef struct {
     gboolean suppress_entry_change; // Guard while programmatically updating the entry text
 } RunMode;
 
-typedef enum { APPS_MODE_DEFAULT, APPS_MODE_PATH } AppsMode;
-
 #define PROVIDER_ID_MAX SESSION_PATH_LEN
 
 // Selection management structure
@@ -197,6 +196,8 @@ typedef struct AppData {
     // Apps tab data
     AppEntry filtered_apps[MAX_APPS];
     int filtered_apps_count;
+    PathEntry filtered_path[MAX_APPS];
+    int filtered_path_count;
     int filtered_emoji[EMOJI_COUNT];
     int filtered_emoji_count;
 
@@ -206,7 +207,6 @@ typedef struct AppData {
     ProjectsMode projects_mode;
     FilesMode files_mode;
     BluetoothMode bluetooth_mode;
-    AppsMode apps_mode;
 
     struct {
         int target_match_id;

@@ -21,16 +21,12 @@ static int tests_passed = 0;
 
 static int g_apps_load_calls;
 static int g_apps_filter_calls;
-static int g_path_filter_calls;
-static int g_path_ensure_calls;
 static int g_apps_launch_calls;
 static int g_reset_selection_calls;
 static int g_exit_command_mode_calls;
 static int g_surface_tab_calls;
 static TabMode g_last_surface_tab;
-static gboolean g_path_scanning;
 static char g_last_filter_query[64];
-static char g_last_path_query[64];
 static const AppEntry *g_last_launched_app;
 static CofiTabProvider g_registered_provider;
 static int g_registered_provider_id;
@@ -53,22 +49,6 @@ void apps_filter(const char *query, AppEntry *out, int *out_count) {
 void apps_launch(const AppEntry *entry) {
     g_apps_launch_calls++;
     g_last_launched_app = entry;
-}
-
-void path_binaries_ensure_loaded(AppData *app) {
-    (void)app;
-    g_path_ensure_calls++;
-}
-
-void path_binaries_filter(const char *query, AppEntry *out, int *out_count) {
-    g_path_filter_calls++;
-    g_strlcpy(g_last_path_query, query ? query : "", sizeof(g_last_path_query));
-    if (out_count) *out_count = 0;
-    (void)out;
-}
-
-gboolean path_binaries_is_scanning(void) {
-    return g_path_scanning;
 }
 
 void reset_selection(AppData *app) {
@@ -113,16 +93,12 @@ static void reset_state(AppData *app) {
     memset(app, 0, sizeof(*app));
     g_apps_load_calls = 0;
     g_apps_filter_calls = 0;
-    g_path_filter_calls = 0;
-    g_path_ensure_calls = 0;
     g_apps_launch_calls = 0;
     g_reset_selection_calls = 0;
     g_exit_command_mode_calls = 0;
     g_surface_tab_calls = 0;
     g_last_surface_tab = TAB_WINDOWS;
-    g_path_scanning = FALSE;
     g_last_filter_query[0] = '\0';
-    g_last_path_query[0] = '\0';
     g_last_launched_app = NULL;
     memset(&g_registered_provider, 0, sizeof(g_registered_provider));
     g_registered_provider_id = -1;
@@ -141,21 +117,6 @@ static void test_no_match_row(void) {
     ASSERT_TRUE("no-match is not actionable", row.row_flags == 0);
 }
 
-static void test_scanning_row_after_results(void) {
-    AppData app;
-    CofiRowCells row;
-    reset_state(&app);
-    app.filtered_apps_count = 1;
-    g_strlcpy(app.filtered_apps[0].name, "Firefox", sizeof(app.filtered_apps[0].name));
-    g_path_scanning = TRUE;
-
-    ASSERT_TRUE("result plus scanning row", apps_row_count(&app) == 2);
-
-    memset(&row, 0, sizeof(row));
-    apps_format_row(&app, 1, &row);
-    ASSERT_TRUE("scanning text", strcmp(row.cells[0].text, "Scanning PATH...") == 0);
-}
-
 static void test_enter_launches_real_row_only(void) {
     AppData app;
     reset_state(&app);
@@ -171,31 +132,14 @@ static void test_enter_launches_real_row_only(void) {
     ASSERT_TRUE("status row no-op", status == COFI_NO_OP);
 }
 
-static void test_query_routes_by_mode(void) {
+static void test_query_uses_apps_filter(void) {
     AppData app;
     reset_state(&app);
 
-    app.apps_mode = APPS_MODE_DEFAULT;
     apps_on_query_changed(&app, "fire");
     ASSERT_TRUE("default mode uses apps_filter", g_apps_filter_calls == 1 &&
                 strcmp(g_last_filter_query, "fire") == 0);
     ASSERT_TRUE("default query resets selection", g_reset_selection_calls == 1);
-
-    app.apps_mode = APPS_MODE_PATH;
-    apps_on_query_changed(&app, "git");
-    ASSERT_TRUE("path mode ensures PATH cache", g_path_ensure_calls == 1);
-    ASSERT_TRUE("path mode uses path filter", g_path_filter_calls == 1 &&
-                strcmp(g_last_path_query, "git") == 0);
-}
-
-static void test_leave_resets_mode(void) {
-    AppData app;
-    reset_state(&app);
-    app.apps_mode = APPS_MODE_PATH;
-
-    apps_on_leave(&app);
-
-    ASSERT_TRUE("leave resets Apps mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
 static void test_command_metadata(void) {
@@ -217,8 +161,7 @@ static void test_command_metadata(void) {
     ASSERT_TRUE("apps command keep-open policy",
                 s_apps_command.keeps_open_on_hotkey_auto == 1);
     ASSERT_TRUE("apps owns tab prefixes",
-                strcmp(s_apps_provider.tab_prefix_chars, "$\\") == 0);
-    ASSERT_TRUE("apps tab prefix hook set", s_apps_provider.on_tab_prefix != NULL);
+                strcmp(s_apps_provider.tab_prefix_chars, "\\") == 0);
 }
 
 static void test_command_handler_surfaces_tab(void) {
@@ -226,7 +169,6 @@ static void test_command_handler_surfaces_tab(void) {
     reset_state(&app);
     apps_provider_register();
     app.current_tab = TAB_WINDOWS;
-    app.apps_mode = APPS_MODE_PATH;
 
     gboolean result = s_apps_command.handler(&app, NULL, "");
 
@@ -235,7 +177,6 @@ static void test_command_handler_surfaces_tab(void) {
     ASSERT_TRUE("apps command surfaces Apps tab",
                 g_surface_tab_calls == 1 && g_last_surface_tab == (TabMode)g_registered_provider.tab_mode);
     ASSERT_TRUE("apps command records origin", app.prefix_origin_tab == TAB_WINDOWS);
-    ASSERT_TRUE("apps command resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
 int main(void) {
@@ -243,10 +184,8 @@ int main(void) {
     printf("===================\n\n");
 
     test_no_match_row();
-    test_scanning_row_after_results();
     test_enter_launches_real_row_only();
-    test_query_routes_by_mode();
-    test_leave_resets_mode();
+    test_query_uses_apps_filter();
     test_command_metadata();
     test_command_handler_surfaces_tab();
 

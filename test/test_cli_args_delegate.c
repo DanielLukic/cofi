@@ -152,18 +152,6 @@ static void test_cli_flag_to_opcode_round_trip_names(void) {
     }
 }
 
-static void test_applications_flag_resets_apps_mode(void) {
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.apps_mode = APPS_MODE_PATH;
-
-    char *argv[] = {(char *)"cofi", (char *)"--applications", NULL};
-    parse_args(&app, 2, argv);
-
-    ASSERT_TRUE("--applications resets apps_mode to DEFAULT",
-                app.apps_mode == APPS_MODE_DEFAULT);
-}
-
 static void test_show_flag_sets_delegate_and_name(void) {
     AppData app = {0};
     char *argv[] = {(char *)"cofi", (char *)"--show", (char *)"emoji", NULL};
@@ -200,7 +188,6 @@ int main(void) {
     test_last_delegate_flag_wins();
     test_delegate_flags_prepare_startup_mode_when_becoming_daemon();
     test_cli_flag_to_opcode_round_trip_names();
-    test_applications_flag_resets_apps_mode();
     test_show_flag_sets_delegate_and_name();
     test_show_unknown_still_sets_delegate_and_name();
     test_show_then_legacy_flag_legacy_wins();

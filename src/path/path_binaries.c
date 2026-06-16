@@ -1,25 +1,25 @@
-#include "projects/path_binaries.h"
+#include "path/path_binaries.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
 #include "core/app/app_data.h"
-#include "apps/apps_provider.h"
-#include "ui/display.h"
 #include "core/log/log.h"
 #include "matching/match.h"
+#include "path/path_provider.h"
+#include "ui/display.h"
 
 typedef struct {
     AppData *app;
-    AppEntry *entries;
+    PathEntry *entries;
     int count;
     gboolean final_chunk;
     int dir_count;
     gint64 scan_start_us;
 } PathMergeChunk;
 
-static AppEntry s_path_entries[MAX_PATH_BINS];
+static PathEntry s_path_entries[MAX_PATH_BINS];
 static int s_path_count = 0;
 static gboolean s_loaded = FALSE;
 static gboolean s_scanning = FALSE;
@@ -33,17 +33,17 @@ static GFileMonitor *s_path_monitors[MAX_PATH_MONITORS];
 static int s_path_monitor_count = 0;
 
 static int path_entry_cmp(const void *a, const void *b) {
-    const AppEntry *left = (const AppEntry *)a;
-    const AppEntry *right = (const AppEntry *)b;
+    const PathEntry *left = (const PathEntry *)a;
+    const PathEntry *right = (const PathEntry *)b;
     return g_utf8_collate(left->name, right->name);
 }
 
 static void sort_path_entries(void) {
-    qsort(s_path_entries, (size_t)s_path_count, sizeof(AppEntry), path_entry_cmp);
+    qsort(s_path_entries, (size_t)s_path_count, sizeof(PathEntry), path_entry_cmp);
 }
 
 typedef struct {
-    AppEntry entry;
+    PathEntry entry;
     score_t score;
 } ScoredPathEntry;
 
@@ -55,12 +55,12 @@ static int scored_path_entry_cmp(const void *a, const void *b) {
     return g_utf8_collate(left->entry.name, right->entry.name);
 }
 
-static void filter_path_entries(const char *query, AppEntry *out, int *out_count) {
+static void filter_path_entries(const char *query, PathEntry *out, int *out_count) {
     if (!out || !out_count) return;
 
     if (!query || query[0] == '\0') {
         int count = s_path_count < MAX_APPS ? s_path_count : MAX_APPS;
-        memcpy(out, s_path_entries, (size_t)count * sizeof(AppEntry));
+        memcpy(out, s_path_entries, (size_t)count * sizeof(PathEntry));
         *out_count = count;
         return;
     }
@@ -117,21 +117,17 @@ static void clear_cache(void) {
     g_hash_table_remove_all(s_seen_by_name);
 }
 
-static void maybe_refresh_apps_tab(AppData *app) {
-    if (!app || app->current_tab != apps_tab_mode() || !app->entry) {
+static void maybe_refresh_path_tab(AppData *app) {
+    if (!app || app->current_tab != path_tab_mode() || !app->entry) {
         return;
     }
 
     const char *text = gtk_entry_get_text(GTK_ENTRY(app->entry));
-    if (app->apps_mode != APPS_MODE_PATH) {
-        return;
-    }
-
-    filter_apps(app, text);
+    path_binaries_filter(text, app->filtered_path, &app->filtered_path_count);
     update_display(app);
 }
 
-static gboolean path_entry_from_file(const char *full_path, const char *basename, AppEntry *out) {
+static gboolean path_entry_from_file(const char *full_path, const char *basename, PathEntry *out) {
     if (!full_path || !basename || !out) {
         return FALSE;
     }
@@ -144,14 +140,11 @@ static gboolean path_entry_from_file(const char *full_path, const char *basename
 
     memset(out, 0, sizeof(*out));
     g_strlcpy(out->name, basename, sizeof(out->name));
-    out->source_kind = APP_SOURCE_PATH;
-    out->action_id = SYSTEM_ACTION_NONE;
     g_strlcpy(out->exec_path, full_path, sizeof(out->exec_path));
-    out->info = NULL;
     return TRUE;
 }
 
-static void merge_entries(const AppEntry *entries, int count) {
+static void merge_entries(const PathEntry *entries, int count) {
     if (!entries || count <= 0) {
         return;
     }
@@ -159,7 +152,7 @@ static void merge_entries(const AppEntry *entries, int count) {
     ensure_seen_table();
 
     for (int i = 0; i < count; i++) {
-        const AppEntry *entry = &entries[i];
+        const PathEntry *entry = &entries[i];
         if (entry->name[0] == '\0' || entry->exec_path[0] == '\0') {
             continue;
         }
@@ -200,7 +193,7 @@ static gboolean merge_chunk_cb(gpointer data) {
                  chunk->dir_count);
     }
 
-    maybe_refresh_apps_tab(chunk->app ? chunk->app : s_last_app);
+    maybe_refresh_path_tab(chunk->app ? chunk->app : s_last_app);
 
     if (chunk->entries) {
         g_free(chunk->entries);
@@ -216,7 +209,7 @@ static gboolean merge_chunk_cb(gpointer data) {
 }
 
 static void queue_merge_chunk(AppData *app,
-                              const AppEntry *entries,
+                              const PathEntry *entries,
                               int count,
                               gboolean final_chunk,
                               int dir_count,
@@ -229,8 +222,8 @@ static void queue_merge_chunk(AppData *app,
     chunk->scan_start_us = scan_start_us;
 
     if (count > 0 && entries) {
-        chunk->entries = g_new0(AppEntry, count);
-        memcpy(chunk->entries, entries, sizeof(AppEntry) * (size_t)count);
+        chunk->entries = g_new0(PathEntry, count);
+        memcpy(chunk->entries, entries, sizeof(PathEntry) * (size_t)count);
     }
 
     g_idle_add(merge_chunk_cb, chunk);
@@ -337,7 +330,7 @@ static void scan_task_thread(GTask *task,
             continue;
         }
 
-        GArray *chunk = g_array_new(FALSE, FALSE, sizeof(AppEntry));
+        GArray *chunk = g_array_new(FALSE, FALSE, sizeof(PathEntry));
         const gchar *name = NULL;
         while ((name = g_dir_read_name(dir)) != NULL) {
             if (name[0] == '\0') {
@@ -347,7 +340,7 @@ static void scan_task_thread(GTask *task,
             char full_path[1024];
             g_snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, name);
 
-            AppEntry entry;
+            PathEntry entry;
             if (path_entry_from_file(full_path, name, &entry)) {
                 g_array_append_val(chunk, entry);
                 if ((int)chunk->len >= MAX_PATH_BINS) {
@@ -366,7 +359,7 @@ static void scan_task_thread(GTask *task,
 
         if (chunk->len > 0) {
             queue_merge_chunk(app,
-                              (const AppEntry *)chunk->data,
+                              (const PathEntry *)chunk->data,
                               (int)chunk->len,
                               FALSE,
                               dir_count,
@@ -433,7 +426,7 @@ static gboolean add_path_entry_if_new(const char *full_path) {
         return FALSE;
     }
 
-    AppEntry entry;
+    PathEntry entry;
     gboolean ok = path_entry_from_file(full_path, basename, &entry);
     if (!ok) {
         g_free(basename);
@@ -487,7 +480,7 @@ static void path_binaries_on_monitor_event(GFile *file,
     }
 
     if (changed) {
-        maybe_refresh_apps_tab(s_last_app);
+        maybe_refresh_path_tab(s_last_app);
     }
 
     g_free(path);
@@ -522,7 +515,7 @@ void path_binaries_ensure_loaded(AppData *app) {
     g_object_unref(task);
 }
 
-void path_binaries_filter(const char *query, AppEntry *out, int *out_count) {
+void path_binaries_filter(const char *query, PathEntry *out, int *out_count) {
     const gint64 start_us = g_get_monotonic_time();
     const char *safe_query = query ? query : "";
 
@@ -549,7 +542,7 @@ void path_binaries_shutdown(void) {
 
 #ifdef COFI_TESTING
 void path_binaries_merge_entries_test_hook(AppData *app,
-                                           const AppEntry *entries,
+                                           const PathEntry *entries,
                                            int count,
                                            gboolean final_chunk) {
     ensure_seen_table();
@@ -567,7 +560,7 @@ void path_binaries_merge_entries_test_hook(AppData *app,
         s_loaded = TRUE;
     }
 
-    maybe_refresh_apps_tab(app ? app : s_last_app);
+    maybe_refresh_path_tab(app ? app : s_last_app);
 }
 
 void path_binaries_on_monitor_event_test_hook(GFile *file,

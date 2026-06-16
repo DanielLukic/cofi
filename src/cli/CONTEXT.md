@@ -57,8 +57,7 @@ overrides, and daemon-delegation requests before the main application starts.
 18. `--command` and `-c` delegate startup to command mode and set
    `app->start_in_command_mode`.
 19. `--run` delegates startup to run mode and set `app->start_in_run_mode`.
-20. `--applications` delegates startup to the Applications tab opcode and sets
-   `app->apps_mode` to `APPS_MODE_DEFAULT`.
+20. `--applications` delegates startup to the Applications tab opcode.
 21. `--assign-slots` sets `app->assign_slots_and_exit` so startup can perform
    workspace slot assignment and terminate.
 22. When multiple delegate flags are present, the parser applies them in source
@@ -76,7 +75,7 @@ subsystem to C.
 
 `parse_command_line()` writes these `AppData` fields as its startup output
 surface: `startup_delegate_opcode`, `startup_delegate_tab_name`,
-`start_in_command_mode`, `start_in_run_mode`, `current_tab`, `apps_mode`,
+`start_in_command_mode`, `start_in_run_mode`, `current_tab`,
 `config.alignment`, `config.close_on_focus_loss`, and
 `assign_slots_and_exit`.
 

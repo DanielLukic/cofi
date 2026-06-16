@@ -277,7 +277,8 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_paragraph(out, "Reach a tab via the prefix or command shown. Windows and Apps are cycled with Tab; the rest surface on demand.", width);
     g_string_append_c(out, '\n');
     append_wrapped_line(out, "windows      >", "Window list", width);
-    append_wrapped_line(out, "apps         $ \\", "App launcher (default / all-apps)", width);
+    append_wrapped_line(out, "apps         \\\\ :apps", "Desktop apps and system actions", width);
+    append_wrapped_line(out, "path         $ :path", "PATH executable launcher", width);
     append_wrapped_line(out, "bluetooth    :bt :bluetooth", "Bluetooth device manager", width);
     append_wrapped_line(out, "files        :files", "File finder under $HOME", width);
     append_wrapped_line(out, "emoji        :emoji", "Emoji picker", width);
@@ -299,8 +300,8 @@ static void append_help_static_sections(GString *out, int width) {
     append_wrapped_line(out, ":", "Enter command mode (works even with active filter text)", width);
     append_wrapped_line(out, "!", "Enter run mode", width);
     append_wrapped_line(out, "=", "Enter calculator mode", width);
-    append_wrapped_line(out, "$", "Switch to Apps default mode", width);
-    append_wrapped_line(out, "\\", "Switch to Apps all-apps mode", width);
+    append_wrapped_line(out, "$", "Switch to PATH executables tab", width);
+    append_wrapped_line(out, "\\", "Switch to Apps tab", width);
     append_wrapped_line(out, ">", "Return to Windows tab", width);
 
     g_string_append(out, "\nHARPOON SLOTS\n\n");

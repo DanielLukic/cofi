@@ -389,7 +389,7 @@ run_apps_path_bin() {
         fi
         sleep 0.1
     done
-    [[ "$path_mode_ready" -eq 1 ]] || fail "$CASE_NAME: typing '$' did not trigger Apps PATH filtering"
+    [[ "$path_mode_ready" -eq 1 ]] || fail "$CASE_NAME: typing '$' did not trigger Path tab filtering"
 
     capture_and_compare "apps-path-bin.png"
 }

@@ -110,7 +110,8 @@ overlay_rules_obj = src/rules/overlay_rules.o
 overlay_sessions_obj = src/sessions/overlay_sessions.o
 prefix_tabs_obj = src/ui/prefix_tabs.o
 overlay_projects_obj = src/projects/overlay_projects.o
-path_binaries_obj = src/projects/path_binaries.o
+path_binaries_obj = src/path/path_binaries.o
+path_provider_obj = src/path/path_provider.o
 projects_obj = src/projects/projects.o
 projects_commands_obj = src/projects/projects_commands.o
 projects_exec_obj = src/projects/projects_exec.o
@@ -174,7 +175,7 @@ commands_objs = $(command_availability_obj) $(command_handlers_obj) $(command_ha
 providers_objs = $(builtin_plugins_obj) $(cofi_tab_provider_obj)
 calc_objs = $(calc_obj) $(tinyexpr_obj)
 config_objs = $(config_obj) $(config_provider_obj)
-projects_objs = $(overlay_projects_obj) $(path_binaries_obj) $(projects_obj) $(projects_commands_obj) $(projects_exec_obj) $(projects_folder_windows_obj) $(projects_parse_obj) $(projects_provider_obj) $(projects_refresh_obj) $(projects_remote_scope_obj) $(projects_remote_store_obj) $(projects_remote_windows_obj) $(projects_tmux_windows_obj) $(projects_window_env_obj) $(projects_zellij_windows_obj)
+projects_objs = $(overlay_projects_obj) $(projects_obj) $(projects_commands_obj) $(projects_exec_obj) $(projects_folder_windows_obj) $(projects_parse_obj) $(projects_provider_obj) $(projects_refresh_obj) $(projects_remote_scope_obj) $(projects_remote_store_obj) $(projects_remote_windows_obj) $(projects_tmux_windows_obj) $(projects_window_env_obj) $(projects_zellij_windows_obj)
 system_actions_objs = $(system_actions_obj)
 
 # Target executable
@@ -685,8 +686,8 @@ test_bluetooth_bluez: test/test_bluetooth_bluez.c
 # Build PATH binaries tests
 # (tests async-path cache dedupe/filtering, monitor hooks, and $-routing in Apps tab)
 # Note: path_binaries.c compiled inline with -DCOFI_TESTING to expose test hooks
-test_path_binaries: test/test_path_binaries.c src/projects/path_binaries.c $(match_obj) $(log_obj) $(tab_metadata_obj)
-	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_path_binaries test/test_path_binaries.c src/projects/path_binaries.c $(match_obj) $(log_obj) $(tab_metadata_obj) $(LDFLAGS)
+test_path_binaries: test/test_path_binaries.c src/path/path_binaries.c $(match_obj) $(log_obj) $(tab_metadata_obj)
+	$(CC) $(CFLAGS) -DCOFI_TESTING -o test/test_path_binaries test/test_path_binaries.c src/path/path_binaries.c $(match_obj) $(log_obj) $(tab_metadata_obj) $(LDFLAGS)
 
 # Build system actions tests
 # (tests load semantics and deterministic metadata for logind-backed actions)

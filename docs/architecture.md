@@ -58,7 +58,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
                 │  - cofi_tab_provider registry      │
                 │  - workspaces / harpoon / matching │
                 │  - config / hotkeys / rules / apps │
-                │  - calc / sinks / run / proc       │
+                │  - path / calc / sinks / run / proc│
                 │  - projects / profiles / bookmarks │
                 │  - history + filter + display      │
                 │  - config/state persistence        │
@@ -106,7 +106,7 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Providers and plugin architecture
 
-- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Bluetooth, Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Calc, Sinks, Run, Proc, Projects, Profiles, and Bookmarks.
+- **Provider tabs** — list-with-action surfaces registered through `CofiTabProvider`. Current provider tabs are Bluetooth, Sessions, Workspaces, Harpoon, Names, Config, Hotkeys, Rules, Apps, Path, Calc, Sinks, Run, Proc, Projects, Profiles, and Bookmarks.
 - **Dynamic tab handles** — provider tabs request `COFI_PROVIDER_DYNAMIC_TAB` and receive a runtime tab handle. `TabMode` is now core-only (`TAB_WINDOWS` plus the `TAB_COUNT` sentinel); provider tabs are enumerated through the registry.
 - **Enablement** — providers stay registered but can be disabled through config. Registry lookups for tab, command, and prefix surfaces fail closed for disabled providers. Required providers, currently Config, cannot be disabled.
 - **Commands** — commands register `CommandSpec` entries with `command_registry`. Provider command specs live in their provider modules; core commands live in the built-in core registration list. Provider-owned commands are hidden when that provider is disabled.
@@ -138,8 +138,8 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 - **`src/run/run_mode.c`** — `!` prefix; session-only history; detached shell launch.
 - **`src/apps/apps.c`** — desktop-app loader, Apps-local matching/ranking, detached launch.
+- **`src/path/`** — PATH executable discovery, async scan + monitor updates, ranking, and the hidden Path provider tab. `PathEntry` rows own the `path:<exec_path>` identity surface, and command aliases `path`/`binaries`/`bin`/`exe` surface the tab.
 - **`src/bluetooth/`** — provider / BlueZ glue / model split for the Bluetooth tab. Uses async-only GDBus against `org.bluez`, acquires the system bus lazily via a `BUS_UNINITIALIZED` → `BUS_ACQUIRING` → `BUS_READY` / `BUS_FAILED` state machine, and refreshes paired-device state on a 3-second provider `on_tick` cadence.
-- **`src/projects/path_binaries.c`** — async `$PATH` scan with `GFileMonitor` watchers.
 - **`src/system_actions/system_actions.c`** — logind D-Bus calls (Lock, Suspend, Hibernate, Logout, Reboot, Shutdown) with shell fallback (blocking/sync D-Bus; not the pattern for new D-Bus work — see `src/bluetooth/` for the async pattern).
 - **`src/daemon/detach_launch.c`** — shared detached-launch helpers (`systemd-run` primary, `fork+setsid` fallback).
 - **`src/geom/tiling.c`** — half/quarter/third/grid geometry calculation.

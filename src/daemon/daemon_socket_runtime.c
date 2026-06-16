@@ -104,7 +104,6 @@ static void show_tab_for_opcode(AppData *app, TabMode tab) {
 
     reset_interaction_modes(app);
 
-    app->apps_mode = APPS_MODE_DEFAULT;
     app->current_tab = TAB_WINDOWS;
     show_window(app);
 
@@ -224,7 +223,6 @@ void daemon_socket_dispatch_show_tab(AppData *app, const char *name) {
 
     refresh_focus_timestamp(app);
     reset_interaction_modes(app);
-    app->apps_mode = APPS_MODE_DEFAULT;
     app->current_tab = TAB_WINDOWS;
     show_window(app);
     cofi_surface_provider_command(app, name);

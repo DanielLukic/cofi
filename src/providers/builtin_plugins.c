@@ -14,6 +14,7 @@
 #include "daemon/hotkeys_provider.h"
 #include "matching/matching_provider.h"
 #include "names/names_provider.h"
+#include "path/path_provider.h"
 #include "proc/proc_provider.h"
 #include "profiles/profiles_provider.h"
 #include "rules/rules_provider.h"
@@ -26,6 +27,7 @@ void cofi_register_builtin_plugins(void) {
     cofi_register_core_commands();
     sessions_provider_register();
     apps_provider_register();
+    path_provider_register();
     bluetooth_provider_register();
     calc_provider_register();
     config_provider_register();

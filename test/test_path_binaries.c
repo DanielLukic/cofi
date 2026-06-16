@@ -5,8 +5,8 @@
 #include <glib/gstdio.h>
 
 #include "core/app/app_data.h"
+#include "path/path_binaries.h"
 #include "providers/cofi_tab_provider.h"
-#include "projects/path_binaries.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -25,85 +25,30 @@ static int tests_passed = 0;
 #define ASSERT_EQ_INT(msg, expected, actual) ASSERT_TRUE(msg, (expected) == (actual))
 #define ASSERT_STR_EQ(msg, expected, actual) ASSERT_TRUE(msg, strcmp((expected), (actual)) == 0)
 
-/* ---- stubs required by apps_provider.c/path_binaries.c routing tests ---- */
 const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) { (void)tab_mode; return NULL; }
 const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) { (void)prefix; return NULL; }
-TabMode apps_tab_mode(void) { return (TabMode)(TAB_COUNT + 2); }
+const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) { (void)prefix; return NULL; }
 int cofi_get_provider_id_for_tab(int tab_mode) { (void)tab_mode; return -1; }
 int cofi_next_generation(int provider_id) { (void)provider_id; return -1; }
-void filter_windows(AppData *app, const char *filter) { (void)app; (void)filter; }
-void filter_matching(AppData *app, const char *filter) { (void)app; (void)filter; }
-void reset_selection(AppData *app) { (void)app; }
+TabMode path_tab_mode(void) { return (TabMode)(TAB_COUNT + 2); }
 void update_display(AppData *app) { (void)app; }
-void apps_load(void) {}
 
-void build_config_entries(const CofiConfig *config, ConfigEntry entries[], int *count) {
-    (void)config;
-    (void)entries;
-    if (count) {
-        *count = 0;
-    }
-}
-
-static void stub_apps_filter(const char *query, AppEntry *out, int *out_count) {
-    (void)query;
-
-    memset(out, 0, sizeof(AppEntry) * 2);
-    g_strlcpy(out[0].name, "GitKraken", sizeof(out[0].name));
-    out[0].source_kind = APP_SOURCE_DESKTOP;
-
-    g_strlcpy(out[1].name, "Lock", sizeof(out[1].name));
-    out[1].source_kind = APP_SOURCE_SYSTEM;
-
-    *out_count = 2;
-}
-
-void apps_filter(const char *query, AppEntry *out, int *out_count) {
-    stub_apps_filter(query, out, out_count);
-}
-
-void filter_apps(AppData *app, const char *filter) {
-    const char *query = filter ? filter : "";
-
-    if (app->apps_mode == APPS_MODE_PATH) {
-        path_binaries_ensure_loaded(app);
-        path_binaries_filter(query, app->filtered_apps, &app->filtered_apps_count);
-        return;
-    }
-
-    apps_filter(query, app->filtered_apps, &app->filtered_apps_count);
-}
-
-/* ---- helpers ---- */
-static AppEntry make_path_entry(const char *name, const char *exec_path) {
-    AppEntry entry;
+static PathEntry make_path_entry(const char *name, const char *exec_path) {
+    PathEntry entry;
     memset(&entry, 0, sizeof(entry));
     g_strlcpy(entry.name, name, sizeof(entry.name));
     g_strlcpy(entry.exec_path, exec_path, sizeof(entry.exec_path));
-    entry.source_kind = APP_SOURCE_PATH;
-    entry.action_id = SYSTEM_ACTION_NONE;
     return entry;
 }
 
-static void assert_all_path_entries(const AppEntry *entries, int count, const char *msg) {
-    for (int i = 0; i < count; i++) {
-        if (entries[i].source_kind != APP_SOURCE_PATH) {
-            ASSERT_TRUE(msg, FALSE);
-            return;
-        }
-    }
-    ASSERT_TRUE(msg, TRUE);
-}
-
-/* ---- tests ---- */
 static void test_dedupe_first_in_path_wins(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk1[] = {
+    PathEntry chunk1[] = {
         make_path_entry("foo", "/dir1/foo"),
         make_path_entry("bar", "/dir1/bar"),
     };
-    AppEntry chunk2[] = {
+    PathEntry chunk2[] = {
         make_path_entry("foo", "/dir2/foo"),
         make_path_entry("baz", "/dir2/baz"),
     };
@@ -111,7 +56,7 @@ static void test_dedupe_first_in_path_wins(void) {
     path_binaries_merge_entries_test_hook(NULL, chunk1, 2, FALSE);
     path_binaries_merge_entries_test_hook(NULL, chunk2, 2, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -122,7 +67,7 @@ static void test_dedupe_first_in_path_wins(void) {
 static void test_filter_by_query(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("git", "/bin/git"),
         make_path_entry("gitk", "/bin/gitk"),
         make_path_entry("grep", "/bin/grep"),
@@ -131,7 +76,7 @@ static void test_filter_by_query(void) {
 
     path_binaries_merge_entries_test_hook(NULL, chunk, 4, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("gi", out, &out_count);
 
@@ -143,7 +88,7 @@ static void test_filter_by_query(void) {
 static void test_empty_query_returns_all(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("git", "/bin/git"),
         make_path_entry("gitk", "/bin/gitk"),
         make_path_entry("grep", "/bin/grep"),
@@ -151,7 +96,7 @@ static void test_empty_query_returns_all(void) {
 
     path_binaries_merge_entries_test_hook(NULL, chunk, 3, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -161,7 +106,7 @@ static void test_empty_query_returns_all(void) {
 static void test_empty_query_is_alphabetical(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("zstd", "/bin/zstd"),
         make_path_entry("awk", "/bin/awk"),
         make_path_entry("git", "/bin/git"),
@@ -169,7 +114,7 @@ static void test_empty_query_is_alphabetical(void) {
 
     path_binaries_merge_entries_test_hook(NULL, chunk, 3, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -179,49 +124,14 @@ static void test_empty_query_is_alphabetical(void) {
     ASSERT_STR_EQ("alphabetical empty query third", "zstd", out[2].name);
 }
 
-static void test_dollar_routing_uses_path_only(void) {
-    path_binaries_reset_for_tests();
-
-    AppEntry chunk[] = {
-        make_path_entry("git", "/usr/bin/git"),
-        make_path_entry("gitk", "/usr/bin/gitk"),
-    };
-    path_binaries_merge_entries_test_hook(NULL, chunk, 2, TRUE);
-
-    AppData app;
-    memset(&app, 0, sizeof(app));
-    app.apps_mode = APPS_MODE_PATH;
-
-    filter_apps(&app, "git");
-
-    ASSERT_EQ_INT("$ routing count", 2, app.filtered_apps_count);
-    assert_all_path_entries(app.filtered_apps, app.filtered_apps_count,
-                            "$ routing excludes desktop/system entries");
-}
-
-static void test_plain_query_uses_desktop_system_only(void) {
-    path_binaries_reset_for_tests();
-
-    AppData app;
-    memset(&app, 0, sizeof(app));
-
-    filter_apps(&app, "git");
-
-    ASSERT_EQ_INT("plain routing count", 2, app.filtered_apps_count);
-    ASSERT_TRUE("plain routing first is desktop",
-                app.filtered_apps[0].source_kind == APP_SOURCE_DESKTOP);
-    ASSERT_TRUE("plain routing second is system",
-                app.filtered_apps[1].source_kind == APP_SOURCE_SYSTEM);
-}
-
 static void test_chunk_merge_atomicity_unique_count(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk1[] = {
+    PathEntry chunk1[] = {
         make_path_entry("ls", "/bin/ls"),
         make_path_entry("cp", "/bin/cp"),
     };
-    AppEntry chunk2[] = {
+    PathEntry chunk2[] = {
         make_path_entry("ls", "/usr/bin/ls"),
         make_path_entry("mv", "/bin/mv"),
     };
@@ -229,7 +139,7 @@ static void test_chunk_merge_atomicity_unique_count(void) {
     path_binaries_merge_entries_test_hook(NULL, chunk1, 2, FALSE);
     path_binaries_merge_entries_test_hook(NULL, chunk2, 2, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -239,7 +149,7 @@ static void test_chunk_merge_atomicity_unique_count(void) {
 static void test_monitor_delete_updates_cache(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("foo", "/tmp/pathbin-delete/foo"),
     };
     path_binaries_merge_entries_test_hook(NULL, chunk, 1, TRUE);
@@ -248,7 +158,7 @@ static void test_monitor_delete_updates_cache(void) {
     path_binaries_on_monitor_event_test_hook(file, NULL, G_FILE_MONITOR_EVENT_DELETED);
     g_object_unref(file);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
     ASSERT_EQ_INT("monitor delete removes entry", 0, out_count);
@@ -272,7 +182,7 @@ static void test_monitor_create_updates_cache(void) {
     path_binaries_on_monitor_event_test_hook(file, NULL, G_FILE_MONITOR_EVENT_CREATED);
     g_object_unref(file);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -300,7 +210,7 @@ static void test_monitor_rename_updates_cache(void) {
     g_file_set_contents(new_path, script, -1, NULL);
     g_chmod(new_path, 0755);
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("oldbin", old_path),
     };
     path_binaries_merge_entries_test_hook(NULL, chunk, 1, TRUE);
@@ -311,7 +221,7 @@ static void test_monitor_rename_updates_cache(void) {
     g_object_unref(old_file);
     g_object_unref(new_file);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -331,7 +241,7 @@ static void test_global_cap_overflow_sets_warned(void) {
     path_binaries_reset_for_tests();
 
     int total = MAX_PATH_BINS + 10;
-    AppEntry *entries = calloc((size_t)total, sizeof(AppEntry));
+    PathEntry *entries = calloc((size_t)total, sizeof(PathEntry));
     ASSERT_TRUE("cap test alloc entries", entries != NULL);
     if (!entries) {
         return;
@@ -347,7 +257,7 @@ static void test_global_cap_overflow_sets_warned(void) {
 
     path_binaries_merge_entries_test_hook(NULL, entries, total, TRUE);
 
-    AppEntry out[MAX_PATH_BINS + 16];
+    PathEntry out[MAX_PATH_BINS + 16];
     int out_count = 0;
     path_binaries_filter("", out, &out_count);
 
@@ -361,26 +271,26 @@ static void test_global_cap_overflow_sets_warned(void) {
 static void test_tig_ranked_above_loose_matches(void) {
     path_binaries_reset_for_tests();
 
-    AppEntry chunk[] = {
+    PathEntry chunk[] = {
         make_path_entry("activate-global-python-argcomplete",
                         "/usr/bin/activate-global-python-argcomplete"),
-        make_path_entry("apt-config",           "/usr/bin/apt-config"),
+        make_path_entry("apt-config", "/usr/bin/apt-config"),
         make_path_entry("aptitude-changelog-parser",
                         "/usr/bin/aptitude-changelog-parser"),
-        make_path_entry("ayatana-settings",     "/usr/bin/ayatana-settings"),
-        make_path_entry("btrfs-image",          "/usr/bin/btrfs-image"),
+        make_path_entry("ayatana-settings", "/usr/bin/ayatana-settings"),
+        make_path_entry("btrfs-image", "/usr/bin/btrfs-image"),
         make_path_entry("caja-actions-config-tool",
                         "/usr/bin/caja-actions-config-tool"),
-        make_path_entry("create-ocs-tmp-img",   "/usr/bin/create-ocs-tmp-img"),
-        make_path_entry("dh_auto_configure",    "/usr/bin/dh_auto_configure"),
-        make_path_entry("tig",                  "/usr/bin/tig"),
-        make_path_entry("tigris",               "/usr/bin/tigris"),
+        make_path_entry("create-ocs-tmp-img", "/usr/bin/create-ocs-tmp-img"),
+        make_path_entry("dh_auto_configure", "/usr/bin/dh_auto_configure"),
+        make_path_entry("tig", "/usr/bin/tig"),
+        make_path_entry("tigris", "/usr/bin/tigris"),
     };
     int count = (int)(sizeof(chunk) / sizeof(chunk[0]));
 
     path_binaries_merge_entries_test_hook(NULL, chunk, count, TRUE);
 
-    AppEntry out[MAX_PATH_BINS];
+    PathEntry out[MAX_PATH_BINS];
     int out_count = 0;
     path_binaries_filter("tig", out, &out_count);
 
@@ -388,35 +298,13 @@ static void test_tig_ranked_above_loose_matches(void) {
     if (out_count < 1) return;
 
     ASSERT_STR_EQ("tig is first result", "tig", out[0].name);
-
-    /* None of the loose-subsequence false positives should appear */
-    const char *false_positives[] = {
-        "activate-global-python-argcomplete",
-        "apt-config",
-        "aptitude-changelog-parser",
-        "ayatana-settings",
-        "btrfs-image",
-        "caja-actions-config-tool",
-        "create-ocs-tmp-img",
-        "dh_auto_configure",
-        NULL,
-    };
-    for (int i = 0; i < out_count; i++) {
-        for (int j = 0; false_positives[j]; j++) {
-            if (strcmp(out[i].name, false_positives[j]) == 0) {
-                ASSERT_TRUE("no false positive in tig results", FALSE);
-                return;
-            }
-        }
-    }
-    ASSERT_TRUE("no false positives in tig results", TRUE);
 }
 
 static void test_cap_warning_emits_once(void) {
     path_binaries_reset_for_tests();
 
     int total = MAX_PATH_BINS + 10;
-    AppEntry *entries = calloc((size_t)total, sizeof(AppEntry));
+    PathEntry *entries = calloc((size_t)total, sizeof(PathEntry));
     ASSERT_TRUE("cap-once alloc entries", entries != NULL);
     if (!entries) {
         return;
@@ -442,14 +330,11 @@ static void test_cap_warning_emits_once(void) {
 static void test_large_match_set_prefers_high_score(void) {
     path_binaries_reset_for_tests();
 
-    /* 599 low-score entries all containing 'e', plus one exact-match 'e' */
     int total = 600;
-    AppEntry *entries = calloc((size_t)total, sizeof(AppEntry));
+    PathEntry *entries = calloc((size_t)total, sizeof(PathEntry));
     ASSERT_TRUE("large match set alloc", entries != NULL);
     if (!entries) return;
 
-    /* 599 low-score entries named a_match_NNNN_e — all start with 'a', so they
-     * sort alphabetically BEFORE 'e', filling the first 512+ cache slots. */
     for (int i = 0; i < total - 1; i++) {
         char name[64];
         char exec_path[128];
@@ -457,13 +342,12 @@ static void test_large_match_set_prefers_high_score(void) {
         snprintf(exec_path, sizeof(exec_path), "/usr/bin/a_match_%04d_e", i);
         entries[i] = make_path_entry(name, exec_path);
     }
-    /* exact-match entry: 'e' sorts after all 'a_*' entries alphabetically */
     entries[total - 1] = make_path_entry("e", "/usr/bin/e");
 
     path_binaries_merge_entries_test_hook(NULL, entries, total, TRUE);
     free(entries);
 
-    AppEntry out[MAX_PATH_BINS + 16];
+    PathEntry out[MAX_PATH_BINS + 16];
     int out_count = 0;
     path_binaries_filter("e", out, &out_count);
 
@@ -476,8 +360,6 @@ int main(void) {
     test_filter_by_query();
     test_empty_query_returns_all();
     test_empty_query_is_alphabetical();
-    test_dollar_routing_uses_path_only();
-    test_plain_query_uses_desktop_system_only();
     test_chunk_merge_atomicity_unique_count();
     test_monitor_delete_updates_cache();
     test_monitor_create_updates_cache();

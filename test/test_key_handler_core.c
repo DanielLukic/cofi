@@ -71,6 +71,7 @@ static int g_filter_config_calls;
 static int g_filter_hotkeys_calls;
 static int g_filter_rules_calls;
 static int g_filter_apps_calls;
+static int g_filter_path_calls;
 
 static char g_last_filter_windows[64];
 static char g_last_filter_workspaces[64];
@@ -80,6 +81,7 @@ static char g_last_filter_config[64];
 static char g_last_filter_hotkeys[64];
 static char g_last_filter_rules[64];
 static char g_last_filter_apps[64];
+static char g_last_filter_path[64];
 
 static int g_reset_selection_calls;
 static int g_update_display_calls;
@@ -95,8 +97,10 @@ static CofiTabProvider g_modal_prefix_stub;
 #define TEST_HOTKEYS_TAB ((TabMode)(TAB_COUNT + 5))
 #define TEST_RULES_TAB ((TabMode)(TAB_COUNT + 6))
 #define TEST_APPS_TAB  ((TabMode)(TAB_COUNT + 7))
+#define TEST_PATH_TAB  ((TabMode)(TAB_COUNT + 8))
 
 void filter_apps(AppData *app, const char *query);
+void filter_path(AppData *app, const char *query);
 void filter_workspaces(AppData *app, const char *query);
 void filter_harpoon(AppData *app, const char *filter);
 void filter_matching(AppData *app, const char *filter);
@@ -197,23 +201,26 @@ const CofiTabProvider *cofi_get_provider_for_prefix(char prefix) {
     return NULL;
 }
 
-static void apps_on_tab_prefix_stub(AppData *app, char prefix) {
-    if (!app) return;
-    app->apps_mode = prefix == '$' ? APPS_MODE_PATH : APPS_MODE_DEFAULT;
-}
-
 const CofiTabProvider *cofi_get_provider_for_tab_prefix(char prefix) {
     g_tab_prefix_lookup_calls++;
     g_last_tab_prefix_lookup = prefix;
-    if (prefix == '$' || prefix == '\\') {
+    if (prefix == '\\') {
         static CofiTabProvider apps_provider;
         memset(&apps_provider, 0, sizeof(apps_provider));
         apps_provider.tab_mode = TEST_APPS_TAB;
         apps_provider.id = "apps";
-        apps_provider.tab_prefix_chars = "$\\";
-        apps_provider.on_tab_prefix = apps_on_tab_prefix_stub;
+        apps_provider.tab_prefix_chars = "\\";
         apps_provider.on_query_changed = filter_apps;
         return &apps_provider;
+    }
+    if (prefix == '$') {
+        static CofiTabProvider path_provider;
+        memset(&path_provider, 0, sizeof(path_provider));
+        path_provider.tab_mode = TEST_PATH_TAB;
+        path_provider.id = "path";
+        path_provider.tab_prefix_chars = "$";
+        path_provider.on_query_changed = filter_path;
+        return &path_provider;
     }
     return NULL;
 }
@@ -392,8 +399,6 @@ static void mock_rules_query_changed(AppData *app, const char *query) {
 }
 
 void switch_to_tab(AppData *app, TabMode target_tab) {
-    if (app->current_tab == TEST_APPS_TAB && target_tab != TEST_APPS_TAB)
-        app->apps_mode = APPS_MODE_DEFAULT;
     app->current_tab = target_tab;
 }
 
@@ -534,6 +539,12 @@ void filter_apps(AppData *app, const char *query) {
     strncpy(g_last_filter_apps, query ? query : "", sizeof(g_last_filter_apps) - 1);
 }
 
+void filter_path(AppData *app, const char *query) {
+    (void)app;
+    g_filter_path_calls++;
+    strncpy(g_last_filter_path, query ? query : "", sizeof(g_last_filter_path) - 1);
+}
+
 void reset_selection(AppData *app) { (void)app; g_reset_selection_calls++; }
 void preserve_selection(AppData *app) { (void)app; }
 void restore_selection(AppData *app) { (void)app; }
@@ -587,6 +598,7 @@ static void reset_captures(void) {
     g_filter_hotkeys_calls = 0;
     g_filter_rules_calls = 0;
     g_filter_apps_calls = 0;
+    g_filter_path_calls = 0;
     g_last_filter_windows[0] = '\0';
     g_last_filter_workspaces[0] = '\0';
     g_last_filter_harpoon[0] = '\0';
@@ -595,6 +607,7 @@ static void reset_captures(void) {
     g_last_filter_hotkeys[0] = '\0';
     g_last_filter_rules[0] = '\0';
     g_last_filter_apps[0] = '\0';
+    g_last_filter_path[0] = '\0';
     g_reset_selection_calls = 0;
     g_update_display_calls = 0;
     g_tab_prefix_lookup_calls = 0;
@@ -1113,7 +1126,7 @@ static void test_on_entry_changed_prefix_tabs_claim_and_restore_origin(void) {
     gtk_entry_set_text(GTK_ENTRY(app.entry), "$term");
     on_entry_changed(GTK_ENTRY(app.entry), &app);
 
-    ASSERT_TRUE("Leading '$' claims Apps tab", app.current_tab == TEST_APPS_TAB);
+    ASSERT_TRUE("Leading '$' claims Path tab", app.current_tab == TEST_PATH_TAB);
     ASSERT_TRUE("Leading '$' stores origin tab once", app.prefix_origin_tab == TEST_HOTKEYS_TAB);
     ASSERT_TRUE("Leading '$' marks active claim", app.active_prefix_claim == '$');
 
@@ -1188,7 +1201,6 @@ static void test_backslash_cross_tab_enters_apps_default_mode(void) {
 
     ASSERT_TRUE("backslash cross-tab handled", handled == TRUE);
     ASSERT_TRUE("backslash cross-tab enters Apps", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("backslash cross-tab enters default mode", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
 static void test_dollar_cross_tab_enters_apps_path_mode(void) {
@@ -1202,8 +1214,7 @@ static void test_dollar_cross_tab_enters_apps_path_mode(void) {
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("dollar cross-tab handled", handled == TRUE);
-    ASSERT_TRUE("dollar cross-tab enters Apps", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("dollar cross-tab enters PATH mode", app.apps_mode == APPS_MODE_PATH);
+    ASSERT_TRUE("dollar cross-tab enters PATH", app.current_tab == TEST_PATH_TAB);
 }
 
 static void test_backslash_same_tab_resets_to_default(void) {
@@ -1211,7 +1222,6 @@ static void test_backslash_same_tab_resets_to_default(void) {
     init_app(&app);
     reset_captures();
     app.current_tab = TEST_APPS_TAB;
-    app.apps_mode = APPS_MODE_PATH;
     gtk_entry_set_text(GTK_ENTRY(app.entry), "");
 
     GdkEventKey ev = make_key(GDK_KEY_backslash, 0);
@@ -1219,7 +1229,6 @@ static void test_backslash_same_tab_resets_to_default(void) {
 
     ASSERT_TRUE("backslash same-tab handled", handled == TRUE);
     ASSERT_TRUE("backslash same-tab stays in Apps", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("backslash same-tab enters default mode", app.apps_mode == APPS_MODE_DEFAULT);
     ASSERT_TRUE("backslash same-tab clears entry",
                 strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
     ASSERT_TRUE("backslash same-tab sets indicator",
@@ -1231,32 +1240,30 @@ static void test_dollar_same_tab_switches_to_path(void) {
     AppData app;
     init_app(&app);
     reset_captures();
-    app.current_tab = TEST_APPS_TAB;
-    app.apps_mode = APPS_MODE_DEFAULT;
+    app.current_tab = TEST_PATH_TAB;
     gtk_entry_set_text(GTK_ENTRY(app.entry), "");
 
     GdkEventKey ev = make_key(GDK_KEY_dollar, 0);
     gboolean handled = on_key_press(NULL, &ev, &app);
 
     ASSERT_TRUE("dollar same-tab handled", handled == TRUE);
-    ASSERT_TRUE("dollar same-tab stays in Apps", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("dollar same-tab enters PATH mode", app.apps_mode == APPS_MODE_PATH);
+    ASSERT_TRUE("dollar same-tab stays in PATH", app.current_tab == TEST_PATH_TAB);
     ASSERT_TRUE("dollar same-tab clears entry",
                 strcmp(gtk_entry_get_text(GTK_ENTRY(app.entry)), "") == 0);
     ASSERT_TRUE("dollar same-tab sets indicator",
                 strcmp(gtk_label_get_text(GTK_LABEL(app.mode_indicator)), "$") == 0);
 }
 
-static void test_switch_away_from_apps_resets_mode(void) {
-    AppData app;
-    init_app(&app);
-    reset_captures();
-    app.current_tab = TEST_APPS_TAB;
-    app.apps_mode = APPS_MODE_PATH;
+static void test_tab_prefix_provider_lookup_routes_apps_and_path(void) {
+    const CofiTabProvider *apps = cofi_get_provider_for_tab_prefix('\\');
+    const CofiTabProvider *path = cofi_get_provider_for_tab_prefix('$');
 
-    switch_to_tab(&app, TEST_WORKSPACES_TAB);
-
-    ASSERT_TRUE("switch away from Apps resets mode", app.apps_mode == APPS_MODE_DEFAULT);
+    ASSERT_TRUE("backslash prefix resolves apps provider",
+                apps && strcmp(apps->id, "apps") == 0 &&
+                apps->tab_mode == TEST_APPS_TAB);
+    ASSERT_TRUE("dollar prefix resolves path provider",
+                path && strcmp(path->id, "path") == 0 &&
+                path->tab_mode == TEST_PATH_TAB);
 }
 
 static void test_command_mode_prefix_exits_to_modal(void) {
@@ -1295,7 +1302,6 @@ static void test_command_mode_prefix_exits_to_tab_claim(void) {
     ASSERT_TRUE("COMMAND -> APPS handled", handled == TRUE);
     ASSERT_TRUE("COMMAND -> APPS state is NORMAL", app.command_mode.state == CMD_MODE_NORMAL);
     ASSERT_TRUE("COMMAND -> APPS tab", app.current_tab == TEST_APPS_TAB);
-    ASSERT_TRUE("COMMAND -> APPS mode DEFAULT", app.apps_mode == APPS_MODE_DEFAULT);
 }
 
 static void test_command_mode_same_prefix_colon_noop(void) {
@@ -1362,7 +1368,7 @@ int main(int argc, char **argv) {
     test_dollar_cross_tab_enters_apps_path_mode();
     test_backslash_same_tab_resets_to_default();
     test_dollar_same_tab_switches_to_path();
-    test_switch_away_from_apps_resets_mode();
+    test_tab_prefix_provider_lookup_routes_apps_and_path();
     test_command_mode_prefix_exits_to_modal();
     test_command_mode_prefix_exits_to_tab_claim();
     test_command_mode_same_prefix_colon_noop();

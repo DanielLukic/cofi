@@ -9,12 +9,11 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 ### Owns
 - Discovery, parsing, filtering, and display for tmux sessions, zellij sessions, zoxide folders, saved remote sessions, remote-scope rows, and locate-backed fallback folder rows.
 - Projects provider registration, command aliases, shortcuts, overlays, config entries, slot payloads, session/folder launch commands, and the trigger policy for locate fallback.
-- PATH executable scanning used by apps PATH mode.
 
 ### Does Not Own
 - Provider registry, command registry, slot-store persistence, generic modal stack, tab rendering, or selection algorithms.
 - tmux, zellij, zoxide, SSH, terminal emulator, file manager, shell behavior, or X11 activation primitives outside project-specific command/window matching.
-- General apps-provider behavior beyond the PATH binary cache helper housed here.
+- PATH executable discovery and launch behavior; those live in `src/path/`.
 - plocate / locate subprocess lifecycle, pattern escaping, timeout handling, or generation-guarded callback cleanup; those are delegated to `locate/`.
 
 ## Public Surface
@@ -81,9 +80,6 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 - `locate/projects_locate.h`: `ProjectsLocateResult`,
   `ProjectsLocateResultsCallback`, `projects_locate_set_results_callback()`,
   `projects_locate_search_async()`, `projects_locate_cancel_pending()`
-- `path_binaries.h` (apps PATH-mode cache helper):
-  `path_binaries_ensure_loaded()`, `path_binaries_filter()`,
-  `path_binaries_is_scanning()`, `path_binaries_shutdown()`
 - Test-only hooks exported under `COFI_TESTING`:
   `projects_set_launch_impl_test_hook()`,
   `projects_set_command_impl_test_hook()`,
@@ -100,12 +96,7 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
   `projects_remote_store_set_path_for_test()`,
   `projects_remote_store_reset_for_test()`,
   `projects_remote_store_add_for_test()`,
-  `projects_remote_store_save_for_test()`,
-  `path_binaries_merge_entries_test_hook()`,
-  `path_binaries_on_monitor_event_test_hook()`,
-  `path_binaries_reset_for_tests()`, `path_binaries_cap_warned_for_tests()`,
-  `path_binaries_cap_warn_count_for_tests()`,
-  `path_binaries_count_for_tests()`
+  `projects_remote_store_save_for_test()`
 
 ## Acceptance Criteria
 1. Registering projects creates an optional hidden dynamic `PROJECTS` tab with hide-on-esc modal policy, initial selection `0`, 1500 ms refresh tick, row/query/Enter/key hooks, and slot storage enabled.
@@ -131,9 +122,7 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 21. Ctrl+S fetches remote rows over SSH with X-forwarding, BatchMode, and short timeout; remote attach/new commands use `ssh -X -t`, save successful session intents to `projects.json`, and reload saved intents as remote rows.
 22. Slot payloads are typed as `session:tmux:<name>`, `session:zellij:<name>`, or `folder:<path>`; parsing preserves colons inside names/paths and rejects empty or unknown payloads.
 23. Shortcut hints are row-sensitive: folder rows include `Ctrl+T=Terminal`, tmux rows include `Ctrl+R=Rename`, and delete remains available only for mutable rows even though the shortcut text stays shared.
-24. PATH binary scanning caches executable basenames from PATH, keeps the first duplicate-name winner, sorts empty-query results by name, scores substring matches, and returns at most `MAX_APPS` entries.
-25. PATH monitoring adds, removes, and renames cached executables live; cache cap overflow emits one warning and clamps the cache to `MAX_PATH_BINS`.
-26. WINDOWID environment parsing scans NUL-separated `/proc/<pid>/environ`
+24. WINDOWID environment parsing scans NUL-separated `/proc/<pid>/environ`
     data, accepts only a non-zero decimal `WINDOWID=<id>` with no trailing
     junk, writes `0` on failure, and never reads beyond the supplied byte
     length.
@@ -141,4 +130,3 @@ folders, including saved or scoped remote hosts, from one provider-backed tab.
 ## Notes
 - Remote project state has two layers: active remote scope is transient, while saved remote session intents persist in `projects.json`.
 - Project command strings intentionally use shell quoting because tmux, zellij, SSH, and terminal-title wrapping are launched through a shell command string.
-- `path_binaries.*` lives here because it supports command/project workflows, but callers should treat it as the apps PATH-mode cache helper.

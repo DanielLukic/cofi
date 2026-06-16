@@ -34,11 +34,12 @@ static int disabled_provider_tab = -1;
 #define TEST_WORKSPACES_TAB ((TabMode)(TAB_COUNT + 1))
 #define TEST_HARPOON_TAB    ((TabMode)(TAB_COUNT + 2))
 #define TEST_APPS_TAB       ((TabMode)(TAB_COUNT + 3))
-#define TEST_MATCHING_TAB      ((TabMode)(TAB_COUNT + 4))
-#define TEST_CONFIG_TAB     ((TabMode)(TAB_COUNT + 5))
-#define TEST_HOTKEYS_TAB    ((TabMode)(TAB_COUNT + 6))
-#define TEST_RULES_TAB      ((TabMode)(TAB_COUNT + 7))
-#define TEST_PROJECTS_TAB   ((TabMode)(TAB_COUNT + 8))
+#define TEST_PATH_TAB       ((TabMode)(TAB_COUNT + 4))
+#define TEST_MATCHING_TAB   ((TabMode)(TAB_COUNT + 5))
+#define TEST_CONFIG_TAB     ((TabMode)(TAB_COUNT + 6))
+#define TEST_HOTKEYS_TAB    ((TabMode)(TAB_COUNT + 7))
+#define TEST_RULES_TAB      ((TabMode)(TAB_COUNT + 8))
+#define TEST_PROJECTS_TAB   ((TabMode)(TAB_COUNT + 9))
 
 void gtk_entry_set_text(GtkEntry *entry, const gchar *text) {
     (void)entry;
@@ -143,7 +144,7 @@ void path_binaries_ensure_loaded(AppData *app) {
     (void)app;
 }
 
-void path_binaries_filter(const char *query, AppEntry *out, int *out_count) {
+void path_binaries_filter(const char *query, PathEntry *out, int *out_count) {
     (void)query;
     (void)out;
     if (out_count) {
@@ -179,9 +180,7 @@ gboolean cofi_handle_modal_key(AppData *app, GdkEventKey *event) {
 }
 
 static void test_apps_on_surface(AppData *app) {
-    if (app) {
-        app->apps_mode = APPS_MODE_DEFAULT;
-    }
+    (void)app;
 }
 
 TabMode apps_tab_mode(void) {
@@ -235,6 +234,15 @@ static const CommandSpec s_apps_command = {
     .help_format = "apps, applications, app"
 };
 
+static const CommandSpec s_path_command = {
+    .primary = "path",
+    .aliases = {"binaries", "bin", "exe", NULL},
+    .owner_provider_id = "path",
+    .handler = noop_provider_command,
+    .description = "Show PATH executables",
+    .help_format = "path, binaries, bin, exe"
+};
+
 static const CommandSpec s_names_command = {
     .primary = "names",
     .aliases = {"nm", NULL},
@@ -266,6 +274,7 @@ static void register_tab_visibility_commands(void) {
     cofi_command_registry_reset();
     cofi_register_core_commands();
     cofi_register_command(&s_apps_command);
+    cofi_register_command(&s_path_command);
     cofi_register_command(&s_names_command);
     cofi_register_command(&s_tab_rules_command);
     cofi_register_command(&s_workspaces_command);
@@ -279,6 +288,10 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
     if (tab_mode == TEST_APPS_TAB) {
         provider.id = "apps";
         provider.on_surface = test_apps_on_surface;
+        return &provider;
+    }
+    if (tab_mode == TEST_PATH_TAB) {
+        provider.id = "path";
         return &provider;
     }
     if (tab_mode == TEST_RULES_TAB) {
@@ -313,6 +326,7 @@ const CofiTabProvider *cofi_get_provider_for_tab(int tab_mode) {
 int cofi_get_provider_id(const char *id) {
     if (!id) return -1;
     if (strcmp(id, "apps") == 0) return TEST_APPS_TAB;
+    if (strcmp(id, "path") == 0) return TEST_PATH_TAB;
     if (strcmp(id, "config") == 0) return TEST_CONFIG_TAB;
     if (strcmp(id, "harpoon") == 0) return TEST_HARPOON_TAB;
     if (strcmp(id, "hotkeys") == 0) return TEST_HOTKEYS_TAB;
@@ -685,18 +699,28 @@ static void test_surface_tab_surfaces_hidden_tab(void) {
     ASSERT_TRUE("surface_tab switches current tab", app.current_tab == TEST_WORKSPACES_TAB);
 }
 
-static void test_cmd_show_apps_resets_to_default_mode(void) {
+static void test_cmd_show_apps_records_origin_tab(void) {
     AppData app = make_app();
     app.current_tab = TEST_APPS_TAB;
     app.prefix_origin_tab = TAB_WINDOWS;
-    app.apps_mode = APPS_MODE_PATH;
 
     reset_counters();
     cmd_show(&app, NULL, "apps");
 
-    ASSERT_TRUE("cmd_show apps resets to DEFAULT mode", app.apps_mode == APPS_MODE_DEFAULT);
     ASSERT_TRUE("cmd_show apps switches tab", app.current_tab == TEST_APPS_TAB);
     ASSERT_TRUE("cmd_show apps records origin tab", app.prefix_origin_tab == TEST_APPS_TAB);
+}
+
+static void test_cmd_show_path_records_origin_tab(void) {
+    AppData app;
+    init_app(&app);
+    reset_counters();
+    app.current_tab = TEST_APPS_TAB;
+
+    cmd_show(&app, NULL, "path");
+
+    ASSERT_TRUE("cmd_show path switches tab", app.current_tab == TEST_PATH_TAB);
+    ASSERT_TRUE("cmd_show path records origin tab", app.prefix_origin_tab == TEST_APPS_TAB);
 }
 
 static void test_cmd_show_provider_records_origin_tab(void) {
@@ -711,15 +735,14 @@ static void test_cmd_show_provider_records_origin_tab(void) {
                 app.prefix_origin_tab == TAB_WINDOWS);
 }
 
-static void test_daemon_opcode_applications_resets_mode(void) {
+static void test_daemon_opcode_applications_surfaces_apps(void) {
     AppData app = make_app();
     app.current_tab = TEST_APPS_TAB;
-    app.apps_mode = APPS_MODE_PATH;
 
     reset_counters();
     show_tab_for_opcode(&app, TEST_APPS_TAB);
 
-    ASSERT_TRUE("daemon Applications opcode resets mode", app.apps_mode == APPS_MODE_DEFAULT);
+    ASSERT_TRUE("daemon Applications opcode keeps apps tab", app.current_tab == TEST_APPS_TAB);
 }
 
 static void test_tab_switching_skips_hidden_tabs(void) {
@@ -920,9 +943,10 @@ int main(void) {
     test_filter_rules_matches_pattern_and_commands();
     test_daemon_opcode_harpoon_switches_to_harpoon_tab();
     test_surface_tab_surfaces_hidden_tab();
-    test_cmd_show_apps_resets_to_default_mode();
+    test_cmd_show_apps_records_origin_tab();
+    test_cmd_show_path_records_origin_tab();
     test_cmd_show_provider_records_origin_tab();
-    test_daemon_opcode_applications_resets_mode();
+    test_daemon_opcode_applications_surfaces_apps();
     test_tab_switching_skips_hidden_tabs();
     test_show_all_tabs_cycles_hidden_tabs();
     test_show_all_tabs_skips_unavailable_provider_tabs();
