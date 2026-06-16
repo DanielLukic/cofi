@@ -18,6 +18,11 @@ Format: numbered, dated, with `Status` + `Supersedes` / `Superseded by` headers.
 | 0008 | [Cluster-correct UTF-8 column rendering](0008-utf8-column-rendering.md) | **Accepted** |
 | 0009 | [Tolerant JSON I/O via `cofi_json_io`](0009-tolerant-json-io-via-json-glib.md) | **Accepted** |
 | 0010 | [Shared confirm-overlay primitive (`show_confirm_overlay`)](0010-shared-confirm-overlay-primitive.md) | **Accepted** |
+| 0011 | [Bluetooth polling v1](0011-bluetooth-poll-v1.md) | **Accepted** |
+| 0012 | [Owner-delete startup GC seatbelt](0012-owner-delete-startup-gc-seatbelt.md) | **Accepted** |
+| 0013 | [One match entry per rule](0013-one-match-entry-per-rule.md) | **Accepted** |
+| 0014 | [Rules subsystem owns automatic dispatch; x11 is event-trigger only](0014-rules-owns-dispatch-x11-is-trigger.md) | **Accepted** |
+| 0015 | [Cross-provider tier-based scoring via `tier_score_string`](0015-cross-provider-tier-score.md) | **Accepted** |
 
 ## Topics intentionally not recorded
 

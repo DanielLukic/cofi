@@ -111,3 +111,12 @@ bookmarks read directly from every discovered profile's `Bookmarks` JSON file.
   together.
 - Slot payloads persist only `{profile_dir, url}`; the bookmark display name
   is rediscovered on the next load.
+- Bookmarks depends on `src/matching/tier_score.h` for ranking:
+  `tier_score_string()` runs over the combined match-string corpus. Changes to
+  tier-score semantics change Bookmarks ranking too.
+- Bookmarks depends on `src/profiles/chrome_launch.h` for argv assembly and
+  executable resolution (`chrome_launch_build_argv`,
+  `chrome_launch_resolve_executable`). The `new_window` argv flag at this
+  provider's call site distinguishes Enter from Shift+Enter.
+- Bookmarks depends on `src/profiles/browser_profiles.h` for profile
+  enumeration.

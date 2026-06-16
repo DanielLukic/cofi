@@ -101,6 +101,22 @@ See also:
   Large `AppData` layout changes shift offsets used by the running daemon.
   After changing `AppData`, provider state structs, or tab visibility arrays, rebuild and restart before judging behavior; otherwise the old daemon can read garbage and produce unrelated-looking failures.
 
+## UI And Display Budget
+
+- `format_provider_display` must subtract provider tail rows from `max_lines`
+  before rendering content.
+  `shortcut_hint` consumes 2 lines (blank spacer + hint) and Projects consumes
+  1 extra status-spacer line. Rendering content at the full budget and
+  appending the tail afterward overflows the fixed popup height.
+
+- `src/ui/display.c` has explicit `strcmp(p->id, "projects") == 0` coupling
+  for Projects tail rendering.
+  One guard appends the Projects status spacer; the other includes that spacer
+  in the provider tail-line budget. A new provider that renders its own status
+  spacer needs a parallel guard. If a third provider needs this, promote the
+  concept to a `CofiTabProvider.extra_tail_lines` field instead of adding more
+  ad hoc string checks.
+
 - Preserve selection before model-state mutation.
   Providers must call `preserve_selection()` BEFORE wiping or replacing the
   data structures that back `row_identity()`; otherwise restore falls back even
@@ -210,6 +226,15 @@ See also:
   Without this hint clear, the WM re-snaps and produces variable bottom gaps up to `increment - 1` pixels across windows with different increments, such as 40px vs 48px terminal rows on the same `:tr4`.
   Reference: `TBD-commit-sha`.
 
+- `_NET_FRAME_EXTENTS` PropertyNotify can arrive before marco's first-map
+  cascade settles.
+  If restore runs synchronously at that point, the frame-aware correction reads
+  marco's cascaded position (typically about `+10,+14` px), overcorrects into
+  negative coordinates, and marco clamps the result, leaving a visible top
+  gap. The 150ms `g_timeout_add` delay in
+  `src/x11/frame_extents_restore.c` was empirically verified as sufficient. It
+  is not a generic "wait for X11" budget; reducing it re-exposes the race.
+
 ## Repeat Last Action
 
 - Repeat-last-action is intentionally narrow in v1.
@@ -316,3 +341,10 @@ See also:
   file is small, parsing is fast, and skipping live refresh keeps the
   subsystem stateless. If a future contributor proposes caching here, weigh
   the cost of staleness against the cost of the re-read first.
+
+- Bookmark slot payloads are colon-delimited but the URL itself may contain
+  arbitrary colons.
+  Payloads use the format `bookmark:chrome:<profile_dir>:<url>`, where the URL
+  may include `://` and query fragments such as `foo:bar`. Parsers must take
+  the remainder after the third colon as the URL. Splitting on the fourth or
+  later colon corrupts recalled bookmarks.

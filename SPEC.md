@@ -552,10 +552,11 @@ Chrome bookmarks across every discovered profile, triggered via `:bookmarks` or 
 - Walks `~/.config/google-chrome/<profile>/Bookmarks` for every Chrome profile reported by browser-profiles discovery, skipping `Guest Profile`.
 - Default profile bookmarks appear first, then remaining profiles in profile-tab order (active_time desc, case-insensitive name tie-break); within each profile, rows follow the `roots.{bookmark_bar, other, synced}` walk order.
 - Each row shows five cells: `[bm]`, profile label, bookmark name, folder breadcrumb (display-truncated to 10 chars with leading `…` so the deepest folder stays visible), and URL.
-- Match-string corpus is `[bm] <profile_label> <name> <folder_breadcrumb> <url>`. Field-weighted scoring: name 3000, folder 1500, URL 1000, profile 800, marker `bm` 100. Empty query preserves load order.
+- Match-string corpus is `[bm] <profile_label> <name> <folder_breadcrumb> <url>`. Scoring: bookmarks share the windows tab's tiered ranker via `tier_score_string` over the combined match-string corpus (`"[bm] profile_label name folder_breadcrumb url"`). A direct word-boundary match (e.g. typing a profile name that appears verbatim in the row) ranks above any indirect fuzzy match regardless of field. Load-order is the tiebreaker.
 - URL scheme allow-list: `http`, `https`, `ftp`, `file`. Skips `javascript:`, `chrome://`, `chrome-extension://`, `data:`, and empty URLs.
 - Row cap: 20000 across all profiles. Overflow logs a single WARN and stops appending; remaining profiles are partially included.
-- Enter opens the URL in the row's profile via `chrome --profile-directory=<dir> <url>`, mirroring `:profiles` launch with one extra argv slot.
+- Enter opens the URL in a new Chrome window (`chrome --profile-directory=<dir> --new-window <url>`); Shift+Enter opens without `--new-window` so Chrome reuses an existing window/process (default behavior).
+- Shortcut hint: `Enter=Open new window  Shift+Enter=Reuse Chrome  Ctrl+key=Assign slot  Alt+key=Recall slot`
 - `Ctrl+[key]` assigns the selected bookmark to a per-Bookmarks slot; `Alt+[key]` recalls and launches a saved bookmark slot without opening the tab.
 - `:bookmarks @SLOT` or `:bookmarks QUERY` launches a bookmark directly from command mode. Slot payload format: `bookmark:chrome:<profile_dir>:<url>` (colons inside the URL are preserved). Row identity: `bookmark:<profile_dir>:<url>`.
 - No caching, no `inotify`: every tab entry re-reads the Bookmarks files.

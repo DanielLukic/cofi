@@ -69,39 +69,40 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Entry & dispatch
 
-- **`src/main.c`** — argv parse, decide daemon vs delegate, GTK setup, daemon bootstrap, handoff to UI surface.
-- **`src/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--matching`, `--names`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
-- **`src/command_registry.c`** — command storage and lookup registry: primary names, aliases, compact suffixes, handlers, help text, activation policy, keep-open policy, and explicit owner.
-- **`src/core_commands.c`** — built-in core command registration. Provider-owned commands register from their provider modules.
-- **`src/builtin_plugins.c`** — compiled-in plugin/provider registration list used during startup.
-- **`src/command_parser.c`** — compact-syntax splitter (`tw3`, `jw1`) and alias resolution using the command registry.
-- **`src/command_availability.c`** — owner-aware availability gate for command candidates, help, and dispatch.
-- **`src/command_mode.c`**, **`src/command_handlers*.c`**, and provider-owned `CommandSpec` handlers — execution of `:` commands.
+- **`src/core/app/main.c`** — argv parse, decide daemon vs delegate, GTK setup, daemon bootstrap, handoff to UI surface.
+- **`src/cli/cli_args.cpp`** — popl-based CLI option parsing (`--windows`, `--workspaces`, `--harpoon`, `--matching`, `--names`, `--command`, `--run`, `--applications`, `--assign-slots`, etc.).
+- **`src/commands/command_registry.c`** — command storage and lookup registry: primary names, aliases, compact suffixes, handlers, help text, activation policy, keep-open policy, and explicit owner.
+- **`src/commands/core_commands.c`** — built-in core command registration. Provider-owned commands register from their provider modules.
+- **`src/providers/builtin_plugins.c`** — compiled-in plugin/provider registration list used during startup.
+- **`src/commands/command_parser.c`** — compact-syntax splitter (`tw3`, `jw1`) and alias resolution using the command registry.
+- **`src/commands/command_availability.c`** — owner-aware availability gate for command candidates, help, and dispatch.
+- **`src/commands/command_mode.c`**, **`src/commands/command_handlers*.c`**, and provider-owned `CommandSpec` handlers — execution of `:` commands.
 
 ### IPC
 
-- **`src/daemon_socket.c`** — protocol primitives (path resolution, bind, connect, send, accept).
-- **`src/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_MATCHING`, `_NAMES`, `_COMMAND`, `_RUN`, `_APPLICATIONS`).
+- **`src/daemon/daemon_socket.c`** — protocol primitives (path resolution, bind, connect, send, accept).
+- **`src/daemon/daemon_socket_runtime.c`** — GIOChannel integration, opcode-to-UI dispatch for the fixed delegate opcodes (`COFI_OPCODE_WINDOWS`, `_WORKSPACES`, `_HARPOON`, `_MATCHING`, `_NAMES`, `_COMMAND`, `_RUN`, `_APPLICATIONS`) plus `COFI_OPCODE_SHOW_TAB` for dynamic provider tabs such as Bookmarks. Dynamic providers do not get per-provider opcodes.
 
 ### X11
 
-- **`src/x11_utils.c`** — EWMH property extraction (`_NET_WM_NAME`, `_NET_WM_PID`, etc.), window activation via `_NET_ACTIVE_WINDOW` ClientMessage.
-- **`src/x11_events.c`** — event-driven window list updates from PropertyNotify on root.
-- **`src/window_list.c`** — `_NET_CLIENT_LIST` enumeration + filtering (skip-taskbar, types).
-- **`src/hotkeys.c`** — `XGrabKey` registration and dispatch from KeyPress events.
-- **`src/monitor_move.c`** — XRandR geometry + work-area calculation for tiling and multi-monitor.
+- **`src/x11/x11_utils.c`** — EWMH property extraction (`_NET_WM_NAME`, `_NET_WM_PID`, etc.), window activation via `_NET_ACTIVE_WINDOW` ClientMessage.
+- **`src/x11/x11_events.c`** — event-driven window list updates from PropertyNotify on root.
+- **`src/x11/window_list.c`** — `_NET_CLIENT_LIST` enumeration + filtering (skip-taskbar, types).
+- **`src/daemon/hotkeys.c`** — `XGrabKey` registration and dispatch from KeyPress events.
+- **`src/x11/monitor_move.c`** — XRandR geometry + work-area calculation for tiling and multi-monitor.
+- **`src/x11/frame_extents_restore.c`** — deferred geometry restore via a 150ms `g_timeout_add` after `_NET_FRAME_EXTENTS` changes so cofi wins marco's first-map placement race; it stays PropertyNotify-driven and tracks one pending timeout per window.
 - **`src/x11/xrandr_helpers.c`** — shared XRandR helper layer for `get_monitors_xrandr()` and `get_window_monitor_xrandr()`, reused by tiling and monitor-move flows.
 
 ### UI
 
-- **`src/window_lifecycle.c`** — show/hide of the cofi toplevel. Recomputes Pango font metrics + window size + monitor placement on every show (handles XSettings/DPI changes mid-session).
-- **`src/cofi_tab_provider.c`** — provider registry. Providers register tabs, modal prefixes, delegate opcodes, hotkey mode claims, slots, tick callbacks, dynamic tab handles, and enablement metadata.
-- **`src/display.c`** — top-level display assembly. Windows remains core-special; provider tabs render through `CofiTabProvider` row callbacks.
-- **`src/display_pipeline.c`** — assembly of the display strings from filter results.
-- **`src/tab_header.c`** + **`src/tab_switching.c`** — tab header formatting, overflow, visibility, and cycling. Header/cycling enumerate Windows plus registered provider tabs, not a fixed `TAB_*` loop.
-- **`src/key_handler.c`** + `src/key_handler_*.c` — core key dispatch and mode precedence. Provider-specific key handling lives on provider `handle_key` callbacks.
-- **`src/slot_overlay.c`** — transient `[N]` indicators drawn on each window.
-- **`src/window_highlight.c`** — circle ripple effect on activation.
+- **`src/ui/window_lifecycle.c`** — show/hide of the cofi toplevel. Recomputes Pango font metrics + window size + monitor placement on every show (handles XSettings/DPI changes mid-session).
+- **`src/providers/cofi_tab_provider.c`** — provider registry. Providers register tabs, modal prefixes, delegate opcodes, hotkey mode claims, slots, tick callbacks, dynamic tab handles, and enablement metadata.
+- **`src/ui/display.c`** — top-level display assembly. Windows remains core-special; provider tabs render through `CofiTabProvider` row callbacks.
+- **`src/ui/display_pipeline.c`** — assembly of the display strings from filter results.
+- **`src/ui/tab_header.c`** + **`src/ui/tab_switching.c`** — tab header formatting, overflow, visibility, and cycling. Header/cycling enumerate Windows plus registered provider tabs, not a fixed `TAB_*` loop.
+- **`src/ui/key_handler.c`** + `src/ui/key_handler_*.c` — core key dispatch and mode precedence. Provider-specific key handling lives on provider `handle_key` callbacks.
+- **`src/ui/slot_overlay.c`** — transient `[N]` indicators drawn on each window.
+- **`src/ui/window_highlight.c`** — circle ripple effect on activation.
 
 ### Providers and plugin architecture
 
@@ -115,38 +116,40 @@ cofi runs as a **long-lived daemon** plus an **invocation-time delegating client
 
 ### Data & filtering
 
-- **`src/history.c`** — MRU list; `partition_and_reorder` splits by type/desktop.
+- **`src/core/history/history.c`** — MRU list; `partition_and_reorder` splits by type/desktop.
 - **`src/ui/window_filter.c`** — Windows-tab filtering, search/MRU/native ordering modes, workspace bias, and display-title search strings.
-- **`src/fzf_algo.c`** — the scoring algorithm.
-- **`src/match.c`** — match-stage classification (exact / prefix / initials / fuzzy).
-- **`src/harpoon.c`** — 36 persistent slot assignments (`~/.config/cofi/harpoon.json`).
-- **`src/workspace_slots.c`** — per-workspace auto-numbered slots (column-major).
-- **`src/match_entry.c`** + `src/window_matcher.c` — pure matching identities and match-entry pattern/anchor evaluation.
-- **`src/names_store.c`** + `src/names_provider.c` — user-assigned custom names keyed one-to-one by match id.
-- **`src/rules.c`** + `src/rules_config.c` — rule-based window classification.
+- **`src/matching/fzf_algo.c`** — the scoring algorithm.
+- **`src/matching/tier_score.c`** — extracted shared two-tier scorer (`TIER_DIRECT` vs `TIER_INDIRECT`) used by the Windows and Bookmarks tabs; window-only Signal A remains wrapped in `match_window`.
+- **`src/matching/match.c`** — match-stage classification (exact / prefix / initials / fuzzy).
+- **`src/harpoon/harpoon.c`** — 36 persistent slot assignments (`~/.config/cofi/harpoon.json`).
+- **`src/harpoon/workspace_slots.c`** — per-workspace auto-numbered slots (column-major).
+- **`src/matching/match_entry.c`** + `src/matching/window_matcher.c` — pure matching identities and match-entry pattern/anchor evaluation.
+- **`src/names/names_store.c`** + `src/names/names_provider.c` — user-assigned custom names keyed one-to-one by match id.
+- **`src/rules/rules.c`** + `src/rules/rules_config.c` — rule-based window classification.
 - **`src/rules/rules_dispatch.c`** — automatic rule-dispatch loop owner. X11 event code supplies the trigger, but rules owns the policy: window iteration, trigger gating, fire-once handling, circuit-breaker behavior, and re-entry guards.
-- **`src/sessions.c`** — live cancellable `rg` search over Claude/Codex JSONL session files; groups raw matches into session rows and applies `terms | refine` filtering without a persistent index.
+- **`src/sessions/sessions.c`** — live cancellable `rg` search over Claude/Codex JSONL session files; groups raw matches into session rows and applies `terms | refine` filtering without a persistent index.
 
 ### Config
 
-- **`src/config.c`** — load/save/apply config. Built-in keys and provider-registered `CofiConfigSpec` entries share one registry path consumed by `:set`, save/load, and the Config tab.
-- **`src/hotkey_config.c`** — `hotkeys.json` parsing and grab registration.
+- **`src/config/config.c`** — load/save/apply config. Built-in keys and provider-registered `CofiConfigSpec` entries share one registry path consumed by `:set`, save/load, and the Config tab.
+- **`src/daemon/hotkey_config.c`** — `hotkeys.json` parsing and grab registration.
 
 ### Modes
 
-- **`src/run_mode.c`** — `!` prefix; session-only history; detached shell launch.
-- **`src/apps.c`** — desktop-app loader, Apps-local matching/ranking, detached launch.
+- **`src/run/run_mode.c`** — `!` prefix; session-only history; detached shell launch.
+- **`src/apps/apps.c`** — desktop-app loader, Apps-local matching/ranking, detached launch.
 - **`src/bluetooth/`** — provider / BlueZ glue / model split for the Bluetooth tab. Uses async-only GDBus against `org.bluez`, acquires the system bus lazily via a `BUS_UNINITIALIZED` → `BUS_ACQUIRING` → `BUS_READY` / `BUS_FAILED` state machine, and refreshes paired-device state on a 3-second provider `on_tick` cadence.
-- **`src/path_binaries.c`** — async `$PATH` scan with `GFileMonitor` watchers.
-- **`src/system_actions.c`** — logind D-Bus calls (Lock, Suspend, Hibernate, Logout, Reboot, Shutdown) with shell fallback (blocking/sync D-Bus; not the pattern for new D-Bus work — see `src/bluetooth/` for the async pattern).
-- **`src/detach_launch.c`** — shared detached-launch helpers (`systemd-run` primary, `fork+setsid` fallback).
-- **`src/tiling.c`** — half/quarter/third/grid geometry calculation.
+- **`src/projects/path_binaries.c`** — async `$PATH` scan with `GFileMonitor` watchers.
+- **`src/system_actions/system_actions.c`** — logind D-Bus calls (Lock, Suspend, Hibernate, Logout, Reboot, Shutdown) with shell fallback (blocking/sync D-Bus; not the pattern for new D-Bus work — see `src/bluetooth/` for the async pattern).
+- **`src/daemon/detach_launch.c`** — shared detached-launch helpers (`systemd-run` primary, `fork+setsid` fallback).
+- **`src/geom/tiling.c`** — half/quarter/third/grid geometry calculation.
+- **`src/bookmarks/`** — `:bookmarks` tab, Chrome bookmark parsing across all discovered profiles, combined match-string ranking, and bookmark slot payloads in the form `bookmark:chrome:<profile_dir>:<url>`.
 
 ### Infrastructure
 
-- **`src/log.c`** — rxi/log.c bundled logging library.
-- **`src/utils.c`** — string and path helpers.
-- **`src/cofi_json_io.c`** — tolerant JSON I/O wrapper over `json-glib`. Convergence point for persistence stores; codifies the unknown-field / missing-key / wrong-type / corrupt-file policy in one place. See [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md). Migration to it is staged per-store; some legacy stores still use hand-rolled `fprintf`/`sscanf`.
+- **`src/core/log/log.c`** — rxi/log.c bundled logging library.
+- **`src/core/utils/utils.c`** — string and path helpers.
+- **`src/core/json/cofi_json_io.c`** — tolerant JSON I/O wrapper over `json-glib`. Convergence point for persistence stores; codifies the unknown-field / missing-key / wrong-type / corrupt-file policy in one place. See [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md). Migration to it is staged per-store; some legacy stores still use hand-rolled `fprintf`/`sscanf`.
 
 ## Cross-cutting invariants
 
@@ -156,7 +159,7 @@ These are the rules that don't live in any one file but must hold across the sys
 - **MRU before display.** Filter/scoring runs against MRU-ordered candidates, not the native EWMH order. Reordering for display happens once, after scoring.
 - **Display order = search order.** Never reorder the match-target string vs the display columns — the search string is what scoring sees.
 - **Cache invalidation on show.** Pango/monitor/DPI state is sampled per show, not at startup, to survive `xrandr` and XSettings (`Xft/DPI`) changes mid-session.
-- **Single source of truth for config keys.** Config descriptors in `src/config.c` drive save/load, `:set`, and Config tab rows. Provider-owned keys use a `provider_id.key_name` namespace and must be registered during provider bootstrap.
+- **Single source of truth for config keys.** Config descriptors in `src/config/config.c` drive save/load, `:set`, and Config tab rows. Provider-owned keys use a `provider_id.key_name` namespace and must be registered during provider bootstrap.
 - **Detached launch.** Anything cofi launches (run mode, apps tab, `:run`) must outlive cofi itself. `systemd-run --scope --user` is the primary path; `fork+setsid` is the fallback.
 - **Rules-as-policy boundary.** Auto-apply behaviors on window-appear/title-change (geom restore, sticky, always-above, workspace pin) attach via the rules engine, not bespoke triggers. A single execution path keeps the fire-once + circuit-breaker + idempotency invariants in one place — fixes there pay off everywhere. Geom auto-restore is the canonical example: layout payload in `layouts.json` keyed by match_id; trigger via `pattern → rl` rule.
 - **Tolerant persistence I/O.** All JSON reads through `cofi_json_io` (migration in progress, see [ADR-0009](adr/0009-tolerant-json-io-via-json-glib.md)) treat unknown fields as forward-compat, missing/wrong-type as `present == FALSE` + fallback, corrupt files as `log_error` + empty-load. Stores never abort on bad input. Atomic save via tmp+rename in the same directory.
