@@ -357,9 +357,23 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
         .target_columns = get_display_columns(app),
     };
 
+    const char *shortcut_hint = p->get_shortcut_hint
+        ? p->get_shortcut_hint(app)
+        : p->shortcut_hint;
+    int trailing_lines = 0;
+    if (shortcut_hint && shortcut_hint[0] != '\0') {
+        trailing_lines += 2;
+    }
+    if (p->id && strcmp(p->id, "projects") == 0) {
+        trailing_lines += 1;
+    }
+
+    int max_lines = get_max_display_lines_dynamic(app);
+    int content_lines = max_lines > trailing_lines ? max_lines - trailing_lines : 0;
+
     DisplayPipelineRequest request = {
         .total_count = count,
-        .max_lines = get_max_display_lines_dynamic(app),
+        .max_lines = content_lines,
         .scroll_offset = get_scroll_offset(app),
         .selected_idx = selected_idx,
         .target_columns = provider_ctx.target_columns,
@@ -370,9 +384,6 @@ static void format_provider_display(AppData *app, GString *text, gint selected_i
     };
     render_display_pipeline(&request, text);
 
-    const char *shortcut_hint = p->get_shortcut_hint
-        ? p->get_shortcut_hint(app)
-        : p->shortcut_hint;
     if (shortcut_hint && shortcut_hint[0] != '\0') {
         g_string_append_c(text, '\n');
         g_string_append(text, shortcut_hint);

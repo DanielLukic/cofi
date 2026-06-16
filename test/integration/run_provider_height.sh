@@ -131,18 +131,28 @@ start_window_manager() {
     [[ "$wm_ready" -eq 1 ]] || fail "$CASE_NAME: window manager did not become ready"
 }
 
-start_test_window() {
-    xterm -T "ProviderHeight::One" -n "ProviderHeight::One" \
-        >"$TEST_ROOT/xterm-one.log" 2>&1 &
-    pids+=("$!")
+start_test_windows() {
+    local i
+    for i in $(seq 1 28); do
+        xterm -T "ProviderHeight::Window$i" -n "ProviderHeight::Window$i" \
+            >"$TEST_ROOT/xterm-$i.log" 2>&1 &
+        pids+=("$!")
+        wait_for_test_window_count "$i"
+    done
+}
+
+wait_for_test_window_count() {
+    local expected="$1"
 
     for _ in {1..100}; do
-        if wmctrl -l 2>/dev/null | grep -Fq "ProviderHeight::One"; then
+        local count
+        count="$(wmctrl -l 2>/dev/null | grep -c "ProviderHeight::Window" || true)"
+        if [[ "$count" -ge "$expected" ]]; then
             return 0
         fi
         sleep 0.1
     done
-    fail "$CASE_NAME: expected ProviderHeight test window in the WM client list"
+    fail "$CASE_NAME: expected $expected ProviderHeight test windows in the WM client list"
 }
 
 launch_cofi_windows() {
@@ -282,7 +292,7 @@ run_provider_height_case() {
 
     setup_common_config
     start_window_manager
-    start_test_window
+    start_test_windows
     launch_cofi_windows
     wait_for_window_enumeration
     wait_for_window_geometry_stable

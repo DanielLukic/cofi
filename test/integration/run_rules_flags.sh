@@ -312,6 +312,11 @@ assert_images_differ() {
     fi
 }
 
+select_second_rule() {
+    xdotool key Up
+    sleep 0.2
+}
+
 run_rules_flags_toggle() {
     setup_common_config
     write_rules_fixture
@@ -329,7 +334,7 @@ run_rules_flags_toggle() {
 
     # Select the second fixture rule. If refresh resets selection later, the
     # JSON assertions below show the first rule changed instead.
-    xdotool key Up
+    select_second_rule
     wait_for_log_line "Selection UP -> provider\\[1\\]" "select second rule"
 
     local baseline="$TEST_ROOT/rules-flags-baseline.png"
@@ -342,18 +347,21 @@ run_rules_flags_toggle() {
     xdotool key ctrl+o
     wait_for_rule_flag_json 1 once true
     assert_rule_flag_json 0 once false
+    select_second_rule
     capture_window_image "$once_on"
     assert_images_differ "$baseline" "$once_on" "ctrl-o-shows-once-flag"
 
     xdotool key ctrl+o
     wait_for_rule_flag_json 1 once false
     assert_rule_flag_json 0 once false
+    select_second_rule
     capture_window_image "$once_off"
     assert_images_equal "$baseline" "$once_off" "ctrl-o-clears-once-flag"
 
     xdotool key ctrl+n
     wait_for_rule_flag_json 1 new_only true
     assert_rule_flag_json 0 new_only false
+    select_second_rule
     capture_window_image "$new_only_on"
     assert_images_differ "$once_off" "$new_only_on" "ctrl-n-shows-new-only-flag"
 }

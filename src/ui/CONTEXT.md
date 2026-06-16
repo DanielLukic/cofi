@@ -58,7 +58,9 @@ short-lived visual affordances.
    columns.
 3. Provider tabs render through `CofiTabProvider` row-count, `format_row`,
    slot-payload, shortcut-hint, and filtered-map hooks rather than feature-owned
-   data.
+   data. `format_provider_display` emits at most the dynamic `max_lines` body
+   rows total, including provider tail rows: spacer plus `shortcut_hint` and
+   the optional Projects status spacer.
 4. Display range calculation clamps visible rows to `[scroll_offset,
    scroll_offset + max_lines)` and never reads outside the requested item count.
 5. Scrollbars appear only when total items exceed visible rows and use the
