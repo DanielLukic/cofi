@@ -45,6 +45,7 @@ void reset_selection(AppData *app) {
             } else if (app->selection.provider_index < 0 || count <= 0) {
                 app->selection.provider_index = 0;
             }
+            app->selection.selected_provider_id[0] = '\0';
             app->selection.provider_scroll_offset = 0;
         }
     }

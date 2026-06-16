@@ -34,7 +34,9 @@ Core selection owns the active row index, selected identity, and scroll offset f
    provider list.
 2. `reset_selection()` selects the first filtered window on the Windows tab,
    or the provider's `initial_selection_index` clamped into the provider row
-   range on provider tabs.
+   range on provider tabs. Provider-tab resets clear the remembered provider
+   row identity so a later `restore_selection()` cannot re-anchor to a stale
+   row after an intentional reset.
 3. `get_selected_window()` returns `NULL` outside the Windows tab, for empty
    filtered results, or when the window selection index is out of range.
 4. On the Windows tab, `move_selection_up()` advances to the next filtered

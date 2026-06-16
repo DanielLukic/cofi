@@ -180,7 +180,7 @@ static void test_long_identity_is_not_truncated(void) {
     ASSERT_TRUE("restore follows long identity row", app.selection.provider_index == 0);
 }
 
-static void test_reset_selection_leaves_stale_provider_identity(void) {
+static void test_reset_selection_clears_stale_provider_identity(void) {
     AppData app;
     CofiTabProvider provider;
     memset(&app, 0, sizeof(app));
@@ -212,8 +212,8 @@ static void test_reset_selection_leaves_stale_provider_identity(void) {
                 app.selection.provider_index == registered->initial_selection_index);
     ASSERT_TRUE("reset clears provider scroll offset",
                 app.selection.provider_scroll_offset == 0);
-    ASSERT_TRUE("reset leaves stale provider identity",
-                strcmp(app.selection.selected_provider_id, "row:stale") == 0);
+    ASSERT_TRUE("reset clears stale provider identity",
+                app.selection.selected_provider_id[0] == '\0');
 }
 
 int main(void) {
@@ -222,7 +222,7 @@ int main(void) {
 
     test_selection_follows_identity_and_resets_when_missing();
     test_long_identity_is_not_truncated();
-    test_reset_selection_leaves_stale_provider_identity();
+    test_reset_selection_clears_stale_provider_identity();
 
     printf("\nResults: %d/%d tests passed\n", tests_passed, tests_run);
     return tests_run == tests_passed ? 0 : 1;
