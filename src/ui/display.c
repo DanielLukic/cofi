@@ -27,6 +27,25 @@ extern const char *projects_remote_scope_status_message(void) __attribute__((wea
 
 #define UTF8_FIT_BUFFER_SIZE 4096
 
+static int count_rendered_lines(const char *text) {
+    if (!text || text[0] == '\0') return 0;
+    int lines = 0;
+    for (const char *p = text; *p; p++) {
+        if (*p == '\n') lines++;
+    }
+    return lines;
+}
+
+static void export_display_metric(AppData *app, const char *name, unsigned long value) {
+    if (!app || !app->display || app->own_window_id == 0 || !getenv("COFI_TEST_EXPORT_DISPLAY_METRICS")) {
+        return;
+    }
+    Atom prop = XInternAtom(app->display, name, False);
+    XChangeProperty(app->display, app->own_window_id, prop, XA_CARDINAL, 32,
+                    PropModeReplace, (const unsigned char *)&value, 1);
+    XFlush(app->display);
+}
+
 // Check if instance and class should be swapped for display
 static gboolean should_swap_instance_class(const char *instance) {
     return (instance && strlen(instance) > 0 && instance[0] >= 'A' && instance[0] <= 'Z');
@@ -407,6 +426,11 @@ void update_display(AppData *app) {
                 break;
         }
     }
+
+    export_display_metric(app, "_COFI_TEST_BODY_LINE_COUNT",
+                          (unsigned long)count_rendered_lines(text->str));
+    export_display_metric(app, "_COFI_TEST_BODY_MAX_LINES",
+                          (unsigned long)get_max_display_lines_dynamic(app));
     
     // Add tab header at the bottom
     tab_header_format(app, app->current_tab, get_display_columns(app), text);
